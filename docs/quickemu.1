@@ -49,6 +49,57 @@ Override all network settings and start the VM offline
 \f[B]\-\-shortcut\f[R]
 Create a desktop shortcut
 .TP
+\f[B]\-\-status\f[R]
+Show whether the VM is running or stopped.
+.TP
+\f[B]\-\-pause\f[R]
+Pause the running VM (QEMU monitor stop).
+.TP
+\f[B]\-\-resume\f[R]
+Resume a paused VM (QEMU monitor cont).
+.TP
+\f[B]\-\-screenshot [out.ppm|out.png]\f[R]
+Save a screenshot via the QEMU monitor. PNG requires ImageMagick or netpbm.
+.TP
+\f[B]\-\-clone <newname>\f[R]
+Clone this VM (config, firmware vars, TPM state). With \-\-full the disk is copied instead of using a backing file.
+.TP
+\f[B]\-\-disk\-resize <size>\f[R]
+Resize the VM disk (e.g. 32G). Grow the partition/filesystem inside the guest afterwards.
+.TP
+\f[B]\-\-disk\-compact\f[R]
+Reclaim unused space in the disk image (qemu\-img convert).
+.TP
+\f[B]\-\-export <file.tar.gz>\f[R]
+Export the VM (conf + files) to an archive.
+.TP
+\f[B]\-\-import <file.tar.gz>\f[R]
+Import a VM exported with \-\-export.
+.TP
+\f[B]\-\-rename <newname>\f[R]
+Rename this VM (conf file and directory).
+.TP
+\f[B]\-\-send\-keys <combo>\f[R]
+Send keys to the VM via the monitor (e.g. ctrl\-alt\-delete).
+.TP
+\f[B]\-\-type <text>\f[R]
+Type text into the VM via monitor sendkey.
+.TP
+\f[B]\-\-list\-vms\f[R]
+List VM configurations in the current directory with their state.
+.TP
+\f[B]\-\-doctor\f[R]
+Check the VM configuration against host capabilities.
+.TP
+\f[B]\-\-autostart\f[R]
+Create a systemd user unit to autostart this VM at login.
+.TP
+\f[B]\-\-usb\-passthrough <vid:pid>\f[R]
+Pass a host USB device to the guest (e.g. 046d:c52b).
+.TP
+\f[B]\-\-dry\-run\f[R]
+Print the QEMU command line without starting the VM.
+.TP
 \f[B]\-\-snapshot apply <tag>\f[R]
 Apply/restore a snapshot.
 .TP

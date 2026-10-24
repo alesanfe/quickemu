@@ -41,7 +41,7 @@ You can also pass optional parameters
 :   Delete the entire VM and its configuration
 
 **--display**
-:   Select display backend. 'gtk' (default), 'sdl', 'cocoa', 'none',
+:   Select display backend. 'gtk' (default), 'sdl', 'cocoa', 'vnc', 'none',
     'spice' or 'spice-app'
 
 **--fullscreen**
@@ -52,6 +52,60 @@ You can also pass optional parameters
 
 **--kill**
 :   Kill the VM process if it is running
+
+**--status**
+:   Show whether the VM is running or stopped
+
+**--pause**
+:   Pause the running VM (QEMU monitor stop)
+
+**--resume**
+:   Resume a paused VM (QEMU monitor cont)
+
+**--screenshot \\<file.ppm|file.png\\>**
+:   Save a screenshot via the QEMU monitor. PNG requires ImageMagick or netpbm.
+
+**--clone \\<newname\\>**
+:   Clone this VM (config, firmware vars, TPM state). The disk becomes a qcow2 backing-file overlay; combine with '--full' to copy it instead.
+
+**--full**
+:   With '--clone', copy the disk fully instead of using a backing file
+
+**--disk-resize \\<size\\>**
+:   Resize the VM disk (e.g. 32G). Grow the partition/filesystem inside the guest afterwards.
+
+**--disk-compact**
+:   Reclaim unused space in the disk image (qemu-img convert)
+
+**--export \\<file.tar.gz\\>**
+:   Export the VM (conf + files) to an archive for moving between hosts
+
+**--import \\<file.tar.gz\\>**
+:   Import a VM exported with '--export'
+
+**--rename \\<newname\\>**
+:   Rename this VM (conf file and directory)
+
+**--send-keys \\<combo\\>**
+:   Send keys to the VM via the monitor (e.g. ctrl-alt-delete)
+
+**--type \\<text\\>**
+:   Type text into the VM via monitor sendkey
+
+**--list-vms**
+:   List VM configurations in the current directory with their state
+
+**--doctor**
+:   Check the VM configuration against host capabilities
+
+**--autostart**
+:   Create a systemd user unit to autostart this VM at login
+
+**--usb-passthrough \\<vid:pid\\>**
+:   Pass a host USB device to the guest (e.g. 046d:c52b)
+
+**--dry-run**
+:   Print the QEMU command line without starting the VM
 
 **--offline**
 :   Override all network settings and start the VM offline
@@ -781,6 +835,24 @@ Arguments
   --ignore-msrs-always              : Configure KVM to always ignore unhandled machine-specific registers
   --ignore-tsc-warning              : Skip TSC stability warning for macOS VMs on AMD
   --kill                            : Kill the VM process if it is running
+  --status                          : Show whether the VM is running or stopped
+  --pause                           : Pause the running VM
+  --resume                          : Resume a paused VM
+  --screenshot [out.ppm|out.png]    : Save a screenshot via the QEMU monitor
+  --clone <newname>                 : Clone this VM config and disk
+  --full                            : With --clone, copy the disk instead of using a backing file
+  --disk-resize <size>              : Resize the VM disk (e.g. 32G)
+  --disk-compact                    : Reclaim unused space in the disk image
+  --export <file.tar.gz>            : Export the VM to an archive
+  --import <file.tar.gz>            : Import an exported VM archive
+  --rename <newname>                : Rename this VM (conf + directory)
+  --send-keys <combo>               : Send keys to the VM via monitor
+  --type <text>                     : Type text into the VM via monitor
+  --list-vms                        : List VM configs in this directory with state
+  --doctor                          : Check the VM config against host capabilities
+  --autostart                       : Create a systemd user unit to autostart this VM
+  --usb-passthrough <vid:pid>       : Pass a USB device to the guest
+  --dry-run                         : Print the QEMU command line without starting
   --offline                         : Override all network settings and start the VM offline
   --shortcut                        : Create a desktop shortcut
   --snapshot apply <tag>            : Apply/restore a snapshot.

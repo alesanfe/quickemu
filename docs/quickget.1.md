@@ -55,6 +55,15 @@ configuration for `quickemu` to use to build and run
 **--list-json**
 :   List everything in json format
 
+**--update** <os>
+:   Show the newest upstream release versus local VM directories
+
+**--cloud-init**
+:   Generate a NoCloud seed.iso (user-data/meta-data) for the downloaded VM. User: $USER, password: quickemu, plus your ~/.ssh public key when present.
+
+**--unattended**
+:   Configure unattended installation (currently ubuntu-server: extracts kernel/initrd, writes autoinstall user-data and a seed.iso; user: $USER, password: quickemu)
+
 **--version**
 :   Show version
 

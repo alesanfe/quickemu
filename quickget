@@ -44,7 +44,6 @@ function os_info() {
         azurelinux)       INFO="Azure Linux|-|https://github.com/microsoft/azurelinux|Microsoft's internal Linux distribution for cloud infrastructure and edge.";;
         batocera)         INFO="Batocera|-|https://batocera.org/|Retro-gaming distribution with the aim of turning any computer/nano computer into a gaming console during a game or permanently.";;
         bazzite)          INFO="Bazzite|-|https://github.com/ublue-os/bazzite/|Container native gaming and a ready-to-game SteamOS like.";;
-        backbox)          INFO="BackBox|-|https://www.backbox.org/|Ubuntu-based distribution for penetration tests and security assessments.";;
         biglinux)         INFO="BigLinux|-|https://www.biglinux.com.br/|Is the right choice if you want to have an easy and enriching experience with Linux. It has been perfected over more than 19 years, following our motto: 'In search of the perfect system'.";;
         blackarch)        INFO="BlackArch|-|https://blackarch.org/|Arch-based penetration testing distribution for security researchers.";;
         blendos)          INFO="BlendOS|-|https://blendos.co/|A seamless blend of all Linux distributions. Allows you to have an immutable, atomic and declarative Arch Linux system, with application support from several Linux distributions & Android.";;
@@ -1560,6 +1559,13 @@ function web_get() {
         PIPE_OPTS=("--stderr" "-")
     fi
 
+    if command -v aria2c >/dev/null 2>&1 && [ -z "${NO_ARIA2}" ]; then
+        if ! aria2c -x8 -s8 -k1M --file-allocation=none --continue=true --summary-interval=10 --dir="${DIR}" --out="${FILE}" "${URL}"; then
+            echo "WARNING! aria2c failed, falling back to curl."
+        else
+            return 0
+        fi
+    fi
     if ! curl --disable --progress-bar "${PIPE_OPTS[@]}" --location --output "${DIR}/${FILE}" --continue-at - --user-agent "${USER_AGENT}" "${HEADERS[@]}" "${INSECURE[@]}" -- "${URL}"; then
         echo "ERROR! Failed to download ${URL} with curl."
         rm -f "${DIR}/${FILE}"
@@ -1647,6 +1653,121 @@ function zsync_get() {
     fi
 }
 
+# Generate a NoCloud/cloud-init seed.iso inside the VM directory.
+# Usage: gen_seed_iso <vm_path> [user-data-file]
+function gen_seed_iso() {
+    local VM_PATH="${1}"
+    local USER_DATA="${2:-}"
+    local USER_NAME="${USER:-quickemu}"
+    local SSH_KEY=""
+    SSH_KEY=$(cat "${HOME}/.ssh/id_ed25519.pub" "${HOME}/.ssh/id_rsa.pub" 2>/dev/null | head -1)
+    if [ -z "${USER_DATA}" ]; then
+        USER_DATA="${VM_PATH}/user-data"
+        cat << EOF > "${USER_DATA}"
+#cloud-config
+hostname: ${VM_PATH}
+manage_etc_hosts: true
+users:
+  - name: ${USER_NAME}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: sudo
+    shell: /bin/bash
+    lock_passwd: false
+    plain_text_passwd: quickemu
+${SSH_KEY:+    ssh_authorized_keys:
+      - ${SSH_KEY}}
+ssh_pwauth: true
+package_update: true
+EOF
+    fi
+    if [ ! -f "${VM_PATH}/meta-data" ]; then
+        cat << EOF > "${VM_PATH}/meta-data"
+instance-id: ${VM_PATH}
+local-hostname: ${VM_PATH}
+EOF
+    fi
+    if command -v cloud-localds >/dev/null 2>&1; then
+        cloud-localds "${VM_PATH}/seed.iso" "${USER_DATA}" "${VM_PATH}/meta-data"
+    elif command -v genisoimage >/dev/null 2>&1; then
+        genisoimage -output "${VM_PATH}/seed.iso" -volid cidata -joliet -rock "${USER_DATA}" "${VM_PATH}/meta-data" 2>/dev/null
+    elif command -v xorrisofs >/dev/null 2>&1; then
+        xorrisofs -output "${VM_PATH}/seed.iso" -volid cidata -joliet -rock "${USER_DATA}" "${VM_PATH}/meta-data" 2>/dev/null
+    elif command -v mkisofs >/dev/null 2>&1; then
+        mkisofs -output "${VM_PATH}/seed.iso" -volid cidata -joliet -rock "${USER_DATA}" "${VM_PATH}/meta-data" 2>/dev/null
+    else
+        echo "ERROR! No tool to build seed.iso (need cloud-localds, genisoimage, xorrisofs or mkisofs)."
+        return 1
+    fi
+    if [ -f "${VM_PATH}/seed.iso" ]; then
+        echo "seed=\"${VM_PATH}/seed.iso\"" >> "${CONF_FILE}"
+        echo " - NoCloud seed.iso created (user: ${USER_NAME}, password: quickemu)"
+    fi
+}
+
+# Extract kernel+initrd from an ISO for direct kernel boot (unattended installs).
+# Usage: iso_extract_bootfiles <iso> <out_dir> <member_prefix>
+function iso_extract_bootfiles() {
+    local ISO="${1}" OUT="${2}" PREFIX="${3}"
+    if command -v bsdtar >/dev/null 2>&1; then
+        bsdtar -C "${OUT}" -xf "${ISO}" "${PREFIX}/vmlinuz" "${PREFIX}/initrd" 2>/dev/null
+    elif command -v 7z >/dev/null 2>&1; then
+        7z e -o"${OUT}" "${ISO}" "${PREFIX}/vmlinuz" "${PREFIX}/initrd" >/dev/null 2>&1
+    elif command -v isoinfo >/dev/null 2>&1; then
+        isoinfo -i "${ISO}" -x "/${PREFIX^^}/VMLINUZ.;1" > "${OUT}/vmlinuz" 2>/dev/null
+        isoinfo -i "${ISO}" -x "/${PREFIX^^}/INITRD.;1" > "${OUT}/initrd" 2>/dev/null
+    else
+        echo "ERROR! Need bsdtar, 7z or isoinfo to extract kernel from the ISO."
+        return 1
+    fi
+    # Normalise extracted names (7z/bsdtar may place them at OUT root or under PREFIX).
+    if [ ! -s "${OUT}/vmlinuz" ] && [ -s "${OUT}/${PREFIX}/vmlinuz" ]; then
+        mv "${OUT}/${PREFIX}/vmlinuz" "${OUT}/vmlinuz"
+        mv "${OUT}/${PREFIX}/initrd" "${OUT}/initrd" 2>/dev/null
+    fi
+    [ -s "${OUT}/vmlinuz" ] && [ -s "${OUT}/initrd" ]
+}
+
+# Ubuntu autoinstall (subiquity) via direct kernel boot + NoCloud seed.
+function gen_ubuntu_autoinstall() {
+    local VM_PATH="${1}" ISO="${2}"
+    if ! iso_extract_bootfiles "${ISO}" "${VM_PATH}" "casper"; then
+        echo "ERROR! Could not extract casper/vmlinuz+initrd from ${ISO}."
+        return 1
+    fi
+    local USER_NAME="${USER:-quickemu}" PWHASH=""
+    if command -v openssl >/dev/null 2>&1; then
+        PWHASH=$(openssl passwd -6 "quickemu")
+    else
+        echo "ERROR! openssl is required to generate the install password hash."
+        return 1
+    fi
+    cat << EOF > "${VM_PATH}/user-data"
+#cloud-config
+autoinstall:
+  version: 1
+  identity:
+    hostname: ${VM_PATH}
+    username: ${USER_NAME}
+    password: "${PWHASH}"
+  ssh:
+    install-server: true
+    allow-pw: true
+  storage:
+    layout:
+      name: direct
+  late-commands:
+    - echo "${USER_NAME} ALL=(ALL) NOPASSWD:ALL" > /target/etc/sudoers.d/${USER_NAME}
+EOF
+    gen_seed_iso "${VM_PATH}" "${VM_PATH}/user-data"
+    {
+        echo "kernel=\"${VM_PATH}/vmlinuz\""
+        echo "initrd=\"${VM_PATH}/initrd\""
+        # ds=nocloud reads the attached seed; autoinstall triggers subiquity unattended mode.
+        echo "boot_args=\"autoinstall ds=nocloud;s=/cdrom/\""
+    } >> "${CONF_FILE}"
+    echo " - Unattended install configured (user: ${USER_NAME}, password: quickemu)"
+}
+
 function make_vm_config() {
     local CONF_FILE=""
     local IMAGE_FILE=""
@@ -1725,6 +1846,16 @@ function make_vm_config() {
             IMAGE_TYPE="iso";;
     esac
 
+    # A downloaded disk image overrides the per-OS IMAGE_TYPE: it becomes the
+    # VM disk itself rather than installer media.
+    local DISK_FORMAT="qcow2" DISK_LINE="disk_img=\"${VM_PATH}/disk.qcow2\"" TYPE_LINE="${IMAGE_TYPE}=\"${VM_PATH}/${IMAGE_FILE}\""
+    case "${IMAGE_FILE,,}" in
+        *.qcow2) DISK_FORMAT="qcow2" DISK_LINE="disk_img=\"${VM_PATH}/${IMAGE_FILE}\"" TYPE_LINE="";;
+        *.vmdk)  DISK_FORMAT="vmdk"  DISK_LINE="disk_img=\"${VM_PATH}/${IMAGE_FILE}\"" TYPE_LINE="";;
+        *.raw)   DISK_FORMAT="raw"   DISK_LINE="disk_img=\"${VM_PATH}/${IMAGE_FILE}\"" TYPE_LINE="";;
+        *.img)   DISK_FORMAT="raw"   DISK_LINE="disk_img=\"${VM_PATH}/${IMAGE_FILE}\"" TYPE_LINE="";;
+    esac
+
     CONF_FILE="${VM_PATH}.conf"
 
     if [ ! -e "${CONF_FILE}" ]; then
@@ -1741,9 +1872,15 @@ function make_vm_config() {
 #!${QUICKEMU} --vm
 guest_os="${GUEST}"
 ${ARCH_LINE:+${ARCH_LINE}
-}disk_img="${VM_PATH}/disk.qcow2"
-${IMAGE_TYPE}="${VM_PATH}/${IMAGE_FILE}"
+}${DISK_LINE}
+${DISK_FORMAT:+disk_format=\"${DISK_FORMAT}\"}
+${TYPE_LINE}
 EOF
+        sed -i '/^$/d;/^=$/d' "${CONF_FILE}"
+        # Do not write disk_format for ordinary installer VMs (only disk images).
+        if [ -n "${TYPE_LINE}" ]; then
+            sed -i '/^disk_format=/d' "${CONF_FILE}"
+        fi
         echo " - Setting ${CONF_FILE} executable"
         chmod u+x "${CONF_FILE}"
         if [ -n "${ISO_FILE}" ]; then
@@ -1862,6 +1999,17 @@ EOF
             echo "tpm=\"on\"" >> "${CONF_FILE}"
             echo "secureboot=\"off\"" >> "${CONF_FILE}"
         fi
+    fi
+    if [ -e "${CONF_FILE}" ] && [ "${CLOUD_INIT:-false}" == "true" ]; then
+        gen_seed_iso "${VM_PATH}"
+    fi
+    if [ -e "${CONF_FILE}" ] && [ "${UNATTENDED:-false}" == "true" ]; then
+        case "${OS}" in
+            ubuntu-server)
+                gen_ubuntu_autoinstall "${VM_PATH}" "${VM_PATH}/${IMAGE_FILE}";;
+            *)
+                echo "WARNING! --unattended is only supported for ubuntu-server; ignoring.";;
+        esac
     fi
     echo -e "\nTo start your $(pretty_name "${OS}") virtual machine run:"
     if [ "${OS}" == "slint" ]; then
@@ -4014,7 +4162,7 @@ function create_config() {
         echo "Moving image to VM dir" && mv "${INPUT}" "${VM_PATH}"
         CUSTOM_IMAGE_TYPE="img"
     elif [[ "${INPUT}" == *".qcow2" ]]; then
-        echo "Moving image to VM dir" && mv "${INPUT}" "${VM_PATH}/disk.qcow2"
+        echo "Moving image to VM dir" && mv "${INPUT}" "${VM_PATH}"
         CUSTOM_IMAGE_TYPE="qcow2"
     else
         echo "ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config"
@@ -4214,6 +4362,9 @@ Arguments:
    --download       <os> <release> [edition]  : Download image; no VM configuration
    --create-config  <os> [path/url] [flags]   : Create VM config for an OS image
    --insecure                                 : Skip SSL certificate verification (or set QUICKGET_INSECURE=1)
+   --cloud-init                               : Generate a NoCloud seed.iso for the downloaded VM
+   --unattended                               : Configure unattended install (ubuntu-server)
+   --update        <os>                        : Show newest upstream release vs local VMs
    --open-homepage  <os>                      : Open homepage for the OS
    --show           [os]                      : Show OS information
    --version                                  : Show version
@@ -4369,6 +4520,18 @@ case "${1}" in
         CURL_INSECURE="true"
         shift
         ;;
+    --cloud-init|-cloud-init)
+        CLOUD_INIT="true"
+        shift
+        ;;
+    --unattended|-unattended)
+        UNATTENDED="true"
+        shift
+        ;;
+    --update|-update)
+        OPERATION="update"
+        shift
+        ;;
     -*) error_not_supported_argument;;
 esac
 
@@ -4379,6 +4542,24 @@ else
 fi
 
 os_supported
+
+if [ "${OPERATION}" == "update" ]; then
+    case ${OS} in
+        *ubuntu-server*) LATEST=$(releases_ubuntu-server | tr ' ' '\n' | head -1);;
+        *)               LATEST=$(releases_"${OS}" | tr ' ' '\n' | head -1);;
+    esac
+    echo "Latest ${OS} release upstream: ${LATEST}"
+    LOCAL_DIRS=$(find . -maxdepth 1 -type d -name "${OS}-*" | sed 's|^\./||' | sort)
+    if [ -n "${LOCAL_DIRS}" ]; then
+        echo "Local VM dirs:"
+        for d in ${LOCAL_DIRS}; do
+            echo "  ${d}$([ "${d}" == "${OS}-${LATEST}" ] && echo '  (up to date)' || echo '  (older release available)')"
+        done
+    else
+        echo "No local ${OS} VM directories found."
+    fi
+    exit 0
+fi
 
 # Handle --check-all-arch for specific release/edition
 if [ "${CHECK_ALL_ARCH}" == "true" ] && [ -n "${2}" ]; then

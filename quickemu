@@ -187,29 +187,54 @@ function delete_vm() {
     fi
 }
 
+function require_qemu_img() {
+    if [ -z "${QEMU_IMG}" ]; then
+        QEMU_IMG=$(command -v qemu-img)
+    fi
+    if [ -z "${QEMU_IMG}" ] || [ ! -x "${QEMU_IMG}" ]; then
+        echo "ERROR! qemu-img not found. Please install qemu-img."
+        exit 1
+    fi
+}
+
 function pause_vm() {
-    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
-        kill -STOP "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) paused."
-    else
+    if [ -z "${VM_PID}" ] || ! kill -0 "${VM_PID}" 2>/dev/null; then
         echo " - ${VMNAME} is not running."
+        return 1
+    fi
+    # Prefer the QEMU monitor 'stop' command: it suspends the vCPUs while
+    # keeping the monitor socket responsive (screenshots, --monitor-cmd).
+    if [ "${monitor}" != "none" ] && [ -S "${SOCKET_MONITOR}" ]; then
+        monitor_send_cmd "stop" && echo " - ${VMNAME} (${VM_PID}) paused."
+    else
+        kill -STOP "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) paused."
     fi
 }
 
 function resume_vm() {
-    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
-        kill -CONT "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) resumed."
-    else
+    if [ -z "${VM_PID}" ] || ! kill -0 "${VM_PID}" 2>/dev/null; then
         echo " - ${VMNAME} is not running."
+        return 1
+    fi
+    if [ "${monitor}" != "none" ] && [ -S "${SOCKET_MONITOR}" ]; then
+        monitor_send_cmd "cont" && echo " - ${VMNAME} (${VM_PID}) resumed."
+    else
+        kill -CONT "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) resumed."
     fi
 }
 
 function screenshot_vm() {
     local OUT="${SCREENSHOT_OUT:-${VMDIR}/${VMNAME}-$(date +%Y%m%d-%H%M%S).ppm}"
+    local PPM="${OUT}"
     if [ -z "${VM_PID}" ] || ! kill -0 "${VM_PID}" 2>/dev/null; then
         echo " - ${VMNAME} is not running."
         return 1
     fi
-    if [ ! -S "${VMDIR}/${VMNAME}.sock" ]; then
+    if [ "${monitor}" == "none" ]; then
+        echo " - ERROR! No QEMU monitor channel for ${VMNAME} (monitor is disabled)."
+        return 1
+    fi
+    if [ "${monitor}" == "socket" ] && [ ! -S "${SOCKET_MONITOR}" ]; then
         echo " - ERROR! No QEMU monitor socket for ${VMNAME}."
         return 1
     fi
@@ -217,30 +242,329 @@ function screenshot_vm() {
         echo " - ERROR! socat is required for --screenshot."
         return 1
     fi
-    echo "screendump ${OUT}" | socat - "UNIX-CONNECT:${VMDIR}/${VMNAME}.sock" >/dev/null
+    # screendump always writes PPM; convert when a .png filename was requested.
+    if [[ "${OUT}" == *.png ]]; then
+        PPM="${OUT%.png}.ppm"
+    fi
+    monitor_send_cmd "screendump ${PPM}"
+    sleep 0.5
+    if [ ! -s "${PPM}" ]; then
+        echo " - ERROR! Screenshot was not created at ${PPM}."
+        return 1
+    fi
+    if [[ "${OUT}" == *.png ]]; then
+        if command -v convert &>/dev/null; then
+            convert "${PPM}" "${OUT}" && rm -f "${PPM}"
+        elif command -v pnmtopng &>/dev/null; then
+            pnmtopng "${PPM}" > "${OUT}" && rm -f "${PPM}"
+        else
+            OUT="${PPM}"
+            echo " - WARNING! 'convert'/'pnmtopng' not found; saved PPM instead."
+        fi
+    fi
     echo " - Screenshot saved to ${OUT}"
 }
 
 function clone_vm() {
     local NEW_NAME="${CLONE_NAME}"
+    local PARENT="" NEW_DIR="" ITEM=""
     if [ -z "${NEW_NAME}" ]; then
         echo "ERROR! '--clone' needs a name for the new VM."
         exit 1
     fi
-    if [ -e "${VMDIR}/${NEW_NAME}" ] || [ -e "${VMDIR}/${NEW_NAME}.conf" ]; then
+    PARENT="$(dirname "${VMDIR}")"
+    NEW_DIR="${PARENT}/${NEW_NAME}"
+    if [ -e "${NEW_DIR}" ] || [ -e "${PARENT}/${NEW_NAME}.conf" ]; then
         echo "ERROR! ${NEW_NAME} already exists."
         exit 1
     fi
-    mkdir -p "${VMDIR}/${NEW_NAME}"
-    # Copy the config, rewriting references to the old VM directory.
-    sed "s|${VMNAME}/|${NEW_NAME}/|g" "${VMDIR}/${VMNAME}.conf" > "${VMDIR}/${NEW_NAME}.conf"
-    if [ -f "${VMDIR}/${VMNAME}/disk.qcow2" ]; then
-        require_qemu_img
-        ${QEMU_IMG} create -f qcow2 -b "${VMDIR}/${VMNAME}/disk.qcow2" -F qcow2 "${VMDIR}/${NEW_NAME}/disk.qcow2" >/dev/null
-        echo " - Cloned ${VMNAME} to ${NEW_NAME} (shared backing disk)."
-    else
-        echo " - Cloned ${VMNAME} to ${NEW_NAME} (config only; no disk.qcow2 found)."
+    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+        echo "ERROR! Stop ${VMNAME} before cloning."
+        exit 1
     fi
+    mkdir -p "${NEW_DIR}"
+    # Copy the config, rewriting references to the old VM directory.
+    sed "s|${VMNAME}/|${NEW_NAME}/|g" "${VM}" > "${PARENT}/${NEW_NAME}.conf"
+    # Copy firmware vars, TPM state and auxiliary files; skip the disk and
+    # runtime artefacts (pidfiles, sockets, logs, port maps).
+    for ITEM in "${VMDIR}"/*; do
+        case "$(basename "${ITEM}")" in
+            "$(basename "${disk_img}")"|*.pid|*.sock|*.socket|*.ports|*.log|*.sh|*.spice|*.monitor) continue;;
+        esac
+        if [ -d "${ITEM}" ]; then
+            cp -a "${ITEM}" "${NEW_DIR}/"
+        elif [ -f "${ITEM}" ]; then
+            cp "${ITEM}" "${NEW_DIR}/"
+        fi
+    done
+    if [ -f "${disk_img}" ]; then
+        require_qemu_img
+        if [ -n "${CLONE_FULL}" ]; then
+            ${QEMU_IMG} convert -O "${disk_format}" "${disk_img}" "${NEW_DIR}/$(basename "${disk_img}")"
+            echo " - Cloned ${VMNAME} to ${NEW_NAME} (full disk copy)."
+        else
+            ${QEMU_IMG} create -f qcow2 -b "${disk_img}" -F "${disk_format}" "${NEW_DIR}/$(basename "${disk_img}")" >/dev/null
+            echo " - Cloned ${VMNAME} to ${NEW_NAME} (shared backing disk)."
+        fi
+    else
+        echo " - Cloned ${VMNAME} to ${NEW_NAME} (config only; no disk image found)."
+    fi
+}
+
+function disk_resize() {
+    if [ -z "${DISK_SIZE_ARG}" ]; then
+        echo "ERROR! '--disk-resize' needs a size (e.g. 32G)."
+        exit 1
+    fi
+    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+        echo "ERROR! Stop ${VMNAME} before resizing."
+        exit 1
+    fi
+    if [ ! -f "${disk_img}" ]; then
+        echo "ERROR! ${disk_img} not found."
+        exit 1
+    fi
+    require_qemu_img
+    if ${QEMU_IMG} resize "${disk_img}" "${DISK_SIZE_ARG}"; then
+        echo " - Resized ${disk_img} to ${DISK_SIZE_ARG}."
+        echo "             Remember to grow the partition and filesystem inside the guest."
+    else
+        echo "ERROR! Failed to resize ${disk_img}."
+        exit 1
+    fi
+}
+
+function disk_compact() {
+    local TMP="${disk_img}.compact"
+    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+        echo "ERROR! Stop ${VMNAME} before compacting."
+        exit 1
+    fi
+    if [ ! -f "${disk_img}" ]; then
+        echo "ERROR! ${disk_img} not found."
+        exit 1
+    fi
+    require_qemu_img
+    if ${QEMU_IMG} convert -O "${disk_format}" "${disk_img}" "${TMP}"; then
+        mv "${TMP}" "${disk_img}"
+        echo " - Compacted ${disk_img}."
+    else
+        rm -f "${TMP}"
+        echo "ERROR! Failed to compact ${disk_img}."
+        exit 1
+    fi
+}
+
+function export_vm() {
+    local OUT="${EXPORT_FILE:-${VMNAME}.quickvm.tar.gz}" PARENT=""
+    local MEMBERS=("${VMNAME}.conf")
+    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+        echo "ERROR! Stop ${VMNAME} before exporting."
+        exit 1
+    fi
+    PARENT="$(dirname "${VMDIR}")"
+    if [ -d "${PARENT}/${VMNAME}" ]; then
+        MEMBERS+=("${VMNAME}")
+    fi
+    tar -C "${PARENT}" \
+        --exclude="${VMNAME}/*.pid" --exclude="${VMNAME}/*.sock" \
+        --exclude="${VMNAME}/*.socket" --exclude="${VMNAME}/*.ports" \
+        --exclude="${VMNAME}/*.spice" --exclude="${VMNAME}/*.monitor" \
+        -czf "${OUT}" "${MEMBERS[@]}"
+    echo " - Exported ${VMNAME} to ${OUT}"
+}
+
+function import_vm() {
+    local IN="${IMPORT_FILE}" BASE=""
+    if [ -z "${IN}" ] || [ ! -f "${IN}" ]; then
+        echo "ERROR! '--import' needs an existing .tar.gz file."
+        exit 1
+    fi
+    BASE=$(tar -tzf "${IN}" 2>/dev/null | grep -m1 '\.conf$' | xargs -r basename | sed 's/\.conf$//')
+    if [ -z "${BASE}" ]; then
+        echo "ERROR! No .conf found inside ${IN}."
+        exit 1
+    fi
+    if [ -e "${BASE}.conf" ] || [ -d "${BASE}" ]; then
+        echo "ERROR! ${BASE} already exists."
+        exit 1
+    fi
+    tar -xzf "${IN}"
+    echo " - Imported ${BASE} from ${IN}"
+}
+
+function rename_vm() {
+    local NEW_NAME="${RENAME_TO}" PARENT=""
+    if [ -z "${NEW_NAME}" ]; then
+        echo "ERROR! '--rename' needs a new name."
+        exit 1
+    fi
+    PARENT="$(dirname "${VMDIR}")"
+    if [ -e "${PARENT}/${NEW_NAME}" ] || [ -e "${PARENT}/${NEW_NAME}.conf" ]; then
+        echo "ERROR! ${NEW_NAME} already exists."
+        exit 1
+    fi
+    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+        echo "ERROR! Stop ${VMNAME} before renaming."
+        exit 1
+    fi
+    [ -d "${VMDIR}" ] && mv "${VMDIR}" "${PARENT}/${NEW_NAME}"
+    mv "${VM}" "${PARENT}/${NEW_NAME}.conf"
+    sed -i "s|${VMNAME}/|${NEW_NAME}/|g" "${PARENT}/${NEW_NAME}.conf"
+    echo " - Renamed ${VMNAME} to ${NEW_NAME}"
+}
+
+function send_keys() {
+    monitor_send_cmd "sendkey ${SEND_KEYS_ARG}"
+}
+
+function type_text() {
+    local TEXT="${TYPE_TEXT}" C="" KEY="" i=0
+    for (( i=0; i<${#TEXT}; i++ )); do
+        C="${TEXT:i:1}"
+        case "${C}" in
+            [a-z0-9])       KEY="${C}";;
+            [A-Z])          KEY="shift-${C,,}";;
+            ' ')            KEY="spc";;
+            '.')            KEY="dot";;           ',')  KEY="comma";;
+            '-')            KEY="minus";;         '=')  KEY="equal";;
+            '/')            KEY="slash";;         '\\') KEY="backslash";;
+            ';')            KEY="semicolon";;     "'")  KEY="apostrophe";;
+            '[')            KEY="bracket_left";;  ']')  KEY="bracket_right";;
+            '`')            KEY="grave_accent";;
+            ':')            KEY="shift-semicolon";;
+            '!')            KEY="shift-1";;       '@')  KEY="shift-2";;
+            '#')            KEY="shift-3";;       '$')  KEY="shift-4";;
+            '%')            KEY="shift-5";;       '^')  KEY="shift-6";;
+            '&')            KEY="shift-7";;       '*')  KEY="shift-8";;
+            '(')            KEY="shift-9";;       ')')  KEY="shift-0";;
+            '_')            KEY="shift-minus";;   '+')  KEY="shift-equal";;
+            '<')            KEY="shift-comma";;   '>')  KEY="shift-dot";;
+            '?')            KEY="shift-slash";;   '|')  KEY="shift-backslash";;
+            '"')            KEY="shift-apostrophe";;
+            '{')            KEY="shift-bracket_left";;
+            '}')            KEY="shift-bracket_right";;
+            '~')            KEY="shift-grave_accent";;
+            *)              echo " - Skipping unmapped char '${C}'"; continue;;
+        esac
+        monitor_send_cmd "sendkey ${KEY}"
+        sleep 0.05
+    done
+}
+
+function list_vms() {
+    local CONFS=() CONF="" DIR="" OS="" STATE="" PID=""
+    shopt -s nullglob
+    CONFS=(*.conf)
+    shopt -u nullglob
+    if [ ${#CONFS[@]} -eq 0 ]; then
+        echo "No VM configurations found in $(pwd)."
+        return 0
+    fi
+    printf '%-28s %-16s %-9s %s\n' "VM" "GUEST OS" "STATE" "PID"
+    for CONF in "${CONFS[@]}"; do
+        DIR="$(basename "${CONF}" .conf)"
+        OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
+        STATE="stopped"; PID=""
+        if [ -f "${DIR}/${DIR}.pid" ]; then
+            PID=$(cat "${DIR}/${DIR}.pid")
+            if kill -0 "${PID}" 2>/dev/null; then
+                STATE="running"
+            else
+                STATE="stale"; PID=""
+            fi
+        fi
+        printf '%-28s %-16s %-9s %s\n' "${DIR}" "${OS:-linux}" "${STATE}" "${PID}"
+    done
+}
+
+function doctor_vm() {
+    local ISSUES=0
+    echo "Checking ${VMNAME} against host capabilities:"
+    if [ "${OS_KERNEL}" == "Darwin" ]; then
+        echo " o Host: macOS (HVF acceleration)"
+    elif [ -w /dev/kvm ]; then
+        echo " o KVM:  /dev/kvm available"
+    else
+        echo " x KVM:  /dev/kvm not writable, VM will use slow TCG emulation"
+        ISSUES=$((ISSUES + 1))
+    fi
+    if [ ! -x "${QEMU}" ]; then
+        echo " x QEMU: ${QEMU} not executable"
+        ISSUES=$((ISSUES + 1))
+    fi
+    if [ -n "${disk_img}" ] && [ ! -f "${disk_img}" ]; then
+        echo " x Disk: ${disk_img} missing (will be created, ${disk_size})"
+    fi
+    if [ -n "${iso}" ] && [ ! -f "${iso}" ]; then
+        echo " x ISO:  ${iso} missing"
+        ISSUES=$((ISSUES + 1))
+    fi
+    if [[ "${boot}" == *"efi"* ]]; then
+        if ls "${VMDIR}"/OVMF_CODE*.fd "${VMDIR}"/AAVMF*.fd >/dev/null 2>&1 || command -v "${QEMU}" >/dev/null; then
+            echo " o EFI:  firmware files present"
+        else
+            echo " x EFI:  no OVMF/AAVMF firmware found"
+            ISSUES=$((ISSUES + 1))
+        fi
+    fi
+    if [ -n "${ram}" ] && is_numeric "${ram%[GMK]}"; then
+        local RAM_MB=$(( ${ram%[GMK]} * 1024 )) FREE_MB=0
+        FREE_MB=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null)
+        if [ -n "${FREE_MB}" ] && [ "${FREE_MB}" -gt 0 ] && [ "${RAM_MB}" -gt "${FREE_MB}" ]; then
+            echo " x RAM:  VM wants ${ram} but only ${FREE_MB}M available"
+            ISSUES=$((ISSUES + 1))
+        else
+            echo " o RAM:  ${ram} requested (${FREE_MB:-?}M free)"
+        fi
+    fi
+    if [ "${tpm}" == "on" ] && ! command -v swtpm >/dev/null 2>&1; then
+        echo " x TPM:  tpm=on but swtpm not installed"
+        ISSUES=$((ISSUES + 1))
+    fi
+    if [ -n "${network}" ] && [ "${network}" != "none" ] && [ "${network}" != "restrict" ] && [ "${network}" != "passt" ]; then
+        if [ ! -d "/sys/class/net/${network}" ]; then
+            echo " x NET:  bridge interface ${network} does not exist"
+            ISSUES=$((ISSUES + 1))
+        else
+            echo " o NET:  bridge ${network} up"
+        fi
+    fi
+    if [ "${ISSUES}" -eq 0 ]; then
+        echo " - No problems detected."
+    else
+        echo " - ${ISSUES} issue(s) found."
+    fi
+    return 0
+}
+
+function autostart_create() {
+    local UNIT_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/systemd/user"
+    local UNIT="${UNIT_DIR}/quickemu-${VMNAME}.service"
+    local SELF="" CONF_PATH=""
+    SELF=$(readlink -f "$0" 2>/dev/null || realpath "$0")
+    CONF_PATH=$(readlink -f "${VM}" 2>/dev/null || realpath "${VM}")
+    if [ ! -d "${UNIT_DIR}" ]; then
+        mkdir -p "${UNIT_DIR}"
+    fi
+    cat << EOFD > "${UNIT}"
+[Unit]
+Description=Quickemu VM ${VMNAME}
+After=default.target
+
+[Service]
+ExecStart=${SELF} --vm ${CONF_PATH}
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+EOFD
+    if command -v systemctl >/dev/null 2>&1; then
+        systemctl --user daemon-reload
+        systemctl --user enable "quickemu-${VMNAME}.service"
+    fi
+    echo " - Autostart unit written: ${UNIT}"
+    echo "             Start now with: systemctl --user start quickemu-${VMNAME}.service"
 }
 
 function status_vm() {
@@ -1497,6 +1821,8 @@ function configure_display() {
             fi;;
         sdl)        DISPLAY_RENDER="${display},gl=${gl}";;
         spice-app)  DISPLAY_RENDER="${display},gl=${gl}";;
+        vnc)        DISPLAY_RENDER="none"
+                    gl="off";;
         *)          DISPLAY_RENDER="${display}";;
     esac
 
@@ -2512,6 +2838,28 @@ function vm_boot() {
         exit 1
     fi
 
+    if [ "${display}" == "vnc" ]; then
+        args+=(-vnc "${vnc_listen}")
+        echo " - VNC:      Listening on ${vnc_listen}"
+    fi
+
+    # Kernel/initrd override (e.g. unattended installs, direct kernel boot).
+    if [ -n "${kernel}" ]; then
+        args+=(-kernel "${kernel}")
+        [ -n "${initrd}" ] && args+=(-initrd "${initrd}")
+        [ -n "${boot_args}" ] && args+=(-append "${boot_args}")
+    fi
+
+    # NoCloud/cloud-init seed image attached as a cdrom.
+    if [ -n "${seed}" ]; then
+        if [ -e "${seed}" ]; then
+            # shellcheck disable=SC2054
+            args+=(-drive file="${seed}",media=cdrom,if=virtio,format=raw)
+        else
+            echo " - WARNING! seed '${seed}' not found, skipping."
+        fi
+    fi
+
     if [ -n "${extra_args}" ]; then
         # shellcheck disable=SC2206
         args+=(${extra_args})
@@ -2526,6 +2874,10 @@ function vm_boot() {
     SHELL_ARGS="${SHELL_ARGS//Quickemu Project/\"Quickemu Project\"}"
 
     if [ -z "${VM_PID}" ]; then
+        if [ -n "${DRY_RUN}" ]; then
+            echo "${QEMU} ${SHELL_ARGS}"
+            exit 0
+        fi
         echo "${QEMU}" "${SHELL_ARGS}" "2>/dev/null" >> "${VMDIR}/${VMNAME}.sh"
         sed -i -e 's/ -/ \\\n    -/g' "${VMDIR}/${VMNAME}.sh"
         ${QEMU} "${args[@]}" &> "${VMDIR}/${VMNAME}.log" &
@@ -2686,6 +3038,19 @@ function usage() {
     echo "  --resume                          : Resume (SIGCONT) a paused VM"
     echo "  --screenshot [out.ppm]            : Save a screenshot via the QEMU monitor"
     echo "  --clone <newname>                 : Clone this VM config and disk"
+    echo "  --full                            : With --clone, copy the disk instead of using a backing file"
+    echo "  --disk-resize <size>              : Resize the VM disk (e.g. 32G)"
+    echo "  --disk-compact                    : Reclaim unused space in the qcow2 disk"
+    echo "  --export <file.tar.gz>            : Export the VM (conf + files) to an archive"
+    echo "  --import <file.tar.gz>            : Import an exported VM archive"
+    echo "  --rename <newname>                : Rename this VM (conf + directory)"
+    echo "  --send-keys <combo>               : Send keys to the VM via monitor (e.g. ctrl-alt-delete)"
+    echo "  --type <text>                     : Type text into the VM via monitor sendkey"
+    echo "  --list-vms                        : List VM configs in this directory with state"
+    echo "  --doctor                          : Check the VM config against host capabilities"
+    echo "  --autostart                       : Create a systemd user unit to autostart this VM"
+    echo "  --usb-passthrough <vid:pid>       : Pass a USB device to the guest (e.g. 046d:c52b)"
+    echo "  --dry-run                         : Print the QEMU command line without starting the VM"
     echo "  --offline                         : Override all network settings and start the VM offline"
     echo "  --shortcut                        : Create a desktop shortcut"
     echo "  --snapshot apply <tag>            : Apply/restore a snapshot."
@@ -2961,6 +3326,11 @@ height="${height:-}"
 ssh_port="${ssh_port:-}"
 spice_port="${spice_port:-}"
 monitor="${monitor:-socket}"
+kernel="${kernel:-}"
+initrd="${initrd:-}"
+boot_args="${boot_args:-}"
+seed="${seed:-}"
+vnc_listen="${vnc_listen:-127.0.0.1:0}"
 monitor_telnet_port="${monitor_telnet_port:-4440}"
 monitor_telnet_host="${monitor_telnet_host:-localhost}"
 # Serial default is set later based on guest_os (after config is sourced)
@@ -2981,7 +3351,17 @@ BRAILLE=""
 IGNORE_TSC_WARNING=""
 CPU_PINNING=""
 FULLSCREEN=""
+CLONE_FULL=""
+DISK_SIZE_ARG=""
+DRY_RUN=""
+EXPORT_FILE=""
+IMPORT_FILE=""
 MONITOR_CMD=""
+RENAME_TO=""
+SCREENSHOT_OUT=""
+CLONE_NAME=""
+SEND_KEYS_ARG=""
+TYPE_TEXT=""
 PUBLIC=""
 PUBLIC_PERMS=""
 PUBLIC_TAG=""
@@ -3092,12 +3472,65 @@ else
                 shift;;
             -screenshot|--screenshot)
                 ACTIONS+=(screenshot_vm)
-                SCREENSHOT_OUT="${2}"
-                shift;;
+                if [ -n "${2}" ] && [[ "${2}" != -* ]]; then
+                    SCREENSHOT_OUT="${2}"
+                    shift 2
+                else
+                    shift
+                fi;;
             -clone|--clone)
                 ACTIONS+=(clone_vm)
-                CLONE_NAME="${2}"
+                if [ -n "${2}" ] && [[ "${2}" != -* ]]; then
+                    CLONE_NAME="${2}"
+                    shift 2
+                else
+                    shift
+                fi;;
+            -full|--full)
+                CLONE_FULL="true"
+                shift;;
+            -disk-resize|--disk-resize)
+                ACTIONS+=(disk_resize)
+                DISK_SIZE_ARG="${2}"
                 shift 2;;
+            -disk-compact|--disk-compact)
+                ACTIONS+=(disk_compact)
+                shift;;
+            -export|--export)
+                ACTIONS+=(export_vm)
+                EXPORT_FILE="${2}"
+                shift 2;;
+            -import|--import)
+                ACTIONS+=(import_vm)
+                IMPORT_FILE="${2}"
+                shift 2;;
+            -rename|--rename)
+                ACTIONS+=(rename_vm)
+                RENAME_TO="${2}"
+                shift 2;;
+            -send-keys|--send-keys)
+                ACTIONS+=(send_keys)
+                SEND_KEYS_ARG="${2}"
+                shift 2;;
+            -type|--type)
+                ACTIONS+=(type_text)
+                TYPE_TEXT="${2}"
+                shift 2;;
+            -list-vms|--list-vms)
+                ACTIONS+=(list_vms)
+                shift;;
+            -doctor|--doctor|-check|--check)
+                ACTIONS+=(doctor_vm)
+                shift;;
+            -autostart|--autostart)
+                ACTIONS+=(autostart_create)
+                shift;;
+            -usb-passthrough|--usb-passthrough)
+                usb_devices+=("${2}")
+                shift 2;;
+            -dry-run|--dry-run|-echo|--echo)
+                DRY_RUN="true"
+                shift;;
             -offline|--offline)
                 SHORTCUT_OPTIONS+="--offline "
                 network="none"
