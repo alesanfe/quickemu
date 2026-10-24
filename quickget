@@ -2982,7 +2982,15 @@ function get_ubuntu-server() {
     local URL=""
 
     if [[ "${RELEASE}" == "daily"* ]]; then
-        URL="https://cdimage.ubuntu.com/${OS}/${RELEASE}/current"
+        # Daily images live in per-codename directories since Ubuntu
+        # restructured cdimage.ubuntu.com
+        local DAILY_CODENAME=""
+        DAILY_CODENAME="$(ubuntu_daily_codename "${OS}")"
+        if [ -z "${DAILY_CODENAME}" ]; then
+            echo "$(pretty_name "${OS}") ${RELEASE} is currently unavailable. Please select other OS/Release combination"
+            exit 1
+        fi
+        URL="https://cdimage.ubuntu.com/${OS}/${DAILY_CODENAME}/daily-live/current"
     elif [ "${UBUNTU_ARCH}" == "arm64" ]; then
         # ARM64 ISOs are hosted on cdimage.ubuntu.com
         URL="https://cdimage.ubuntu.com/releases/${RELEASE}/release"
@@ -3013,8 +3021,28 @@ function get_ubuntu-server() {
     fi
 }
 
+# Returns the newest Ubuntu codename that hosts daily-live images for
+# the given OS. Ubuntu moved daily images into per-codename directories
+# (e.g. cdimage.ubuntu.com/ubuntu/stonking/daily-live/current), so the
+# old flat "daily-live" directory no longer exists.
+function ubuntu_daily_codename() {
+    local OS="$1"
+    local NAME=""
+    local NAMES=()
+    # Series are listed newest first
+    # shellcheck disable=SC2207
+    NAMES=($(web_pipe https://api.launchpad.net/devel/ubuntu/series | jq -r '.entries[].name'))
+    for NAME in "${NAMES[@]}"; do
+        if web_check "https://cdimage.ubuntu.com/${OS}/${NAME}/daily-live/current/SHA256SUMS"; then
+            echo "${NAME}"
+            return
+        fi
+    done
+}
+
 function get_ubuntu() {
     local DATA=""
+    local DAILY_CODENAME=""
     local HASH=""
     local ISO=""
     local UBUNTU_ARCH="${ARCH}"
@@ -3031,19 +3059,15 @@ function get_ubuntu() {
         fi
     fi
 
-    if [[ "${RELEASE}" == "daily"* ]] && [ "${OS}" == "ubuntustudio" ]; then
-        # Ubuntu Studio daily-live images are in the dvd directory
-        RELEASE="dvd"
-    fi
-    if [[ "${RELEASE}" == "jammy-daily" ]]; then
-        if [[ "${OS}" == "ubuntustudio" ]]; then
-            URL="https://cdimage.ubuntu.com/${OS}/jammy/dvd/current"
-        else
-            URL="https://cdimage.ubuntu.com/${OS}/jammy/daily-live/current"
+    if [[ "${RELEASE}" == "daily"* ]] || [ "${RELEASE}" == "dvd" ]; then
+        # Daily images live in per-codename directories since Ubuntu
+        # restructured cdimage.ubuntu.com
+        DAILY_CODENAME="$(ubuntu_daily_codename "${OS}")"
+        if [ -z "${DAILY_CODENAME}" ]; then
+            echo "$(pretty_name "${OS}") ${RELEASE} is currently unavailable. Please select other OS/Release combination"
+            exit 1
         fi
-        VM_PATH="${OS}-jammy-live$(arch_suffix)"
-    elif [[ "${RELEASE}" == "daily"* ]] || [ "${RELEASE}" == "dvd" ]; then
-        URL="https://cdimage.ubuntu.com/${OS}/${RELEASE}/current"
+        URL="https://cdimage.ubuntu.com/${OS}/${DAILY_CODENAME}/daily-live/current"
         VM_PATH="${OS}-${RELEASE}$(arch_suffix)"
     elif [ "${OS}" == "ubuntu" ] && [ "${UBUNTU_ARCH}" == "arm64" ]; then
         # ARM64 desktop ISOs are hosted on cdimage.ubuntu.com
@@ -3069,9 +3093,6 @@ function get_ubuntu() {
     if [[ "${RELEASE}" == "daily"* ]] || [ "${RELEASE}" == "dvd" ]; then
         zsync_get "${URL}/${ISO}" "${VM_PATH}" "${OS}-devel.iso"
         make_vm_config "${OS}-devel.iso"
-    elif [[ "${RELEASE}" == "jammy-daily" ]]; then
-        zsync_get "${URL}/${ISO}" "${VM_PATH}" "${OS}-jammy-live.iso"
-        make_vm_config "${OS}-jammy-live.iso"
     else
         web_get "${URL}/${ISO}" "${VM_PATH}"
         check_hash "${ISO}" "${HASH}"
