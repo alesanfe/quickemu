@@ -134,8 +134,6 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/config/loader.sh"
     # shellcheck source=lib/quickemu/config/normalizer.sh
     source "${QE_LIBDIR}/config/normalizer.sh"
-    # shellcheck source=lib/quickemu/config/ports.sh
-    source "${QE_LIBDIR}/config/ports.sh"
     # planning: gates before execution
     # shellcheck source=lib/quickemu/planning/builder.sh
     source "${QE_LIBDIR}/planning/builder.sh"

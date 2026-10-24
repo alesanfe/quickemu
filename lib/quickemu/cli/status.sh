@@ -11,8 +11,8 @@ function status_vm() {
         PID_JSON="${VM_PID}"
     fi
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
-        printf '{"schemaVersion":1,"name":"%s","state":"%s","pid":%s}\n' \
-            "${VMNAME}" "${STATE}" "${PID_JSON}"
+        printf '{"schemaVersion":%s,"name":"%s","state":"%s","pid":%s}\n' \
+            "${QE_SCHEMA_VERSION}" "${VMNAME}" "${STATE}" "${PID_JSON}"
         exit 0
     fi
     if [ -n "${VM_PID}" ]; then
@@ -30,14 +30,14 @@ function list_vms() {
     shopt -u nullglob
     if [ ${#CONFS[@]} -eq 0 ]; then
         if [ "${OUTPUT_FORMAT}" == "json" ]; then
-            echo '{"schemaVersion":1,"vms":[]}'
+            echo '{"schemaVersion":'"${QE_SCHEMA_VERSION}"',"vms":[]}'
         else
             echo "No VM configurations found in $(pwd)."
         fi
         return 0
     fi
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
-        printf '{"schemaVersion":1,"vms":['
+        printf '{"schemaVersion":%s,"vms":[' "${QE_SCHEMA_VERSION}"
         for CONF in "${CONFS[@]}"; do
             DIR="$(basename "${CONF}" .conf)"
             OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
@@ -84,7 +84,7 @@ function capabilities() {
     # Keep this in sync with schemas/capabilities-v1.schema.json.
     cat <<JSON
 {
-  "schemaVersion": 1,
+  "schemaVersion": ${QE_SCHEMA_VERSION},
   "applicationVersion": "${VERSION}",
   "capabilities": {
     "structuredCatalog": true,

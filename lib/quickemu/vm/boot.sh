@@ -646,12 +646,7 @@ function vm_boot() {
 
     if [ -z "${VM_PID}" ]; then
         if [ -n "${DRY_RUN}" ]; then
-            if [ "${OUTPUT_FORMAT}" == "json" ]; then
-                printf '{"schemaVersion":1,"vm":"%s","command":"%s"}\n' \
-                    "${VMNAME}" "$(json_escape "${QEMU} ${SHELL_ARGS}")"
-            else
-                echo "${QEMU} ${SHELL_ARGS}"
-            fi
+            emit_execution_plan "${VMNAME}" "${QEMU} ${SHELL_ARGS}"
             exit 0
         fi
         echo "${QEMU}" "${SHELL_ARGS}" "2>/dev/null" >>"${VMDIR}/${VMNAME}.sh"

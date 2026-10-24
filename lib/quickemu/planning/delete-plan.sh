@@ -11,7 +11,7 @@ function delete_plan() {
         while IFS= read -r F; do ITEMS+=("${F}"); done < <(find "${VMDIR}" -mindepth 1)
     fi
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
-        printf '{"schemaVersion":1,"vm":"%s","delete":[' "${VMNAME}"
+        printf '{"schemaVersion":%s,"vm":"%s","delete":[' "${QE_SCHEMA_VERSION}" "${VMNAME}"
         local FIRST=1 I=""
         for I in "${ITEMS[@]}"; do
             [ ${FIRST} -eq 0 ] && printf ','

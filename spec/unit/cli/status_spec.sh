@@ -2,6 +2,7 @@
 Describe 'vm status'
 Include lib/quickemu/cli/status.sh
 Include lib/quickemu/runtime/pid.sh
+Include lib/quickemu/support/json.sh
 
 Describe 'status_vm'
 It 'prints human output when stopped'
