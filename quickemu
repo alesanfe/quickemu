@@ -26,21 +26,21 @@ function ignore_msrs_always() {
             # echo $flag;
 
             case "$flag" in
-	            1)
-		            sudo update-initramfs -k all -u
-		            ;;
-	            2)
-		            sudo mkinitcpio -P
+            1)
+                sudo update-initramfs -k all -u
                 ;;
-	            3)
-		            echo "ERROR! User does not have update-initramfs or mkinitcpio installed, please find out respective utility to update/regenrate intiramfs."
-		            echo "Run respective command for rebuilding initramfs: 'sudo update-initramfs -k all -u'(debian) or 'sudo mkinitcpio -P'(arch)"
+            2)
+                sudo mkinitcpio -P
+                ;;
+            3)
+                echo "ERROR! User does not have update-initramfs or mkinitcpio installed, please find out respective utility to update/regenrate intiramfs."
+                echo "Run respective command for rebuilding initramfs: 'sudo update-initramfs -k all -u'(debian) or 'sudo mkinitcpio -P'(arch)"
                 exit 1
                 ;;
             esac
 
-
         fi
+
     else
         echo "ERROR! /etc/modprobe.d was not found, I don't know how to configure this system."
         exit 1
@@ -69,88 +69,88 @@ function ignore_msrs_alert() {
 # Returns 0 if check passes or user acknowledges warning, exits with 1 if user aborts.
 # Reference: https://github.com/quickemu-project/quickemu/issues/1273
 function check_macos_tsc_stability() {
-  # Gate 1: Only on Linux hosts
-  if [ "${OS_KERNEL}" != "Linux" ]; then
-    return 0
-  fi
-
-  # Gate 2: Only for AMD CPUs
-  if [ "${HOST_CPU_VENDOR}" != "AuthenticAMD" ]; then
-    return 0
-  fi
-
-  # Gate 3: Only for macOS guests
-  if [ "${guest_os}" != "macos" ]; then
-    return 0
-  fi
-
-  # Gate 4: Only for macOS Ventura (13) and newer
-  case ${macos_release} in
-    ventura|sonoma|sequoia|tahoe) ;;
-    *) return 0 ;;
-  esac
-
-  # Gate 5: Skip if user has already set tsc=reliable in kernel cmdline
-  local cmdline=""
-  if [ -r /proc/cmdline ]; then
-    cmdline=$(cat /proc/cmdline)
-    if [[ "${cmdline}" == *"tsc=reliable"* ]]; then
-      return 0
-    fi
-  fi
-
-  # Gate 6: Check if TSC is the current clocksource (indicates stable TSC)
-  local clocksource_path="/sys/devices/system/clocksource/clocksource0/current_clocksource"
-  local current_clocksource=""
-  if [ -r "${clocksource_path}" ]; then
-    current_clocksource=$(cat "${clocksource_path}")
-    if [ "${current_clocksource}" == "tsc" ]; then
-      return 0
-    fi
-  else
-    # Cannot determine clocksource - assume OK and let user discover issues
-    return 0
-  fi
-
-  # All gates failed - this system is at risk
-  # Check if warning should be skipped
-  if [ "${IGNORE_TSC_WARNING}" == "1" ]; then
-    echo " - TSC:      WARNING! Unstable TSC detected (clocksource: ${current_clocksource})"
-    echo "             Proceeding anyway due to --ignore-tsc-warning flag."
-    return 0
-  fi
-
-  # Display warning and prompt user
-  echo " - TSC:      WARNING! Unstable TSC detected (clocksource: ${current_clocksource})"
-  echo "             macOS ${macos_release^} may freeze on AMD Ryzen mobile CPUs."
-  echo
-  echo "             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot."
-  echo "             Or:  Use macOS Big Sur (11) or Monterey (12) instead."
-  echo "             See: https://github.com/quickemu-project/quickemu/wiki/03-Create-macOS-virtual-machines#tsc-instability-on-amd-ryzen-mobile-cpus"
-  echo
-
-  # Log the warning
-  echo "TSC_WARNING: clocksource=${current_clocksource} macos_release=${macos_release} cpu_vendor=${HOST_CPU_VENDOR}" >> "${VMDIR}/${VMNAME}.log"
-
-  # Interactive prompt - check if stdin is a terminal
-  if [ -t 0 ]; then
-    echo -n "Do you want to continue anyway? [y/N] "
-    read -r response
-    case "${response}" in
-      [yY]|[yY][eE][sS])
-        echo " - TSC:      Proceeding despite unstable TSC warning."
+    # Gate 1: Only on Linux hosts
+    if [ "${OS_KERNEL}" != "Linux" ]; then
         return 0
-        ;;
-      *)
-        echo " - TSC:      Aborting. Please apply one of the solutions above."
-        exit 1
-        ;;
+    fi
+
+    # Gate 2: Only for AMD CPUs
+    if [ "${HOST_CPU_VENDOR}" != "AuthenticAMD" ]; then
+        return 0
+    fi
+
+    # Gate 3: Only for macOS guests
+    if [ "${guest_os}" != "macos" ]; then
+        return 0
+    fi
+
+    # Gate 4: Only for macOS Ventura (13) and newer
+    case ${macos_release} in
+    ventura | sonoma | sequoia | tahoe) ;;
+    *) return 0 ;;
     esac
-  else
-    # Non-interactive mode - abort by default for safety
-    echo "ERROR! Non-interactive mode detected. Use --ignore-tsc-warning to bypass this check."
-    exit 1
-  fi
+
+    # Gate 5: Skip if user has already set tsc=reliable in kernel cmdline
+    local cmdline=""
+    if [ -r /proc/cmdline ]; then
+        cmdline=$(cat /proc/cmdline)
+        if [[ "${cmdline}" == *"tsc=reliable"* ]]; then
+            return 0
+        fi
+    fi
+
+    # Gate 6: Check if TSC is the current clocksource (indicates stable TSC)
+    local clocksource_path="/sys/devices/system/clocksource/clocksource0/current_clocksource"
+    local current_clocksource=""
+    if [ -r "${clocksource_path}" ]; then
+        current_clocksource=$(cat "${clocksource_path}")
+        if [ "${current_clocksource}" == "tsc" ]; then
+            return 0
+        fi
+    else
+        # Cannot determine clocksource - assume OK and let user discover issues
+        return 0
+    fi
+
+    # All gates failed - this system is at risk
+    # Check if warning should be skipped
+    if [ "${IGNORE_TSC_WARNING}" == "1" ]; then
+        echo " - TSC:      WARNING! Unstable TSC detected (clocksource: ${current_clocksource})"
+        echo "             Proceeding anyway due to --ignore-tsc-warning flag."
+        return 0
+    fi
+
+    # Display warning and prompt user
+    echo " - TSC:      WARNING! Unstable TSC detected (clocksource: ${current_clocksource})"
+    echo "             macOS ${macos_release^} may freeze on AMD Ryzen mobile CPUs."
+    echo
+    echo "             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot."
+    echo "             Or:  Use macOS Big Sur (11) or Monterey (12) instead."
+    echo "             See: https://github.com/quickemu-project/quickemu/wiki/03-Create-macOS-virtual-machines#tsc-instability-on-amd-ryzen-mobile-cpus"
+    echo
+
+    # Log the warning
+    echo "TSC_WARNING: clocksource=${current_clocksource} macos_release=${macos_release} cpu_vendor=${HOST_CPU_VENDOR}" >>"${VMDIR}/${VMNAME}.log"
+
+    # Interactive prompt - check if stdin is a terminal
+    if [ -t 0 ]; then
+        echo -n "Do you want to continue anyway? [y/N] "
+        read -r response
+        case "${response}" in
+        [yY] | [yY][eE][sS])
+            echo " - TSC:      Proceeding despite unstable TSC warning."
+            return 0
+            ;;
+        *)
+            echo " - TSC:      Aborting. Please apply one of the solutions above."
+            exit 1
+            ;;
+        esac
+    else
+        # Non-interactive mode - abort by default for safety
+        echo "ERROR! Non-interactive mode detected. Use --ignore-tsc-warning to bypass this check."
+        exit 1
+    fi
 }
 
 function delete_shortcut() {
@@ -246,7 +246,7 @@ function screenshot_vm() {
         if command -v convert &>/dev/null; then
             convert "${PPM}" "${OUT}" && rm -f "${PPM}"
         elif command -v pnmtopng &>/dev/null; then
-            pnmtopng "${PPM}" > "${OUT}" && rm -f "${PPM}"
+            pnmtopng "${PPM}" >"${OUT}" && rm -f "${PPM}"
         else
             OUT="${PPM}"
             echo " - WARNING! 'convert'/'pnmtopng' not found; saved PPM instead."
@@ -274,12 +274,12 @@ function clone_vm() {
     fi
     mkdir -p "${NEW_DIR}"
     # Copy the config, rewriting references to the old VM directory.
-    sed "s|${VMNAME}/|${NEW_NAME}/|g" "${VM}" > "${PARENT}/${NEW_NAME}.conf"
+    sed "s|${VMNAME}/|${NEW_NAME}/|g" "${VM}" >"${PARENT}/${NEW_NAME}.conf"
     # Copy firmware vars, TPM state and auxiliary files; skip the disk and
     # runtime artefacts (pidfiles, sockets, logs, port maps).
     for ITEM in "${VMDIR}"/*; do
         case "$(basename "${ITEM}")" in
-            "$(basename "${disk_img}")"|*.pid|*.sock|*.socket|*.ports|*.log|*.sh|*.spice|*.monitor) continue;;
+        "$(basename "${disk_img}")" | *.pid | *.sock | *.socket | *.ports | *.log | *.sh | *.spice | *.monitor) continue ;;
         esac
         if [ -d "${ITEM}" ]; then
             cp -a "${ITEM}" "${NEW_DIR}/"
@@ -410,33 +410,36 @@ function send_keys() {
 
 function type_text() {
     local TEXT="${TYPE_TEXT}" C="" KEY="" i=0
-    for (( i=0; i<${#TEXT}; i++ )); do
+    for ((i = 0; i < ${#TEXT}; i++)); do
         C="${TEXT:i:1}"
         # shellcheck disable=SC1003 # '\' is a literal backslash pattern
         case "${C}" in
-            [a-z0-9])       KEY="${C}";;
-            [A-Z])          KEY="shift-${C,,}";;
-            ' ')            KEY="spc";;
-            '.')            KEY="dot";;           ',')  KEY="comma";;
-            '-')            KEY="minus";;         '=')  KEY="equal";;
-            '/')            KEY="slash";;         '\')  KEY="backslash";;
-            ';')            KEY="semicolon";;     "'")  KEY="apostrophe";;
-            '[')            KEY="bracket_left";;  ']')  KEY="bracket_right";;
-            '`')            KEY="grave_accent";;
-            ':')            KEY="shift-semicolon";;
-            '!')            KEY="shift-1";;       '@')  KEY="shift-2";;
-            '#')            KEY="shift-3";;       '$')  KEY="shift-4";;
-            '%')            KEY="shift-5";;       '^')  KEY="shift-6";;
-            '&')            KEY="shift-7";;       '*')  KEY="shift-8";;
-            '(')            KEY="shift-9";;       ')')  KEY="shift-0";;
-            '_')            KEY="shift-minus";;   '+')  KEY="shift-equal";;
-            '<')            KEY="shift-comma";;   '>')  KEY="shift-dot";;
-            '?')            KEY="shift-slash";;   '|')  KEY="shift-backslash";;
-            '"')            KEY="shift-apostrophe";;
-            '{')            KEY="shift-bracket_left";;
-            '}')            KEY="shift-bracket_right";;
-            '~')            KEY="shift-grave_accent";;
-            *)              echo " - Skipping unmapped char '${C}'"; continue;;
+        [a-z0-9]) KEY="${C}" ;;
+        [A-Z]) KEY="shift-${C,,}" ;;
+        ' ') KEY="spc" ;;
+        '.') KEY="dot" ;; ',') KEY="comma" ;;
+        '-') KEY="minus" ;; '=') KEY="equal" ;;
+        '/') KEY="slash" ;; '\') KEY="backslash" ;;
+        ';') KEY="semicolon" ;; "'") KEY="apostrophe" ;;
+        '[') KEY="bracket_left" ;; ']') KEY="bracket_right" ;;
+        '`') KEY="grave_accent" ;;
+        ':') KEY="shift-semicolon" ;;
+        '!') KEY="shift-1" ;; '@') KEY="shift-2" ;;
+        '#') KEY="shift-3" ;; '$') KEY="shift-4" ;;
+        '%') KEY="shift-5" ;; '^') KEY="shift-6" ;;
+        '&') KEY="shift-7" ;; '*') KEY="shift-8" ;;
+        '(') KEY="shift-9" ;; ')') KEY="shift-0" ;;
+        '_') KEY="shift-minus" ;; '+') KEY="shift-equal" ;;
+        '<') KEY="shift-comma" ;; '>') KEY="shift-dot" ;;
+        '?') KEY="shift-slash" ;; '|') KEY="shift-backslash" ;;
+        '"') KEY="shift-apostrophe" ;;
+        '{') KEY="shift-bracket_left" ;;
+        '}') KEY="shift-bracket_right" ;;
+        '~') KEY="shift-grave_accent" ;;
+        *)
+            echo " - Skipping unmapped char '${C}'"
+            continue
+            ;;
         esac
         monitor_send_cmd "sendkey ${KEY}"
         sleep 0.05
@@ -510,7 +513,7 @@ function autostart_create() {
     if [ ! -d "${UNIT_DIR}" ]; then
         mkdir -p "${UNIT_DIR}"
     fi
-    cat << EOFD > "${UNIT}"
+    cat <<EOFD >"${UNIT}"
 [Unit]
 Description=Quickemu VM ${VMNAME}
 After=default.target
@@ -530,7 +533,6 @@ EOFD
     echo "             Start now with: systemctl --user start quickemu-${VMNAME}.service"
 }
 
-
 function kill_vm() {
     echo "Killing ${VMNAME}"
     if [ -z "${VM_PID}" ]; then
@@ -540,7 +542,7 @@ function kill_vm() {
         rm -f "${VMDIR}/${VMNAME}.sock"
         stop_virtiofsd
     elif [ -n "${VM_PID}" ]; then
-        if kill -9 "${VM_PID}" > /dev/null 2>&1; then
+        if kill -9 "${VM_PID}" >/dev/null 2>&1; then
             echo " - ${VMNAME} (${VM_PID}) killed."
             rm -f "${VMDIR}/${VMNAME}.pid"
             rm -f "${VMDIR}/${VMNAME}.spice"
@@ -620,7 +622,7 @@ function snapshot_info() {
 
 function get_port() {
     local PORT_START=$1
-    local PORT_RANGE=$((PORT_START+$2))
+    local PORT_RANGE=$((PORT_START + $2))
     local PORT
     for ((PORT = PORT_START; PORT <= PORT_RANGE; PORT++)); do
         # Make sure port scans do not block too long.
@@ -642,7 +644,7 @@ function configure_usb() {
     local USB_NOT_READY=0
 
     # Have any USB devices been requested for pass-through?
-    if (( ${#usb_devices[@]} )); then
+    if ((${#usb_devices[@]})); then
         echo " - USB:      Host pass-through requested:"
         for DEVICE in "${usb_devices[@]}"; do
             VENDOR_ID=$(echo "${DEVICE}" | cut -d':' -f1)
@@ -726,7 +728,7 @@ function configure_cpu_flag() {
         # macOS uses different flag names
         if [ "${OS_KERNEL}" == "Darwin" ]; then
             case "${HOST_CPU_FLAG}" in
-                avx) QEMU_CPU_FLAG="AVX1.0";;
+            avx) QEMU_CPU_FLAG="AVX1.0" ;;
             esac
         fi
         echo ",+${QEMU_CPU_FLAG}"
@@ -734,7 +736,7 @@ function configure_cpu_flag() {
         # Fully disable any QEMU flags that are not supported by the host CPU
         if [ "${HOST_CPU_VENDOR}" == "AuthenticAMD" ]; then
             case ${HOST_CPU_FLAG} in
-                pcid) echo ",-${QEMU_CPU_FLAG}";;
+            pcid) echo ",-${QEMU_CPU_FLAG}" ;;
             esac
         fi
     fi
@@ -751,24 +753,24 @@ function check_cpu_flag() {
         if [ "${HOST_CPU_FLAG}" == "AVX" ]; then
             HOST_CPU_FLAG="AVX1.0"
         fi
-        if sysctl -n machdep.cpu.features | grep -o "${HOST_CPU_FLAG}" > /dev/null; then
+        if sysctl -n machdep.cpu.features | grep -o "${HOST_CPU_FLAG}" >/dev/null; then
             return 0
         else
             return 1
         fi
     else
-      HOST_CPU_FLAG="${1}"
-      if lscpu | grep -o "^Flags\b.*: .*\b${HOST_CPU_FLAG}\b" > /dev/null; then
-          return 0
-      else
-          # AMD CPUs report invtsc as constant_tsc; check for equivalence
-          if [ "${HOST_CPU_FLAG}" == "invtsc" ] && [ "${HOST_CPU_VENDOR}" == "AuthenticAMD" ]; then
-              if lscpu | grep -o "^Flags\b.*: .*\bconstant_tsc\b" > /dev/null; then
-                  return 0
-              fi
-          fi
-          return 1
-      fi
+        HOST_CPU_FLAG="${1}"
+        if lscpu | grep -o "^Flags\b.*: .*\b${HOST_CPU_FLAG}\b" >/dev/null; then
+            return 0
+        else
+            # AMD CPUs report invtsc as constant_tsc; check for equivalence
+            if [ "${HOST_CPU_FLAG}" == "invtsc" ] && [ "${HOST_CPU_VENDOR}" == "AuthenticAMD" ]; then
+                if lscpu | grep -o "^Flags\b.*: .*\bconstant_tsc\b" >/dev/null; then
+                    return 0
+                fi
+            fi
+            return 1
+        fi
     fi
 }
 
@@ -790,64 +792,64 @@ function efi_vars() {
 
 # Reset CPU flags tracking (call when initialising new CPU string)
 function reset_cpu_flags() {
-  CPU_FLAG_MAP=()
+    CPU_FLAG_MAP=()
 }
 
 # Add a CPU flag with deduplication and conflict detection
 # Usage: add_cpu_flag "+vmx" or add_cpu_flag ",+vmx"
 function add_cpu_flag() {
-  local flag="${1#,}"  # Strip leading comma if present
+    local flag="${1#,}" # Strip leading comma if present
 
-  # Skip empty flags
-  [[ -z "${flag}" ]] && return 0
+    # Skip empty flags
+    [[ -z "${flag}" ]] && return 0
 
-  # Validate flag format: must be [+-]?name or name=value
-  if [[ ! "${flag}" =~ ^[+-]?[a-zA-Z][a-zA-Z0-9._-]*(=.+)?$ ]]; then
-    echo "WARNING: Invalid CPU flag format: '${flag}' - skipping"
-    return 1
-  fi
-
-  # Extract base flag name (without +/- prefix and =value suffix)
-  local prefix=""
-  local base="${flag}"
-  if [[ "${flag}" == [+-]* ]]; then
-    prefix="${flag:0:1}"
-    base="${flag:1}"
-  fi
-  base="${base%%=*}"
-
-  # Check for exact duplicate
-  if [[ -n "${CPU_FLAG_MAP[${flag}]:-}" ]]; then
-    return 0  # Silently skip duplicates
-  fi
-
-  # Check for conflicts (opposite prefix)
-  local opposite=""
-  if [[ "${prefix}" == "+" ]]; then
-    opposite="-${base}"
-  elif [[ "${prefix}" == "-" ]]; then
-    opposite="+${base}"
-  fi
-
-  if [[ -n "${opposite}" ]] && [[ -n "${CPU_FLAG_MAP[${opposite}]:-}" ]]; then
-    echo "WARNING: Conflicting CPU flag '${flag}' ignored (${opposite} already set)"
-    return 1
-  fi
-
-  # Check for value conflicts (e.g., flag=on vs flag=off)
-  if [[ "${flag}" == *=* ]]; then
-    for existing in "${!CPU_FLAG_MAP[@]}"; do
-      if [[ "${existing%%=*}" == "${base}" ]] && [[ "${existing}" == *=* ]]; then
-        echo "WARNING: Conflicting CPU flag '${flag}' ignored (${existing} already set)"
+    # Validate flag format: must be [+-]?name or name=value
+    if [[ ! "${flag}" =~ ^[+-]?[a-zA-Z][a-zA-Z0-9._-]*(=.+)?$ ]]; then
+        echo "WARNING: Invalid CPU flag format: '${flag}' - skipping"
         return 1
-      fi
-    done
-  fi
+    fi
 
-  # Add to tracking map and append to CPU string
-  CPU_FLAG_MAP["${flag}"]=1
-  CPU+=",${flag}"
-  return 0
+    # Extract base flag name (without +/- prefix and =value suffix)
+    local prefix=""
+    local base="${flag}"
+    if [[ "${flag}" == [+-]* ]]; then
+        prefix="${flag:0:1}"
+        base="${flag:1}"
+    fi
+    base="${base%%=*}"
+
+    # Check for exact duplicate
+    if [[ -n "${CPU_FLAG_MAP[${flag}]:-}" ]]; then
+        return 0 # Silently skip duplicates
+    fi
+
+    # Check for conflicts (opposite prefix)
+    local opposite=""
+    if [[ "${prefix}" == "+" ]]; then
+        opposite="-${base}"
+    elif [[ "${prefix}" == "-" ]]; then
+        opposite="+${base}"
+    fi
+
+    if [[ -n "${opposite}" ]] && [[ -n "${CPU_FLAG_MAP[${opposite}]:-}" ]]; then
+        echo "WARNING: Conflicting CPU flag '${flag}' ignored (${opposite} already set)"
+        return 1
+    fi
+
+    # Check for value conflicts (e.g., flag=on vs flag=off)
+    if [[ "${flag}" == *=* ]]; then
+        for existing in "${!CPU_FLAG_MAP[@]}"; do
+            if [[ "${existing%%=*}" == "${base}" ]] && [[ "${existing}" == *=* ]]; then
+                echo "WARNING: Conflicting CPU flag '${flag}' ignored (${existing} already set)"
+                return 1
+            fi
+        done
+    fi
+
+    # Add to tracking map and append to CPU string
+    CPU_FLAG_MAP["${flag}"]=1
+    CPU+=",${flag}"
+    return 0
 }
 
 function configure_cpu() {
@@ -890,13 +892,15 @@ function configure_cpu() {
         # generally more compatible on modern aarch64 systems.
         MACHINE_TYPE="virt,highmem=on"
         case ${ARCH_HOST} in
-            arm64|aarch64)
-                # Native ARM64 host running ARM64 guest - use hardware acceleration
-                CPU_MODEL="max";;
-            *)
-                # Cross-architecture emulation (e.g., x86_64 host running ARM64 guest)
-                CPU_MODEL="max"
-                QEMU_ACCEL="tcg";;
+        arm64 | aarch64)
+            # Native ARM64 host running ARM64 guest - use hardware acceleration
+            CPU_MODEL="max"
+            ;;
+        *)
+            # Cross-architecture emulation (e.g., x86_64 host running ARM64 guest)
+            CPU_MODEL="max"
+            QEMU_ACCEL="tcg"
+            ;;
         esac
     elif [ "${ARCH_VM}" != "${ARCH_HOST}" ]; then
         # If the architecture of the VM is different from the host, disable acceleration
@@ -923,10 +927,12 @@ function configure_cpu() {
     # Note: Checking CPU flags (vmx/svm) indicates hardware virtualisation SUPPORT,
     # not whether we're inside a VM. Nested virtualisation may expose these flags.
     case ${MANUFACTURER,,} in
-        qemu|virtualbox) CPU_MODEL="qemu64"
-                         QEMU_ACCEL="tcg"
-                         HYPERVISOR="${MANUFACTURER,,}";;
-        *) HYPERVISOR="";;
+    qemu | virtualbox)
+        CPU_MODEL="qemu64"
+        QEMU_ACCEL="tcg"
+        HYPERVISOR="${MANUFACTURER,,}"
+        ;;
+    *) HYPERVISOR="" ;;
     esac
 
     if [ -z "${HYPERVISOR}" ]; then
@@ -971,7 +977,7 @@ function configure_cpu() {
     # SMM is also required for Linux guests when Secure Boot is enabled
     if [ "${secureboot}" == "on" ]; then
         if [ "${guest_os}" == "linux" ]; then
-        # SMM is not available on QEMU for macOS via Homebrew
+            # SMM is not available on QEMU for macOS via Homebrew
             if [ "${OS_KERNEL}" == "Linux" ]; then
                 SMM="on"
             fi
@@ -979,138 +985,142 @@ function configure_cpu() {
     fi
 
     case ${guest_os} in
-        batocera|freedos|haiku|solaris) MACHINE_TYPE="pc";;
-        kolibrios|reactos)
-            CPU="-cpu qemu32"
+    batocera | freedos | haiku | solaris) MACHINE_TYPE="pc" ;;
+    kolibrios | reactos)
+        CPU="-cpu qemu32"
+        reset_cpu_flags
+        MACHINE_TYPE="pc"
+        ;;
+    macos)
+        # If the host has an Intel CPU, passes the host CPU model features, model, stepping, exactly to the guest.
+        # Disable huge pages (,-pdpe1gb) on macOS to prevent crashes
+        # - https://stackoverflow.com/questions/60231203/qemu-qcow2-mmu-gva-to-gpa-crash-in-mac-os-x
+        # vmware-cpuid-freq=on enables VMware TSC frequency reporting for macOS timing
+        if [ "${HOST_CPU_VENDOR}" == "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
+            CPU_MODEL="host"
+            CPU="-cpu ${CPU_MODEL},-pdpe1gb,+hypervisor,vmware-cpuid-freq=on"
             reset_cpu_flags
-            MACHINE_TYPE="pc";;
-        macos)
-            # If the host has an Intel CPU, passes the host CPU model features, model, stepping, exactly to the guest.
-            # Disable huge pages (,-pdpe1gb) on macOS to prevent crashes
-            # - https://stackoverflow.com/questions/60231203/qemu-qcow2-mmu-gva-to-gpa-crash-in-mac-os-x
-            # vmware-cpuid-freq=on enables VMware TSC frequency reporting for macOS timing
-            if [ "${HOST_CPU_VENDOR}" == "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
-                CPU_MODEL="host"
-                CPU="-cpu ${CPU_MODEL},-pdpe1gb,+hypervisor,vmware-cpuid-freq=on"
-                reset_cpu_flags
-            else
-                CPU_MODEL="Haswell-v2"
-                CPU="-cpu ${CPU_MODEL},vendor=GenuineIntel,-pdpe1gb,+avx,+sse,+sse2,+ssse3,vmware-cpuid-freq=on"
-                reset_cpu_flags
-            fi
-            # A CPU with fma is required for Metal support
-            # A CPU with invtsc is required for macOS to boot
-            # Skip CPU feature checks when using TCG emulation (cross-architecture)
-            # as TCG will emulate the required x86 features in software. This enables
-            # running macOS x86_64 VMs on ARM Macs through software emulation.
-            if [ "${QEMU_ACCEL}" != "tcg" ]; then
-                case ${macos_release} in
-                    ventura|sonoma|sequoia|tahoe)
-                        # A CPU with AVX2 support is required for >= macOS Ventura
-                        if check_cpu_flag sse4_2 && check_cpu_flag avx2; then
-                            if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
-                                add_cpu_flag "+avx2"
-                                add_cpu_flag "+sse4.2"
-                            fi
-                        else
-                            echo "ERROR! macOS ${macos_release} requires a CPU with SSE 4.2 and AVX2 support."
-                            echo "       Try macOS Monterey or Big Sur."
-                            exit 1
-                        fi;;
-                    catalina|big-sur|monterey)
-                        # A CPU with SSE4.2 support is required for >= macOS Catalina
-                        if check_cpu_flag sse4_2; then
-                            if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
-                                add_cpu_flag "+sse4.2"
-                            fi
-                        else
-                            echo "ERROR! macOS ${macos_release} requires a CPU with SSE 4.2 support."
-                            exit 1
-                        fi;;
-                    *)
-                        # A CPU with SSE4.1 support is required for >= macOS Sierra
-                        if check_cpu_flag sse4_1; then
-                            if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
-                                add_cpu_flag "+sse4.1"
-                            fi
-                        else
-                            echo "ERROR! macOS ${macos_release} requires a CPU with SSE 4.1 support."
-                            exit 1
-                        fi;;
-                esac
-
-                if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
-                    for FLAG in abm adx aes amd-ssbd apic arat bmi1 bmi2 clflush cmov cx8 cx16 de \
-                                eist erms f16c fma fp87 fsgsbase fxsr invpcid invtsc lahf_lm lm \
-                                mca mce mmx movbe mpx msr mtrr nx pae pat pcid pge pse popcnt pse36 \
-                                rdrand rdtscp sep smep syscall tsc tsc_adjust vaes vbmi2 vmx vpclmulqdq \
-                                x2apic xgetbv1 xsave xsaveopt; do
-                        local cpu_flag
-                        cpu_flag=$(configure_cpu_flag "${FLAG}")
-                        [[ -n "${cpu_flag}" ]] && add_cpu_flag "${cpu_flag#,}"
-                    done
-                    # AMD CPUs with constant_tsc need explicit TSC flags for macOS stability
-                    # constant_tsc is AMD's equivalent of Intel's invtsc
-                    if [ "${HOST_CPU_VENDOR}" == "AuthenticAMD" ] && check_cpu_flag invtsc; then
-                        add_cpu_flag "+tsc"
-                        add_cpu_flag "+tsc-deadline"
+        else
+            CPU_MODEL="Haswell-v2"
+            CPU="-cpu ${CPU_MODEL},vendor=GenuineIntel,-pdpe1gb,+avx,+sse,+sse2,+ssse3,vmware-cpuid-freq=on"
+            reset_cpu_flags
+        fi
+        # A CPU with fma is required for Metal support
+        # A CPU with invtsc is required for macOS to boot
+        # Skip CPU feature checks when using TCG emulation (cross-architecture)
+        # as TCG will emulate the required x86 features in software. This enables
+        # running macOS x86_64 VMs on ARM Macs through software emulation.
+        if [ "${QEMU_ACCEL}" != "tcg" ]; then
+            case ${macos_release} in
+            ventura | sonoma | sequoia | tahoe)
+                # A CPU with AVX2 support is required for >= macOS Ventura
+                if check_cpu_flag sse4_2 && check_cpu_flag avx2; then
+                    if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
+                        add_cpu_flag "+avx2"
+                        add_cpu_flag "+sse4.2"
                     fi
+                else
+                    echo "ERROR! macOS ${macos_release} requires a CPU with SSE 4.2 and AVX2 support."
+                    echo "       Try macOS Monterey or Big Sur."
+                    exit 1
+                fi
+                ;;
+            catalina | big-sur | monterey)
+                # A CPU with SSE4.2 support is required for >= macOS Catalina
+                if check_cpu_flag sse4_2; then
+                    if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
+                        add_cpu_flag "+sse4.2"
+                    fi
+                else
+                    echo "ERROR! macOS ${macos_release} requires a CPU with SSE 4.2 support."
+                    exit 1
+                fi
+                ;;
+            *)
+                # A CPU with SSE4.1 support is required for >= macOS Sierra
+                if check_cpu_flag sse4_1; then
+                    if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
+                        add_cpu_flag "+sse4.1"
+                    fi
+                else
+                    echo "ERROR! macOS ${macos_release} requires a CPU with SSE 4.1 support."
+                    exit 1
+                fi
+                ;;
+            esac
+
+            if [ "${HOST_CPU_VENDOR}" != "GenuineIntel" ] && [ -z "${HYPERVISOR}" ]; then
+                for FLAG in abm adx aes amd-ssbd apic arat bmi1 bmi2 clflush cmov cx8 cx16 de \
+                    eist erms f16c fma fp87 fsgsbase fxsr invpcid invtsc lahf_lm lm \
+                    mca mce mmx movbe mpx msr mtrr nx pae pat pcid pge pse popcnt pse36 \
+                    rdrand rdtscp sep smep syscall tsc tsc_adjust vaes vbmi2 vmx vpclmulqdq \
+                    x2apic xgetbv1 xsave xsaveopt; do
+                    local cpu_flag
+                    cpu_flag=$(configure_cpu_flag "${FLAG}")
+                    [[ -n "${cpu_flag}" ]] && add_cpu_flag "${cpu_flag#,}"
+                done
+                # AMD CPUs with constant_tsc need explicit TSC flags for macOS stability
+                # constant_tsc is AMD's equivalent of Intel's invtsc
+                if [ "${HOST_CPU_VENDOR}" == "AuthenticAMD" ] && check_cpu_flag invtsc; then
+                    add_cpu_flag "+tsc"
+                    add_cpu_flag "+tsc-deadline"
                 fi
             fi
+        fi
 
-            # Disable S3 support in the VM to prevent macOS suspending during install
-            # Disable ACPI PCI hotplug to prevent issues with macOS (required for QEMU 6.1+)
-            GUEST_TWEAKS+=" -global ICH9-LPC.disable_s3=1 -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off -device isa-applesmc,osk=$(echo "bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap" | tr 'A-Za-z' 'N-ZA-Mn-za-m')"
+        # Disable S3 support in the VM to prevent macOS suspending during install
+        # Disable ACPI PCI hotplug to prevent issues with macOS (required for QEMU 6.1+)
+        GUEST_TWEAKS+=" -global ICH9-LPC.disable_s3=1 -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off -device isa-applesmc,osk=$(echo "bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap" | tr 'A-Za-z' 'N-ZA-Mn-za-m')"
 
-            # Disable High Precision Timer
+        # Disable High Precision Timer
+        if [ "${QEMU_VER_SHORT}" -ge 70 ]; then
+            MACHINE_TYPE+=",hpet=off"
+        else
+            GUEST_TWEAKS+=" -no-hpet"
+        fi
+        ;;
+    windows | windows-server)
+        # x86/x86_64 Windows guests require additional CPU feature flags.
+        # ARM64 guests use the generic CPU configuration established earlier.
+        if [ "${ARCH_VM}" == "x86_64" ]; then
+            CPU="-cpu ${CPU_MODEL},+hypervisor,+invtsc,l3-cache=on"
+            reset_cpu_flags
+        fi
+        # KVM-specific flags: migratable and Hyper-V enlightenments
+        if [ "${ARCH_VM}" == "x86_64" ] && [ "${QEMU_ACCEL}" == "kvm" ]; then
+            if [ "${QEMU_VER_SHORT}" -gt 60 ]; then
+                add_cpu_flag "migratable=no"
+                add_cpu_flag "hv_passthrough"
+            else
+                add_cpu_flag "migratable=no"
+                add_cpu_flag "hv_frequencies"
+                [[ -n "${CPU_KVM_UNHALT}" ]] && add_cpu_flag "${CPU_KVM_UNHALT#,}"
+                add_cpu_flag "hv_reenlightenment"
+                add_cpu_flag "hv_relaxed"
+                add_cpu_flag "hv_spinlocks=8191"
+                add_cpu_flag "hv_stimer"
+                add_cpu_flag "hv_synic"
+                add_cpu_flag "hv_time"
+                add_cpu_flag "hv_vapic"
+                add_cpu_flag "hv_vendor_id=1234567890ab"
+                add_cpu_flag "hv_vpindex"
+            fi
+        fi
+        # Disable S3 support in the VM to ensure Windows can boot with SecureBoot enabled
+        #  - https://wiki.archlinux.org/title/QEMU/Troubleshooting#Virtual_machine_not_booting_when_using_a_Secure_Boot_enabled_OVMF
+        GUEST_TWEAKS+=" -global ICH9-LPC.disable_s3=1"
+
+        # Disable High Precision Timer
+        # ARM64 "virt" machines do not implement this property
+        # as HPET is only available on PC (x86/x86_64) machine types.
+        if [ "${ARCH_VM}" == "x86_64" ]; then
             if [ "${QEMU_VER_SHORT}" -ge 70 ]; then
                 MACHINE_TYPE+=",hpet=off"
             else
                 GUEST_TWEAKS+=" -no-hpet"
             fi
-            ;;
-        windows|windows-server)
-            # x86/x86_64 Windows guests require additional CPU feature flags.
-            # ARM64 guests use the generic CPU configuration established earlier.
-            if [ "${ARCH_VM}" == "x86_64" ]; then
-                CPU="-cpu ${CPU_MODEL},+hypervisor,+invtsc,l3-cache=on"
-                reset_cpu_flags
-            fi
-            # KVM-specific flags: migratable and Hyper-V enlightenments
-            if [ "${ARCH_VM}" == "x86_64" ] && [ "${QEMU_ACCEL}" == "kvm" ]; then
-                if [ "${QEMU_VER_SHORT}" -gt 60 ]; then
-                    add_cpu_flag "migratable=no"
-                    add_cpu_flag "hv_passthrough"
-                else
-                    add_cpu_flag "migratable=no"
-                    add_cpu_flag "hv_frequencies"
-                    [[ -n "${CPU_KVM_UNHALT}" ]] && add_cpu_flag "${CPU_KVM_UNHALT#,}"
-                    add_cpu_flag "hv_reenlightenment"
-                    add_cpu_flag "hv_relaxed"
-                    add_cpu_flag "hv_spinlocks=8191"
-                    add_cpu_flag "hv_stimer"
-                    add_cpu_flag "hv_synic"
-                    add_cpu_flag "hv_time"
-                    add_cpu_flag "hv_vapic"
-                    add_cpu_flag "hv_vendor_id=1234567890ab"
-                    add_cpu_flag "hv_vpindex"
-                fi
-            fi
-            # Disable S3 support in the VM to ensure Windows can boot with SecureBoot enabled
-            #  - https://wiki.archlinux.org/title/QEMU/Troubleshooting#Virtual_machine_not_booting_when_using_a_Secure_Boot_enabled_OVMF
-            GUEST_TWEAKS+=" -global ICH9-LPC.disable_s3=1"
-
-            # Disable High Precision Timer
-            # ARM64 "virt" machines do not implement this property
-            # as HPET is only available on PC (x86/x86_64) machine types.
-            if [ "${ARCH_VM}" == "x86_64" ]; then
-                if [ "${QEMU_VER_SHORT}" -ge 70 ]; then
-                    MACHINE_TYPE+=",hpet=off"
-                else
-                    GUEST_TWEAKS+=" -no-hpet"
-                fi
-            fi
-            ;;
+        fi
+        ;;
     esac
 
     if [ "${HOST_CPU_VENDOR}" == "AuthenticAMD" ] && [ "${guest_os}" != "macos" ] && [ "${ARCH_VM}" == "x86_64" ]; then
@@ -1146,7 +1156,7 @@ function configure_cpu() {
     # Find the nearest but lowest power of 2 using a predefined table
     if [ "${guest_os}" == "macos" ]; then
         local POWERS=(1 2 4 8 16 32 64 128 256 512 1024)
-        for (( i=${#POWERS[@]}-1; i>=0; i-- )); do
+        for ((i = ${#POWERS[@]} - 1; i >= 0; i--)); do
             if [ "${POWERS[i]}" -le "${GUEST_CPU_CORES}" ]; then
                 GUEST_CPU_CORES="${POWERS[i]}"
                 break
@@ -1172,10 +1182,14 @@ function configure_cpu() {
     # Account for Hyperthreading/SMT.
     if [ "${GUEST_CPU_CORES}" -ge 2 ]; then
         case ${HOST_CPU_SMT} in
-            on) GUEST_CPU_THREADS=2
-                GUEST_CPU_LOGICAL_CORES=$(( GUEST_CPU_CORES / GUEST_CPU_THREADS ));;
-            *)  GUEST_CPU_THREADS=1
-                GUEST_CPU_LOGICAL_CORES=${GUEST_CPU_CORES};;
+        on)
+            GUEST_CPU_THREADS=2
+            GUEST_CPU_LOGICAL_CORES=$((GUEST_CPU_CORES / GUEST_CPU_THREADS))
+            ;;
+        *)
+            GUEST_CPU_THREADS=1
+            GUEST_CPU_LOGICAL_CORES=${GUEST_CPU_CORES}
+            ;;
         esac
     else
         GUEST_CPU_THREADS=1
@@ -1198,10 +1212,10 @@ function configure_ram() {
     if [ -z "${ram}" ]; then
         local RAM_HOST=""
         if [ "${OS_KERNEL}" == "Darwin" ]; then
-            RAM_HOST=$(($(sysctl -n hw.memsize) / (1048576*1024)))
+            RAM_HOST=$(($(sysctl -n hw.memsize) / (1048576 * 1024)))
         else
             # Determine the number of gigabytes of RAM in the host by extracting the first numerical value from the output.
-            RAM_HOST=$(free --giga | tr ' ' '\n' | grep -m 1 "[0-9]" )
+            RAM_HOST=$(free --giga | tr ' ' '\n' | grep -m 1 "[0-9]")
         fi
 
         if [ "${RAM_HOST}" -ge 128 ]; then
@@ -1219,14 +1233,14 @@ function configure_ram() {
     echo " - RAM VM:   ${RAM_VM} RAM"
 
     case "${guest_os}" in
-        windows|windows-server)
-            OS_PRETTY_NAME="Windows"
-            min_ram="4"
-            ;;
-        macos)
-            OS_PRETTY_NAME="macOS"
-            min_ram="8"
-            ;;
+    windows | windows-server)
+        OS_PRETTY_NAME="Windows"
+        min_ram="4"
+        ;;
+    macos)
+        OS_PRETTY_NAME="macOS"
+        min_ram="8"
+        ;;
     esac
 
     if [ -n "${min_ram}" ] && [ "${RAM_VM//G/}" -lt "${min_ram}" ]; then
@@ -1252,39 +1266,39 @@ function is_firmware_qcow2() {
 # Derive QEMU share path from binary location
 # Handles Nix, Homebrew, MacPorts, system packages, custom builds
 function get_qemu_share_path() {
-  local qemu_bin="${QEMU}"
-  local qemu_real qemu_prefix share_path
+    local qemu_bin="${QEMU}"
+    local qemu_real qemu_prefix share_path
 
-  # Resolve the actual binary path (handles symlinks, Nix store paths)
-  if command -v realpath &>/dev/null; then
-    qemu_real=$(realpath "${qemu_bin}" 2>/dev/null) || qemu_real="${qemu_bin}"
-  else
-    # macOS fallback: follow symlink chain manually
-    qemu_real="${qemu_bin}"
-    while [ -L "${qemu_real}" ]; do
-      local link_target
-      link_target=$(readlink "${qemu_real}")
-      # Handle relative symlinks
-      if [[ "${link_target}" != /* ]]; then
-        qemu_real="$(dirname "${qemu_real}")/${link_target}"
-      else
-        qemu_real="${link_target}"
-      fi
-    done
-  fi
+    # Resolve the actual binary path (handles symlinks, Nix store paths)
+    if command -v realpath &>/dev/null; then
+        qemu_real=$(realpath "${qemu_bin}" 2>/dev/null) || qemu_real="${qemu_bin}"
+    else
+        # macOS fallback: follow symlink chain manually
+        qemu_real="${qemu_bin}"
+        while [ -L "${qemu_real}" ]; do
+            local link_target
+            link_target=$(readlink "${qemu_real}")
+            # Handle relative symlinks
+            if [[ "${link_target}" != /* ]]; then
+                qemu_real="$(dirname "${qemu_real}")/${link_target}"
+            else
+                qemu_real="${link_target}"
+            fi
+        done
+    fi
 
-  # /path/to/bin/qemu-system-x86_64 -> /path/to/share
-  qemu_prefix="$(dirname "$(dirname "${qemu_real}")")"
-  share_path="${qemu_prefix}/share"
+    # /path/to/bin/qemu-system-x86_64 -> /path/to/share
+    qemu_prefix="$(dirname "$(dirname "${qemu_real}")")"
+    share_path="${qemu_prefix}/share"
 
-  # Validate: must contain qemu firmware directory
-  if [ -d "${share_path}/qemu" ]; then
-    echo "${share_path}"
-    return 0
-  fi
+    # Validate: must contain qemu firmware directory
+    if [ -d "${share_path}/qemu" ]; then
+        echo "${share_path}"
+        return 0
+    fi
 
-  # Fallback for system installations
-  echo "/usr/share"
+    # Fallback for system installations
+    echo "/usr/share"
 }
 
 function configure_bios() {
@@ -1320,7 +1334,7 @@ function configure_bios() {
         # Truncated or corrupt firmware downloads produce unusable pflash
         # devices (e.g. "system firmware block device pflash0 has invalid
         # size"). OVMF_CODE.fd is ~2M and the OVMF_VARS file at least 128K.
-        if [ "$(wc -c < "${EFI_CODE}")" -lt 1048576 ] || [ "$(wc -c < "${EFI_VARS}")" -lt 131072 ]; then
+        if [ "$(wc -c <"${EFI_CODE}")" -lt 1048576 ] || [ "$(wc -c <"${EFI_VARS}")" -lt 131072 ]; then
             echo "ERROR! macOS firmware in ${VMDIR} appears to be corrupt or incomplete."
             echo "       Delete OVMF_CODE.fd and OVMF_VARS*.fd, then re-run quickget."
             exit 1
@@ -1355,46 +1369,46 @@ function configure_bios() {
                 # This firmware is passed with -bios and does not use persistent
                 # pflash variable storage.
                 if [ "${guest_os}" == "windows" ] &&
-                   [ "${secureboot}" != "on" ] &&
-                   [ -e "${SHARE_PATH}/edk2/aarch64/QEMU_EFI.fd" ]; then
+                    [ "${secureboot}" != "on" ] &&
+                    [ -e "${SHARE_PATH}/edk2/aarch64/QEMU_EFI.fd" ]; then
                     EFI_CODE="${SHARE_PATH}/edk2/aarch64/QEMU_EFI.fd"
                     EFI_MODE="bios"
                 else
                     # AAVMF firmware paths for ARM64 guests using persistent pflash.
                     # shellcheck disable=SC2054,SC2140
-                    ovmfs=("/usr/share/AAVMF/AAVMF_CODE.fd","/usr/share/AAVMF/AAVMF_VARS.fd" \
-                        "${SHARE_PATH}/edk2/aarch64/QEMU_CODE.fd","${SHARE_PATH}/edk2/aarch64/QEMU_VARS.fd" \
-                        "${SHARE_PATH}/edk2/aarch64/QEMU_EFI-pflash.raw","${SHARE_PATH}/edk2/aarch64/vars-template-pflash.raw" \
-                        "${SHARE_PATH}/qemu/edk2-aarch64-code.fd","${SHARE_PATH}/qemu/edk2-arm-vars.fd" \
+                    ovmfs=("/usr/share/AAVMF/AAVMF_CODE.fd","/usr/share/AAVMF/AAVMF_VARS.fd"
+                        "${SHARE_PATH}/edk2/aarch64/QEMU_CODE.fd","${SHARE_PATH}/edk2/aarch64/QEMU_VARS.fd"
+                        "${SHARE_PATH}/edk2/aarch64/QEMU_EFI-pflash.raw","${SHARE_PATH}/edk2/aarch64/vars-template-pflash.raw"
+                        "${SHARE_PATH}/qemu/edk2-aarch64-code.fd","${SHARE_PATH}/qemu/edk2-arm-vars.fd"
                         "${SHARE_PATH}/AAVMF/AAVMF_CODE.fd","${SHARE_PATH}/AAVMF/AAVMF_VARS.fd"
                     )
                 fi
             else
                 # x86_64 OVMF firmware paths
                 case ${secureboot} in
-                    on) # shellcheck disable=SC2054,SC2140
-                        ovmfs=("${SHARE_PATH}/OVMF/OVMF_CODE_4M.secboot.fd","${SHARE_PATH}/OVMF/OVMF_VARS_4M.ms.fd" \
-                            "${SHARE_PATH}/edk2/ovmf/OVMF_CODE.secboot.fd","${SHARE_PATH}/edk2/ovmf/OVMF_VARS.secboot.fd" \
-                            "${SHARE_PATH}/OVMF/x64/OVMF_CODE.secboot.fd","${SHARE_PATH}/OVMF/x64/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/edk2-ovmf/OVMF_CODE.secboot.fd","${SHARE_PATH}/edk2-ovmf/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/qemu/ovmf-x86_64-smm-ms-code.bin","${SHARE_PATH}/qemu/ovmf-x86_64-smm-ms-vars.bin" \
-                            "${SHARE_PATH}/qemu/edk2-x86_64-secure-code.fd","${SHARE_PATH}/qemu/edk2-i386-vars.fd" \
-                            "${SHARE_PATH}/edk2-ovmf/x64/OVMF_CODE.secboot.fd","${SHARE_PATH}/edk2-ovmf/x64/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/edk2/x64/OVMF_CODE.secboot.4m.fd","${SHARE_PATH}/edk2/x64/OVMF_VARS.4m.fd" \
-                            "${SHARE_PATH}/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","${SHARE_PATH}/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2"
-                        );;
-                    *)  # shellcheck disable=SC2054,SC2140
-                        ovmfs=("${SHARE_PATH}/OVMF/OVMF_CODE_4M.fd","${SHARE_PATH}/OVMF/OVMF_VARS_4M.fd" \
-                            "${SHARE_PATH}/edk2/ovmf/OVMF_CODE.fd","${SHARE_PATH}/edk2/ovmf/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/OVMF/OVMF_CODE.fd","${SHARE_PATH}/OVMF/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/OVMF/x64/OVMF_CODE.fd","${SHARE_PATH}/OVMF/x64/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/edk2-ovmf/OVMF_CODE.fd","${SHARE_PATH}/edk2-ovmf/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/qemu/ovmf-x86_64-4m-code.bin","${SHARE_PATH}/qemu/ovmf-x86_64-4m-vars.bin" \
-                            "${SHARE_PATH}/qemu/edk2-x86_64-code.fd","${SHARE_PATH}/qemu/edk2-i386-vars.fd" \
-                            "${SHARE_PATH}/edk2-ovmf/x64/OVMF_CODE.fd","${SHARE_PATH}/edk2-ovmf/x64/OVMF_VARS.fd" \
-                            "${SHARE_PATH}/edk2/x64/OVMF_CODE.4m.fd","${SHARE_PATH}/edk2/x64/OVMF_VARS.4m.fd" \
-                            "${SHARE_PATH}/edk2/ovmf/OVMF_CODE_4M.qcow2","${SHARE_PATH}/edk2/ovmf/OVMF_VARS_4M.qcow2"
-                        );;
+                on) # shellcheck disable=SC2054,SC2140
+                    ovmfs=("${SHARE_PATH}/OVMF/OVMF_CODE_4M.secboot.fd","${SHARE_PATH}/OVMF/OVMF_VARS_4M.ms.fd"
+                        "${SHARE_PATH}/edk2/ovmf/OVMF_CODE.secboot.fd","${SHARE_PATH}/edk2/ovmf/OVMF_VARS.secboot.fd"
+                        "${SHARE_PATH}/OVMF/x64/OVMF_CODE.secboot.fd","${SHARE_PATH}/OVMF/x64/OVMF_VARS.fd"
+                        "${SHARE_PATH}/edk2-ovmf/OVMF_CODE.secboot.fd","${SHARE_PATH}/edk2-ovmf/OVMF_VARS.fd"
+                        "${SHARE_PATH}/qemu/ovmf-x86_64-smm-ms-code.bin","${SHARE_PATH}/qemu/ovmf-x86_64-smm-ms-vars.bin"
+                        "${SHARE_PATH}/qemu/edk2-x86_64-secure-code.fd","${SHARE_PATH}/qemu/edk2-i386-vars.fd"
+                        "${SHARE_PATH}/edk2-ovmf/x64/OVMF_CODE.secboot.fd","${SHARE_PATH}/edk2-ovmf/x64/OVMF_VARS.fd"
+                        "${SHARE_PATH}/edk2/x64/OVMF_CODE.secboot.4m.fd","${SHARE_PATH}/edk2/x64/OVMF_VARS.4m.fd"
+                        "${SHARE_PATH}/edk2/ovmf/OVMF_CODE_4M.secboot.qcow2","${SHARE_PATH}/edk2/ovmf/OVMF_VARS_4M.secboot.qcow2"
+                    ) ;;
+                *) # shellcheck disable=SC2054,SC2140
+                    ovmfs=("${SHARE_PATH}/OVMF/OVMF_CODE_4M.fd","${SHARE_PATH}/OVMF/OVMF_VARS_4M.fd"
+                        "${SHARE_PATH}/edk2/ovmf/OVMF_CODE.fd","${SHARE_PATH}/edk2/ovmf/OVMF_VARS.fd"
+                        "${SHARE_PATH}/OVMF/OVMF_CODE.fd","${SHARE_PATH}/OVMF/OVMF_VARS.fd"
+                        "${SHARE_PATH}/OVMF/x64/OVMF_CODE.fd","${SHARE_PATH}/OVMF/x64/OVMF_VARS.fd"
+                        "${SHARE_PATH}/edk2-ovmf/OVMF_CODE.fd","${SHARE_PATH}/edk2-ovmf/OVMF_VARS.fd"
+                        "${SHARE_PATH}/qemu/ovmf-x86_64-4m-code.bin","${SHARE_PATH}/qemu/ovmf-x86_64-4m-vars.bin"
+                        "${SHARE_PATH}/qemu/edk2-x86_64-code.fd","${SHARE_PATH}/qemu/edk2-i386-vars.fd"
+                        "${SHARE_PATH}/edk2-ovmf/x64/OVMF_CODE.fd","${SHARE_PATH}/edk2-ovmf/x64/OVMF_VARS.fd"
+                        "${SHARE_PATH}/edk2/x64/OVMF_CODE.4m.fd","${SHARE_PATH}/edk2/x64/OVMF_VARS.4m.fd"
+                        "${SHARE_PATH}/edk2/ovmf/OVMF_CODE_4M.qcow2","${SHARE_PATH}/edk2/ovmf/OVMF_VARS_4M.qcow2"
+                    ) ;;
                 esac
             fi
 
@@ -1404,7 +1418,7 @@ function configure_bios() {
                 IFS=","
                 for f in "${ovmfs[@]}"; do
                     # shellcheck disable=SC2086
-                    set -- ${f};
+                    set -- ${f}
                     if [ -e "${1}" ] && [ -e "${2}" ]; then
                         EFI_CODE="${1}"
                         EFI_EXTRA_VARS="${2}"
@@ -1441,7 +1455,7 @@ function configure_bios() {
 
         # Make sure EFI_VARS references an actual, writeable, file
         if [ "${EFI_MODE}" == "pflash" ] &&
-           { [ ! -f "${EFI_VARS}" ] || [ ! -w "${EFI_VARS}" ]; }; then
+            { [ ! -f "${EFI_VARS}" ] || [ ! -w "${EFI_VARS}" ]; }; then
             echo " - EFI:      ERROR! ${EFI_VARS} is not a regular file or not writeable."
             echo "             Deleting ${EFI_VARS}. Please re-run quickemu."
             rm -f "${EFI_VARS}"
@@ -1482,60 +1496,71 @@ function configure_os_quirks() {
     fi
 
     case ${guest_os} in
-        windows-server) NET_DEVICE="e1000";;
-        *bsd|linux*|windows) NET_DEVICE="virtio-net-pci";;
-        freedos) sound_card="${sound_card:-sb16}"
-                 NET_DEVICE="pcnet";;
-        *solaris) usb_controller="xhci"
-                  sound_card="${sound_card:-ac97}";;
-        reactos) NET_DEVICE="e1000"
-                 keyboard="ps2";;
-        templeos) NET_DEVICE="e1000"
-                  keyboard="ps2"
-                  mouse="ps2"
-                  sound_card="${sound_card:-none}"
-                  usb_controller="none";;
-        macos)
-            # Tune QEMU optimisations based on the macOS release, or fallback to lowest
-            # common supported options if none is specified.
-            #   * VirtIO Block Media doesn't work in High Sierra (at all) or the Mojave (Recovery Image)
-            #   * VirtIO Network is supported since Big Sur
-            #   * VirtIO Memory Balloning is supported since Big Sur (https://pmhahn.github.io/virtio-balloon/)
-            #   * VirtIO RNG is supported since Big Sur, but exposed to all guests by default.
-            case ${macos_release} in
-                monterey|ventura|sonoma|sequoia|tahoe)
-                    # macOS 12+ (Monterey onwards) supports virtio-sound-pci natively
-                    BALLOON="-device virtio-balloon"
-                    MAC_DISK_DEV="virtio-blk-pci"
-                    NET_DEVICE="virtio-net-pci"
-                    USB_HOST_PASSTHROUGH_CONTROLLER="nec-usb-xhci"
-                    GUEST_TWEAKS+=" -global nec-usb-xhci.msi=off"
-                    sound_card="${sound_card:-virtio-sound-pci}"
-                    usb_controller="xhci";;
-                big-sur)
-                    # Big Sur uses VirtIO but usb-audio/VoodooHDA don't work reliably
-                    # Fall back to ich9-intel-hda which may work with VoodooHDA
-                    BALLOON="-device virtio-balloon"
-                    MAC_DISK_DEV="virtio-blk-pci"
-                    NET_DEVICE="virtio-net-pci"
-                    USB_HOST_PASSTHROUGH_CONTROLLER="nec-usb-xhci"
-                    GUEST_TWEAKS+=" -global nec-usb-xhci.msi=off"
-                    sound_card="${sound_card:-ich9-intel-hda}"
-                    usb_controller="xhci";;
-                *)
-                    # Backwards compatibility if no macos_release is specified.
-                    # Also safe catch all for High Sierra and Mojave
-                    BALLOON=""
-                    if [ "${macos_release}" == "catalina" ]; then
-                        MAC_DISK_DEV="virtio-blk-pci"
-                    else
-                        MAC_DISK_DEV="ide-hd,bus=ahci.2"
-                    fi
-                    NET_DEVICE="vmxnet3"
-                    USB_HOST_PASSTHROUGH_CONTROLLER="usb-ehci";;
-            esac
+    windows-server) NET_DEVICE="e1000" ;;
+    *bsd | linux* | windows) NET_DEVICE="virtio-net-pci" ;;
+    freedos)
+        sound_card="${sound_card:-sb16}"
+        NET_DEVICE="pcnet"
+        ;;
+    *solaris)
+        usb_controller="xhci"
+        sound_card="${sound_card:-ac97}"
+        ;;
+    reactos)
+        NET_DEVICE="e1000"
+        keyboard="ps2"
+        ;;
+    templeos)
+        NET_DEVICE="e1000"
+        keyboard="ps2"
+        mouse="ps2"
+        sound_card="${sound_card:-none}"
+        usb_controller="none"
+        ;;
+    macos)
+        # Tune QEMU optimisations based on the macOS release, or fallback to lowest
+        # common supported options if none is specified.
+        #   * VirtIO Block Media doesn't work in High Sierra (at all) or the Mojave (Recovery Image)
+        #   * VirtIO Network is supported since Big Sur
+        #   * VirtIO Memory Balloning is supported since Big Sur (https://pmhahn.github.io/virtio-balloon/)
+        #   * VirtIO RNG is supported since Big Sur, but exposed to all guests by default.
+        case ${macos_release} in
+        monterey | ventura | sonoma | sequoia | tahoe)
+            # macOS 12+ (Monterey onwards) supports virtio-sound-pci natively
+            BALLOON="-device virtio-balloon"
+            MAC_DISK_DEV="virtio-blk-pci"
+            NET_DEVICE="virtio-net-pci"
+            USB_HOST_PASSTHROUGH_CONTROLLER="nec-usb-xhci"
+            GUEST_TWEAKS+=" -global nec-usb-xhci.msi=off"
+            sound_card="${sound_card:-virtio-sound-pci}"
+            usb_controller="xhci"
             ;;
-        *) NET_DEVICE="rtl8139";;
+        big-sur)
+            # Big Sur uses VirtIO but usb-audio/VoodooHDA don't work reliably
+            # Fall back to ich9-intel-hda which may work with VoodooHDA
+            BALLOON="-device virtio-balloon"
+            MAC_DISK_DEV="virtio-blk-pci"
+            NET_DEVICE="virtio-net-pci"
+            USB_HOST_PASSTHROUGH_CONTROLLER="nec-usb-xhci"
+            GUEST_TWEAKS+=" -global nec-usb-xhci.msi=off"
+            sound_card="${sound_card:-ich9-intel-hda}"
+            usb_controller="xhci"
+            ;;
+        *)
+            # Backwards compatibility if no macos_release is specified.
+            # Also safe catch all for High Sierra and Mojave
+            BALLOON=""
+            if [ "${macos_release}" == "catalina" ]; then
+                MAC_DISK_DEV="virtio-blk-pci"
+            else
+                MAC_DISK_DEV="ide-hd,bus=ahci.2"
+            fi
+            NET_DEVICE="vmxnet3"
+            USB_HOST_PASSTHROUGH_CONTROLLER="usb-ehci"
+            ;;
+        esac
+        ;;
+    *) NET_DEVICE="rtl8139" ;;
     esac
 }
 
@@ -1546,15 +1571,17 @@ function configure_storage() {
         # If there is no disk image, create a new image.
         mkdir -p "${VMDIR}" 2>/dev/null
         case ${preallocation} in
-            off|metadata|falloc|full) true;;
-            *) echo "ERROR! ${preallocation} is an unsupported disk preallocation option."
-               exit 1;;
+        off | metadata | falloc | full) true ;;
+        *)
+            echo "ERROR! ${preallocation} is an unsupported disk preallocation option."
+            exit 1
+            ;;
         esac
 
         case ${disk_format} in
-            qcow2) create_options="lazy_refcounts=on,preallocation=${preallocation},nocow=on";;
-            raw) create_options="preallocation=${preallocation}";;
-            *) true;;
+        qcow2) create_options="lazy_refcounts=on,preallocation=${preallocation},nocow=on" ;;
+        raw) create_options="preallocation=${preallocation}" ;;
+        *) true ;;
         esac
 
         # https://blog.programster.org/qcow2-performance
@@ -1693,9 +1720,9 @@ function configure_display() {
     # Setup the appropriate audio device based on the display output
     # https://www.kraxel.org/blog/2020/01/qemu-sound-audiodev/
     case ${display} in
-        cocoa) AUDIO_DEV="coreaudio,id=audio0";;
-        none|spice|spice-app) AUDIO_DEV="spice,id=audio0";;
-        *) AUDIO_DEV="${AUDIO_DRIVER},id=audio0";;
+    cocoa) AUDIO_DEV="coreaudio,id=audio0" ;;
+    none | spice | spice-app) AUDIO_DEV="spice,id=audio0" ;;
+    *) AUDIO_DEV="${AUDIO_DRIVER},id=audio0" ;;
     esac
 
     # Determine a sane resolution for Linux guests.
@@ -1708,76 +1735,86 @@ function configure_display() {
 
     # https://www.kraxel.org/blog/2019/09/display-devices-in-qemu/
     case ${guest_os} in
-        *bsd|templeos) DISPLAY_DEVICE="VGA";;
-        linux_old|solaris) DISPLAY_DEVICE="vmware-svga";;
-        linux)
-            # ARM64 does not have VGA hardware - use virtio-gpu-pci instead of virtio-vga
-            if [ "${ARCH_VM}" == "aarch64" ]; then
-                DISPLAY_DEVICE="virtio-gpu-pci"
-            else
-                case ${display} in
-                    none|spice|spice-app) DISPLAY_DEVICE="virtio-gpu";;
-                    *) DISPLAY_DEVICE="virtio-vga";;
-                esac
-            fi;;
-        macos)
-            # macOS has native VMware display driver support; aligns with OSX-KVM
-            DISPLAY_DEVICE="vmware-svga";;
-        windows|windows-server)
-            # As ARM64 "virt" machines do not provide legacy VGA/QXL hardware,
-            # use virtio-gpu-pci as this match the Linux ARM64 configuration.
-            if [ "${ARCH_VM}" == "aarch64" ]; then
-                DISPLAY_DEVICE="virtio-gpu-pci"
-            else
-                case ${display} in
-                    none|spice) DISPLAY_DEVICE="qxl-vga";;
-                    cocoa|gtk|sdl|spice-app) DISPLAY_DEVICE="virtio-vga";;
-                esac
-            fi;;
-        *) DISPLAY_DEVICE="qxl-vga";;
+    *bsd | templeos) DISPLAY_DEVICE="VGA" ;;
+    linux_old | solaris) DISPLAY_DEVICE="vmware-svga" ;;
+    linux)
+        # ARM64 does not have VGA hardware - use virtio-gpu-pci instead of virtio-vga
+        if [ "${ARCH_VM}" == "aarch64" ]; then
+            DISPLAY_DEVICE="virtio-gpu-pci"
+        else
+            case ${display} in
+            none | spice | spice-app) DISPLAY_DEVICE="virtio-gpu" ;;
+            *) DISPLAY_DEVICE="virtio-vga" ;;
+            esac
+        fi
+        ;;
+    macos)
+        # macOS has native VMware display driver support; aligns with OSX-KVM
+        DISPLAY_DEVICE="vmware-svga"
+        ;;
+    windows | windows-server)
+        # As ARM64 "virt" machines do not provide legacy VGA/QXL hardware,
+        # use virtio-gpu-pci as this match the Linux ARM64 configuration.
+        if [ "${ARCH_VM}" == "aarch64" ]; then
+            DISPLAY_DEVICE="virtio-gpu-pci"
+        else
+            case ${display} in
+            none | spice) DISPLAY_DEVICE="qxl-vga" ;;
+            cocoa | gtk | sdl | spice-app) DISPLAY_DEVICE="virtio-vga" ;;
+            esac
+        fi
+        ;;
+    *) DISPLAY_DEVICE="qxl-vga" ;;
     esac
 
     # Map Quickemu $display to QEMU -display
     case ${display} in
-        cocoa)
-            # macOS: prefer OpenGL ES (via ANGLE) for stability and performance
-            # ANGLE provides OpenGL ES on macOS through Metal, which is more stable
-            # than the deprecated native OpenGL implementation
-            # Reference: https://gist.github.com/akihikodaki/87df4149e7ca87f18dc56807ec5a1bc5
-            if [ "${gl}" == "on" ] && check_cocoa_gl_es_support; then
-                DISPLAY_RENDER="${display},gl=es"
-                gl="es"
+    cocoa)
+        # macOS: prefer OpenGL ES (via ANGLE) for stability and performance
+        # ANGLE provides OpenGL ES on macOS through Metal, which is more stable
+        # than the deprecated native OpenGL implementation
+        # Reference: https://gist.github.com/akihikodaki/87df4149e7ca87f18dc56807ec5a1bc5
+        if [ "${gl}" == "on" ] && check_cocoa_gl_es_support; then
+            DISPLAY_RENDER="${display},gl=es"
+            gl="es"
+        else
+            DISPLAY_RENDER="${display}"
+            [ "${gl}" == "on" ] && gl="off"
+        fi
+        ;;
+    gtk)
+        if [ -n "${FULLSCREEN}" ]; then
+            DISPLAY_RENDER="${display},grab-on-hover=on,zoom-to-fit=off,gl=${gl},full-screen=on"
+        else
+            DISPLAY_RENDER="${display},grab-on-hover=on,zoom-to-fit=off,gl=${gl}"
+        fi
+        ;;
+    none)
+        DISPLAY_RENDER="none"
+        gl="off"
+        ;; # No display backend means no GL context
+    spice)
+        # For local SPICE with GL, use egl-headless to provide the GL context
+        # for VirGL. Don't use gl=on in SPICE itself as it blocks the main loop.
+        if [ -z "${ACCESS}" ] || [ "${ACCESS}" == "local" ]; then
+            if [ "${gl}" == "on" ]; then
+                DISPLAY_RENDER="egl-headless,rendernode=/dev/dri/renderD128"
             else
-                DISPLAY_RENDER="${display}"
-                [ "${gl}" == "on" ] && gl="off"
-            fi;;
-        gtk)
-            if [ -n "${FULLSCREEN}" ]; then
-                DISPLAY_RENDER="${display},grab-on-hover=on,zoom-to-fit=off,gl=${gl},full-screen=on"
-            else
-                DISPLAY_RENDER="${display},grab-on-hover=on,zoom-to-fit=off,gl=${gl}"
-            fi;;
-        none)       DISPLAY_RENDER="none"
-                    gl="off";;  # No display backend means no GL context
-        spice)
-            # For local SPICE with GL, use egl-headless to provide the GL context
-            # for VirGL. Don't use gl=on in SPICE itself as it blocks the main loop.
-            if [ -z "${ACCESS}" ] || [ "${ACCESS}" == "local" ]; then
-                if [ "${gl}" == "on" ]; then
-                    DISPLAY_RENDER="egl-headless,rendernode=/dev/dri/renderD128"
-                else
-                    DISPLAY_RENDER="none"
-                fi
-            else
-                # Remote access cannot use GL
                 DISPLAY_RENDER="none"
-                gl="off"
-            fi;;
-        sdl)        DISPLAY_RENDER="${display},gl=${gl}";;
-        spice-app)  DISPLAY_RENDER="${display},gl=${gl}";;
-        vnc)        DISPLAY_RENDER="none"
-                    gl="off";;
-        *)          DISPLAY_RENDER="${display}";;
+            fi
+        else
+            # Remote access cannot use GL
+            DISPLAY_RENDER="none"
+            gl="off"
+        fi
+        ;;
+    sdl) DISPLAY_RENDER="${display},gl=${gl}" ;;
+    spice-app) DISPLAY_RENDER="${display},gl=${gl}" ;;
+    vnc)
+        DISPLAY_RENDER="none"
+        gl="off"
+        ;;
+    *) DISPLAY_RENDER="${display}" ;;
     esac
 
     # https://www.kraxel.org/blog/2021/05/virtio-gpu-qemu-graphics-update/
@@ -1786,9 +1823,9 @@ function configure_display() {
     if [ "${gl}" != "off" ] && [[ "${DISPLAY_DEVICE}" =~ ^virtio-(vga|gpu|gpu-pci)$ ]]; then
         local GL_DEVICE=""
         case "${DISPLAY_DEVICE}" in
-            virtio-gpu-pci) GL_DEVICE="virtio-gpu-gl-pci";;
-            virtio-gpu)     GL_DEVICE="virtio-gpu-gl";;
-            virtio-vga)     GL_DEVICE="virtio-vga-gl";;
+        virtio-gpu-pci) GL_DEVICE="virtio-gpu-gl-pci" ;;
+        virtio-gpu) GL_DEVICE="virtio-gpu-gl" ;;
+        virtio-vga) GL_DEVICE="virtio-vga-gl" ;;
         esac
 
         if "${QEMU}" -device help 2>&1 | grep -q "\"${GL_DEVICE}\""; then
@@ -1802,8 +1839,8 @@ function configure_display() {
     # Disable default VGA for SPICE modes to prevent duplicate scanouts
     # SPICE creates its own display output; the default VGA would create a second one
     case ${display} in
-      none|spice|spice-app) VGA="-vga none";;
-      *) VGA="";;
+    none | spice | spice-app) VGA="-vga none" ;;
+    *) VGA="" ;;
     esac
 
     # Build the video configuration
@@ -1832,9 +1869,9 @@ function configure_display() {
     # dynamic memory management and don't require explicit VRAM allocation via parameters.
     # They use QEMU's default max_hostmem setting (256 MiB) which is sufficient for most use cases.
     case ${DISPLAY_DEVICE} in
-        bochs-display) VIDEO="${VIDEO},vgamem=67108864";;
-        qxl|qxl-vga) VIDEO="${VIDEO},ram_size=65536,vram_size=65536,vgamem_mb=64";;
-        ati-vga|cirrus-vga|VGA|vmware-svga) VIDEO="${VIDEO},vgamem_mb=256";;
+    bochs-display) VIDEO="${VIDEO},vgamem=67108864" ;;
+    qxl | qxl-vga) VIDEO="${VIDEO},ram_size=65536,vram_size=65536,vgamem_mb=64" ;;
+    ati-vga | cirrus-vga | VGA | vmware-svga) VIDEO="${VIDEO},vgamem_mb=256" ;;
     esac
 
     # Configure multiscreen if max_outputs was provided in the .conf file
@@ -1850,17 +1887,17 @@ function configure_audio() {
     # Build the sound hardware configuration
     sound_card="${sound_card:-intel-hda}"
     case ${sound_card} in
-        ich9-intel-hda|intel-hda) SOUND="-device ${sound_card} -device ${sound_duplex},audiodev=audio0";;
-        usb-audio) SOUND="-device ${sound_card},audiodev=audio0";;
-        virtio-sound-pci) SOUND="-device ${sound_card},audiodev=audio0";;
-        ac97|es1370|sb16) SOUND="-device ${sound_card},audiodev=audio0";;
-        none) SOUND="";;
+    ich9-intel-hda | intel-hda) SOUND="-device ${sound_card} -device ${sound_duplex},audiodev=audio0" ;;
+    usb-audio) SOUND="-device ${sound_card},audiodev=audio0" ;;
+    virtio-sound-pci) SOUND="-device ${sound_card},audiodev=audio0" ;;
+    ac97 | es1370 | sb16) SOUND="-device ${sound_card},audiodev=audio0" ;;
+    none) SOUND="" ;;
     esac
     echo " - Sound:    ${sound_card} (${sound_duplex})"
 }
 
 function configure_ports() {
-    echo -n "" > "${VMDIR}/${VMNAME}.ports"
+    echo -n "" >"${VMDIR}/${VMNAME}.ports"
     rm -f "${VMDIR}/${VMNAME}.spice"
     rm -f "${VMDIR}/${VMNAME}.sock"
 
@@ -1881,7 +1918,7 @@ function configure_ports() {
     fi
 
     if [ -n "${ssh_port}" ]; then
-        echo "ssh,${ssh_port}" >> "${VMDIR}/${VMNAME}.ports"
+        echo "ssh,${ssh_port}" >>"${VMDIR}/${VMNAME}.ports"
         NET="${NET},hostfwd=tcp:${SSH_ADDR}:${ssh_port}-:22"
         echo " - ssh:      On host:  ssh user@${ssh_host} -p ${ssh_port}"
     else
@@ -1889,7 +1926,7 @@ function configure_ports() {
     fi
 
     # Have any port forwards been requested?
-    if (( ${#port_forwards[@]} )); then
+    if ((${#port_forwards[@]})); then
         echo " - PORTS:    Port forwards requested:"
         for FORWARD in "${port_forwards[@]}"; do
             HOST_PORT=$(echo "${FORWARD}" | cut -d':' -f1)
@@ -1913,8 +1950,8 @@ function configure_ports() {
                 # Unix socket mode for local access
                 # GL context is provided by egl-headless display, not SPICE
                 SPICE+=",unix=on,addr=${VMDIR}/${VMNAME}.sock"
-                echo "unix,${VMDIR}/${VMNAME}.sock" >> "${VMDIR}/${VMNAME}.ports"
-                echo "${VMDIR}/${VMNAME}.sock" > "${VMDIR}/${VMNAME}.spice"
+                echo "unix,${VMDIR}/${VMNAME}.sock" >>"${VMDIR}/${VMNAME}.ports"
+                echo "${VMDIR}/${VMNAME}.sock" >"${VMDIR}/${VMNAME}.spice"
                 echo -n " - SPICE:    On host:  spicy --uri=\"spice+unix://${VMDIR}/${VMNAME}.sock\" --title \"${VMNAME}\""
                 if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                     echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1939,8 +1976,8 @@ function configure_ports() {
                 fi
 
                 SPICE+=",port=${spice_port},addr=${SPICE_ADDR}"
-                echo "spice,${spice_port}" >> "${VMDIR}/${VMNAME}.ports"
-                echo "${spice_port}" > "${VMDIR}/${VMNAME}.spice"
+                echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
+                echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
                 echo -n " - SPICE:    On host:  spicy --title \"${VMNAME}\" --port ${spice_port}"
                 if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                     echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1970,8 +2007,8 @@ function configure_ports() {
             fi
 
             SPICE+=",port=${spice_port},addr=${SPICE_ADDR}"
-            echo "spice,${spice_port}" >> "${VMDIR}/${VMNAME}.ports"
-            echo "${spice_port}" > "${VMDIR}/${VMNAME}.spice"
+            echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
+            echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
             echo -n " - SPICE:    On host:  spicy --title \"${VMNAME}\"${SPICE_ADDR:+ --host ${SPICE_ADDR}} --port ${spice_port}"
             if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                 echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1985,13 +2022,14 @@ function configure_file_sharing() {
     if [ -n "${PUBLIC}" ]; then
         # WebDAV
         case ${guest_os} in
-            macos)
-                if [ "${display}" == "none" ] || [ "${display}" == "spice" ] || [ "${display}" == "spice-app" ]; then
-                    # Reference: https://gitlab.gnome.org/GNOME/phodav/-/issues/5
-                    echo " - WebDAV:   On guest: build spice-webdavd (https://gitlab.gnome.org/GNOME/phodav/-/merge_requests/24)"
-                    echo " - WebDAV:   On guest: Finder -> Connect to Server -> http://localhost:9843/"
-                fi;;
-            *) echo " - WebDAV:   On guest: dav://localhost:9843/";;
+        macos)
+            if [ "${display}" == "none" ] || [ "${display}" == "spice" ] || [ "${display}" == "spice-app" ]; then
+                # Reference: https://gitlab.gnome.org/GNOME/phodav/-/issues/5
+                echo " - WebDAV:   On guest: build spice-webdavd (https://gitlab.gnome.org/GNOME/phodav/-/merge_requests/24)"
+                echo " - WebDAV:   On guest: Finder -> Connect to Server -> http://localhost:9843/"
+            fi
+            ;;
+        *) echo " - WebDAV:   On guest: dav://localhost:9843/" ;;
         esac
 
         # virtiofs or 9p depending on host capability
@@ -2031,8 +2069,8 @@ function configure_tpm() {
             --terminate
             --tpmstate dir="${VMDIR}"
             --tpm2)
-        echo "${SWTPM} ${tpm_args[*]} &" >> "${VMDIR}/${VMNAME}.sh"
-        ${SWTPM} "${tpm_args[@]}" >> "${VMDIR}/${VMNAME}.log" &
+        echo "${SWTPM} ${tpm_args[*]} &" >>"${VMDIR}/${VMNAME}.sh"
+        ${SWTPM} "${tpm_args[@]}" >>"${VMDIR}/${VMNAME}.log" &
         echo " - TPM:      ${VMDIR}/${VMNAME}.swtpm-sock (${!})"
         sleep 0.25
     fi
@@ -2051,10 +2089,10 @@ function configure_cpu_pinning() {
 
         if [[ "$name" == CPU* ]]; then
             # Map per core, if threads are specified pin them to the same core
-            core_idx=$(( idx / GUEST_CPU_THREADS ))
+            core_idx=$((idx / GUEST_CPU_THREADS))
             host_cpu=${CORE_MAPPING[$core_idx]}
 
-            if (( idx % GUEST_CPU_THREADS == 0 )); then
+            if ((idx % GUEST_CPU_THREADS == 0)); then
                 [[ -n "$GUEST_CPUS" ]] && GUEST_CPUS+=","
                 GUEST_CPUS+="$core_idx"
             fi
@@ -2093,16 +2131,16 @@ function start_virtiofsd() {
         --socket-path="${VIRTIOFSD_SOCKET}"
         --shared-dir="${PUBLIC}"
         --announce-submounts
-        --translate-uid="squash-guest:0:$(id -u):65536"  # any guest UID in 0..65535 becomes current host UID
-        --translate-gid="squash-guest:0:$(id -g):65536"  # any guest GID in 0..65535 becomes current host GID
+        --translate-uid="squash-guest:0:$(id -u):65536" # any guest UID in 0..65535 becomes current host UID
+        --translate-gid="squash-guest:0:$(id -g):65536" # any guest GID in 0..65535 becomes current host GID
     )
 
     # Capture virtiofsd stderr separately so we can inspect it without
     # false-matching stale entries from previous runs in the shared VM log.
     local virtiofsd_stderr
     virtiofsd_stderr=$(mktemp)
-    echo "${VIRTIOFSD} ${virtiofsd_args[*]} &" >> "${VMDIR}/${VMNAME}.sh"
-    ${VIRTIOFSD} "${virtiofsd_args[@]}" >> "${VMDIR}/${VMNAME}.log" 2>"${virtiofsd_stderr}" &
+    echo "${VIRTIOFSD} ${virtiofsd_args[*]} &" >>"${VMDIR}/${VMNAME}.sh"
+    ${VIRTIOFSD} "${virtiofsd_args[@]}" >>"${VMDIR}/${VMNAME}.log" 2>"${virtiofsd_stderr}" &
 
     # virtiofsd forks: the shell child exits once the daemon child is running.
     # Poll for the socket rather than using a fixed sleep to avoid a race.
@@ -2119,14 +2157,14 @@ function start_virtiofsd() {
         else
             echo " - WARNING! virtiofsd failed to start; falling back to 9p."
         fi
-        cat "${virtiofsd_stderr}" >> "${VMDIR}/${VMNAME}.log"
+        cat "${virtiofsd_stderr}" >>"${VMDIR}/${VMNAME}.log"
         rm -f "${virtiofsd_stderr}"
         VIRTIOFSD=""
         VIRTIOFSD_SOCKET=""
         VIRTIOFSD_PID=""
         return
     fi
-    cat "${virtiofsd_stderr}" >> "${VMDIR}/${VMNAME}.log"
+    cat "${virtiofsd_stderr}" >>"${VMDIR}/${VMNAME}.log"
     rm -f "${virtiofsd_stderr}"
 
     # Resolve the daemon child's PID via the socket to avoid PID reuse issues.
@@ -2144,7 +2182,7 @@ function start_virtiofsd() {
             VIRTIOFSD_PID="${candidate}"
         fi
     fi
-    echo "${VIRTIOFSD_PID}" > "${VMDIR}/${VMNAME}.virtiofsd-pid"
+    echo "${VIRTIOFSD_PID}" >"${VMDIR}/${VMNAME}.virtiofsd-pid"
     echo " - virtiofsd: ${VIRTIOFSD_SOCKET} (${VIRTIOFSD_PID})"
 }
 
@@ -2242,7 +2280,7 @@ function vm_boot() {
     # Set the hostname of the VM
     NET="user,hostname=${VMNAME}"
 
-    echo "#!/usr/bin/env bash" > "${VMDIR}/${VMNAME}.sh"
+    echo "#!/usr/bin/env bash" >"${VMDIR}/${VMNAME}.sh"
 
     configure_cpu
     configure_ram
@@ -2277,15 +2315,15 @@ function vm_boot() {
     # ARM64 pflash firmware exposes the code and variable stores as named
     # blockdev nodes referenced by the virt machine.
     if [ "${ARCH_VM}" == "aarch64" ] &&
-       [[ "${boot}" == *"efi"* ]] &&
-       [ "${EFI_MODE}" == "pflash" ]; then
+        [[ "${boot}" == *"efi"* ]] &&
+        [ "${EFI_MODE}" == "pflash" ]; then
         MACHINE_TYPE+=",pflash0=rom,pflash1=efivars"
     fi
 
     if [ "${QEMU_ACCEL}" == "tcg" ]; then
         local HOST_RAM_GB=0
         if [ "${OS_KERNEL}" == "Darwin" ]; then
-            HOST_RAM_GB=$(($(sysctl -n hw.memsize) / (1024*1024*1024)))
+            HOST_RAM_GB=$(($(sysctl -n hw.memsize) / (1024 * 1024 * 1024)))
         else
             HOST_RAM_GB=$(awk '/MemTotal/ {printf "%.0f", $2/1024/1024}' /proc/meminfo)
         fi
@@ -2373,7 +2411,7 @@ function vm_boot() {
         if ${QEMU} -device help | grep -q "passthrough smartcard"; then
             # shellcheck disable=SC2054
             args+=(-chardev spicevmc,id=ccid,name=smartcard
-                  -device ccid-card-passthru,chardev=ccid)
+                -device ccid-card-passthru,chardev=ccid)
         else
             echo " - WARNING!  ${QEMU} or SPICE was not compiled with support for smartcard devices"
         fi
@@ -2433,7 +2471,7 @@ function vm_boot() {
             exit 1
         fi
 
-        IFS=',' read -r -a CORE_MAPPING <<< "$CPU_PINNING"
+        IFS=',' read -r -a CORE_MAPPING <<<"$CPU_PINNING"
 
         NUM_CORE_MAPPING=${#CORE_MAPPING[@]}
         if [ "$NUM_CORE_MAPPING" -ne "$GUEST_CPU_LOGICAL_CORES" ]; then
@@ -2515,7 +2553,7 @@ function vm_boot() {
 
     if [[ "${boot}" == *"efi"* ]]; then
         if [ "${ARCH_VM}" == "aarch64" ] &&
-           [ "${EFI_MODE}" == "bios" ]; then
+            [ "${EFI_MODE}" == "bios" ]; then
             # ARM64 monolithic EDK2 firmware.
             # QEMU loads this directly without a persistent pflash vars store.
             args+=(-bios "${EFI_CODE}")
@@ -2635,7 +2673,7 @@ function vm_boot() {
             -device ide-hd,bus=ahci.0,drive=SystemDisk
             -drive id=SystemDisk,if=none,format=${disk_format},file="${disk_img}",${DRIVE_OPTIMISATIONS} ${STATUS_QUO})
 
-    elif [ "${guest_os}" == "batocera" ] ; then
+    elif [ "${guest_os}" == "batocera" ]; then
         # shellcheck disable=SC2054,SC2206
         args+=(-device virtio-blk-pci,drive=BootDisk
             -drive id=BootDisk,if=none,format=raw,file="${img}"
@@ -2749,7 +2787,7 @@ function vm_boot() {
             # shellcheck disable=SC2054
             args+=(-monitor telnet:"${monitor_telnet_host}:${monitor_telnet_port}",server,nowait)
             echo " - Monitor:  On host:  telnet ${monitor_telnet_host} ${monitor_telnet_port}"
-            echo "monitor-telnet,${monitor_telnet_port},${monitor_telnet_host}" >> "${VMDIR}/${VMNAME}.ports"
+            echo "monitor-telnet,${monitor_telnet_port},${monitor_telnet_host}" >>"${VMDIR}/${VMNAME}.ports"
         fi
     elif [ "${monitor}" == "socket" ]; then
         # shellcheck disable=SC2054,SC2206
@@ -2778,7 +2816,7 @@ function vm_boot() {
             # shellcheck disable=SC2054,SC2206
             args+=(-serial telnet:${serial_telnet_host}:${serial_telnet_port},server,nowait)
             echo " - Serial:   On host:  telnet ${serial_telnet_host} ${serial_telnet_port}"
-            echo "serial-telnet,${serial_telnet_port},${serial_telnet_host}" >> "${VMDIR}/${VMNAME}.ports"
+            echo "serial-telnet,${serial_telnet_port},${serial_telnet_host}" >>"${VMDIR}/${VMNAME}.ports"
         fi
     elif [ "${serial}" == "socket" ]; then
         # shellcheck disable=SC2054,SC2206
@@ -2839,9 +2877,9 @@ function vm_boot() {
             fi
             exit 0
         fi
-        echo "${QEMU}" "${SHELL_ARGS}" "2>/dev/null" >> "${VMDIR}/${VMNAME}.sh"
+        echo "${QEMU}" "${SHELL_ARGS}" "2>/dev/null" >>"${VMDIR}/${VMNAME}.sh"
         sed -i -e 's/ -/ \\\n    -/g' "${VMDIR}/${VMNAME}.sh"
-        ${QEMU} "${args[@]}" &> "${VMDIR}/${VMNAME}.log" &
+        ${QEMU} "${args[@]}" &>"${VMDIR}/${VMNAME}.log" &
         VM_PID=$!
         sleep 0.25
         if kill -0 "${VM_PID}" 2>/dev/null; then
@@ -2955,7 +2993,7 @@ function shortcut_create {
     if [ ! -d "${dirname}" ]; then
         mkdir -p "${dirname}"
     fi
-    cat << EOF > "${filename}"
+    cat <<EOF >"${filename}"
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -3066,8 +3104,8 @@ function display_param_check() {
 
     if [ "${OS_KERNEL}" == "Darwin" ]; then
         if [ "${display}" != "cocoa" ] && [ "${display}" != "none" ]; then
-          echo "ERROR! Requested output '${display}' but only 'cocoa' and 'none' are avalible on macOS."
-          exit 1
+            echo "ERROR! Requested output '${display}' but only 'cocoa' and 'none' are avalible on macOS."
+            exit 1
         fi
     else
         if [ "${display}" != "gtk" ] && [ "${display}" != "none" ] && [ "${display}" != "sdl" ] && [ "${display}" != "spice" ] && [ "${display}" != "spice-app" ]; then
@@ -3081,8 +3119,8 @@ function display_param_check() {
         if command -v glxinfo &>/dev/null; then
             GLSL_VER=$(glxinfo | grep "OpenGL ES GLSL" | awk '{print $NF}')
             case ${GLSL_VER} in
-                1*|2*) gl="off";;
-                *) gl="on";;
+            1* | 2*) gl="off" ;;
+            *) gl="on" ;;
             esac
         else
             gl="on"
@@ -3091,7 +3129,7 @@ function display_param_check() {
 
     # Enable grab-on-hover for SDL: https://github.com/quickemu-project/quickemu/issues/541
     case "${display}" in
-        sdl) export SDL_MOUSE_FOCUS_CLICKTHROUGH=1;;
+    sdl) export SDL_MOUSE_FOCUS_CLICKTHROUGH=1 ;;
     esac
 }
 
@@ -3125,7 +3163,7 @@ function sound_card_param_check() {
 
     # USB audio requires xhci controller
     if [ "${sound_card}" == "usb-audio" ]; then
-        usb_controller="xhci";
+        usb_controller="xhci"
     fi
 
     #name "hda-duplex", bus HDA, desc "HDA Audio Codec, duplex (line-out, line-in)"
@@ -3186,7 +3224,7 @@ function fileshare_param_check() {
             # QEMU mount tags are limited to 31 bytes; truncate long user names.
             PUBLIC_TAG="Public-${USER,,}"
             PUBLIC_TAG="${PUBLIC_TAG:0:31}"
-            PUBLIC_PERMS=$(${STAT}  -c "%A" "${PUBLIC}")
+            PUBLIC_PERMS=$(${STAT} -c "%A" "${PUBLIC}")
         fi
     fi
 
@@ -3228,13 +3266,12 @@ function parse_ports_from_file {
             serial_telnet_port="${port_number}"
             serial_telnet_host="${host_name}"
         fi
-    done < "${FILE}"
+    done <"${FILE}"
 }
 
 function is_numeric {
     [[ "$1" =~ ^[0-9]+$ ]]
 }
-
 
 ### MAIN
 
@@ -3396,248 +3433,308 @@ if [ $# -lt 1 ]; then
 else
     while [ $# -gt 0 ]; do
         case "${1}" in
-            -access|--access)
-                SHORTCUT_OPTIONS+="--access ${2} "
-                ACCESS="${2}"
-                shift 2;;
-            -braille|--braille)
-                SHORTCUT_OPTIONS+="--braille "
-                BRAILLE="on"
-                shift;;
-            -cpu-pinning|--cpu-pinning)
-                SHORTCUT_OPTIONS+="--cpu-pinning ${2} "
-                CPU_PINNING=${2}
-                shift 2;;
-            -delete|--delete|-delete-disk|--delete-disk)
-                ACTIONS+=(delete_disk)
-                shift;;
-            -delete-plan|--delete-plan)
-                ACTIONS+=(delete_plan)
-                shift;;
-            -delete-vm|--delete-vm)
-                ACTIONS+=(delete_vm)
-                shift;;
-            -display|--display)
-                SHORTCUT_OPTIONS+="--display ${2} "
-                display="${2}"
-                display_param_check
-                shift 2;;
-            -fullscreen|--fullscreen|-full-screen|--full-screen)
-                SHORTCUT_OPTIONS+="--fullscreen "
-                FULLSCREEN="--full-screen"
-                shift;;
-            -ignore-msrs-always|--ignore-msrs-always)
-                ignore_msrs_always
-                exit;;
-            -ignore-tsc-warning|--ignore-tsc-warning)
-                IGNORE_TSC_WARNING="1"
-                shift;;
-            -kill|--kill)
-                ACTIONS+=(kill_vm)
-                shift;;
-            -format|--format)
-                OUTPUT_FORMAT="${2}"
-                if [ "${OUTPUT_FORMAT}" != "human" ] && [ "${OUTPUT_FORMAT}" != "json" ]; then
-                    echo "ERROR! '--format' must be 'human' or 'json'."
-                    exit 1
-                fi
-                shift 2;;
-            -capabilities|--capabilities)
-                ACTIONS+=(capabilities)
-                shift;;
-            -status|--status)
-                ACTIONS+=(status_vm)
-                shift;;
-            -pause|--pause)
-                ACTIONS+=(pause_vm)
-                shift;;
-            -resume|--resume)
-                ACTIONS+=(resume_vm)
-                shift;;
-            -screenshot|--screenshot)
-                ACTIONS+=(screenshot_vm)
-                if [ -n "${2}" ] && [[ "${2}" != -* ]]; then
-                    SCREENSHOT_OUT="${2}"
-                    shift 2
-                else
-                    shift
-                fi;;
-            -clone|--clone)
-                ACTIONS+=(clone_vm)
-                if [ -n "${2}" ] && [[ "${2}" != -* ]]; then
-                    CLONE_NAME="${2}"
-                    shift 2
-                else
-                    shift
-                fi;;
-            -full|--full)
-                CLONE_FULL="true"
-                shift;;
-            -disk-resize|--disk-resize)
-                ACTIONS+=(disk_resize)
-                DISK_SIZE_ARG="${2}"
-                shift 2;;
-            -disk-compact|--disk-compact)
-                ACTIONS+=(disk_compact)
-                shift;;
-            -export|--export)
-                ACTIONS+=(export_vm)
-                EXPORT_FILE="${2}"
-                shift 2;;
-            -import|--import)
-                ACTIONS+=(import_vm)
-                IMPORT_FILE="${2}"
-                shift 2;;
-            -rename|--rename)
-                ACTIONS+=(rename_vm)
-                RENAME_TO="${2}"
-                shift 2;;
-            -send-keys|--send-keys)
-                ACTIONS+=(send_keys)
-                SEND_KEYS_ARG="${2}"
-                shift 2;;
-            -type|--type)
-                ACTIONS+=(type_text)
-                TYPE_TEXT="${2}"
-                shift 2;;
-            -list-vms|--list-vms)
-                ACTIONS+=(list_vms)
-                shift;;
-            -doctor|--doctor|-check|--check)
-                ACTIONS+=(doctor_vm)
-                shift;;
-            -autostart|--autostart)
-                ACTIONS+=(autostart_create)
-                shift;;
-            -usb-passthrough|--usb-passthrough)
-                usb_devices+=("${2}")
-                shift 2;;
-            -dry-run|--dry-run|-echo|--echo)
-                DRY_RUN="true"
-                shift;;
-            -offline|--offline)
-                SHORTCUT_OPTIONS+="--offline "
-                network="none"
-                shift;;
-            -snapshot|--snapshot)
-                if [ -z "${2}" ]; then
-                    echo "ERROR! '--snapshot' needs an action to perform."
-                    exit 1
-                fi
-                SNAPSHOT_ACTION="${2}"
-                if [ -z "${3}" ] && [ "${SNAPSHOT_ACTION}" != "info" ]; then
-                    echo "ERROR! '--snapshot ${SNAPSHOT_ACTION}' needs a tag."
-                    exit 1
-                fi
-                SNAPSHOT_TAG="${3}"
-                if [ "${SNAPSHOT_ACTION}" == "info" ] || [ "${SNAPSHOT_ACTION}" == "list" ]; then
-                    shift 2
-                else
-                    shift 3
-                fi;;
-            -status-quo|--status-quo)
-                STATUS_QUO="-snapshot"
-                shift;;
-            -shortcut|--shortcut)
-                ACTIONS+=(shortcut_create)
-                shift;;
-            -vm|--vm)
-                VM="${2}"
-                shift 2;;
-            -viewer|--viewer)
-                SHORTCUT_OPTIONS+="--viewer ${2} "
-                viewer="${2}"
-                shift 2;;
-            -width|--width)
-                SHORTCUT_OPTIONS+="--width ${2} "
-                width="${2}"
-                shift 2;;
-            -height|--height)
-                SHORTCUT_OPTIONS+="--height ${2} "
-                height="${2}"
-                shift 2;;
-            -ssh-access|--ssh-access)
-                SHORTCUT_OPTIONS+="--ssh-access ${2} "
-                SSH_ACCESS="${2}"
-                shift 2;;
-            -ssh-port|--ssh-port)
-                SHORTCUT_OPTIONS+="--ssh-port ${2} "
-                ssh_port="${2}"
-                shift 2;;
-            -spice-port|--spice-port)
-                SHORTCUT_OPTIONS+="--spice-port ${2} "
-                spice_port="${2}"
-                shift 2;;
-            -public-dir|--public-dir)
-                SHORTCUT_OPTIONS+="--public-dir ${2} "
-                PUBLIC="${2}"
-                shift 2;;
-            -monitor|--monitor)
-                SHORTCUT_OPTIONS+="--monitor ${2} "
-                monitor="${2}"
-                shift 2;;
-            -monitor-cmd|--monitor-cmd)
-                SHORTCUT_OPTIONS+="--monitor-cmd ${2} "
-                MONITOR_CMD="${2}"
-                shift 2;;
-            -monitor-telnet-host|--monitor-telnet-host)
-                SHORTCUT_OPTIONS+="--monitor-telnet-host ${2} "
-                monitor_telnet_host="${2}"
-                shift 2;;
-            -monitor-telnet-port|--monitor-telnet-port)
-                SHORTCUT_OPTIONS+="--monitor-telnet-port ${2} "
-                monitor_telnet_port="${2}"
-                shift 2;;
-            -serial|--serial)
-                SHORTCUT_OPTIONS+="--serial ${2} "
-                serial="${2}"
-                shift 2;;
-            -serial-telnet-host|--serial-telnet-host)
-                SHORTCUT_OPTIONS+="--serial-telnet-host ${2} "
-                serial_telnet_host="${2}"
-                shift 2;;
-            -serial-telnet-port|--serial-telnet-port)
-                SHORTCUT_OPTIONS+="--serial-telnet-port ${2} "
-                serial_telnet_port="${2}"
-                shift 2;;
-            -keyboard|--keyboard)
-                SHORTCUT_OPTIONS+="--keyboard ${2} "
-                keyboard="${2}"
-                shift 2;;
-            -keyboard_layout|--keyboard_layout)
-                SHORTCUT_OPTIONS+="--keyboard_layout ${2} "
-                keyboard_layout="${2}"
-                shift 2;;
-            -mouse|--mouse)
-                SHORTCUT_OPTIONS+="--mouse ${2} "
-                mouse="${2}"
-                shift 2;;
-            -usb-controller|--usb-controller)
-                SHORTCUT_OPTIONS+="--usb-controller ${2} "
-                usb_controller="${2}"
-                shift 2;;
-            -extra_args|--extra_args)
-                SHORTCUT_OPTIONS+="--extra_args ${2} "
-                extra_args+="${2}"
-                shift 2;;
-            -sound-card|--sound-card)
-                SHORTCUT_OPTIONS+="--sound-card ${2} "
-                sound_card="${2}"
-                shift 2;;
-            -sound-duplex|--sound-duplex)
-                SHORTCUT_OPTIONS+="--sound-duplex ${2} "
-                sound_duplex="${2}"
-                shift 2;;
-            -version|--version)
-                echo "${VERSION}"
-                exit;;
-            -h|--h|-help|--help)
-                usage
-                exit 0;;
-              *)
-                echo "ERROR! \"${1}\" is not a supported parameter."
-                usage
-                exit 1;;
+        -access | --access)
+            SHORTCUT_OPTIONS+="--access ${2} "
+            ACCESS="${2}"
+            shift 2
+            ;;
+        -braille | --braille)
+            SHORTCUT_OPTIONS+="--braille "
+            BRAILLE="on"
+            shift
+            ;;
+        -cpu-pinning | --cpu-pinning)
+            SHORTCUT_OPTIONS+="--cpu-pinning ${2} "
+            CPU_PINNING=${2}
+            shift 2
+            ;;
+        -delete | --delete | -delete-disk | --delete-disk)
+            ACTIONS+=(delete_disk)
+            shift
+            ;;
+        -delete-plan | --delete-plan)
+            ACTIONS+=(delete_plan)
+            shift
+            ;;
+        -delete-vm | --delete-vm)
+            ACTIONS+=(delete_vm)
+            shift
+            ;;
+        -display | --display)
+            SHORTCUT_OPTIONS+="--display ${2} "
+            display="${2}"
+            display_param_check
+            shift 2
+            ;;
+        -fullscreen | --fullscreen | -full-screen | --full-screen)
+            SHORTCUT_OPTIONS+="--fullscreen "
+            FULLSCREEN="--full-screen"
+            shift
+            ;;
+        -ignore-msrs-always | --ignore-msrs-always)
+            ignore_msrs_always
+            exit
+            ;;
+        -ignore-tsc-warning | --ignore-tsc-warning)
+            IGNORE_TSC_WARNING="1"
+            shift
+            ;;
+        -kill | --kill)
+            ACTIONS+=(kill_vm)
+            shift
+            ;;
+        -format | --format)
+            OUTPUT_FORMAT="${2}"
+            if [ "${OUTPUT_FORMAT}" != "human" ] && [ "${OUTPUT_FORMAT}" != "json" ]; then
+                echo "ERROR! '--format' must be 'human' or 'json'."
+                exit 1
+            fi
+            shift 2
+            ;;
+        -capabilities | --capabilities)
+            ACTIONS+=(capabilities)
+            shift
+            ;;
+        -status | --status)
+            ACTIONS+=(status_vm)
+            shift
+            ;;
+        -pause | --pause)
+            ACTIONS+=(pause_vm)
+            shift
+            ;;
+        -resume | --resume)
+            ACTIONS+=(resume_vm)
+            shift
+            ;;
+        -screenshot | --screenshot)
+            ACTIONS+=(screenshot_vm)
+            if [ -n "${2}" ] && [[ "${2}" != -* ]]; then
+                SCREENSHOT_OUT="${2}"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        -clone | --clone)
+            ACTIONS+=(clone_vm)
+            if [ -n "${2}" ] && [[ "${2}" != -* ]]; then
+                CLONE_NAME="${2}"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        -full | --full)
+            CLONE_FULL="true"
+            shift
+            ;;
+        -disk-resize | --disk-resize)
+            ACTIONS+=(disk_resize)
+            DISK_SIZE_ARG="${2}"
+            shift 2
+            ;;
+        -disk-compact | --disk-compact)
+            ACTIONS+=(disk_compact)
+            shift
+            ;;
+        -export | --export)
+            ACTIONS+=(export_vm)
+            EXPORT_FILE="${2}"
+            shift 2
+            ;;
+        -import | --import)
+            ACTIONS+=(import_vm)
+            IMPORT_FILE="${2}"
+            shift 2
+            ;;
+        -rename | --rename)
+            ACTIONS+=(rename_vm)
+            RENAME_TO="${2}"
+            shift 2
+            ;;
+        -send-keys | --send-keys)
+            ACTIONS+=(send_keys)
+            SEND_KEYS_ARG="${2}"
+            shift 2
+            ;;
+        -type | --type)
+            ACTIONS+=(type_text)
+            TYPE_TEXT="${2}"
+            shift 2
+            ;;
+        -list-vms | --list-vms)
+            ACTIONS+=(list_vms)
+            shift
+            ;;
+        -doctor | --doctor | -check | --check)
+            ACTIONS+=(doctor_vm)
+            shift
+            ;;
+        -autostart | --autostart)
+            ACTIONS+=(autostart_create)
+            shift
+            ;;
+        -usb-passthrough | --usb-passthrough)
+            usb_devices+=("${2}")
+            shift 2
+            ;;
+        -dry-run | --dry-run | -echo | --echo)
+            DRY_RUN="true"
+            shift
+            ;;
+        -offline | --offline)
+            SHORTCUT_OPTIONS+="--offline "
+            network="none"
+            shift
+            ;;
+        -snapshot | --snapshot)
+            if [ -z "${2}" ]; then
+                echo "ERROR! '--snapshot' needs an action to perform."
+                exit 1
+            fi
+            SNAPSHOT_ACTION="${2}"
+            if [ -z "${3}" ] && [ "${SNAPSHOT_ACTION}" != "info" ]; then
+                echo "ERROR! '--snapshot ${SNAPSHOT_ACTION}' needs a tag."
+                exit 1
+            fi
+            SNAPSHOT_TAG="${3}"
+            if [ "${SNAPSHOT_ACTION}" == "info" ] || [ "${SNAPSHOT_ACTION}" == "list" ]; then
+                shift 2
+            else
+                shift 3
+            fi
+            ;;
+        -status-quo | --status-quo)
+            STATUS_QUO="-snapshot"
+            shift
+            ;;
+        -shortcut | --shortcut)
+            ACTIONS+=(shortcut_create)
+            shift
+            ;;
+        -vm | --vm)
+            VM="${2}"
+            shift 2
+            ;;
+        -viewer | --viewer)
+            SHORTCUT_OPTIONS+="--viewer ${2} "
+            viewer="${2}"
+            shift 2
+            ;;
+        -width | --width)
+            SHORTCUT_OPTIONS+="--width ${2} "
+            width="${2}"
+            shift 2
+            ;;
+        -height | --height)
+            SHORTCUT_OPTIONS+="--height ${2} "
+            height="${2}"
+            shift 2
+            ;;
+        -ssh-access | --ssh-access)
+            SHORTCUT_OPTIONS+="--ssh-access ${2} "
+            SSH_ACCESS="${2}"
+            shift 2
+            ;;
+        -ssh-port | --ssh-port)
+            SHORTCUT_OPTIONS+="--ssh-port ${2} "
+            ssh_port="${2}"
+            shift 2
+            ;;
+        -spice-port | --spice-port)
+            SHORTCUT_OPTIONS+="--spice-port ${2} "
+            spice_port="${2}"
+            shift 2
+            ;;
+        -public-dir | --public-dir)
+            SHORTCUT_OPTIONS+="--public-dir ${2} "
+            PUBLIC="${2}"
+            shift 2
+            ;;
+        -monitor | --monitor)
+            SHORTCUT_OPTIONS+="--monitor ${2} "
+            monitor="${2}"
+            shift 2
+            ;;
+        -monitor-cmd | --monitor-cmd)
+            SHORTCUT_OPTIONS+="--monitor-cmd ${2} "
+            MONITOR_CMD="${2}"
+            shift 2
+            ;;
+        -monitor-telnet-host | --monitor-telnet-host)
+            SHORTCUT_OPTIONS+="--monitor-telnet-host ${2} "
+            monitor_telnet_host="${2}"
+            shift 2
+            ;;
+        -monitor-telnet-port | --monitor-telnet-port)
+            SHORTCUT_OPTIONS+="--monitor-telnet-port ${2} "
+            monitor_telnet_port="${2}"
+            shift 2
+            ;;
+        -serial | --serial)
+            SHORTCUT_OPTIONS+="--serial ${2} "
+            serial="${2}"
+            shift 2
+            ;;
+        -serial-telnet-host | --serial-telnet-host)
+            SHORTCUT_OPTIONS+="--serial-telnet-host ${2} "
+            serial_telnet_host="${2}"
+            shift 2
+            ;;
+        -serial-telnet-port | --serial-telnet-port)
+            SHORTCUT_OPTIONS+="--serial-telnet-port ${2} "
+            serial_telnet_port="${2}"
+            shift 2
+            ;;
+        -keyboard | --keyboard)
+            SHORTCUT_OPTIONS+="--keyboard ${2} "
+            keyboard="${2}"
+            shift 2
+            ;;
+        -keyboard_layout | --keyboard_layout)
+            SHORTCUT_OPTIONS+="--keyboard_layout ${2} "
+            keyboard_layout="${2}"
+            shift 2
+            ;;
+        -mouse | --mouse)
+            SHORTCUT_OPTIONS+="--mouse ${2} "
+            mouse="${2}"
+            shift 2
+            ;;
+        -usb-controller | --usb-controller)
+            SHORTCUT_OPTIONS+="--usb-controller ${2} "
+            usb_controller="${2}"
+            shift 2
+            ;;
+        -extra_args | --extra_args)
+            SHORTCUT_OPTIONS+="--extra_args ${2} "
+            extra_args+="${2}"
+            shift 2
+            ;;
+        -sound-card | --sound-card)
+            SHORTCUT_OPTIONS+="--sound-card ${2} "
+            sound_card="${2}"
+            shift 2
+            ;;
+        -sound-duplex | --sound-duplex)
+            SHORTCUT_OPTIONS+="--sound-duplex ${2} "
+            sound_duplex="${2}"
+            shift 2
+            ;;
+        -version | --version)
+            echo "${VERSION}"
+            exit
+            ;;
+        -h | --h | -help | --help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "ERROR! \"${1}\" is not a supported parameter."
+            usage
+            exit 1
+            ;;
         esac
     done
 fi
@@ -3646,9 +3743,10 @@ fi
 # from any directory and without --vm.
 for ACTION in "${ACTIONS[@]}"; do
     case "${ACTION}" in
-        capabilities|list_vms)
-            ${ACTION}
-            exit 0;;
+    capabilities | list_vms)
+        ${ACTION}
+        exit 0
+        ;;
     esac
 done
 
@@ -3678,12 +3776,12 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
     # so disable it to reduce clutter. Users can still override with --serial.
     if [ -z "${serial}" ]; then
         case "${guest_os}" in
-            macos|windows|windows-server)
-                serial="none"
-                ;;
-            *)
-                serial="socket"
-                ;;
+        macos | windows | windows-server)
+            serial="none"
+            ;;
+        *)
+            serial="socket"
+            ;;
         esac
     fi
 
@@ -3702,7 +3800,7 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
     VM_PID=""
     if [ -r "${VMDIR}/${VMNAME}.pid" ]; then
         VM_PID=$(head -n 1 "${VMDIR}/${VMNAME}.pid")
-        if ! kill -0 "${VM_PID}" > /dev/null 2>&1; then
+        if ! kill -0 "${VM_PID}" >/dev/null 2>&1; then
             #VM is not running, cleaning up.
             VM_PID=""
             rm -f "${VMDIR}/${VMNAME}.pid"
@@ -3721,26 +3819,31 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
 
     if [ -n "${SNAPSHOT_ACTION}" ]; then
         case ${SNAPSHOT_ACTION} in
-            apply)
-                snapshot_apply "${SNAPSHOT_TAG}"
-                snapshot_info
-                exit;;
-            create)
-                snapshot_create "${SNAPSHOT_TAG}"
-                snapshot_info
-                exit;;
-            delete)
-                snapshot_delete "${SNAPSHOT_TAG}"
-                snapshot_info
-                exit;;
-            info|list)
-                echo "Snapshot information ${disk_img}"
-                snapshot_info
-                exit;;
-            *)
-                echo "ERROR! \"${SNAPSHOT_ACTION}\" is not a supported snapshot action."
-                usage
-                exit 1;;
+        apply)
+            snapshot_apply "${SNAPSHOT_TAG}"
+            snapshot_info
+            exit
+            ;;
+        create)
+            snapshot_create "${SNAPSHOT_TAG}"
+            snapshot_info
+            exit
+            ;;
+        delete)
+            snapshot_delete "${SNAPSHOT_TAG}"
+            snapshot_info
+            exit
+            ;;
+        info | list)
+            echo "Snapshot information ${disk_img}"
+            snapshot_info
+            exit
+            ;;
+        *)
+            echo "ERROR! \"${SNAPSHOT_ACTION}\" is not a supported snapshot action."
+            usage
+            exit 1
+            ;;
         esac
     fi
 else
@@ -3763,8 +3866,8 @@ if [ -z "${VM_PID}" ]; then
     if [ -n "${iso}" ] && [[ "${guest_os}" == "windows"* ]]; then
         # shellcheck disable=SC2034
         for LOOP in {1..5}; do
-          sleep 1
-          monitor_send_cmd "sendkey ret"
+            sleep 1
+            monitor_send_cmd "sendkey ret"
         done
     fi
 else
