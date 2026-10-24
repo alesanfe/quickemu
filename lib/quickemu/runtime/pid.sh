@@ -5,3 +5,6 @@ vm_pid_alive() { # pidfile -> 0 if process alive
     pid=$(tr -d '[:space:]' <"${1}")
     [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null
 }
+
+# True when the VM's pidfile exists and its process is alive.
+vm_running() { vm_pid_alive "${1}/${2:-$(basename "${1}" .conf)}.pid"; }

@@ -188,7 +188,7 @@ function delete_vm() {
 }
 
 function pause_vm() {
-    if [ -z "${VM_PID}" ] || ! kill -0 "${VM_PID}" 2>/dev/null; then
+    if ! vm_running "${VMDIR}" "${VMNAME}"; then
         echo " - ${VMNAME} is not running."
         return 1
     fi
@@ -202,7 +202,7 @@ function pause_vm() {
 }
 
 function resume_vm() {
-    if [ -z "${VM_PID}" ] || ! kill -0 "${VM_PID}" 2>/dev/null; then
+    if ! vm_running "${VMDIR}" "${VMNAME}"; then
         echo " - ${VMNAME} is not running."
         return 1
     fi
@@ -216,7 +216,7 @@ function resume_vm() {
 function screenshot_vm() {
     local OUT="${SCREENSHOT_OUT:-${VMDIR}/${VMNAME}-$(date +%Y%m%d-%H%M%S).ppm}"
     local PPM="${OUT}"
-    if [ -z "${VM_PID}" ] || ! kill -0 "${VM_PID}" 2>/dev/null; then
+    if ! vm_running "${VMDIR}" "${VMNAME}"; then
         echo " - ${VMNAME} is not running."
         return 1
     fi
@@ -268,7 +268,7 @@ function clone_vm() {
         echo "ERROR! ${NEW_NAME} already exists."
         exit 1
     fi
-    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+    if vm_running "${VMDIR}" "${VMNAME}"; then
         echo "ERROR! Stop ${VMNAME} before cloning."
         exit 1
     fi
@@ -306,7 +306,7 @@ function disk_resize() {
         echo "ERROR! '--disk-resize' needs a size (e.g. 32G)."
         exit 1
     fi
-    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+    if vm_running "${VMDIR}" "${VMNAME}"; then
         echo "ERROR! Stop ${VMNAME} before resizing."
         exit 1
     fi
@@ -326,7 +326,7 @@ function disk_resize() {
 
 function disk_compact() {
     local TMP="${disk_img}.compact"
-    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+    if vm_running "${VMDIR}" "${VMNAME}"; then
         echo "ERROR! Stop ${VMNAME} before compacting."
         exit 1
     fi
@@ -348,7 +348,7 @@ function disk_compact() {
 function export_vm() {
     local OUT="${EXPORT_FILE:-${VMNAME}.quickvm.tar.gz}" PARENT=""
     local MEMBERS=("${VMNAME}.conf")
-    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+    if vm_running "${VMDIR}" "${VMNAME}"; then
         echo "ERROR! Stop ${VMNAME} before exporting."
         exit 1
     fi
@@ -394,7 +394,7 @@ function rename_vm() {
         echo "ERROR! ${NEW_NAME} already exists."
         exit 1
     fi
-    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+    if vm_running "${VMDIR}" "${VMNAME}"; then
         echo "ERROR! Stop ${VMNAME} before renaming."
         exit 1
     fi
@@ -1210,13 +1210,8 @@ function configure_ram() {
     local OS_PRETTY_NAME=""
     RAM_VM="2G"
     if [ -z "${ram}" ]; then
-        local RAM_HOST=""
-        if [ "${OS_KERNEL}" == "Darwin" ]; then
-            RAM_HOST=$(($(sysctl -n hw.memsize) / (1048576 * 1024)))
-        else
-            # Determine the number of gigabytes of RAM in the host by extracting the first numerical value from the output.
-            RAM_HOST=$(free --giga | tr ' ' '\n' | grep -m 1 "[0-9]")
-        fi
+        # Host RAM in GiB (meminfo on Linux, hw.memsize on macOS).
+        local RAM_HOST=$(( $(host_total_mem_mb) / 1024 ))
 
         if [ "${RAM_HOST}" -ge 128 ]; then
             RAM_VM="32G"
@@ -2321,12 +2316,7 @@ function vm_boot() {
     fi
 
     if [ "${QEMU_ACCEL}" == "tcg" ]; then
-        local HOST_RAM_GB=0
-        if [ "${OS_KERNEL}" == "Darwin" ]; then
-            HOST_RAM_GB=$(($(sysctl -n hw.memsize) / (1024 * 1024 * 1024)))
-        else
-            HOST_RAM_GB=$(awk '/MemTotal/ {printf "%.0f", $2/1024/1024}' /proc/meminfo)
-        fi
+        local HOST_RAM_GB=$(( ($(host_total_mem_mb) + 512) / 1024 ))
         # Use larger translation cache on hosts with 16GB+ RAM
         local TCG_TB_SIZE=256
         if [ "${HOST_RAM_GB}" -ge 16 ]; then
@@ -3392,6 +3382,10 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/config/normalizer.sh"
     # shellcheck source=lib/quickemu/runtime/monitor.sh
     source "${QE_LIBDIR}/runtime/monitor.sh"
+    # shellcheck source=lib/quickemu/runtime/pid.sh
+    source "${QE_LIBDIR}/runtime/pid.sh"
+    # shellcheck source=lib/quickemu/host/memory.sh
+    source "${QE_LIBDIR}/host/memory.sh"
     # shellcheck source=lib/quickemu/vm/status.sh
     source "${QE_LIBDIR}/vm/status.sh"
     # shellcheck source=lib/quickemu/vm/delete-plan.sh
@@ -3804,7 +3798,7 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
     VM_PID=""
     if [ -r "${VMDIR}/${VMNAME}.pid" ]; then
         VM_PID=$(head -n 1 "${VMDIR}/${VMNAME}.pid")
-        if ! kill -0 "${VM_PID}" >/dev/null 2>&1; then
+        if ! vm_pid_alive "${VMDIR}/${VMNAME}.pid"; then
             #VM is not running, cleaning up.
             VM_PID=""
             rm -f "${VMDIR}/${VMNAME}.pid"

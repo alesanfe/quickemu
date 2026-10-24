@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 Describe 'vm status'
 Include lib/quickemu/vm/status.sh
+Include lib/quickemu/runtime/pid.sh
 
 Describe 'status_vm'
 It 'prints human output when stopped'
