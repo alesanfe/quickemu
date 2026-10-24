@@ -106,3 +106,69 @@ function test_all() {
         fi
     done
 }
+
+# Report the newest upstream release vs local VM directories for --update.
+function catalog_update_check() {
+    local OS="${1}" LATEST="" LOCAL_DIRS="" d=""
+    case ${OS} in
+        *ubuntu-server*) LATEST=$(releases_ubuntu-server | tr ' ' '\n' | head -1);;
+        *)               LATEST=$(releases_"${OS}" | tr ' ' '\n' | head -1);;
+    esac
+    echo "Latest ${OS} release upstream: ${LATEST}"
+    LOCAL_DIRS=$(find . -maxdepth 1 -type d -name "${OS}-*" | sed 's|^\./||' | sort)
+    if [ -n "${LOCAL_DIRS}" ]; then
+        echo "Local VM dirs:"
+        for d in ${LOCAL_DIRS}; do
+            echo "  ${d}$([ "${d}" == "${OS}-${LATEST}" ] && echo '  (up to date)' || echo '  (older release available)')"
+        done
+    else
+        echo "No local ${OS} VM directories found."
+    fi
+    exit 0
+}
+
+# Check download URLs for all architectures for a specific release/edition.
+function catalog_check_all_arch() {
+    local OS="${1}" CHECK_ARCH="" URL="" CHECK=""
+    RELEASE="${2}"
+    EDITION="${3:-}"
+    for CHECK_ARCH in amd64 arm64; do
+        ARCH="${CHECK_ARCH}"
+        # Check architecture support before testing URL
+        if ! is_arch_supported "${OS}" "${ARCH}"; then
+            if [ -n "${EDITION}" ]; then
+                test_result "${OS}" "${RELEASE}" "${EDITION}" "" "SKIP" "(not available for ${ARCH})"
+            else
+                test_result "${OS}" "${RELEASE}" "" "" "SKIP" "(not available for ${ARCH})"
+            fi
+            continue
+        fi
+        # Validate release
+        case ${OS} in
+            *ubuntu-server*) validate_release releases_ubuntu-server;;
+            *ubuntu*) validate_release releases_ubuntu;;
+            *) validate_release "releases_${OS}";;
+        esac
+        # Generate and check URL
+        if [[ $(type -t "editions_${OS}") == function ]] && [ -n "${EDITION}" ]; then
+            URL=$(get_"${OS}" | cut -d' ' -f1 | head -n 1)
+        elif [ "${OS}" == "macos" ]; then
+            (get_macos)
+            continue
+        elif [[ "${OS}" == *"ubuntu-server"* ]]; then
+            (get_ubuntu-server)
+            continue
+        elif [[ "${OS}" == *"ubuntu"* ]]; then
+            (get_ubuntu)
+            continue
+        elif [[ "${OS}" == "windows"* ]]; then
+            test_result "${OS}" "${RELEASE}" "${EDITION}" "" "SKIP" "(Windows not supported in check mode)"
+            continue
+        else
+            URL=$(get_"${OS}" | cut -d' ' -f1 | head -n 1)
+        fi
+        CHECK=$(web_check "${URL}" && echo "PASS" || echo "FAIL")
+        test_result "${OS}" "${RELEASE}" "${EDITION}" "${URL}" "${CHECK}"
+    done
+    exit 0
+}

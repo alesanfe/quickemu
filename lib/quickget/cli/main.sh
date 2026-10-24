@@ -177,119 +177,23 @@ fi
 os_supported
 
 if [ "${OPERATION}" == "update" ]; then
-    case ${OS} in
-        *ubuntu-server*) LATEST=$(releases_ubuntu-server | tr ' ' '\n' | head -1);;
-        *)               LATEST=$(releases_"${OS}" | tr ' ' '\n' | head -1);;
-    esac
-    echo "Latest ${OS} release upstream: ${LATEST}"
-    LOCAL_DIRS=$(find . -maxdepth 1 -type d -name "${OS}-*" | sed 's|^\./||' | sort)
-    if [ -n "${LOCAL_DIRS}" ]; then
-        echo "Local VM dirs:"
-        for d in ${LOCAL_DIRS}; do
-            echo "  ${d}$([ "${d}" == "${OS}-${LATEST}" ] && echo '  (up to date)' || echo '  (older release available)')"
-        done
-    else
-        echo "No local ${OS} VM directories found."
-    fi
-    exit 0
+    catalog_update_check "${OS}"
 fi
 
 # Handle --check-all-arch for specific release/edition
 if [ "${CHECK_ALL_ARCH}" == "true" ] && [ -n "${2}" ]; then
-    RELEASE="${2}"
-    EDITION="${3:-}"
-    for CHECK_ARCH in amd64 arm64; do
-        ARCH="${CHECK_ARCH}"
-        # Check architecture support before testing URL
-        if ! is_arch_supported "${OS}" "${ARCH}"; then
-            if [ -n "${EDITION}" ]; then
-                test_result "${OS}" "${RELEASE}" "${EDITION}" "" "SKIP" "(not available for ${ARCH})"
-            else
-                test_result "${OS}" "${RELEASE}" "" "" "SKIP" "(not available for ${ARCH})"
-            fi
-            continue
-        fi
-        # Validate release
-        case ${OS} in
-            *ubuntu-server*) validate_release releases_ubuntu-server;;
-            *ubuntu*) validate_release releases_ubuntu;;
-            *) validate_release "releases_${OS}";;
-        esac
-        # Generate and check URL
-        if [[ $(type -t "editions_${OS}") == function ]] && [ -n "${EDITION}" ]; then
-            URL=$(get_"${OS}" | cut -d' ' -f1 | head -n 1)
-        elif [ "${OS}" == "macos" ]; then
-            (get_macos)
-            continue
-        elif [[ "${OS}" == *"ubuntu-server"* ]]; then
-            (get_ubuntu-server)
-            continue
-        elif [[ "${OS}" == *"ubuntu"* ]]; then
-            (get_ubuntu)
-            continue
-        elif [[ "${OS}" == "windows"* ]]; then
-            test_result "${OS}" "${RELEASE}" "${EDITION}" "" "SKIP" "(Windows not supported in check mode)"
-            continue
-        else
-            URL=$(get_"${OS}" | cut -d' ' -f1 | head -n 1)
-        fi
-        CHECK=$(web_check "${URL}" && echo "PASS" || echo "FAIL")
-        test_result "${OS}" "${RELEASE}" "${EDITION}" "${URL}" "${CHECK}"
-    done
-    exit 0
+    catalog_check_all_arch "${OS}" "${2}" "${3:-}"
 fi
 
 # Validate architecture support before attempting download
-# Skip for OSes with editions_* functions - they have edition-dependent arch support
-# and will be validated after EDITION is parsed
-if [[ $(type -t "editions_${OS}") != function ]]; then
-    if ! is_arch_supported "${OS}" "${ARCH}"; then
-        if [ "${OPERATION}" == "test" ] || [ "${OPERATION}" == "show" ]; then
-            test_result "${OS}" "${2:-}" "${3:-}" "" "SKIP" "(not available for ${ARCH})"
-            exit 0
-        else
-            echo "ERROR! $(pretty_name "${OS}") is not available for ${ARCH} architecture."
-            exit 1
-        fi
-    fi
-fi
+catalog_check_os_arch "${OS}" "${2:-}" "${3:-}"
 
 if [ -n "${2}" ]; then
     RELEASE="${2}"
     VM_PATH="${OS}-${RELEASE}$(arch_suffix)"
     # If the OS has an editions_() function, use it.
     if [[ $(type -t "editions_${OS}") == function ]]; then
-        validate_release "releases_${OS}"
-        EDITIONS=("$(editions_"${OS}")")
-        if [ -n "${3}" ]; then
-            EDITION="${3}"
-            if [[ ! " ${EDITIONS[*]} " =~ \ "${EDITION}"\  ]]; then
-                echo -e "ERROR! ${EDITION} is not a supported $(pretty_name "${OS}") edition\n"
-                echo -n ' - Supported editions: '
-                for EDITION in "${EDITIONS[@]}"; do
-                    echo -n "${EDITION} "
-                done
-                echo ""
-                exit 1
-            fi
-        else
-            show_os_info "${OS}"
-            echo -e " - Editions:\t$("editions_${OS}" | fmt -w 80)"
-            echo -e "\nERROR! You must specify an edition."
-            exit 1
-        fi
-        # Now that EDITION is known, validate architecture support
-        if ! is_arch_supported "${OS}" "${ARCH}"; then
-            if [ "${OPERATION}" == "test" ] || [ "${OPERATION}" == "show" ]; then
-                test_result "${OS}" "${RELEASE}" "${EDITION}" "" "SKIP" "(not available for ${ARCH})"
-                exit 0
-            else
-                echo "ERROR! $(pretty_name "${OS}") ${EDITION} is not available for ${ARCH} architecture."
-                exit 1
-            fi
-        fi
-        handle_missing
-        VM_PATH="${OS}-${RELEASE}-${EDITION}$(arch_suffix)"
+        catalog_resolve_edition "${OS}" "${3:-}"
         create_vm "$("get_${OS}" "${EDITION}")"
     elif [ "${OS}" == "macos" ]; then
         # macOS doesn't use create_vm()
