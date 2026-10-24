@@ -107,6 +107,7 @@ function os_info() {
         pureos)           INFO="PureOS|-|https://www.pureos.net/|A fully free/libre and open source GNU/Linux operating system, endorsed by the Free Software Foundation.";;
         qubes)            INFO="Qubes OS|-|https://www.qubes-os.org/|A reasonably secure operating system that uses Xen-based virtualization to provide strong isolation.";;
         reactos)          INFO="ReactOS|-|https://reactos.org/|Imagine running your favorite Windows applications and drivers in an open-source environment you can trust.";;
+        redoxos)          INFO="Redox OS|-|https://www.redox-os.org/|Unix-like microkernel operating system written in Rust, with a focus on safety and correctness.";;
         rebornos)         INFO="RebornOS|-|https://rebornos.org/|Aiming to make Arch Linux as user friendly as possible by providing interface solutions to things you normally have to do in a terminal.";;
         rockylinux)       INFO="Rocky Linux|-|https://rockylinux.org/|Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.";;
         siduction)        INFO="Siduction|-|https://siduction.org/|Operating system based on the Linux kernel and the GNU project. In addition, there are applications and libraries from Debian.";;
@@ -544,6 +545,7 @@ function os_support() {
     qubes \
     reactos \
     rebornos \
+    redoxos \
     rockylinux \
     siduction \
     slackware \
@@ -1069,6 +1071,15 @@ function editions_pureos() {
 function releases_qubes() {
     #shellcheck disable=SC2046,SC2005
     echo $(web_pipe "https://ftp.qubes-os.org/iso/" | grep -oE 'R4\.[0-9.]+-x86_64\.iso' | grep -oE '4\.[0-9.]+' | sort -uVr)
+}
+
+function releases_redoxos() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://static.redox-os.org/releases/" | grep -oE 'href="[0-9.]+/"' | tr -dc '0-9.' | sort -uVr)
+}
+
+function editions_redoxos() {
+    echo "desktop server demo"
 }
 
 function releases_reactos() {
@@ -2808,6 +2819,17 @@ function get_qubes() {
     echo "${URL}/${ISO} ${HASH}"
 }
 
+function get_redoxos() {
+    local HASH=""
+    local ISO=""
+    local LINE=""
+    local URL="https://static.redox-os.org/releases/${RELEASE}/x86_64"
+    LINE=$(web_pipe "${URL}/SHA256SUM" | grep "redox_${EDITION}_.*_livedisk.iso.zst" | tail -1)
+    ISO=$(grep -oE 'redox_[^ ]*livedisk\.iso\.zst' <<<"${LINE}" | head -1)
+    HASH=$(cut -d' ' -f1 <<<"${LINE}")
+    echo "${URL}/${ISO} ${HASH}"
+}
+
 function get_reactos() {
     local HASH=""
     local URL=""
@@ -3698,7 +3720,13 @@ function download_windows_workstation() {
     esac
 
     local user_agent="Mozilla/5.0 (X11; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0"
-    session_id="$(uuidgen)"
+    # Fall back to the kernel UUID source when uuidgen is not installed,
+    # an empty session id makes Microsoft reject the download request.
+    if command -v uuidgen &>/dev/null; then
+        session_id="$(uuidgen)"
+    else
+        session_id="$(cat /proc/sys/kernel/random/uuid)"
+    fi
 
     # Get product edition ID for latest release of given Windows version
     # Product edition ID: This specifies both the Windows release (e.g. 22H2) and edition ("multi-edition" is default, either Home/Pro/Edu/etc., we select "Pro" in the answer files) in one number
@@ -3892,6 +3920,15 @@ function create_vm() {
                 require_qemu_img
                 ${QEMU_IMG} convert -f raw -O qcow2 "${VM_PATH}/${ISO}" "${VM_PATH}/disk.qcow2"
                 ISO="disk.qcow2"
+            fi;;
+        redoxos)
+            if [[ ${ISO} = *".zst"* ]]; then
+                if [ -z "$(command -v zstd)" ]; then echo "ERROR! 'zstd' needs installing. Unable to extract file."
+                else
+                    zstd -dq "${VM_PATH}/${ISO}"
+                    rm -f "${VM_PATH}/${ISO}"
+                    ISO="${ISO/.zst/}"
+                fi
             fi;;
         freedos)
             if [[ ${ISO} = *".zip"* ]]; then
