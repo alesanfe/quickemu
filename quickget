@@ -2260,7 +2260,8 @@ function get_kdeneon() {
     local ISO=""
     local URL="https://files.kde.org/neon/images/${EDITION}/${RELEASE}/current"
 
-    local CHKSUM_FILE_CONTENT=$(web_pipe "${URL}/neon-${RELEASE}-${EDITION}-current.sha256sum")
+    local CHKSUM_FILE_CONTENT=""
+    CHKSUM_FILE_CONTENT=$(web_pipe "${URL}/neon-${RELEASE}-${EDITION}-current.sha256sum")
     IFS=' ' read -r HASH ISO <<< "$CHKSUM_FILE_CONTENT"
 
     echo "${URL}/${ISO} ${HASH}"
@@ -3560,13 +3561,16 @@ function download_windows_workstation() {
         return $?
     }
 
-    local w="$(echo "$mdt_js_response" | grep -Eo '[?&]w=[A-F0-9]+' | head -1)"
+    local w=""
+    w="$(echo "$mdt_js_response" | grep -Eo '[?&]w=[A-F0-9]+' | head -1)"
     w="${w#*=}"
 
-    local rticks="$(echo "$mdt_js_response" | grep -Eo 'rticks="?\+?[0-9]+' | head -1)"
+    local rticks=""
+    rticks="$(echo "$mdt_js_response" | grep -Eo 'rticks="?\+?[0-9]+' | head -1)"
     rticks="${rticks##*[=\"+]}"
 
-    local current_time="$(date +%s%3N)"
+    local current_time=""
+    current_time="$(date +%s%3N)"
 
     curl --disable --silent --user-agent "$user_agent" --header "Accept:" --max-filesize 100K --fail --proto =https --tlsv1.2 --http1.1 -- "https://ov-df.microsoft.com/?session_id={$session_id}&CustomerId={$instanceId}&PageId=si&w={$w}&mdt={$current_time}&rticks={$rticks}" || {
         handle_curl_error $?

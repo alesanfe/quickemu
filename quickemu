@@ -2119,8 +2119,10 @@ function vm_boot() {
             MAC=",mac=${macaddr}"
         fi
 
+        local BRIDGE_HELPER=""
+        BRIDGE_HELPER=$(type -p qemu-bridge-helper)
         # shellcheck disable=SC2054,SC2206
-        args+=(-nic bridge,br=${network},helper=$(type -p qemu-bridge-helper),model=${NET_DEVICE}${MAC})
+        args+=(-nic bridge,br=${network},helper=${BRIDGE_HELPER},model=${NET_DEVICE}${MAC})
     else
         echo " - Network:  User (${NET_DEVICE})"
         # shellcheck disable=SC2054,SC2206
