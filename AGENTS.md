@@ -10,7 +10,7 @@ bin/quickget      # OS downloader and config generator
 bin/quickgetc     # Data-driven downloader (JSON catalog variant, dev tool)
 bin/quickreport   # System diagnostics tool
 lib/quickemu/     # Modules sourced by the entries (cli, config, catalog,
-                  # host, planning, runtime, vm, adapters, support)
+                  # host, planning, runtime, vm, support)
 lib/quickget/     # quickget layers (cli, catalog, download, image, vm, support)
 lib/quickgetc/    # quickgetc layers (same layout as lib/quickget)
 lib/quickreport/  # quickreport layers (host probes + cli report)

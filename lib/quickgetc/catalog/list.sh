@@ -61,3 +61,8 @@ function list_releases_raw() {
     # Reference: https://unix.stackexchange.com/questions/738691/get-unique-without-sorting-in-jq
     jq -r 'reduce (.releases[].release) as $a ([]; if IN(.[]; $a) then . else . += [$a] end) | join(" ")' <<< "${OS_ENTRY}"
 }
+
+function list_supported() {
+    list_csv | cut -d ',' -f2,3,4 | tr ',' ' '
+    exit 0
+}

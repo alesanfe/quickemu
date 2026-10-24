@@ -183,6 +183,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/cli/param-checks.sh"
     # shellcheck source=lib/quickemu/cli/status.sh
     source "${QE_LIBDIR}/cli/status.sh"
+    # shellcheck source=lib/quickemu/cli/emit.sh
+    source "${QE_LIBDIR}/cli/emit.sh"
 else
     echo "ERROR! quickemu lib/ directory not found."
     exit 1
