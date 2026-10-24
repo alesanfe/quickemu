@@ -565,10 +565,12 @@ function configure_bios() {
         EFI_VARS="${VMDIR}/OVMF_VARS.fd"
 
         # Preserve backward compatibility
-        if [ -e "${VMDIR}/${VMNAME}-vars.fd" ]; then
-            mv "${VMDIR}/${VMNAME}-vars.fd" "${EFI_VARS}"
-        elif [ -e "${VMDIR}/OVMF_VARS_4M.fd" ]; then
-            mv "${VMDIR}/OVMF_VARS_4M.fd" "${EFI_VARS}"
+        if [ -z "${DRY_RUN}" ]; then
+            if [ -e "${VMDIR}/${VMNAME}-vars.fd" ]; then
+                mv "${VMDIR}/${VMNAME}-vars.fd" "${EFI_VARS}"
+            elif [ -e "${VMDIR}/OVMF_VARS_4M.fd" ]; then
+                mv "${VMDIR}/OVMF_VARS_4M.fd" "${EFI_VARS}"
+            fi
         fi
 
         # OVMF_CODE_4M.fd is for booting guests in non-Secure Boot mode.
@@ -671,11 +673,11 @@ function configure_bios() {
             else
                 EFI_VARS="${VMDIR}/OVMF_VARS.fd"
             fi
-            efi_vars "${EFI_EXTRA_VARS}" "${EFI_VARS}"
+            [ -z "${DRY_RUN}" ] && efi_vars "${EFI_EXTRA_VARS}" "${EFI_VARS}"
         fi
 
         # Make sure EFI_VARS references an actual, writeable, file
-        if [ "${EFI_MODE}" == "pflash" ] &&
+        if [ "${EFI_MODE}" == "pflash" ] && [ -z "${DRY_RUN}" ] &&
             { [ ! -f "${EFI_VARS}" ] || [ ! -w "${EFI_VARS}" ]; }; then
             echo " - EFI:      ERROR! ${EFI_VARS} is not a regular file or not writeable."
             echo "             Deleting ${EFI_VARS}. Please re-run quickemu."
@@ -789,33 +791,38 @@ function configure_storage() {
     local create_options=""
     echo " - Disk:     ${disk_img} (${disk_size})"
     if [ ! -f "${disk_img}" ]; then
-        # If there is no disk image, create a new image.
-        mkdir -p "${VMDIR}" 2>/dev/null
-        case ${preallocation} in
-        off | metadata | falloc | full) true ;;
-        *)
-            echo "ERROR! ${preallocation} is an unsupported disk preallocation option."
-            exit 1
-            ;;
-        esac
+        if [ -n "${DRY_RUN}" ]; then
+            # Planning only: describe the disk that would be created, create nothing.
+            echo "             Would create ${disk_img} (${disk_format}, ${disk_size})"
+        else
+            # If there is no disk image, create a new image.
+            mkdir -p "${VMDIR}" 2>/dev/null
+            case ${preallocation} in
+            off | metadata | falloc | full) true ;;
+            *)
+                echo "ERROR! ${preallocation} is an unsupported disk preallocation option."
+                exit 1
+                ;;
+            esac
 
-        case ${disk_format} in
-        qcow2) create_options="lazy_refcounts=on,preallocation=${preallocation},nocow=on" ;;
-        raw) create_options="preallocation=${preallocation}" ;;
-        *) true ;;
-        esac
+            case ${disk_format} in
+            qcow2) create_options="lazy_refcounts=on,preallocation=${preallocation},nocow=on" ;;
+            raw) create_options="preallocation=${preallocation}" ;;
+            *) true ;;
+            esac
 
-        # https://blog.programster.org/qcow2-performance
-        if ! ${QEMU_IMG} create -q -f "${disk_format}" -o "${create_options=}" "${disk_img}" "${disk_size}"; then
-            echo "ERROR! Failed to create ${disk_img} using ${disk_format} format."
-            exit 1
+            # https://blog.programster.org/qcow2-performance
+            if ! ${QEMU_IMG} create -q -f "${disk_format}" -o "${create_options=}" "${disk_img}" "${disk_size}"; then
+                echo "ERROR! Failed to create ${disk_img} using ${disk_format} format."
+                exit 1
+            fi
+
+            if [ -z "${iso}" ] && [ -z "${img}" ]; then
+                echo "ERROR! You haven't specified a .iso or .img image to boot from."
+                exit 1
+            fi
+            echo "             Just created, booting from ${iso}${img}"
         fi
-
-        if [ -z "${iso}" ] && [ -z "${img}" ]; then
-            echo "ERROR! You haven't specified a .iso or .img image to boot from."
-            exit 1
-        fi
-        echo "             Just created, booting from ${iso}${img}"
         DISK_USED="no"
     elif [ -e "${disk_img}" ]; then
         # If the VM is not running, check for disk related issues.
@@ -1081,9 +1088,11 @@ function configure_audio() {
 }
 
 function configure_ports() {
-    echo -n "" >"${VMDIR}/${VMNAME}.ports"
-    qe_safe_rm "${VMDIR}/${VMNAME}.spice"
-    qe_safe_rm "${VMDIR}/${VMNAME}.sock"
+    if [ -z "${DRY_RUN}" ]; then
+        echo -n "" >"${VMDIR}/${VMNAME}.ports"
+        qe_safe_rm "${VMDIR}/${VMNAME}.spice"
+        qe_safe_rm "${VMDIR}/${VMNAME}.sock"
+    fi
 
     if [ -z "${ssh_port}" ]; then
         # Find a free port to expose ssh to the guest
@@ -1102,7 +1111,7 @@ function configure_ports() {
     fi
 
     if [ -n "${ssh_port}" ]; then
-        echo "ssh,${ssh_port}" >>"${VMDIR}/${VMNAME}.ports"
+        [ -z "${DRY_RUN}" ] && echo "ssh,${ssh_port}" >>"${VMDIR}/${VMNAME}.ports"
         NET="${NET},hostfwd=tcp:${SSH_ADDR}:${ssh_port}-:22"
         echo " - ssh:      On host:  ssh user@${ssh_host} -p ${ssh_port}"
     else
@@ -1134,8 +1143,10 @@ function configure_ports() {
                 # Unix socket mode for local access
                 # GL context is provided by egl-headless display, not SPICE
                 SPICE+=",unix=on,addr=${VMDIR}/${VMNAME}.sock"
-                echo "unix,${VMDIR}/${VMNAME}.sock" >>"${VMDIR}/${VMNAME}.ports"
-                echo "${VMDIR}/${VMNAME}.sock" >"${VMDIR}/${VMNAME}.spice"
+                if [ -z "${DRY_RUN}" ]; then
+                    echo "unix,${VMDIR}/${VMNAME}.sock" >>"${VMDIR}/${VMNAME}.ports"
+                    echo "${VMDIR}/${VMNAME}.sock" >"${VMDIR}/${VMNAME}.spice"
+                fi
                 echo -n " - SPICE:    On host:  spicy --uri=\"spice+unix://${VMDIR}/${VMNAME}.sock\" --title \"${VMNAME}\""
                 if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                     echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1160,8 +1171,10 @@ function configure_ports() {
                 fi
 
                 SPICE+=",port=${spice_port},addr=${SPICE_ADDR}"
-                echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
-                echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
+                if [ -z "${DRY_RUN}" ]; then
+                    echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
+                    echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
+                fi
                 echo -n " - SPICE:    On host:  spicy --title \"${VMNAME}\" --port ${spice_port}"
                 if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                     echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1191,8 +1204,10 @@ function configure_ports() {
             fi
 
             SPICE+=",port=${spice_port},addr=${SPICE_ADDR}"
-            echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
-            echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
+            if [ -z "${DRY_RUN}" ]; then
+                echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
+                echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
+            fi
             echo -n " - SPICE:    On host:  spicy --title \"${VMNAME}\"${SPICE_ADDR:+ --host ${SPICE_ADDR}} --port ${spice_port}"
             if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                 echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1253,10 +1268,14 @@ function configure_tpm() {
             --terminate
             --tpmstate dir="${VMDIR}"
             --tpm2)
-        echo "${SWTPM} ${tpm_args[*]} &" >>"${VMDIR}/${VMNAME}.sh"
-        ${SWTPM} "${tpm_args[@]}" >>"${VMDIR}/${VMNAME}.log" &
-        echo " - TPM:      ${VMDIR}/${VMNAME}.swtpm-sock (${!})"
-        sleep 0.25
+        if [ -z "${DRY_RUN}" ]; then
+            echo "${SWTPM} ${tpm_args[*]} &" >>"${VMDIR}/${VMNAME}.sh"
+            ${SWTPM} "${tpm_args[@]}" >>"${VMDIR}/${VMNAME}.log" &
+            echo " - TPM:      ${VMDIR}/${VMNAME}.swtpm-sock (${!})"
+            sleep 0.25
+        else
+            echo " - TPM:      ${VMDIR}/${VMNAME}.swtpm-sock (planned)"
+        fi
     fi
 }
 

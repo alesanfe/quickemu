@@ -123,6 +123,9 @@ function check_macos_tsc_stability() {
     echo "             See: https://github.com/quickemu-project/quickemu/wiki/03-Create-macOS-virtual-machines#tsc-instability-on-amd-ryzen-mobile-cpus"
     echo
 
+    # Planning only (--dry-run): report the warning, never prompt or write logs.
+    [ -n "${DRY_RUN}" ] && return 0
+
     # Log the warning
     echo "TSC_WARNING: clocksource=${current_clocksource} macos_release=${macos_release} cpu_vendor=${HOST_CPU_VENDOR}" >>"${VMDIR}/${VMNAME}.log"
 

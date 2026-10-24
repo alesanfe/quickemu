@@ -337,6 +337,10 @@ fileshare_param_check
 
 if [ -z "${VM_PID}" ]; then
     vm_boot
+    if [ -n "${DRY_RUN}" ]; then
+        emit_execution_plan "${VMNAME}" "${QEMU} ${SHELL_ARGS}"
+        exit 0
+    fi
     start_viewer
     # If the VM being started is an uninstalled Windows VM then auto-skip the press-any key prompt.
     if [ -n "${iso}" ] && [[ "${guest_os}" == "windows"* ]]; then

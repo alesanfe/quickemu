@@ -21,6 +21,11 @@ function start_virtiofsd() {
     fi
 
     VIRTIOFSD_SOCKET="${VMDIR}/${VMNAME}.virtiofsd-sock"
+    if [ -n "${DRY_RUN}" ]; then
+        # Planning only: report the socket the real boot would create.
+        echo " - virtiofsd: ${VIRTIOFSD_SOCKET} (planned)"
+        return
+    fi
     # Remove any stale socket left by an unclean shutdown. quickemu already
     # checks the PID file and refuses to start if the VM is running, so a
     # live virtiofsd cannot be behind this socket at this point.
