@@ -649,22 +649,6 @@ function vm_boot() {
             emit_execution_plan "${VMNAME}" "${QEMU} ${SHELL_ARGS}"
             exit 0
         fi
-        echo "${QEMU}" "${SHELL_ARGS}" "2>/dev/null" >>"${VMDIR}/${VMNAME}.sh"
-        sed -i -e 's/ -/ \\\n    -/g' "${VMDIR}/${VMNAME}.sh"
-        ${QEMU} "${args[@]}" &>"${VMDIR}/${VMNAME}.log" &
-        VM_PID=$!
-        sleep 0.25
-        if kill -0 "${VM_PID}" 2>/dev/null; then
-            echo " - Process:  Started ${VM} as ${VMNAME} (${VM_PID})"
-            configure_cpu_pinning
-        else
-            echo " - Process:  ERROR! Failed to start ${VM} as ${VMNAME}"
-            rm -f "${VMDIR}/${VMNAME}.pid"
-            rm -f "${VMDIR}/${VMNAME}.spice"
-            rm -f "${VMDIR}/${VMNAME}.sock"
-            stop_virtiofsd
-            echo && cat "${VMDIR}/${VMNAME}.log"
-            exit 1
-        fi
+        qemu_spawn "${args[@]}"
     fi
 }

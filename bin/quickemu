@@ -139,6 +139,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/planning/builder.sh"
     # shellcheck source=lib/quickemu/planning/delete-plan.sh
     source "${QE_LIBDIR}/planning/delete-plan.sh"
+    # shellcheck source=lib/quickemu/planning/doctor.sh
+    source "${QE_LIBDIR}/planning/doctor.sh"
     # runtime: execution
     # shellcheck source=lib/quickemu/runtime/monitor.sh
     source "${QE_LIBDIR}/runtime/monitor.sh"
@@ -148,6 +150,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/runtime/ports.sh"
     # shellcheck source=lib/quickemu/runtime/daemons.sh
     source "${QE_LIBDIR}/runtime/daemons.sh"
+    # shellcheck source=lib/quickemu/runtime/spawn.sh
+    source "${QE_LIBDIR}/runtime/spawn.sh"
     # shellcheck source=lib/quickemu/runtime/command-builder.sh
     source "${QE_LIBDIR}/runtime/command-builder.sh"
     # catalog: OS knowledge
@@ -166,8 +170,6 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/vm/disk.sh"
     # shellcheck source=lib/quickemu/vm/firmware.sh
     source "${QE_LIBDIR}/vm/firmware.sh"
-    # shellcheck source=lib/quickemu/vm/doctor.sh
-    source "${QE_LIBDIR}/vm/doctor.sh"
     # shellcheck source=lib/quickemu/vm/boot.sh
     source "${QE_LIBDIR}/vm/boot.sh"
     # cli: user boundary
