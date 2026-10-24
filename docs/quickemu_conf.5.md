@@ -242,8 +242,7 @@ So you can generate your own MAC addresses with:
 ### USB redirection
 
 Quickemu supports USB redirection via SPICE pass-through and host
-pass-through. Quickemu supports USB redirection via SPICE pass-through
-and host pass-through.
+pass-through.
 
 **NOTE!** When a USB device is redirected from the host, it will not be
 usable by host operating system until the guest redirection is stopped.

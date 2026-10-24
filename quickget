@@ -3034,7 +3034,61 @@ function get_zorin() {
 function unattended_windows() {
     mkdir -p "${1}/unattended" 2>/dev/null
 
-    cat << 'EOF' > "${1}/unattended/autounattend.xml"
+    # VirtIO driver directory matching the Windows release being installed.
+    # qxldod has no w11 build on virtio-win, so it is skipped for Windows 11.
+    local DRIVER_DIR="${2:-w10}"
+    local QXLDOD_PATH=""
+    if [ "${DRIVER_DIR}" == "w10" ]; then
+        QXLDOD_PATH='        <PathAndCredentials wcm:action="add" wcm:keyValue="6">
+          <Path>E:\qxldod\w10\amd64</Path>
+        </PathAndCredentials>'
+    fi
+
+    # Resolve the Windows locale for the requested language (default en-US).
+    local CULTURE=""
+    local LANGID=""
+    case "${I18N}" in
+        "Arabic") CULTURE="ar-SA"; LANGID="0401";;
+        "Brazilian Portuguese") CULTURE="pt-BR"; LANGID="0416";;
+        "Bulgarian") CULTURE="bg-BG"; LANGID="0402";;
+        "Chinese (Simplified)") CULTURE="zh-CN"; LANGID="0804";;
+        "Chinese (Traditional)") CULTURE="zh-TW"; LANGID="0404";;
+        "Croatian") CULTURE="hr-HR"; LANGID="041a";;
+        "Czech") CULTURE="cs-CZ"; LANGID="0405";;
+        "Danish") CULTURE="da-DK"; LANGID="0406";;
+        "Dutch") CULTURE="nl-NL"; LANGID="0413";;
+        "English International") CULTURE="en-GB"; LANGID="0809";;
+        "Estonian") CULTURE="et-EE"; LANGID="0425";;
+        "Finnish") CULTURE="fi-FI"; LANGID="040b";;
+        "French") CULTURE="fr-FR"; LANGID="040c";;
+        "French Canadian") CULTURE="fr-CA"; LANGID="0c0c";;
+        "German") CULTURE="de-DE"; LANGID="0407";;
+        "Greek") CULTURE="el-GR"; LANGID="0408";;
+        "Hebrew") CULTURE="he-IL"; LANGID="040d";;
+        "Hungarian") CULTURE="hu-HU"; LANGID="040e";;
+        "Italian") CULTURE="it-IT"; LANGID="0410";;
+        "Japanese") CULTURE="ja-JP"; LANGID="0411";;
+        "Korean") CULTURE="ko-KR"; LANGID="0412";;
+        "Latvian") CULTURE="lv-LV"; LANGID="0426";;
+        "Lithuanian") CULTURE="lt-LT"; LANGID="0427";;
+        "Norwegian") CULTURE="nb-NO"; LANGID="0414";;
+        "Polish") CULTURE="pl-PL"; LANGID="0415";;
+        "Portuguese") CULTURE="pt-PT"; LANGID="0816";;
+        "Romanian") CULTURE="ro-RO"; LANGID="0418";;
+        "Russian") CULTURE="ru-RU"; LANGID="0419";;
+        "Serbian Latin") CULTURE="sr-Latn-RS"; LANGID="081a";;
+        "Slovak") CULTURE="sk-SK"; LANGID="041b";;
+        "Slovenian") CULTURE="sl-SI"; LANGID="0424";;
+        "Spanish") CULTURE="es-ES"; LANGID="0c0a";;
+        "Spanish (Mexico)") CULTURE="es-MX"; LANGID="080a";;
+        "Swedish") CULTURE="sv-SE"; LANGID="041d";;
+        "Thai") CULTURE="th-TH"; LANGID="041e";;
+        "Turkish") CULTURE="tr-TR"; LANGID="041f";;
+        "Ukrainian") CULTURE="uk-UA"; LANGID="0422";;
+        *) CULTURE="en-US"; LANGID="0409";;
+    esac
+
+    cat << EOF > "${1}/unattended/autounattend.xml"
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend"
   xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State"
@@ -3084,6 +3138,15 @@ function unattended_windows() {
   </settings>
 
   <settings pass="windowsPE">
+    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <SetupUILanguage>
+        <UILanguage>${CULTURE}</UILanguage>
+      </SetupUILanguage>
+      <InputLocale>${LANGID}:0000${LANGID}</InputLocale>
+      <SystemLocale>${CULTURE}</SystemLocale>
+      <UILanguage>${CULTURE}</UILanguage>
+      <UserLocale>${CULTURE}</UserLocale>
+    </component>
     <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
       <Diagnostics>
         <OptIn>false</OptIn>
@@ -3205,34 +3268,32 @@ function unattended_windows() {
       -->
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1">
-          <Path>E:\qemufwcfg\w10\amd64</Path>
+          <Path>E:\qemufwcfg\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2">
-          <Path>E:\vioinput\w10\amd64</Path>
+          <Path>E:\vioinput\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3">
-          <Path>E:\vioscsi\w10\amd64</Path>
+          <Path>E:\vioscsi\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="4">
-          <Path>E:\viostor\w10\amd64</Path>
+          <Path>E:\viostor\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="5">
-          <Path>E:\vioserial\w10\amd64</Path>
+          <Path>E:\vioserial\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
-        <PathAndCredentials wcm:action="add" wcm:keyValue="6">
-          <Path>E:\qxldod\w10\amd64</Path>
-        </PathAndCredentials>
+${QXLDOD_PATH}
         <PathAndCredentials wcm:action="add" wcm:keyValue="7">
-          <Path>E:\viorng\w10\amd64</Path>
+          <Path>E:\viorng\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="8">
-          <Path>E:\NetKVM\w10\amd64</Path>
+          <Path>E:\NetKVM\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="9">
-          <Path>E:\viofs\w10\amd64</Path>
+          <Path>E:\viofs\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="10">
-          <Path>E:\Balloon\w10\amd64</Path>
+          <Path>E:\Balloon\\${DRIVER_DIR}\amd64</Path>
         </PathAndCredentials>
       </DriverPaths>
     </component>
@@ -3301,7 +3362,7 @@ function unattended_windows() {
           <Order>4</Order>
         </SynchronousCommand>
         <SynchronousCommand wcm:action="add">
-          <CommandLine>pnputil /add-driver E:\viogpudo\w10\amd64\viogpudo.inf /install</CommandLine>
+          <CommandLine>pnputil /add-driver E:\viogpudo\\${DRIVER_DIR}\amd64\viogpudo.inf /install</CommandLine>
           <Description>Install viogpudo driver</Description>
           <Order>5</Order>
         </SynchronousCommand>
@@ -3649,7 +3710,7 @@ function get_windows() {
     rm -f "${VM_PATH}/unattended.iso"
     case ${RELEASE} in
         10|11)
-            unattended_windows "${VM_PATH}"
+            unattended_windows "${VM_PATH}" "w${RELEASE}"
             ;;
     esac
 
@@ -3792,7 +3853,11 @@ function create_config() {
                 web_get "https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso" "${VM_PATH}"
                 FIXED_ISO="virtio-win.iso"
                 rm -f "${VM_PATH}/unattended.iso"
-                unattended_windows "${VM_PATH}"
+                local WIN_DRV="w11"
+                case "${INPUT,,}" in
+                    *win*10*) WIN_DRV="w10";;
+                esac
+                unattended_windows "${VM_PATH}" "${WIN_DRV}"
             fi
             ;;
 
