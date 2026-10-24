@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://quickemu-project.github.io/schemas/catalog-v1.schema.json","title":"quickemu OS catalog","type":"object","required":["schemaVersion","oses"],"properties":{"schemaVersion":{"type":"integer","const":1},"oses":{"type":"array"}}}
