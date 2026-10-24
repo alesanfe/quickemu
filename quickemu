@@ -1131,10 +1131,10 @@ function configure_os_quirks() {
     case ${guest_os} in
         windows-server) NET_DEVICE="e1000";;
         *bsd|linux*|windows) NET_DEVICE="virtio-net-pci";;
-        freedos) sound_card="sb16"
+        freedos) sound_card="${sound_card:-sb16}"
                  NET_DEVICE="pcnet";;
         *solaris) usb_controller="xhci"
-                  sound_card="ac97";;
+                  sound_card="${sound_card:-ac97}";;
         reactos) NET_DEVICE="e1000"
                  keyboard="ps2";;
         macos)
@@ -1152,7 +1152,7 @@ function configure_os_quirks() {
                     NET_DEVICE="virtio-net-pci"
                     USB_HOST_PASSTHROUGH_CONTROLLER="nec-usb-xhci"
                     GUEST_TWEAKS+=" -global nec-usb-xhci.msi=off"
-                    sound_card="virtio-sound-pci"
+                    sound_card="${sound_card:-virtio-sound-pci}"
                     usb_controller="xhci";;
                 big-sur)
                     # Big Sur uses VirtIO but usb-audio/VoodooHDA don't work reliably
@@ -1162,7 +1162,7 @@ function configure_os_quirks() {
                     NET_DEVICE="virtio-net-pci"
                     USB_HOST_PASSTHROUGH_CONTROLLER="nec-usb-xhci"
                     GUEST_TWEAKS+=" -global nec-usb-xhci.msi=off"
-                    sound_card="ich9-intel-hda"
+                    sound_card="${sound_card:-ich9-intel-hda}"
                     usb_controller="xhci";;
                 *)
                     # Backwards compatibility if no macos_release is specified.
@@ -1320,11 +1320,15 @@ function configure_display() {
     local AUDIO_DRIVER="alsa"
     local pw_socket="${PIPEWIRE_REMOTE:-${XDG_RUNTIME_DIR}/pipewire-0}"
     local pa_socket="${PULSE_SERVER:-${XDG_RUNTIME_DIR}/pulse/native}"
+    # Check the audio backends this QEMU build actually supports; some builds
+    # (e.g. Guix) lack PipeWire/PulseAudio even when the sockets exist.
+    local qemu_audio_drivers=""
+    qemu_audio_drivers=$("${QEMU}" -audio-help 2>/dev/null)
 
-    if [ "${QEMU_VER_SHORT}" -ge 81 ] && [ -S "${pw_socket}" ]; then
+    if [ "${QEMU_VER_SHORT}" -ge 81 ] && [ -S "${pw_socket}" ] && grep -qw 'driver=pipewire' <<<"${qemu_audio_drivers}"; then
         # QEMU's pipewire audio backend was added in version 8.1
         AUDIO_DRIVER="pipewire"
-    elif [ -S "${pa_socket}" ]; then
+    elif [ -S "${pa_socket}" ] && grep -qw 'driver=pa' <<<"${qemu_audio_drivers}"; then
         AUDIO_DRIVER="pa"
     fi
 
@@ -1481,6 +1485,7 @@ function configure_display() {
 
 function configure_audio() {
     # Build the sound hardware configuration
+    sound_card="${sound_card:-intel-hda}"
     case ${sound_card} in
         ich9-intel-hda|intel-hda) SOUND="-device ${sound_card} -device ${sound_duplex},audiodev=audio0";;
         usb-audio) SOUND="-device ${sound_card},audiodev=audio0";;
@@ -1631,7 +1636,7 @@ function configure_file_sharing() {
             if [ "${guest_os}" == "linux" ] && [ -n "${VIRTIOFSD}" ]; then
                 echo " - virtiofs: On guest: sudo mount -t virtiofs ${PUBLIC_TAG} ~/$(basename "${PUBLIC}")"
             elif [ "${guest_os}" == "linux" ]; then
-                echo " - 9P:       On guest: sudo mount -t 9p -o trans=virtio,version=9p2000.L,msize=104857600 ${PUBLIC_TAG} ~/$(basename "${PUBLIC}")"
+                echo " - 9P:       On guest: sudo mount -t 9p -o trans=virtio,version=9p2000.L,msize=512000 ${PUBLIC_TAG} ~/$(basename "${PUBLIC}")"
             elif [ "${guest_os}" == "macos" ]; then
                 # PUBLICSHARE needs to be world writeable for seamless integration with
                 # macOS. Test if it is world writeable, and prompt what to do if not.
@@ -2600,9 +2605,11 @@ function display_param_check() {
         usb_controller="xhci"
     fi
 
-    # Fallback to SDL if GTK display is not available
+    # Fallback to SDL if GTK display is not available. QEMU may support the
+    # gtk backend without a reachable display server (e.g. headless hosts),
+    # in which case GTK would fail to initialise at runtime.
     if [ "${display}" == "gtk" ]; then
-        if ! "${QEMU}" -display help 2>&1 | grep -q "^gtk$"; then
+        if ! "${QEMU}" -display help 2>&1 | grep -q "^gtk$" || { [ -z "${DISPLAY}" ] && [ -z "${WAYLAND_DISPLAY}" ]; }; then
             echo " - NOTE: GTK display not available, falling back to SDL"
             display="sdl"
         fi
@@ -2662,7 +2669,7 @@ function ports_param_check() {
 }
 
 function sound_card_param_check() {
-    if [ "${sound_card}" != "ac97" ] && [ "${sound_card}" != "es1370" ] && [ "${sound_card}" != "ich9-intel-hda" ] && [ "${sound_card}" != "intel-hda" ] && [ "${sound_card}" != "sb16" ] && [ "${sound_card}" != "usb-audio" ] && [ "${sound_card}" != "virtio-sound-pci" ] && [ "${sound_card}" != "none" ]; then
+    if [ -n "${sound_card}" ] && [ "${sound_card}" != "ac97" ] && [ "${sound_card}" != "es1370" ] && [ "${sound_card}" != "ich9-intel-hda" ] && [ "${sound_card}" != "intel-hda" ] && [ "${sound_card}" != "sb16" ] && [ "${sound_card}" != "usb-audio" ] && [ "${sound_card}" != "virtio-sound-pci" ] && [ "${sound_card}" != "none" ]; then
         echo "ERROR! Requested sound card '${sound_card}' is not recognised."
         exit 1
     fi
@@ -2727,7 +2734,9 @@ function fileshare_param_check() {
             echo " - WARNING! Public directory: '${PUBLIC}' doesn't exist!"
             PUBLIC=""
         else
+            # QEMU mount tags are limited to 31 bytes; truncate long user names.
             PUBLIC_TAG="Public-${USER,,}"
+            PUBLIC_TAG="${PUBLIC_TAG:0:31}"
             PUBLIC_PERMS=$(${STAT}  -c "%A" "${PUBLIC}")
         fi
     fi
@@ -2842,7 +2851,7 @@ usb_controller="${usb_controller:-ehci}"
 keyboard="${keyboard:-usb}"
 keyboard_layout="${keyboard_layout:-en-us}"
 mouse="${mouse:-tablet}"
-sound_card="${sound_card:-intel-hda}"
+sound_card="${sound_card:-}"
 sound_duplex="${sound_duplex:-hda-micro}"
 
 ACCESS=""
