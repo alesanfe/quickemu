@@ -66,7 +66,7 @@ function list_vms() {
         PID=""
         if [ -f "${DIR}/${DIR}.pid" ]; then
             PID=$(cat "${DIR}/${DIR}.pid")
-            if kill -0 "${PID}" 2>/dev/null; then
+            if vm_pid_alive "${DIR}/${DIR}.pid"; then
                 STATE="running"
             else
                 STATE="stale"

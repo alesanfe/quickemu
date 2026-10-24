@@ -3362,8 +3362,8 @@ readonly VERSION="4.9.9"
 # installed as /usr/bin/quickemu -> /usr/lib/quickemu.
 QE_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib/quickemu" 2>/dev/null && pwd)"
 if [ -d "${QE_LIBDIR}" ]; then
-    # shellcheck source=lib/quickemu/cli/json.sh
-    source "${QE_LIBDIR}/cli/json.sh"
+    # shellcheck source=lib/quickemu/support/json.sh
+    source "${QE_LIBDIR}/support/json.sh"
     # shellcheck source=lib/quickemu/cli/exit-codes.sh
     source "${QE_LIBDIR}/cli/exit-codes.sh"
     # shellcheck source=lib/quickemu/support/process.sh
@@ -3388,10 +3388,10 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/runtime/pid.sh"
     # shellcheck source=lib/quickemu/host/memory.sh
     source "${QE_LIBDIR}/host/memory.sh"
-    # shellcheck source=lib/quickemu/vm/status.sh
-    source "${QE_LIBDIR}/vm/status.sh"
-    # shellcheck source=lib/quickemu/vm/delete-plan.sh
-    source "${QE_LIBDIR}/vm/delete-plan.sh"
+    # shellcheck source=lib/quickemu/cli/status.sh
+    source "${QE_LIBDIR}/cli/status.sh"
+    # shellcheck source=lib/quickemu/planning/delete-plan.sh
+    source "${QE_LIBDIR}/planning/delete-plan.sh"
 else
     echo "ERROR! quickemu lib/ directory not found."
     exit 1

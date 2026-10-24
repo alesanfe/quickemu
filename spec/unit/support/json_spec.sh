@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 Describe 'json_escape'
-Include lib/quickemu/cli/json.sh
+Include lib/quickemu/support/json.sh
 
 It 'leaves plain text unchanged'
 When call json_escape 'hello world'

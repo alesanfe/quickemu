@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 Describe 'vm status'
-Include lib/quickemu/vm/status.sh
+Include lib/quickemu/cli/status.sh
 Include lib/quickemu/runtime/pid.sh
 
 Describe 'status_vm'

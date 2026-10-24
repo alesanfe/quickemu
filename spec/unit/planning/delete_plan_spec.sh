@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 Describe 'delete_plan'
-Include lib/quickemu/cli/json.sh
-Include lib/quickemu/vm/delete-plan.sh
+Include lib/quickemu/support/json.sh
+Include lib/quickemu/planning/delete-plan.sh
 
 setup() {
     TESTDIR=$(mktemp -d)
