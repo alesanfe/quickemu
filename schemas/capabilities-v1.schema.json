@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quickemu-project.github.io/schemas/capabilities-v1.schema.json",
+  "title": "quickemu capabilities descriptor",
+  "type": "object",
+  "required": ["schemaVersion", "applicationVersion", "capabilities"],
+  "properties": {
+    "schemaVersion": {"type": "integer", "const": 1},
+    "applicationVersion": {"type": "string"},
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": {"type": "boolean"}
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quickemu-project.github.io/schemas/vm-list-v1.schema.json",
+  "title": "quickemu VM list (--list-vms --format json)",
+  "type": "object",
+  "required": ["schemaVersion", "vms"],
+  "properties": {
+    "schemaVersion": {"type": "integer", "const": 1},
+    "vms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "guest_os", "state", "pid"],
+        "properties": {
+          "name": {"type": "string"},
+          "guest_os": {"type": "string"},
+          "state": {"type": "string", "enum": ["running", "stopped", "stale"]},
+          "pid": {"type": ["integer", "null"]}
+        }
+      }
+    }
+  }
+}

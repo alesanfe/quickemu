@@ -453,12 +453,38 @@ function type_text() {
 }
 
 function list_vms() {
-    local CONFS=() CONF="" DIR="" OS="" STATE="" PID=""
+    local CONFS=() CONF="" DIR="" OS="" STATE="" PID="" FIRST=1
     shopt -s nullglob
     CONFS=(*.conf)
     shopt -u nullglob
     if [ ${#CONFS[@]} -eq 0 ]; then
-        echo "No VM configurations found in $(pwd)."
+        if [ "${OUTPUT_FORMAT}" == "json" ]; then
+            echo '{"schemaVersion":1,"vms":[]}'
+        else
+            echo "No VM configurations found in $(pwd)."
+        fi
+        return 0
+    fi
+    if [ "${OUTPUT_FORMAT}" == "json" ]; then
+        printf '{"schemaVersion":1,"vms":['
+        for CONF in "${CONFS[@]}"; do
+            DIR="$(basename "${CONF}" .conf)"
+            OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
+            STATE="stopped"; PID="null"
+            if [ -f "${DIR}/${DIR}.pid" ]; then
+                PID=$(cat "${DIR}/${DIR}.pid")
+                if kill -0 "${PID}" 2>/dev/null; then
+                    STATE="running"
+                else
+                    STATE="stale"; PID="null"
+                fi
+            fi
+            [ ${FIRST} -eq 0 ] && printf ','
+            FIRST=0
+            printf '{"name":"%s","guest_os":"%s","state":"%s","pid":%s}' \
+                "${DIR}" "${OS:-linux}" "${STATE}" "${PID}"
+        done
+        printf ']}\n'
         return 0
     fi
     printf '%-28s %-16s %-9s %s\n' "VM" "GUEST OS" "STATE" "PID"
@@ -476,6 +502,32 @@ function list_vms() {
         fi
         printf '%-28s %-16s %-9s %s\n' "${DIR}" "${OS:-linux}" "${STATE}" "${PID}"
     done
+}
+
+function capabilities() {
+    # Public contract for external consumers (quickgui, scripts, CI).
+    # Keep this in sync with schemas/capabilities-v1.schema.json.
+    cat <<JSON
+{
+  "schemaVersion": 1,
+  "applicationVersion": "${VERSION}",
+  "capabilities": {
+    "structuredCatalog": true,
+    "structuredStatus": true,
+    "listVms": true,
+    "snapshots": true,
+    "monitorCommands": true,
+    "sendKeys": true,
+    "screenshot": true,
+    "clone": true,
+    "rename": true,
+    "exportImport": true,
+    "diskOps": true,
+    "downloadProgress": false,
+    "safeDeletePlan": false
+  }
+}
+JSON
 }
 
 function doctor_vm() {
@@ -569,6 +621,15 @@ EOFD
 
 function status_vm() {
     # Report the real VM state instead of only the presence of a pid file.
+    local STATE="stopped" PID_JSON="null"
+    if [ -n "${VM_PID}" ]; then
+        STATE="running"; PID_JSON="${VM_PID}"
+    fi
+    if [ "${OUTPUT_FORMAT}" == "json" ]; then
+        printf '{"schemaVersion":1,"name":"%s","state":"%s","pid":%s}\n' \
+            "${VMNAME}" "${STATE}" "${PID_JSON}"
+        exit 0
+    fi
     if [ -n "${VM_PID}" ]; then
         echo "running ${VM_PID}"
         exit 0
@@ -3034,6 +3095,8 @@ function usage() {
     echo "  --ignore-tsc-warning              : Skip TSC stability warning for macOS VMs on AMD"
     echo "  --kill                            : Kill the VM process if it is running"
     echo "  --status                          : Show whether the VM is running or stopped"
+    echo "  --capabilities                    : Print the machine-readable capability descriptor (JSON)"
+    echo "  --format human|json               : Output format for --status and --list-vms (default: human)"
     echo "  --pause                           : Pause (SIGSTOP) the running VM"
     echo "  --resume                          : Resume (SIGCONT) a paused VM"
     echo "  --screenshot [out.ppm]            : Save a screenshot via the QEMU monitor"
@@ -3351,6 +3414,7 @@ BRAILLE=""
 IGNORE_TSC_WARNING=""
 CPU_PINNING=""
 FULLSCREEN=""
+OUTPUT_FORMAT="human"
 CLONE_FULL=""
 DISK_SIZE_ARG=""
 DRY_RUN=""
@@ -3460,6 +3524,16 @@ else
                 shift;;
             -kill|--kill)
                 ACTIONS+=(kill_vm)
+                shift;;
+            -format|--format)
+                OUTPUT_FORMAT="${2}"
+                if [ "${OUTPUT_FORMAT}" != "human" ] && [ "${OUTPUT_FORMAT}" != "json" ]; then
+                    echo "ERROR! '--format' must be 'human' or 'json'."
+                    exit 1
+                fi
+                shift 2;;
+            -capabilities|--capabilities)
+                ACTIONS+=(capabilities)
                 shift;;
             -status|--status)
                 ACTIONS+=(status_vm)
@@ -3657,6 +3731,16 @@ else
         esac
     done
 fi
+
+# Actions that do not require a VM configuration run early so they work
+# from any directory and without --vm.
+for ACTION in "${ACTIONS[@]}"; do
+    case "${ACTION}" in
+        capabilities|list_vms)
+            ${ACTION}
+            exit 0;;
+    esac
+done
 
 if [ -n "${VM}" ] && [ -e "${VM}" ]; then
     # shellcheck source=/dev/null

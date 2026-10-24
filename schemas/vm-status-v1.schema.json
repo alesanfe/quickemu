@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quickemu-project.github.io/schemas/vm-status-v1.schema.json",
+  "title": "quickemu VM status (--status --format json)",
+  "type": "object",
+  "required": ["schemaVersion", "name", "state", "pid"],
+  "properties": {
+    "schemaVersion": {"type": "integer", "const": 1},
+    "name": {"type": "string"},
+    "state": {"type": "string", "enum": ["running", "stopped"]},
+    "pid": {"type": ["integer", "null"]}
+  }
+}
