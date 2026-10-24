@@ -19,7 +19,7 @@ function download_windows_server() {
         *) PRETTY_RELEASE="${RELEASE}";;
     esac
 
-    echo "Downloading $(pretty_name "${OS}") ${PRETTY_RELEASE} (${I18N})"
+    echo "Downloading ${PRETTY_OS_NAME:-${OS}} ${PRETTY_RELEASE} (${I18N})"
 
     local url="https://www.microsoft.com/en-us/evalcenter/download-$windows_version"
 

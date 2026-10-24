@@ -33,6 +33,8 @@ source "${QG_LIBDIR}/support/host.sh"
 source "${QG_LIBDIR}/download/web.sh"
 # shellcheck source=lib/quickget/download/windows.sh
 source "${QG_LIBDIR}/download/windows.sh"
+# shellcheck source=lib/quickget/image/normalize.sh
+source "${QG_LIBDIR}/image/normalize.sh"
 # shellcheck source=lib/quickget/image/generate.sh
 source "${QG_LIBDIR}/image/generate.sh"
 # shellcheck source=lib/quickget/image/windows.sh

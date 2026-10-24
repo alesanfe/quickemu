@@ -10,6 +10,9 @@ function os_supported() {
         os_support | fmt -w 80
         exit 1
     fi
+    # Resolve the display name once so download/image layers never need
+    # to reach back into catalog knowledge for their progress messages.
+    PRETTY_OS_NAME="$(pretty_name "${OS}")"
 }
 
 

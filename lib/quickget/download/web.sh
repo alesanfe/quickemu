@@ -169,7 +169,7 @@ function web_get() {
     fi
 
     if [[ ${OS} != windows && ${OS} != macos && ${OS} != windows-server ]]; then
-        echo "Downloading $(pretty_name "${OS}") ${RELEASE} ${EDITION}"
+        echo "Downloading ${PRETTY_OS_NAME:-${OS}} ${RELEASE} ${EDITION}"
         echo "- URL: ${URL}"
     fi
 
@@ -260,7 +260,7 @@ function zsync_get() {
             echo "ERROR! Unable to create directory ${DIR}"
             exit 1
         fi
-        echo "Downloading $(pretty_name "${OS}") ${RELEASE} ${EDITION} from ${URL}"
+        echo "Downloading ${PRETTY_OS_NAME:-${OS}} ${RELEASE} ${EDITION} from ${URL}"
         # Only force http for zsync - not earlier because we might fall through here
         if ! zsync "${URL/https/http}.zsync" -i "${DIR}/${OUT}" -o "${DIR}/${OUT}" 2>/dev/null; then
             echo "ERROR! Failed to download ${URL/https/http}.zsync"
