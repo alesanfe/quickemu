@@ -1,3 +1,6 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # PID file helpers for VM liveness.
 vm_pid_alive() { # pidfile -> 0 if process alive
     local pid

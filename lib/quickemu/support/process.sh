@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # Process/tool helpers shared across actions.
 
 require_qemu_img() {

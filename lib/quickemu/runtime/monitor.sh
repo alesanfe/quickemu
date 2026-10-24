@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # shellcheck disable=SC2154 # monitor/monitor_telnet_* are quickemu runtime globals
 # QEMU monitor socket command sender.
 

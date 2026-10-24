@@ -1,3 +1,6 @@
+# shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # Host CPU architecture normalised to qemu terms.
 host_arch() { # -> x86_64 | aarch64 | riscv64 ...
     local a

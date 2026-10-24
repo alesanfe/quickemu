@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # Execution-plan validation helpers. Gates that run before QEMU.
 
 plan_check_ram() { # ram (e.g. 4G) -> 0 warning (insufficient), 1 ok

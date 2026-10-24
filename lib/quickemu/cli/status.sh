@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # VM state queries (public contract, schema v1).
 
 function status_vm() {

@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# shellcheck disable=SC2034,SC2154
+# Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # Safe delete plan: inspect what --delete-vm would remove BEFORE
 # executing it. Never deletes anything.
 
