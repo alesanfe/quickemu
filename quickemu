@@ -187,6 +187,16 @@ function delete_vm() {
     fi
 }
 
+function status_vm() {
+    # Report the real VM state instead of only the presence of a pid file.
+    if [ -n "${VM_PID}" ]; then
+        echo "running ${VM_PID}"
+        exit 0
+    fi
+    echo "stopped"
+    exit 0
+}
+
 function kill_vm() {
     echo "Killing ${VMNAME}"
     if [ -z "${VM_PID}" ]; then
@@ -2615,6 +2625,7 @@ function usage() {
     echo "  --ignore-msrs-always              : Configure KVM to always ignore unhandled machine-specific registers"
     echo "  --ignore-tsc-warning              : Skip TSC stability warning for macOS VMs on AMD"
     echo "  --kill                            : Kill the VM process if it is running"
+    echo "  --status                          : Show whether the VM is running or stopped"
     echo "  --offline                         : Override all network settings and start the VM offline"
     echo "  --shortcut                        : Create a desktop shortcut"
     echo "  --snapshot apply <tag>            : Apply/restore a snapshot."
@@ -3009,6 +3020,9 @@ else
                 shift;;
             -kill|--kill)
                 ACTIONS+=(kill_vm)
+                shift;;
+            -status|--status)
+                ACTIONS+=(status_vm)
                 shift;;
             -offline|--offline)
                 SHORTCUT_OPTIONS+="--offline "
