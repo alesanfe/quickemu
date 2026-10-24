@@ -35,7 +35,9 @@ assert_json_conforms() {
 conforms() {
     local dir="$1" schema="$2" out json
     shift 2
-    out=$(cd "${dir}" && "$QE_ROOT/bin/quickemu" "$@")
+    # stderr carries host-probe noise (glxinfo/qemu -device help on DRI
+    # hosts); the contract under test is stdout, so park it for debugging.
+    out=$(cd "${dir}" && "$QE_ROOT/bin/quickemu" "$@" 2>"${dir}/.stderr")
     if jq -e . >/dev/null 2>&1 <<<"${out}"; then
         json="${out}"
     else
