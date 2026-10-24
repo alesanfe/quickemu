@@ -322,6 +322,19 @@ to the guest.
 .IP \(bu 2
 The USB device with vendor_id 046d and product_id 085e will be exposed
 to the guest.
+.SS GPU passthrough
+.PP
+Pass a host GPU through to the guest using VFIO.
+The device must be in an IOMMU group and bound to the
+\f[CR]vfio\-pci\f[R] driver.
+Requires IOMMU enabled on the host (\f[CR]intel_iommu=on\f[R] or
+\f[CR]amd_iommu=on\f[R]).
+Multiple PCI addresses can be given, space separated:
+.IP \(bu 2
+\f[CR]gpu_passthrough=\(dq0000:03:00.0 0000:03:00.1\(dq\f[R]
+.PP
+\f[CR]quickemu\f[R] will warn if no IOMMU groups are found or if a
+device is not bound to \f[CR]vfio\-pci\f[R].
 .PP
 If the USB devices are not writable, \f[CR]quickemu\f[R] will display
 the appropriate commands to modify the USB device(s) access permissions,
