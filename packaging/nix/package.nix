@@ -97,6 +97,7 @@ stdenv.mkDerivation (finalAttrs: {
     install -d "$out/lib"
     cp -r lib/quickemu "$out/lib/"
     cp -r lib/quickget "$out/lib/"
+    cp -r lib/quickreport "$out/lib/"
     install -d "$out/share/quickemu"
     cp -r schemas catalog "$out/share/quickemu/"
 

@@ -4,5 +4,6 @@ bin/quickreport usr/bin
 libexec/quickemu/chunkcheck.py usr/libexec/quickemu
 lib/quickemu usr/lib
 lib/quickget usr/lib
+lib/quickreport usr/lib
 schemas usr/share/quickemu
 catalog usr/share/quickemu
