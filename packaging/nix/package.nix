@@ -96,6 +96,7 @@ stdenv.mkDerivation (finalAttrs: {
     install -Dm755 -t "$out/libexec/quickemu" libexec/quickemu/chunkcheck.py
     install -d "$out/lib"
     cp -r lib/quickemu "$out/lib/"
+    cp -r lib/quickget "$out/lib/"
     install -d "$out/share/quickemu"
     cp -r schemas catalog "$out/share/quickemu/"
 
