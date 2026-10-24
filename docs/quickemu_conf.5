@@ -220,6 +220,14 @@ phoning home while still providing a network inside the guest.
 Add this additional line to your virtual machine configuration:
 .IP \(bu 2
 \f[CR]network=\(dqrestrict\(dq\f[R]
+.SS passt networking
+passt (https://passt.top/) provides unprivileged user\-mode networking
+as an alternative to QEMU's built\-in \f[CR]user\f[R] backend.
+It requires QEMU 10.1 or newer and the \f[CR]passt\f[R] package
+installed on the host.
+Add this additional line to your virtual machine configuration:
+.IP \(bu 2
+\f[CR]network=\(dqpasst\(dq\f[R]
 .SS Bridged networking
 Connect your virtual machine to a preconfigured network bridge.
 Add an additional line to your virtual machine configuration:

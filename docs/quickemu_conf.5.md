@@ -232,6 +232,15 @@ additional line to your virtual machine configuration:
 
 - `network="restrict"`
 
+#### passt networking
+
+[passt](https://passt.top/) provides unprivileged user-mode networking
+as an alternative to QEMU's built-in `user` backend. It requires QEMU
+10.1 or newer and the `passt` package installed on the host. Add this
+additional line to your virtual machine configuration:
+
+- `network="passt"`
+
 #### Bridged networking
 
 Connect your virtual machine to a preconfigured network bridge. Add an

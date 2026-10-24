@@ -1146,6 +1146,11 @@ function configure_os_quirks() {
                   sound_card="${sound_card:-ac97}";;
         reactos) NET_DEVICE="e1000"
                  keyboard="ps2";;
+        templeos) NET_DEVICE="e1000"
+                  keyboard="ps2"
+                  mouse="ps2"
+                  sound_card="${sound_card:-none}"
+                  usb_controller="none";;
         macos)
             # Tune QEMU optimisations based on the macOS release, or fallback to lowest
             # common supported options if none is specified.
@@ -1359,7 +1364,7 @@ function configure_display() {
 
     # https://www.kraxel.org/blog/2019/09/display-devices-in-qemu/
     case ${guest_os} in
-        *bsd) DISPLAY_DEVICE="VGA";;
+        *bsd|templeos) DISPLAY_DEVICE="VGA";;
         linux_old|solaris) DISPLAY_DEVICE="vmware-svga";;
         linux)
             # ARM64 does not have VGA hardware - use virtio-gpu-pci instead of virtio-vga
@@ -2126,6 +2131,15 @@ function vm_boot() {
         echo " - Network:  Restricted (${NET_DEVICE})"
         # shellcheck disable=SC2054,SC2206
         args+=(-device ${NET_DEVICE},netdev=nic -netdev ${NET},restrict=y,id=nic)
+    elif [ "${network}" == "passt" ]; then
+        # passt provides unprivileged user-mode networking; QEMU 10.1+
+        echo " - Network:  passt (${NET_DEVICE})"
+        if [ "${QEMU_VER_SHORT}" -lt 101 ]; then
+            echo "ERROR! 'passt' networking requires QEMU 10.1 or newer."
+            exit 1
+        fi
+        # shellcheck disable=SC2054,SC2206
+        args+=(-device ${NET_DEVICE},netdev=nic -netdev passt,id=nic)
     elif [ -n "${network}" ]; then
         # Enable bridge mode networking
         echo " - Network:  Bridged (${network})"
@@ -2283,6 +2297,11 @@ function vm_boot() {
 
     elif [ "${guest_os}" == "reactos" ]; then
         # https://reactos.org/wiki/QEMU
+        # shellcheck disable=SC2054,SC2206
+        args+=(-drive if=ide,index=0,media=disk,file="${disk_img}")
+
+    elif [ "${guest_os}" == "templeos" ]; then
+        # TempleOS supports ATA/IDE disks only
         # shellcheck disable=SC2054,SC2206
         args+=(-drive if=ide,index=0,media=disk,file="${disk_img}")
 

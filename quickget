@@ -68,6 +68,7 @@ function os_info() {
         gentoo)           INFO="Gentoo|-|https://www.gentoo.org/|Highly flexible, source-based Linux distribution.";;
         ghostbsd)         INFO="GhostBSD|-|https://www.ghostbsd.org/|Simple, elegant desktop BSD Operating System.";;
         gnomeos)          INFO="GNOME OS|-|https://os.gnome.org/|Alpha nightly bleeding edge distro of GNOME";;
+        gobolinux)        INFO="GoboLinux|-|https://gobolinux.org/|Alternative Linux distribution which redefines the filesystem hierarchy.";;
         guix)             INFO="Guix|-|https://guix.gnu.org/|Distribution of the GNU operating system developed by the GNU Project—which respects the freedom of computer users.";;
         haiku)            INFO="Haiku|-|https://www.haiku-os.org/|Specifically targets personal computing. Inspired by the BeOS, Haiku is fast, simple to use, easy to learn and yet very powerful.";;
         kali)             INFO="Kali|-|https://www.kali.org/|The most advanced Penetration Testing Distribution.";;
@@ -113,6 +114,7 @@ function os_info() {
         sparkylinux)      INFO="SparkyLinux|-|https://sparkylinux.org/|Fast, lightweight and fully customizable operating system which offers several versions for different use cases.";;
         spirallinux)      INFO="SpiralLinux|-|https://spirallinux.github.io/|Selection of Linux spins built from Debian GNU/Linux, with a focus on simplicity and out-of-the-box usability across all the major desktop environments.";;
         tails)            INFO="Tails|-|https://tails.net/|Portable operating system that protects against surveillance and censorship.";;
+        templeos)         INFO="TempleOS|-|https://templeos.org/|TempleOS is a public domain, open source, ring-0-only operating system.";;
         tinycore)         INFO="Tiny Core Linux|-|http://www.tinycorelinux.net/|Highly modular based system with community build extensions.";;
         trisquel)         INFO="Trisquel|-|https://trisquel.info/|Fully free operating system for home users, small enterprises and educational centers.";;
         tuxedo-os)        INFO="Tuxedo OS|-|https://www.tuxedocomputers.com/en/|KDE Ubuntu LTS designed to go with their Linux hardware.";;
@@ -498,6 +500,7 @@ function os_support() {
     gentoo \
     ghostbsd \
     gnomeos \
+    gobolinux \
     guix \
     haiku \
     kali \
@@ -543,6 +546,7 @@ function os_support() {
     sparkylinux \
     spirallinux \
     tails \
+    templeos \
     tinycore \
     trisquel \
     tuxedo-os \
@@ -817,6 +821,10 @@ function editions_ghostbsd() {
     echo mate xfce
 }
 
+function releases_gobolinux() {
+    echo 017.01
+}
+
 function releases_gnomeos() {
     #shellcheck disable=SC2046,SC2005
     # Filter out alpha/beta/rc pre-releases, keep only stable versions and nightly
@@ -849,6 +857,10 @@ function releases_kdelinux() {
 
 function releases_kolibrios() {
     echo latest
+}
+
+function releases_templeos() {
+    echo 5.03
 }
 
 function editions_kolibrios() {
@@ -1624,6 +1636,9 @@ function make_vm_config() {
         reactos)
             GUEST="reactos"
             IMAGE_TYPE="iso";;
+        templeos)
+            GUEST="templeos"
+            IMAGE_TYPE="iso";;
         ubuntu*)
             GUEST="linux"
             IMAGE_TYPE="iso"
@@ -1709,6 +1724,11 @@ EOF
                 echo "boot=\"legacy\"" >> "${CONF_FILE}"
                 echo "disk_size=\"2G\"" >> "${CONF_FILE}"
                 echo "ram=\"128M\"" >> "${CONF_FILE}"
+                ;;
+            templeos)
+                echo "boot=\"legacy\"" >> "${CONF_FILE}"
+                echo "disk_size=\"2G\"" >> "${CONF_FILE}"
+                echo "ram=\"512M\"" >> "${CONF_FILE}"
                 ;;
             slint)
                 echo "disk_size=\"50G\"" >> "${CONF_FILE}"
@@ -2216,6 +2236,13 @@ function get_ghostbsd() {
     echo "${URL}/${ISO} ${HASH}"
 }
 
+function get_gobolinux() {
+    local HASH="8cd66e3e06c865c375134d099b8b483776ef16edc6d3cd617740c36f6ba53bd3"
+    local ISO="GoboLinux-${RELEASE}-x86_64.iso"
+    local URL="https://gobolinux.neonsys.org/${RELEASE}-ISO"
+    echo "${URL}/${ISO} ${HASH}"
+}
+
 function get_gnomeos() {
     local HASH=""
     local ISO="gnome_os_installer_${RELEASE}.iso"
@@ -2282,6 +2309,13 @@ function get_kolibrios() {
     local URL="http://builds.kolibrios.org/${EDITION}"
     HASH=$(web_pipe "${URL}/sha256sums.txt" | grep "${ISO}" | cut -d' ' -f1)
     echo "${URL}/${ISO} ${HASH}"
+}
+
+function get_templeos() {
+    # TempleOS is frozen at 5.03 and publishes no checksums
+    local ISO="TempleOS.ISO"
+    local URL="https://templeos.org/Downloads"
+    echo "${URL}/${ISO}"
 }
 
 function get_linuxlite() {
