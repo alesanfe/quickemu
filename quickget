@@ -55,6 +55,7 @@ function os_info() {
         debian)           INFO="Debian|-|https://www.debian.org/|Complete Free Operating System with perfect level of ease of use and stability.";;
         deepin)           INFO="Deepin|-|https://www.deepin.org/|Beautiful UI design, intimate human-computer interaction, and friendly community environment make you feel at home.";;
         devuan)           INFO="Devuan|-|https://www.devuan.org/|Fork of Debian without systemd that allows users to reclaim control over their system by avoiding unnecessary entanglements and ensuring Init Freedom.";;
+        dragonos)         INFO="DragonOS|-|https://dragonos.io/|Debian-based Linux distribution focused on software defined radio (SDR).";;
         dragonflybsd)     INFO="DragonFlyBSD|-|https://www.dragonflybsd.org/|Provides an opportunity for the BSD base to grow in an entirely different direction from the one taken in the FreeBSD, NetBSD, and OpenBSD series.";;
         easyos)           INFO="EasyOS|-|https://easyos.org/|Experimental distribution designed from scratch to support containers.";;
         edubuntu)         INFO="Edubuntu|-|https://www.edubuntu.org/|Stable, secure and privacy conscious option for schools.";;
@@ -491,6 +492,7 @@ function os_support() {
     deepin \
     devuan \
     dragonflybsd \
+    dragonos \
     easyos \
     edubuntu \
     elementary \
@@ -742,6 +744,11 @@ function releases_dragonflybsd() {
     # We could add a variable so this behaviour is optional/switchable (maybe from option or env)
     #shellcheck disable=SC2046,SC2005
     echo $(web_pipe "https://mirror-master.dragonflybsd.org/iso-images/" | grep -E -o '"dfly-x86_64-.*_REL.iso.bz2"' | grep -o -E '[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+')
+}
+
+function releases_dragonos() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://sourceforge.net/projects/dragonos-focal/rss?path=/" | grep -oE 'DragonOS_[A-Za-z]+_R[0-9]+' | sort -uVr | sed 's/DragonOS_//')
 }
 
 function releases_easyos() {
@@ -2091,6 +2098,13 @@ function get_dragonflybsd() {
     local ISO="dfly-x86_64-${RELEASE}_REL.iso.bz2"
     local URL="http://mirror-master.dragonflybsd.org/iso-images"
     HASH=$(web_pipe "${URL}/md5.txt" | grep "(${ISO})" | cut -d' ' -f4)
+    echo "${URL}/${ISO} ${HASH}"
+}
+
+function get_dragonos() {
+    local HASH=""
+    local ISO="DragonOS_${RELEASE}.iso"
+    local URL="https://downloads.sourceforge.net/project/dragonos-focal"
     echo "${URL}/${ISO} ${HASH}"
 }
 
