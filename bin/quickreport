@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Thin entry point — the implementation lives in the repository root
+# for now; bin/ is the stable public location.
+exec "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/quickreport" "$@"

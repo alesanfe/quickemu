@@ -4164,6 +4164,9 @@ function create_config() {
     elif [[ "${INPUT}" == *".qcow2" ]]; then
         echo "Moving image to VM dir" && mv "${INPUT}" "${VM_PATH}"
         CUSTOM_IMAGE_TYPE="qcow2"
+    elif [[ "${INPUT}" == *".vmdk" ]] || [[ "${INPUT}" == *".raw" ]] || [[ "${INPUT}" == *".vdi" ]]; then
+        echo "Moving image to VM dir" && mv "${INPUT}" "${VM_PATH}"
+        CUSTOM_IMAGE_TYPE="disk"
     else
         echo "ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config"
         exit 1

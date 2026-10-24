@@ -1,0 +1,19 @@
+version: '3'
+
+tasks:
+  lint:
+    desc: ShellCheck + bash -n on all scripts
+    cmds:
+      - shellcheck quickemu quickget quickreport chunkcheck || true
+      - bash -n quickemu quickget quickreport
+      - for f in lib/*/*.sh; do bash -n "$f"; done
+
+  test:
+    desc: Run the unit/contract test suite
+    cmds:
+      - bash tests/run_tests.sh
+
+  check:
+    desc: Validate an OS download URL
+    cmds:
+      - ./quickget --check {{.CLI_ARGS}}

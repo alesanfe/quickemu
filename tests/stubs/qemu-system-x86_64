@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Stub QEMU: answers --version/-display help/-device help and pretends to run.
+for a in "$@"; do
+    case "$a" in
+        --version|-version) echo "QEMU emulator version 8.2.2 (stub)"; exit 0;;
+    esac
+done
+prev=""
+for a in "$@"; do
+    if [ "$prev" = "-display" ] && [ "$a" = "help" ]; then printf 'gtk\nsdl\ncocoa\nnone\nspice\nspice-app\negll-headless\n'; exit 0; fi
+    if [ "$prev" = "-device" ] && [ "$a" = "help" ]; then printf '"virtio-vga"\n"virtio-vga-gl"\n"virtio-gpu-gl-pci"\n"virtio-gpu-pci"\n"qemu-xhci"\n"usb-host"\n"vhost-user-fs-pci"\n'; exit 0; fi
+    if [ "$a" = "-audio-help" ]; then printf 'pa\npipewire\nalsa\nnone\n'; exit 0; fi
+    prev="$a"
+done
+sleep "${STUB_QEMU_SLEEP:-1}" &
+echo $! > "${STUB_PID_FILE:-/tmp/qemu-stub.pid}"
+wait
+exit 0

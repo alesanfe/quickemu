@@ -50,7 +50,7 @@
                 };
           in
           {
-            quickemu = final.callPackage ./package.nix ovmfArgs;
+            quickemu = final.callPackage ./packaging/nix/package.nix ovmfArgs;
           };
       };
 
@@ -69,7 +69,7 @@
               };
         in
         rec {
-          quickemu = pkgs.callPackage ./package.nix ovmfArgs;
+          quickemu = pkgs.callPackage ./packaging/nix/package.nix ovmfArgs;
           default = quickemu;
         }
       );
