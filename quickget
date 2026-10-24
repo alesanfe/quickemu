@@ -92,6 +92,7 @@ function os_info() {
         omarchy)          INFO="Omarchy|-|https://omarchy.org/|Beautiful, modern & opinionated Arch-based Linux distribution featuring the Hyprland tiling window manager, created by DHH.";;
         macos)            INFO="macOS|-|https://www.apple.com/macos/|Work and play on your Mac are even more powerful. Elevate your presence on video calls. Access information in all-new ways. Boost gaming performance. And discover even more ways to personalize your Mac.";;
         openbsd)          INFO="OpenBSD|-|https://www.openbsd.org/|FREE, multi-platform 4.4BSD-based UNIX-like operating system. Our efforts emphasize portability, standardization, correctness, proactive security and integrated cryptography.";;
+        openfyde)         INFO="openFyde|-|https://openfyde.io/|Open-source alternative to ChromeOS, based on Chromium OS.";;
         openindiana)      INFO="OpenIndiana|-|https://www.openindiana.org/|Community supported illumos-based operating system.";;
         opensuse)         INFO="openSUSE|-|https://www.opensuse.org/|The makers choice for sysadmins, developers and desktop users.";;
         oraclelinux)      INFO="Oracle Linux|-|https://www.oracle.com/linux/|Linux with everything required to deploy, optimize, and manage applications on-premises, in the cloud, and at the edge.";;
@@ -103,6 +104,7 @@ function os_info() {
         primtux)          INFO="PrimTux|-|https://primtux.fr/|A complete and customizable GNU/Linux operating system intended for primary school students and suitable even for older hardware.";;
         proxmox-ve)       INFO="Proxmox VE|-|https://proxmox.com/en/proxmox-virtual-environment/|Proxmox Virtual Environment is a complete, open-source server management platform for enterprise virtualization.";;
         pureos)           INFO="PureOS|-|https://www.pureos.net/|A fully free/libre and open source GNU/Linux operating system, endorsed by the Free Software Foundation.";;
+        qubes)            INFO="Qubes OS|-|https://www.qubes-os.org/|A reasonably secure operating system that uses Xen-based virtualization to provide strong isolation.";;
         reactos)          INFO="ReactOS|-|https://reactos.org/|Imagine running your favorite Windows applications and drivers in an open-source environment you can trust.";;
         rebornos)         INFO="RebornOS|-|https://rebornos.org/|Aiming to make Arch Linux as user friendly as possible by providing interface solutions to things you normally have to do in a terminal.";;
         rockylinux)       INFO="Rocky Linux|-|https://rockylinux.org/|Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.";;
@@ -525,6 +527,7 @@ function os_support() {
     nwg-shell \
     omarchy \
     openbsd \
+    openfyde \
     openindiana \
     opensuse \
     oraclelinux \
@@ -536,6 +539,7 @@ function os_support() {
     primtux \
     proxmox-ve \
     pureos \
+    qubes \
     reactos \
     rebornos \
     rockylinux \
@@ -955,6 +959,10 @@ function releases_omarchy() {
     echo 4.0.0
 }
 
+function releases_openfyde() {
+    web_pipe "https://api.github.com/repos/openfyde/overlay-amd64-openfyde/releases" | jq -r '.[].tag_name' | tr '\n' ' '
+}
+
 function releases_openbsd() {
     #shellcheck disable=SC2046,SC2005
     echo $(web_pipe "https://mirror.leaseweb.com/pub/OpenBSD/" | grep -e '6\.[8-9]/' -e '[7-9]\.' | cut -d\" -f4 | tr -d '/' | sort -r)
@@ -1049,6 +1057,11 @@ function releases_pureos() {
 
 function editions_pureos() {
     echo gnome plasma
+}
+
+function releases_qubes() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://ftp.qubes-os.org/iso/" | grep -oE 'R4\.[0-9.]+-x86_64\.iso' | grep -oE '4\.[0-9.]+' | sort -uVr)
 }
 
 function releases_reactos() {
@@ -1636,6 +1649,9 @@ function make_vm_config() {
         openbsd)
             GUEST="openbsd"
             IMAGE_TYPE="iso";;
+        openfyde)
+            GUEST="linux"
+            IMAGE_TYPE="img";;
         openindiana)
             GUEST="solaris"
             IMAGE_TYPE="iso";;
@@ -1706,6 +1722,8 @@ EOF
                 echo "disk_size=\"8G\"" >> "${CONF_FILE}";;
             bazzite)
                 echo "disk_size=\"64G\"" >> "${CONF_FILE}";;
+            qubes)
+                echo "disk_size=\"128G\"" >> "${CONF_FILE}";;
             dragonflybsd|haiku|openbsd|netbsd|slackware|slax|tinycore)
                 echo "boot=\"legacy\"" >> "${CONF_FILE}";;
             debian)
@@ -2600,6 +2618,13 @@ function get_omarchy() {
     echo "${URL}/${ISO} ${HASH}"
 }
 
+function get_openfyde() {
+    local HASH=""
+    local ISO="amd64-openfyde-${RELEASE}.bin.xz"
+    local URL="https://github.com/openfyde/overlay-amd64-openfyde/releases/download/${RELEASE}"
+    echo "${URL}/${ISO} ${HASH}"
+}
+
 function get_openbsd() {
     local HASH=""
     local ISO="install${RELEASE//\./}.iso"
@@ -2758,6 +2783,14 @@ function get_pureos() {
     local IsoTrimmed=
     IsoTrimmed="${ISO%.*}"
     HASH="$(web_pipe "${URL}/${IsoTrimmed}.checksums_sha256.txt" | grep -m 1 '.iso' | cut -d '.' -f 1)"
+    echo "${URL}/${ISO} ${HASH}"
+}
+
+function get_qubes() {
+    local HASH=""
+    local ISO="Qubes-R${RELEASE}-x86_64.iso"
+    local URL="https://ftp.qubes-os.org/iso"
+    HASH=$(web_pipe "${URL}/${ISO}.DIGESTS" | grep -E '^[0-9a-f]{64} ' | cut -d' ' -f1)
     echo "${URL}/${ISO} ${HASH}"
 }
 
@@ -3816,6 +3849,14 @@ function create_vm() {
                 require_qemu_img
                 ${QEMU_IMG} convert -f raw -O qcow2 "${VM_PATH}/${ISO}" "${VM_PATH}/disk.qcow2"
                 ISO="${ISO/.img/}"
+            fi;;
+        openfyde)
+            if [[ ${ISO} = *".xz"* ]]; then
+                xz -d "${VM_PATH}/${ISO}"
+                ISO="${ISO/.xz/}"
+                require_qemu_img
+                ${QEMU_IMG} convert -f raw -O qcow2 "${VM_PATH}/${ISO}" "${VM_PATH}/disk.qcow2"
+                ISO="disk.qcow2"
             fi;;
         freedos)
             if [[ ${ISO} = *".zip"* ]]; then
