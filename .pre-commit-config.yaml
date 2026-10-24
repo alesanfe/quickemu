@@ -1,0 +1,15 @@
+# Pre-commit hooks — aligned with CI (bash -n + shellcheck).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+  - repo: https://github.com/koalaman/shellcheck-precommit
+    rev: v0.11.0
+    hooks:
+      - id: shellcheck
+        files: ^(quickemu|quickget|quickreport|lib/.*\.sh|tests/.*\.sh)$
