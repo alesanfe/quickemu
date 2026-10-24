@@ -334,6 +334,18 @@ In the example above:
 - The USB device with vendor_id 046d and product_id 085e will be exposed
   to the guest.
 
+### GPU passthrough
+
+Pass a host GPU through to the guest using VFIO. The device must be in
+an IOMMU group and bound to the `vfio-pci` driver. Requires IOMMU
+enabled on the host (`intel_iommu=on` or `amd_iommu=on`). Multiple PCI
+addresses can be given, space separated:
+
+- `gpu_passthrough="0000:03:00.0 0000:03:00.1"`
+
+`quickemu` will warn if no IOMMU groups are found or if a device is not
+bound to `vfio-pci`.
+
 If the USB devices are not writable, `quickemu` will display the
 appropriate commands to modify the USB device(s) access permissions,
 like this:

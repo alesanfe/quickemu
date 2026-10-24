@@ -2357,6 +2357,24 @@ function vm_boot() {
             ${USB_PASSTHROUGH})
     fi
 
+    if [ -n "${gpu_passthrough}" ]; then
+        # GPU passthrough requires IOMMU enabled on the host and the device
+        # bound to vfio-pci. Multiple devices can be passed, space separated.
+        if [ ! -d /sys/kernel/iommu_groups ] || [ -z "$(ls -A /sys/kernel/iommu_groups 2>/dev/null)" ]; then
+            echo " - WARNING! No IOMMU groups found. Enable IOMMU (intel_iommu=on / amd_iommu=on) for GPU passthrough."
+        fi
+        for GPU_DEV in ${gpu_passthrough}; do
+            if [ -L "/sys/bus/pci/devices/${GPU_DEV}/driver" ]; then
+                GPU_DRIVER="$(basename "$(readlink -f "/sys/bus/pci/devices/${GPU_DEV}/driver")")"
+                if [ "${GPU_DRIVER}" != "vfio-pci" ]; then
+                    echo " - WARNING! ${GPU_DEV} is bound to '${GPU_DRIVER}', not vfio-pci."
+                fi
+            fi
+            echo " - GPU:      Passthrough ${GPU_DEV}"
+            args+=(-device "vfio-pci,host=${GPU_DEV}")
+        done
+    fi
+
     if [ "${tpm}" == "on" ] && [ -S "${VMDIR}/${VMNAME}.swtpm-sock" ]; then
         # shellcheck disable=SC2054
         if [ "${ARCH_VM}" == "aarch64" ]; then
@@ -2864,6 +2882,7 @@ ram=""
 secureboot="off"
 tpm="off"
 usb_devices=()
+gpu_passthrough="${gpu_passthrough:-}"
 viewer="${viewer:-spicy}"
 viewer_extra_args="${viewer_extra_args:-}"
 width="${width:-}"
