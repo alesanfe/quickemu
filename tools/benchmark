@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Startup + contract benchmarks (hyperfine). Not run per-PR — nightly
+# or on-demand when touching hot paths.
+cd "$(dirname "${0}")/.." || exit 1
+command -v hyperfine >/dev/null || { echo "hyperfine not installed"; exit 1; }
+hyperfine \
+    './quickemu --capabilities' \
+    './quickemu --list-vms --format json' \
+    './quickemu --help' \
+    --warmup 3 --export-json benchmark.json

@@ -1,0 +1,17 @@
+site_name: quickemu
+site_description: Bash wrapper around QEMU for ~1000 operating systems
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - search.highlight
+markdown_extensions:
+  - mermaid2:
+      version: 10.9.4
+nav:
+  - Home: index.md
+  - Architecture: architecture/index.md
+  - CLI: cli/contract.md
+  - ADRs: adr/0001-structured-cli.md
+plugins:
+  - search

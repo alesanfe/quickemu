@@ -2,22 +2,33 @@
 # Stub qemu-img: handles create/convert/resize/info/check/snapshot minimally.
 for a in "$@"; do
     case "$a" in
-        --version|-version|version) echo "qemu-img version 8.2.2 (stub)"; exit 0;;
+    --version | -version | version)
+        echo "qemu-img version 8.2.2 (stub)"
+        exit 0
+        ;;
     esac
 done
-cmd="${1}"; shift || exit 1
+cmd="${1}"
+shift || exit 1
 case "$cmd" in
-    create|convert)
-        out="${@: -1}"
-        dd if=/dev/zero of="$out" bs=1 count=1 2>/dev/null
-        [ "${STUB_QEMUIMG_FAIL:-0}" = 1 ] && exit 1
-        exit 0;;
-    resize)
-        dd if=/dev/zero of="${@: -2}" bs=1 count=1 seek=1 2>/dev/null; exit 0;;
-    info)
-        [ -f "${@: -1}" ] || exit 1
-        echo "image: ${@: -1}"; echo "file format: qcow2"; echo "virtual size: 16 GiB"; exit 0;;
-    check) exit 0;;
-    snapshot) exit 0;;
-    *) exit 0;;
+create | convert)
+    out="${@: -1}"
+    dd if=/dev/zero of="$out" bs=1 count=1 2>/dev/null
+    [ "${STUB_QEMUIMG_FAIL:-0}" = 1 ] && exit 1
+    exit 0
+    ;;
+resize)
+    dd if=/dev/zero of="${@: -2}" bs=1 count=1 seek=1 2>/dev/null
+    exit 0
+    ;;
+info)
+    [ -f "${@: -1}" ] || exit 1
+    echo "image: ${@: -1}"
+    echo "file format: qcow2"
+    echo "virtual size: 16 GiB"
+    exit 0
+    ;;
+check) exit 0 ;;
+snapshot) exit 0 ;;
+*) exit 0 ;;
 esac

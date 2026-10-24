@@ -1,34 +1,59 @@
 #!/usr/bin/env bash
 # Stub curl: serves files from $FIXTURES mapping URLs to fixture files.
-OUT=""; URL=""; HEAD_ONLY=0
+OUT=""
+URL=""
+HEAD_ONLY=0
 while [ $# -ge 1 ]; do
     case "$1" in
-        -o|--output) OUT="$2"; shift 2;;
-        -I|--head) HEAD_ONLY=1; shift;;
-        -*)
-            if [ $# -gt 1 ] && [[ "${2}" != -* ]] && [[ "$1" =~ ^--(header|user-agent|write-out|output|connect-timeout|max-time|retry|continue-at|data)$ ]]; then shift 2; else shift; fi;;
-        http*) URL="$1"; shift;;
-        *) shift;;
+    -o | --output)
+        OUT="$2"
+        shift 2
+        ;;
+    -I | --head)
+        HEAD_ONLY=1
+        shift
+        ;;
+    -*)
+        if [ $# -gt 1 ] && [[ "${2}" != -* ]] && [[ "$1" =~ ^--(header|user-agent|write-out|output|connect-timeout|max-time|retry|continue-at|data)$ ]]; then shift 2; else shift; fi
+        ;;
+    http*)
+        URL="$1"
+        shift
+        ;;
+    *) shift ;;
     esac
 done
 [ -z "${URL}" ] && exit 0
 FIX="${FIXTURES:-/dev/null}"
 # map URL to fixture via tests/fixtures/map.txt: "<regex>  <file>"
-[ ! -f "${FIX}/map.txt" ] && { [ "${HEAD_ONLY}" -eq 1 ] && { printf 'HTTP/2 404\r\n'; exit 22; }; exit 22; }
+[ ! -f "${FIX}/map.txt" ] && {
+    [ "${HEAD_ONLY}" -eq 1 ] && {
+        printf 'HTTP/2 404\r\n'
+        exit 22
+    }
+    exit 22
+}
 while IFS=$'\t' read -r pat file; do
     [ -z "${pat}" ] && continue
     if [[ "${URL}" =~ ${pat} ]]; then
         if [ "${HEAD_ONLY}" -eq 1 ]; then
-            [ -f "${FIX}/${file}" ] && { printf 'HTTP/2 200\r\ncontent-length: %s\r\n' "$(wc -c < "${FIX}/${file}")"; exit 0; }
-            printf 'HTTP/2 404\r\n'; exit 22
+            [ -f "${FIX}/${file}" ] && {
+                printf 'HTTP/2 200\r\ncontent-length: %s\r\n' "$(wc -c <"${FIX}/${file}")"
+                exit 0
+            }
+            printf 'HTTP/2 404\r\n'
+            exit 22
         fi
         if [ -f "${FIX}/${file}" ]; then
-            [ -n "${OUT}" ] && cat "${FIX}/${file}" > "${OUT}" || cat "${FIX}/${file}"
+            [ -n "${OUT}" ] && cat "${FIX}/${file}" >"${OUT}" || cat "${FIX}/${file}"
             exit 0
         fi
         exit 22
     fi
-done < "${FIX}/map.txt" 2>/dev/null
+done <"${FIX}/map.txt" 2>/dev/null
 # default: 404
-[ "${HEAD_ONLY}" -eq 1 ] && { printf 'HTTP/2 404\r\n'; exit 22; }
+[ "${HEAD_ONLY}" -eq 1 ] && {
+    printf 'HTTP/2 404\r\n'
+    exit 22
+}
 exit 22

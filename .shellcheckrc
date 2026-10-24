@@ -1,2 +1,5 @@
+# ShellCheck configuration — the primary static analyser.
 shell=bash
 external-sources=true
+enable=require-variable-braces
+disable=SC2317

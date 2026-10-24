@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 # Stub socat: record commands sent to the monitor socket.
-while IFS= read -r line; do echo "$line" >> "${STUB_SOCAT_LOG:-/tmp/socat-stub.log}"; done
+while IFS= read -r line; do echo "$line" >>"${STUB_SOCAT_LOG:-/tmp/socat-stub.log}"; done
 exit 0
