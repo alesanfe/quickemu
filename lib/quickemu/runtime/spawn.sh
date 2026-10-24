@@ -23,3 +23,15 @@ function qemu_spawn() {
         exit 1
     fi
 }
+
+# Initialise the generated launch script for this boot.
+# Skipped in plan mode (--dry-run): the .sh is an execution artifact.
+function runtime_launcher_init() {
+    [ -z "${DRY_RUN}" ] && echo "#!/usr/bin/env bash" >"${VMDIR}/${VMNAME}.sh"
+}
+
+# True when the swtpm control socket will be usable for this boot —
+# either already created by the running daemon or planned (--dry-run).
+function swtpm_socket_ready() {
+    [ -n "${DRY_RUN}" ] || [ -S "${VMDIR}/${VMNAME}.swtpm-sock" ]
+}

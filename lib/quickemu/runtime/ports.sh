@@ -43,3 +43,15 @@ function parse_ports_from_file {
         fi
     done <"${FILE}"
 }
+
+# Record an exposed host endpoint for this boot in the runtime .ports file.
+# Skipped in plan mode (--dry-run): the file is execution state.
+function ports_record() {
+    [ -z "${DRY_RUN}" ] && echo "${1}" >>"${VMDIR}/${VMNAME}.ports"
+}
+
+# Record where the SPICE viewer should connect (socket path or TCP port).
+# Skipped in plan mode (--dry-run).
+function spice_record() {
+    [ -z "${DRY_RUN}" ] && echo "${1}" >"${VMDIR}/${VMNAME}.spice"
+}

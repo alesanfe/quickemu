@@ -62,9 +62,7 @@ function vm_boot() {
     # Set the hostname of the VM
     NET="user,hostname=${VMNAME}"
 
-    if [ -z "${DRY_RUN}" ]; then
-        echo "#!/usr/bin/env bash" >"${VMDIR}/${VMNAME}.sh"
-    fi
+    runtime_launcher_init
 
     configure_cpu
     configure_ram
@@ -539,7 +537,7 @@ function vm_boot() {
         done
     fi
 
-    if [ "${tpm}" == "on" ] && { [ -n "${DRY_RUN}" ] || [ -S "${VMDIR}/${VMNAME}.swtpm-sock" ]; }; then
+    if [ "${tpm}" == "on" ] && swtpm_socket_ready; then
         # shellcheck disable=SC2054
         if [ "${ARCH_VM}" == "aarch64" ]; then
             # ARM64 uses tpm-tis-device (system bus) instead of tpm-tis (ISA/LPC bus)
@@ -566,7 +564,7 @@ function vm_boot() {
             # shellcheck disable=SC2054
             args+=(-monitor telnet:"${monitor_telnet_host}:${monitor_telnet_port}",server,nowait)
             echo " - Monitor:  On host:  telnet ${monitor_telnet_host} ${monitor_telnet_port}"
-            [ -z "${DRY_RUN}" ] && echo "monitor-telnet,${monitor_telnet_port},${monitor_telnet_host}" >>"${VMDIR}/${VMNAME}.ports"
+            ports_record "monitor-telnet,${monitor_telnet_port},${monitor_telnet_host}"
         fi
     elif [ "${monitor}" == "socket" ]; then
         # shellcheck disable=SC2054,SC2206
@@ -595,7 +593,7 @@ function vm_boot() {
             # shellcheck disable=SC2054,SC2206
             args+=(-serial telnet:${serial_telnet_host}:${serial_telnet_port},server,nowait)
             echo " - Serial:   On host:  telnet ${serial_telnet_host} ${serial_telnet_port}"
-            [ -z "${DRY_RUN}" ] && echo "serial-telnet,${serial_telnet_port},${serial_telnet_host}" >>"${VMDIR}/${VMNAME}.ports"
+            ports_record "serial-telnet,${serial_telnet_port},${serial_telnet_host}"
         fi
     elif [ "${serial}" == "socket" ]; then
         # shellcheck disable=SC2054,SC2206
@@ -646,7 +644,4 @@ function vm_boot() {
     SHELL_ARGS="${SHELL_ARGS//)/\\)}"
     SHELL_ARGS="${SHELL_ARGS//Quickemu Project/\"Quickemu Project\"}"
 
-    if [ -z "${VM_PID}" ] && [ -z "${DRY_RUN}" ]; then
-        qemu_spawn "${args[@]}"
-    fi
 }

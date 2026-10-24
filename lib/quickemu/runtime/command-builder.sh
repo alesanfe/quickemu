@@ -1111,7 +1111,7 @@ function configure_ports() {
     fi
 
     if [ -n "${ssh_port}" ]; then
-        [ -z "${DRY_RUN}" ] && echo "ssh,${ssh_port}" >>"${VMDIR}/${VMNAME}.ports"
+        ports_record "ssh,${ssh_port}"
         NET="${NET},hostfwd=tcp:${SSH_ADDR}:${ssh_port}-:22"
         echo " - ssh:      On host:  ssh user@${ssh_host} -p ${ssh_port}"
     else
@@ -1143,10 +1143,8 @@ function configure_ports() {
                 # Unix socket mode for local access
                 # GL context is provided by egl-headless display, not SPICE
                 SPICE+=",unix=on,addr=${VMDIR}/${VMNAME}.sock"
-                if [ -z "${DRY_RUN}" ]; then
-                    echo "unix,${VMDIR}/${VMNAME}.sock" >>"${VMDIR}/${VMNAME}.ports"
-                    echo "${VMDIR}/${VMNAME}.sock" >"${VMDIR}/${VMNAME}.spice"
-                fi
+                ports_record "unix,${VMDIR}/${VMNAME}.sock"
+                spice_record "${VMDIR}/${VMNAME}.sock"
                 echo -n " - SPICE:    On host:  spicy --uri=\"spice+unix://${VMDIR}/${VMNAME}.sock\" --title \"${VMNAME}\""
                 if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                     echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1171,10 +1169,8 @@ function configure_ports() {
                 fi
 
                 SPICE+=",port=${spice_port},addr=${SPICE_ADDR}"
-                if [ -z "${DRY_RUN}" ]; then
-                    echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
-                    echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
-                fi
+                ports_record "spice,${spice_port}"
+                spice_record "${spice_port}"
                 echo -n " - SPICE:    On host:  spicy --title \"${VMNAME}\" --port ${spice_port}"
                 if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                     echo -n " --spice-shared-dir ${PUBLIC}"
@@ -1204,10 +1200,8 @@ function configure_ports() {
             fi
 
             SPICE+=",port=${spice_port},addr=${SPICE_ADDR}"
-            if [ -z "${DRY_RUN}" ]; then
-                echo "spice,${spice_port}" >>"${VMDIR}/${VMNAME}.ports"
-                echo "${spice_port}" >"${VMDIR}/${VMNAME}.spice"
-            fi
+            ports_record "spice,${spice_port}"
+            spice_record "${spice_port}"
             echo -n " - SPICE:    On host:  spicy --title \"${VMNAME}\"${SPICE_ADDR:+ --host ${SPICE_ADDR}} --port ${spice_port}"
             if [ "${guest_os}" != "macos" ] && [ -n "${PUBLIC}" ]; then
                 echo -n " --spice-shared-dir ${PUBLIC}"
