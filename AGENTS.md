@@ -7,9 +7,13 @@ Quickemu is a Bash wrapper around QEMU that automates VM creation for ~1000 oper
 ```
 bin/quickemu      # Main VM launcher (canonical entry)
 bin/quickget      # OS downloader and config generator
+bin/quickgetc     # Data-driven downloader (JSON catalog variant, dev tool)
 bin/quickreport   # System diagnostics tool
 lib/quickemu/     # Modules sourced by the entries (cli, config, catalog,
                   # host, planning, runtime, vm, adapters, support)
+lib/quickget/     # quickget layers (cli, catalog, download, image, vm, support)
+lib/quickgetc/    # quickgetc layers (same layout as lib/quickget)
+lib/quickreport/  # quickreport layers (host probes + cli report)
 libexec/quickemu/chunkcheck.py  # Download verification utility
 schemas/v1/       # Versioned JSON CLI contract (--format json)
 catalog/          # OS catalogue data (schema today, entries phased in)
@@ -31,7 +35,7 @@ The devshell patches `quickemu` to use Nix store paths for OVMF and Samba, writi
 
 ## Build and test commands
 
-- Lint scripts: `shellcheck bin/quickemu bin/quickget bin/quickreport`
+- Lint scripts: `shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport $(find lib -name '*.sh')`
 - Test quickget URLs: `./bin/quickget --check <os> [release] [edition]`
 - Test ARM64 downloads: `./bin/quickget --arch arm64 --check <os> [release] [edition]`
 - Test all architectures: `./bin/quickget --check-all-arch <os> [release] [edition]`

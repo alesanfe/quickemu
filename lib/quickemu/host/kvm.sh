@@ -62,90 +62,43 @@ function ignore_msrs_alert() {
     fi
 }
 
-function check_macos_tsc_stability() {
+# Pure host probe: returns 0 when this machine is at risk of unstable-TSC
+# freezes for the configured macOS guest; exports TSC_CLOCKSOURCE for the
+# caller's report. Never prints, prompts or writes — that is the gate's job.
+function host_macos_tsc_unstable() {
     # Gate 1: Only on Linux hosts
     if [ "${OS_KERNEL}" != "Linux" ]; then
-        return 0
+        return 1
     fi
 
     # Gate 2: Only for AMD CPUs
     if [ "${HOST_CPU_VENDOR}" != "AuthenticAMD" ]; then
-        return 0
+        return 1
     fi
 
     # Gate 3: Only for macOS guests
     if [ "${guest_os}" != "macos" ]; then
-        return 0
+        return 1
     fi
 
     # Gate 4: Only for macOS Ventura (13) and newer
     case ${macos_release} in
     ventura | sonoma | sequoia | tahoe) ;;
-    *) return 0 ;;
+    *) return 1 ;;
     esac
 
     # Gate 5: Skip if user has already set tsc=reliable in kernel cmdline
-    local cmdline=""
-    if [ -r /proc/cmdline ]; then
-        cmdline=$(cat /proc/cmdline)
-        if [[ "${cmdline}" == *"tsc=reliable"* ]]; then
-            return 0
-        fi
+    if [ -r /proc/cmdline ] && [[ "$(cat /proc/cmdline)" == *"tsc=reliable"* ]]; then
+        return 1
     fi
 
     # Gate 6: Check if TSC is the current clocksource (indicates stable TSC)
     local clocksource_path="/sys/devices/system/clocksource/clocksource0/current_clocksource"
-    local current_clocksource=""
-    if [ -r "${clocksource_path}" ]; then
-        current_clocksource=$(cat "${clocksource_path}")
-        if [ "${current_clocksource}" == "tsc" ]; then
-            return 0
-        fi
-    else
+    if [ ! -r "${clocksource_path}" ]; then
         # Cannot determine clocksource - assume OK and let user discover issues
-        return 0
+        return 1
     fi
-
-    # All gates failed - this system is at risk
-    # Check if warning should be skipped
-    if [ "${IGNORE_TSC_WARNING}" == "1" ]; then
-        echo " - TSC:      WARNING! Unstable TSC detected (clocksource: ${current_clocksource})"
-        echo "             Proceeding anyway due to --ignore-tsc-warning flag."
-        return 0
-    fi
-
-    # Display warning and prompt user
-    echo " - TSC:      WARNING! Unstable TSC detected (clocksource: ${current_clocksource})"
-    echo "             macOS ${macos_release^} may freeze on AMD Ryzen mobile CPUs."
-    echo
-    echo "             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot."
-    echo "             Or:  Use macOS Big Sur (11) or Monterey (12) instead."
-    echo "             See: https://github.com/quickemu-project/quickemu/wiki/03-Create-macOS-virtual-machines#tsc-instability-on-amd-ryzen-mobile-cpus"
-    echo
-
-    # Planning only (--dry-run): report the warning, never prompt or write logs.
-    [ -n "${DRY_RUN}" ] && return 0
-
-    # Log the warning
-    echo "TSC_WARNING: clocksource=${current_clocksource} macos_release=${macos_release} cpu_vendor=${HOST_CPU_VENDOR}" >>"${VMDIR}/${VMNAME}.log"
-
-    # Interactive prompt - check if stdin is a terminal
-    if [ -t 0 ]; then
-        echo -n "Do you want to continue anyway? [y/N] "
-        read -r response
-        case "${response}" in
-        [yY] | [yY][eE][sS])
-            echo " - TSC:      Proceeding despite unstable TSC warning."
-            return 0
-            ;;
-        *)
-            echo " - TSC:      Aborting. Please apply one of the solutions above."
-            exit 1
-            ;;
-        esac
-    else
-        # Non-interactive mode - abort by default for safety
-        echo "ERROR! Non-interactive mode detected. Use --ignore-tsc-warning to bypass this check."
-        exit 1
-    fi
+    TSC_CLOCKSOURCE=$(cat "${clocksource_path}")
+    [ "${TSC_CLOCKSOURCE}" == "tsc" ] && return 1
+    return 0
 }

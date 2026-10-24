@@ -11,8 +11,8 @@ fi
 
 # shellcheck source=lib/quickreport/host.sh
 source "${QR_LIBDIR}/host.sh"
-# shellcheck source=lib/quickreport/report.sh
-source "${QR_LIBDIR}/report.sh"
+# shellcheck source=lib/quickreport/cli/report.sh
+source "${QR_LIBDIR}/cli/report.sh"
 
 OS_KERNEL=$(uname -s)
 

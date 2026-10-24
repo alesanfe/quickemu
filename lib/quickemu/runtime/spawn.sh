@@ -35,3 +35,9 @@ function runtime_launcher_init() {
 function swtpm_socket_ready() {
     [ -n "${DRY_RUN}" ] || [ -S "${VMDIR}/${VMNAME}.swtpm-sock" ]
 }
+
+# Append a note to the VM runtime log. Skipped in plan mode: the .log is
+# an execution artifact.
+function vm_log() {
+    [ -z "${DRY_RUN}" ] && echo "${1}" >>"${VMDIR}/${VMNAME}.log"
+}

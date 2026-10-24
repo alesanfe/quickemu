@@ -66,7 +66,7 @@ function vm_boot() {
 
     configure_cpu
     configure_ram
-    check_macos_tsc_stability
+    plan_check_tsc
     configure_bios
     configure_os_quirks
     configure_storage
