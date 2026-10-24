@@ -44,8 +44,11 @@ function os_info() {
         azurelinux)       INFO="Azure Linux|-|https://github.com/microsoft/azurelinux|Microsoft's internal Linux distribution for cloud infrastructure and edge.";;
         batocera)         INFO="Batocera|-|https://batocera.org/|Retro-gaming distribution with the aim of turning any computer/nano computer into a gaming console during a game or permanently.";;
         bazzite)          INFO="Bazzite|-|https://github.com/ublue-os/bazzite/|Container native gaming and a ready-to-game SteamOS like.";;
+        backbox)          INFO="BackBox|-|https://www.backbox.org/|Ubuntu-based distribution for penetration tests and security assessments.";;
         biglinux)         INFO="BigLinux|-|https://www.biglinux.com.br/|Is the right choice if you want to have an easy and enriching experience with Linux. It has been perfected over more than 19 years, following our motto: 'In search of the perfect system'.";;
+        blackarch)        INFO="BlackArch|-|https://blackarch.org/|Arch-based penetration testing distribution for security researchers.";;
         blendos)          INFO="BlendOS|-|https://blendos.co/|A seamless blend of all Linux distributions. Allows you to have an immutable, atomic and declarative Arch Linux system, with application support from several Linux distributions & Android.";;
+        blissos)          INFO="Bliss OS|-|https://blissos.org/|Android-based operating system for PCs and tablets.";;
         bodhi)            INFO="Bodhi|-|https://www.bodhilinux.com/|Lightweight distribution featuring the fast & fully customizable Moksha Desktop.";;
         bunsenlabs)       INFO="BunsenLabs|-|https://www.bunsenlabs.org/|Light-weight and easily customizable Openbox desktop. The project is a community continuation of CrunchBang Linux.";;
         cachyos)          INFO="CachyOS|-|https://cachyos.org/|Designed to deliver lightning-fast speeds and stability, ensuring a smooth and enjoyable computing experience every time you use it.";;
@@ -73,6 +76,7 @@ function os_info() {
         guix)             INFO="Guix|-|https://guix.gnu.org/|Distribution of the GNU operating system developed by the GNU Project—which respects the freedom of computer users.";;
         haiku)            INFO="Haiku|-|https://www.haiku-os.org/|Specifically targets personal computing. Inspired by the BeOS, Haiku is fast, simple to use, easy to learn and yet very powerful.";;
         kali)             INFO="Kali|-|https://www.kali.org/|The most advanced Penetration Testing Distribution.";;
+        kaos)             INFO="KaOS|-|https://kaosx.us/|Independent rolling Linux distribution focused on KDE and Qt.";;
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
@@ -82,12 +86,14 @@ function os_info() {
         lmde)             INFO="Linux Mint Debian Edition|-|https://www.linuxmint.com/download_lmde.php|Aims to be as similar as possible to Linux Mint, but without using Ubuntu. The package base is provided by Debian instead.";;
         lubuntu)          INFO="Lubuntu|-|https://lubuntu.me/|Complete Operating System that ships the essential apps and services for daily use: office applications, PDF reader,  image editor, music and video players, etc. Using lightwave lxde/lxqt.";;
         maboxlinux)       INFO="Mabox Linux|-|https://maboxlinux.org/|Lightweight, functional and easy to customize Openbox desktop";;
+        midnightbsd)      INFO="MidnightBSD|-|https://www.midnightbsd.org/|FreeBSD-derived operating system for desktop users.";;
         mageia)           INFO="Mageia|-|https://www.mageia.org/|Stable, secure operating system for desktop & server.";;
         manjaro)          INFO="Manjaro|-|https://manjaro.org/|Versatile, free, and open-source Linux operating system designed with a strong focus on safeguarding user privacy and offering extensive control over hardware.";;
         mxlinux)          INFO="MX Linux|-|https://mxlinux.org/|Designed to combine elegant and efficient desktops with high stability and solid performance.";;
         netboot)          INFO="netboot.xyz|-|https://netboot.xyz/|Your favorite operating systems in one place.";;
         netbsd)           INFO="NetBSD|-|https://www.netbsd.org/|Free, fast, secure, and highly portable Unix-like Open Source operating system. It is available for a wide range of platforms, from large-scale servers and powerful desktop systems to handheld and embedded devices.";;
         nitrux)           INFO="Nitrux|-|https://nxos.org/|Powered by Debian, KDE Plasma and Frameworks, and AppImages.";;
+        nobara)           INFO="Nobara|-|https://nobaraproject.org/|Fedora-based Linux distribution optimized for gaming and content creation.";;
         nixos)            INFO="NixOS|-|https://nixos.org/|Linux distribution based on Nix package manager, tool that takes a unique approach to package management and system configuration.";;
         nwg-shell)        INFO="nwg-shell|nwg:nwg|https://nwg-piotr.github.io/nwg-shell/|Arch Linux ISO with nwg-shell for sway and Hyprland";;
         omarchy)          INFO="Omarchy|-|https://omarchy.org/|Beautiful, modern & opinionated Arch-based Linux distribution featuring the Hyprland tiling window manager, created by DHH.";;
@@ -95,6 +101,9 @@ function os_info() {
         openbsd)          INFO="OpenBSD|-|https://www.openbsd.org/|FREE, multi-platform 4.4BSD-based UNIX-like operating system. Our efforts emphasize portability, standardization, correctness, proactive security and integrated cryptography.";;
         openfyde)         INFO="openFyde|-|https://openfyde.io/|Open-source alternative to ChromeOS, based on Chromium OS.";;
         openindiana)      INFO="OpenIndiana|-|https://www.openindiana.org/|Community supported illumos-based operating system.";;
+        openmediavault)   INFO="openmediavault|-|https://www.openmediavault.org/|Debian-based network attached storage (NAS) solution.";;
+        openmandriva)     INFO="OpenMandriva Lx|-|https://www.openmandriva.org/|Community-driven Linux distribution with KDE Plasma.";;
+        opnsense)         INFO="OPNsense|-|https://opnsense.org/|FreeBSD-based open source firewall and routing platform.";;
         opensuse)         INFO="openSUSE|-|https://www.opensuse.org/|The makers choice for sysadmins, developers and desktop users.";;
         oraclelinux)      INFO="Oracle Linux|-|https://www.oracle.com/linux/|Linux with everything required to deploy, optimize, and manage applications on-premises, in the cloud, and at the edge.";;
         parrotsec)        INFO="Parrot Security|parrot:parrot|https://www.parrotsec.org/|Provides a huge arsenal of tools, utilities and libraries that IT and security professionals can use to test and assess the security of their assets in a reliable, compliant and reproducible way.";;
@@ -103,6 +112,7 @@ function os_info() {
         popos)            INFO="Pop!_OS|-|https://pop.system76.com/|Operating system for STEM and creative professionals who use their computer as a tool to discover and create.";;
         porteus)          INFO="Porteus|-|http://www.porteus.org/|Complete linux operating system that is optimized to run from CD, USB flash drive, hard drive, or other bootable storage media.";;
         primtux)          INFO="PrimTux|-|https://primtux.fr/|A complete and customizable GNU/Linux operating system intended for primary school students and suitable even for older hardware.";;
+        q4os)             INFO="Q4OS|-|https://q4os.org/|Lightweight Debian-based distribution with Trinity and KDE desktops.";;
         proxmox-ve)       INFO="Proxmox VE|-|https://proxmox.com/en/proxmox-virtual-environment/|Proxmox Virtual Environment is a complete, open-source server management platform for enterprise virtualization.";;
         pureos)           INFO="PureOS|-|https://www.pureos.net/|A fully free/libre and open source GNU/Linux operating system, endorsed by the Free Software Foundation.";;
         qubes)            INFO="Qubes OS|-|https://www.qubes-os.org/|A reasonably secure operating system that uses Xen-based virtualization to provide strong isolation.";;
@@ -119,9 +129,11 @@ function os_info() {
         sparkylinux)      INFO="SparkyLinux|-|https://sparkylinux.org/|Fast, lightweight and fully customizable operating system which offers several versions for different use cases.";;
         spirallinux)      INFO="SpiralLinux|-|https://spirallinux.github.io/|Selection of Linux spins built from Debian GNU/Linux, with a focus on simplicity and out-of-the-box usability across all the major desktop environments.";;
         tails)            INFO="Tails|-|https://tails.net/|Portable operating system that protects against surveillance and censorship.";;
+        systemrescue)     INFO="SystemRescue|-|https://www.system-rescue.org/|Arch-based rescue system for repairing unbootable computers.";;
         templeos)         INFO="TempleOS|-|https://templeos.org/|TempleOS is a public domain, open source, ring-0-only operating system.";;
         tinycore)         INFO="Tiny Core Linux|-|http://www.tinycorelinux.net/|Highly modular based system with community build extensions.";;
         trisquel)         INFO="Trisquel|-|https://trisquel.info/|Fully free operating system for home users, small enterprises and educational centers.";;
+        truenas-scale)    INFO="TrueNAS SCALE|-|https://www.truenas.com/truenas-scale/|Debian-based NAS operating system by iXsystems.";;
         tuxedo-os)        INFO="Tuxedo OS|-|https://www.tuxedocomputers.com/en/|KDE Ubuntu LTS designed to go with their Linux hardware.";;
         ubuntu)           INFO="Ubuntu|-|https://ubuntu.com/|Complete desktop Linux operating system, freely available with both community and professional support.";;
         ubuntu-budgie)    INFO="Ubuntu Budgie|-|https://ubuntubudgie.org/|Community developed distribution, integrating the Budgie Desktop Environment with Ubuntu at its core.";;
@@ -132,6 +144,7 @@ function os_info() {
         ubuntustudio)     INFO="Ubuntu Studio|-|https://ubuntustudio.org/|Comes preinstalled with a selection of the most common free multimedia applications available, and is configured for best performance for various purposes: Audio, Graphics, Video, Photography and Publishing.";;
         ubuntu-unity)     INFO="Ubuntu Unity|-|https://ubuntuunity.org/|Flavor of Ubuntu featuring the Unity7 desktop environment (the default desktop environment used by Ubuntu from 2010-2017).";;
         vanillaos)        INFO="Vanilla OS|-|https://vanillaos.org/|Designed to be a reliable and productive operating system for your daily work.";;
+        vyos)             INFO="VyOS|-|https://vyos.io/|Open source network operating system for routers and firewalls.";;
         void)             INFO="Void Linux|anon:voidlinux|https://voidlinux.org/|General purpose operating system. Its package system allows you to quickly install, update and remove software; software is provided in binary packages or can be built directly from sources.";;
         windows)          INFO="Windows|-|https://www.microsoft.com/en-us/windows/|Whether you’re gaming, studying, running a business, or running a household, Windows helps you get it done.";;
         windows-server)   INFO="Windows Server|-|https://www.microsoft.com/en-us/windows-server/|Platform for building an infrastructure of connected applications, networks, and web services.";;
@@ -482,7 +495,9 @@ function os_support() {
     batocera \
     bazzite \
     biglinux \
+    blackarch \
     blendos \
+    blissos \
     bodhi \
     bunsenlabs \
     cachyos \
@@ -510,6 +525,7 @@ function os_support() {
     guix \
     haiku \
     kali \
+    kaos \
     kdeneon \
     kdelinux \
     kolibrios \
@@ -519,6 +535,7 @@ function os_support() {
     lmde \
     lubuntu \
     maboxlinux \
+    midnightbsd \
     macos \
     mageia \
     manjaro \
@@ -526,12 +543,16 @@ function os_support() {
     netboot \
     netbsd \
     nitrux \
+    nobara \
     nixos \
     nwg-shell \
     omarchy \
     openbsd \
     openfyde \
     openindiana \
+    openmediavault \
+    openmandriva \
+    opnsense \
     opensuse \
     oraclelinux \
     parrotsec \
@@ -540,6 +561,7 @@ function os_support() {
     popos \
     porteus \
     primtux \
+    q4os \
     proxmox-ve \
     pureos \
     qubes \
@@ -556,9 +578,11 @@ function os_support() {
     sparkylinux \
     spirallinux \
     tails \
+    systemrescue \
     templeos \
     tinycore \
     trisquel \
+    truenas-scale \
     tuxedo-os \
     ubuntu \
     ubuntu-budgie \
@@ -569,6 +593,7 @@ function os_support() {
     ubuntukylin \
     ubuntustudio \
     vanillaos \
+    vyos \
     void \
     windows \
     windows-server \
@@ -4037,6 +4062,129 @@ function resolve_quickemu() {
         echo "quickemu not found" >&2
         exit 1
     fi
+}
+
+function releases_nobara() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://nobaraproject.org/download-nobara/" | grep -oE 'Nobara-[0-9]+-' | sort -uVr | sed 's/Nobara-//;s/-$//')
+}
+function editions_nobara() { echo Official GNOME KDE Steam-HTPC Steam-Handheld; }
+function get_nobara() {
+    local HASH="" ISO="" URL="https://nobaraproject.org/download-nobara/"
+    ISO=$(web_pipe "${URL}" | grep -oE "Nobara-${RELEASE}-${EDITION}-[0-9-]+\.iso" | sort -V | tail -1)
+    echo "https://nobara-images.nobaraproject.org/${ISO} ${HASH}"
+}
+function releases_opnsense() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://mirror.fra10.de.leaseweb.net/opnsense/releases/" | grep -oE 'href="[0-9.]+/"' | tr -dc '0-9.\n' | sort -uVr | head -5)
+}
+function get_opnsense() {
+    local HASH="" ISO="OPNsense-${RELEASE}-dvd-amd64.iso.bz2" URL="https://mirror.fra10.de.leaseweb.net/opnsense/releases/${RELEASE}"
+    HASH=$(web_pipe "${URL}/OPNsense-${RELEASE}-checksums-amd64.sha256" | grep "${ISO}" | cut -d' ' -f1)
+    echo "${URL}/${ISO} ${HASH}"
+}
+function releases_vyos() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://api.github.com/repos/vyos/vyos-nightly-build/releases?per_page=5" | grep -oE '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+}
+function get_vyos() {
+    local HASH="" ISO="vyos-${RELEASE}-generic-amd64.iso" URL="https://github.com/vyos/vyos-nightly-build/releases/download/${RELEASE}"
+    echo "${URL}/${ISO} ${HASH}"
+}
+function releases_blackarch() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://ftp.halifax.rwth-aachen.de/blackarch/iso/" | grep -oE 'blackarch-linux-[a-z]+-[0-9.]+-x86_64' | sed 's/blackarch-linux-[a-z]*-//;s/-x86_64//' | sort -uVr)
+}
+function editions_blackarch() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://ftp.halifax.rwth-aachen.de/blackarch/iso/" | grep -oE "blackarch-linux-[a-z]+-${RELEASE}-x86_64" | sed 's/blackarch-linux-//;s/-x86_64//;s/-[0-9.]*$//')
+}
+function get_blackarch() {
+    local HASH="" ISO="blackarch-linux-${EDITION}-${RELEASE}-x86_64.iso" URL="https://ftp.halifax.rwth-aachen.de/blackarch/iso"
+    echo "${URL}/${ISO} ${HASH}"
+}
+function releases_blissos() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://sourceforge.net/projects/blissos-x86/rss?path=/" | grep -oE 'Bliss-v[0-9]+(\.[0-9]+)+' | sort -uVr | sed 's/Bliss-v//')
+}
+function get_blissos() {
+    local HASH="" ISO="" URL="https://sourceforge.net/projects/blissos-x86/rss?path=/"
+    ISO=$(web_pipe "${URL}" | grep -oE "Official/BlissOS[0-9]+/Gapps/Generic/Bliss-v${RELEASE}-[^\"<]*\.iso" | sort -V | tail -1)
+    echo "https://downloads.sourceforge.net/project/blissos-x86/${ISO} ${HASH}"
+}
+function releases_kaos() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://sourceforge.net/projects/kaosx/rss?path=/ISO" | grep -oE 'KaOS-[0-9.]+-x86_64\.iso' | sort -uVr | sed 's/KaOS-//;s/-x86_64\.iso//')
+}
+function get_kaos() {
+    local HASH="" ISO="KaOS-${RELEASE}-x86_64.iso" URL="https://downloads.sourceforge.net/project/kaosx/ISO"
+    echo "${URL}/${ISO} ${HASH}"
+}
+function releases_midnightbsd() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://discovery.midnightbsd.org/ftp/releases/amd64/ISO-IMAGES/" | grep -oE 'href="[0-9.]+/"' | tr -dc '0-9.\n' | sort -uVr | grep -E '^(3|4)\.' | head -5)
+}
+function get_midnightbsd() {
+    local HASH="" ISO="MidnightBSD-${RELEASE}--amd64-disc1.iso" URL="https://discovery.midnightbsd.org/ftp/releases/amd64/ISO-IMAGES/${RELEASE}"
+    HASH=$(web_pipe "${URL}/CHECKSUM.SHA256" | grep "${ISO}" | awk '{print $NF}')
+    echo "${URL}/${ISO} ${HASH}"
+}
+function releases_openmandriva() { echo rome; }
+function editions_openmandriva() { echo plasma plasma-wayland gnome lxqt; }
+function get_openmandriva() {
+    local HASH="" ISO="" SUFFIX="" URL="https://sourceforge.net/projects/openmandriva/rss?path=/release/ROME"
+    case "${EDITION}" in
+        plasma)         SUFFIX="plasma6x11";;
+        plasma-wayland) SUFFIX="plasma6wayland";;
+        gnome)          SUFFIX="gnome3";;
+        lxqt)           SUFFIX="lxqt";;
+    esac
+    ISO=$(web_pipe "${URL}" | grep -oE "files/release/ROME/[^\"<]*-${SUFFIX}\.x86_64\.iso" | sort -V | tail -1)
+    ISO="${ISO//%28/(}"; ISO="${ISO//%29/)}"; ISO="${ISO#files/}"
+    HASH=$(web_pipe "https://downloads.sourceforge.net/project/openmandriva/${ISO}.sha256sum" | cut -d' ' -f1)
+    echo "https://downloads.sourceforge.net/project/openmandriva/${ISO} ${HASH}"
+}
+function releases_openmediavault() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://sourceforge.net/projects/openmediavault/rss?path=/iso" | grep -oE 'openmediavault_[0-9.]+-amd64' | sort -uVr | sed 's/openmediavault_//;s/-amd64//')
+}
+function get_openmediavault() {
+    local HASH="" ISO="openmediavault_${RELEASE}-amd64.iso" URL="https://downloads.sourceforge.net/project/openmediavault/iso/${RELEASE}"
+    HASH=$(web_pipe "${URL}/${ISO}.sha256" | cut -d' ' -f1)
+    echo "${URL}/${ISO} ${HASH}"
+}
+function releases_q4os() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://sourceforge.net/projects/q4os/rss?path=/stable" | grep -oE 'q4os-[0-9]+\.[0-9]+-x64' | sort -uVr | sed 's/q4os-//;s/-x64//')
+}
+function editions_q4os() { echo kde trinity; }
+function get_q4os() {
+    local HASH="" ISO="" SUFFIX="" URL="https://sourceforge.net/projects/q4os/rss?path=/stable"
+    case "${EDITION}" in
+        kde)     SUFFIX="x64\\.r";;
+        trinity) SUFFIX="x64-tde\\.r";;
+    esac
+    ISO=$(web_pipe "${URL}" | grep -oE "files/stable/q4os-${RELEASE}-${SUFFIX}[0-9]+\.iso" | sort -V | tail -1)
+    echo "https://downloads.sourceforge.net/project/q4os/${ISO#files/} ${HASH}"
+}
+function releases_systemrescue() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://sourceforge.net/projects/systemrescuecd/rss?path=/sysresccd-x86" | grep -oE 'systemrescue-[0-9.]+-amd64' | sort -uVr | sed 's/systemrescue-//;s/-amd64//')
+}
+function get_systemrescue() {
+    local HASH="" ISO="systemrescue-${RELEASE}-amd64.iso" URL="https://downloads.sourceforge.net/project/systemrescuecd/sysresccd-x86/${RELEASE}"
+    echo "${URL}/${ISO} ${HASH}"
+}
+function releases_truenas-scale() {
+    #shellcheck disable=SC2046,SC2005
+    echo $(web_pipe "https://download.sys.truenas.net/" | grep -oE 'TrueNAS-SCALE-[A-Z][a-z]+/' | sed 's/TrueNAS-SCALE-//;s|/||' | tr '[:upper:]' '[:lower:]' | sort -uVr)
+}
+function get_truenas-scale() {
+    local HASH="" ISO="" VDIR="" BASE="https://download.sys.truenas.net" DIR="TrueNAS-SCALE-${RELEASE^}"
+    VDIR=$(web_pipe "${BASE}/${DIR}/" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -uVr | head -1)
+    ISO=$(web_pipe "${BASE}/${DIR}/${VDIR}/" | grep -oE 'TrueNAS[^"<]*\.iso' | grep -vE 'gpg|sha|mtree|wrap' | sort -u | head -1)
+    HASH=$(web_pipe "${BASE}/${DIR}/${VDIR}/${ISO}.sha256" | cut -d' ' -f1)
+    echo "${BASE}/${DIR}/${VDIR}/${ISO} ${HASH}"
 }
 
 function help_message() {
