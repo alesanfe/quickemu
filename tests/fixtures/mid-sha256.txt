@@ -1,0 +1,4 @@
+SHA256 (MidnightBSD-4.0.8--amd64-bootonly.iso) = 6c7a02a14eefe3f543161e5b127246285cfe5d22dc2141778ec6c611e916b09b
+SHA256 (MidnightBSD-4.0.8--amd64-disc1.iso) = 2d16ea3ac664f9a1a70cae1cfcb4e588f806bfbc94ec779740af2c8b4e6de46f
+SHA256 (MidnightBSD-4.0.8--amd64-memstick.img) = 6a7b9dfae37c02124b7ac4fc5de70d57c7a027a33b6f299ac8e2d3759180059a
+SHA256 (MidnightBSD-4.0.8--amd64-mini-memstick.img) = 9ae4779641c814cd02cddd51ee6f68ca853de03d017bd3ff5a293bbdcde03c33

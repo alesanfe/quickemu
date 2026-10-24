@@ -7,7 +7,7 @@ on:
     paths:
       - quickemu
       - quickget
-      - debian/**
+      - packaging/debian/**
       - flake.nix
       - package.nix
   push:
@@ -16,7 +16,7 @@ on:
     paths:
       - quickemu
       - quickget
-      - debian/**
+      - packaging/debian/**
       - flake.nix
       - package.nix
   workflow_dispatch:
@@ -80,3 +80,10 @@ jobs:
             ./result/bin/quickemu --vm alpine-v3.20.conf --delete-vm
           fi
 
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run unit + contract tests
+        run: bash tests/run_tests.sh
