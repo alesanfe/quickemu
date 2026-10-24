@@ -1075,7 +1075,7 @@ function releases_qubes() {
 
 function releases_redoxos() {
     #shellcheck disable=SC2046,SC2005
-    echo $(web_pipe "https://static.redox-os.org/releases/" | grep -oE 'href="[0-9.]+/"' | tr -dc '0-9.' | sort -uVr)
+    echo $(web_pipe "https://static.redox-os.org/releases/" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | sort -uVr)
 }
 
 function editions_redoxos() {
