@@ -187,6 +187,62 @@ function delete_vm() {
     fi
 }
 
+function pause_vm() {
+    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+        kill -STOP "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) paused."
+    else
+        echo " - ${VMNAME} is not running."
+    fi
+}
+
+function resume_vm() {
+    if [ -n "${VM_PID}" ] && kill -0 "${VM_PID}" 2>/dev/null; then
+        kill -CONT "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) resumed."
+    else
+        echo " - ${VMNAME} is not running."
+    fi
+}
+
+function screenshot_vm() {
+    local OUT="${SCREENSHOT_OUT:-${VMDIR}/${VMNAME}-$(date +%Y%m%d-%H%M%S).ppm}"
+    if [ -z "${VM_PID}" ] || ! kill -0 "${VM_PID}" 2>/dev/null; then
+        echo " - ${VMNAME} is not running."
+        return 1
+    fi
+    if [ ! -S "${VMDIR}/${VMNAME}.sock" ]; then
+        echo " - ERROR! No QEMU monitor socket for ${VMNAME}."
+        return 1
+    fi
+    if ! command -v socat &>/dev/null; then
+        echo " - ERROR! socat is required for --screenshot."
+        return 1
+    fi
+    echo "screendump ${OUT}" | socat - "UNIX-CONNECT:${VMDIR}/${VMNAME}.sock" >/dev/null
+    echo " - Screenshot saved to ${OUT}"
+}
+
+function clone_vm() {
+    local NEW_NAME="${CLONE_NAME}"
+    if [ -z "${NEW_NAME}" ]; then
+        echo "ERROR! '--clone' needs a name for the new VM."
+        exit 1
+    fi
+    if [ -e "${VMDIR}/${NEW_NAME}" ] || [ -e "${VMDIR}/${NEW_NAME}.conf" ]; then
+        echo "ERROR! ${NEW_NAME} already exists."
+        exit 1
+    fi
+    mkdir -p "${VMDIR}/${NEW_NAME}"
+    # Copy the config, rewriting references to the old VM directory.
+    sed "s|${VMNAME}/|${NEW_NAME}/|g" "${VMDIR}/${VMNAME}.conf" > "${VMDIR}/${NEW_NAME}.conf"
+    if [ -f "${VMDIR}/${VMNAME}/disk.qcow2" ]; then
+        require_qemu_img
+        ${QEMU_IMG} create -f qcow2 -b "${VMDIR}/${VMNAME}/disk.qcow2" -F qcow2 "${VMDIR}/${NEW_NAME}/disk.qcow2" >/dev/null
+        echo " - Cloned ${VMNAME} to ${NEW_NAME} (shared backing disk)."
+    else
+        echo " - Cloned ${VMNAME} to ${NEW_NAME} (config only; no disk.qcow2 found)."
+    fi
+}
+
 function status_vm() {
     # Report the real VM state instead of only the presence of a pid file.
     if [ -n "${VM_PID}" ]; then
@@ -2626,6 +2682,10 @@ function usage() {
     echo "  --ignore-tsc-warning              : Skip TSC stability warning for macOS VMs on AMD"
     echo "  --kill                            : Kill the VM process if it is running"
     echo "  --status                          : Show whether the VM is running or stopped"
+    echo "  --pause                           : Pause (SIGSTOP) the running VM"
+    echo "  --resume                          : Resume (SIGCONT) a paused VM"
+    echo "  --screenshot [out.ppm]            : Save a screenshot via the QEMU monitor"
+    echo "  --clone <newname>                 : Clone this VM config and disk"
     echo "  --offline                         : Override all network settings and start the VM offline"
     echo "  --shortcut                        : Create a desktop shortcut"
     echo "  --snapshot apply <tag>            : Apply/restore a snapshot."
@@ -3024,6 +3084,20 @@ else
             -status|--status)
                 ACTIONS+=(status_vm)
                 shift;;
+            -pause|--pause)
+                ACTIONS+=(pause_vm)
+                shift;;
+            -resume|--resume)
+                ACTIONS+=(resume_vm)
+                shift;;
+            -screenshot|--screenshot)
+                ACTIONS+=(screenshot_vm)
+                SCREENSHOT_OUT="${2}"
+                shift;;
+            -clone|--clone)
+                ACTIONS+=(clone_vm)
+                CLONE_NAME="${2}"
+                shift 2;;
             -offline|--offline)
                 SHORTCUT_OPTIONS+="--offline "
                 network="none"
@@ -3039,7 +3113,7 @@ else
                     exit 1
                 fi
                 SNAPSHOT_TAG="${3}"
-                if [ "${SNAPSHOT_ACTION}" == "info" ]; then
+                if [ "${SNAPSHOT_ACTION}" == "info" ] || [ "${SNAPSHOT_ACTION}" == "list" ]; then
                     shift 2
                 else
                     shift 3
@@ -3232,7 +3306,7 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
                 snapshot_delete "${SNAPSHOT_TAG}"
                 snapshot_info
                 exit;;
-            info)
+            info|list)
                 echo "Snapshot information ${disk_img}"
                 snapshot_info
                 exit;;
