@@ -9,8 +9,8 @@ if [ ! -d "${QR_LIBDIR}" ]; then
     exit 1
 fi
 
-# shellcheck source=lib/quickreport/host.sh
-source "${QR_LIBDIR}/host.sh"
+# shellcheck source=lib/quickreport/host/probes.sh
+source "${QR_LIBDIR}/host/probes.sh"
 # shellcheck source=lib/quickreport/cli/report.sh
 source "${QR_LIBDIR}/cli/report.sh"
 

@@ -247,7 +247,7 @@ EOF
                 echo "WARNING! --unattended is only supported for ubuntu-server; ignoring.";;
         esac
     fi
-    echo -e "\nTo start your $(pretty_name "${OS}") virtual machine run:"
+    echo -e "\nTo start your ${OS_DISPLAY_NAME} virtual machine run:"
     if [ "${OS}" == "slint" ]; then
         echo -e "    quickemu --vm ${CONF_FILE}\nTo start Slint with braille support run:\n    quickemu --vm --braille --display sdl ${CONF_FILE}"
     else
@@ -329,7 +329,7 @@ function create_config() {
         *windows*|win*)
             CUSTOM_OS="windows"
             # Older windows 10 ISOs use the year followed by the month rather than the year & half). Match any text for language.
-            if [ "${3}" != "--disable-unattended" ] && ( [ "${3}" == "--unattended" ] || grep -E -q 'Win(10|11)_([0-9]{2}H(1|2)|[0-9]{4})_[^.]*?(x64|x32)(v[0-9])?.iso' <<< "${INPUT}" ); then
+            if [ "${3}" != "--disable-unattended" ] && ( [ "${3}" == "--unattended" ] || is_unattended_windows_iso "${INPUT}" ); then
                 echo "Creating unattended Windows installation files. To disable, pass --disable-unattended"
                 echo
                 echo "Downloading VirtIO drivers..."

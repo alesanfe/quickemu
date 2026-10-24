@@ -11,7 +11,7 @@ function open_homepage() {
     if [ -z "$(os_info "${1}")" ]; then
         error_specify_os
     else
-        URL="$(os_info "${1}" | cut -d'|' -f 3)"
+        URL="$(os_homepage "${1}")"
         # shellcheck disable=SC2034
         XDG_OPEN=$(xdg-open "${URL}" || sensible-browser "${URL}" || x-www-browser "${URL}" || gnome-open "${URL}")
         exit 0

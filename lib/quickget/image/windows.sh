@@ -4,6 +4,13 @@
 # Image: Windows unattended-install answer files.
 
 
+# True when a filename is a retail Windows 10/11 ISO that the unattended
+# generator can drive (Win10_22H2_..._x64.iso style names).
+function is_unattended_windows_iso() {
+    grep -E -q 'Win(10|11)_([0-9]{2}H(1|2)|[0-9]{4})_[^.]*?(x64|x32)(v[0-9])?.iso' <<< "${1}"
+}
+
+
 function unattended_windows() {
     mkdir -p "${1}/unattended" 2>/dev/null
 
