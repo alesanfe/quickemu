@@ -4,8 +4,8 @@ tasks:
   lint:
     desc: ShellCheck + bash -n on all scripts
     cmds:
-      - shellcheck quickemu quickget quickreport chunkcheck || true
-      - bash -n quickemu quickget quickreport
+      - shellcheck bin/quickemu bin/quickget bin/quickreport $(find lib -name "*.sh") || true
+      - bash -n bin/quickemu bin/quickget bin/quickreport
       - for f in lib/*/*.sh; do bash -n "$f"; done
 
   test:
@@ -16,4 +16,4 @@ tasks:
   check:
     desc: Validate an OS download URL
     cmds:
-      - ./quickget --check {{.CLI_ARGS}}
+      - ./bin/quickget --check {{.CLI_ARGS}}

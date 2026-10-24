@@ -60,7 +60,7 @@ let
   # Extract version using builtins.split to avoid regex backtracking on large files.
   # builtins.match with .* patterns on multi-kilobyte files can cause stack overflow.
   versionParts = builtins.split "readonly VERSION=\"([0-9]+\\.[0-9]+\\.[0-9]+)\"" (
-    builtins.readFile ./quickemu
+    builtins.readFile ./bin/quickemu
   );
   version = builtins.elemAt (builtins.elemAt versionParts 1) 0;
 in
@@ -80,7 +80,7 @@ stdenv.mkDerivation (finalAttrs: {
       -e '/cp "''${VARS_IN}" "''${VARS_OUT}"/a chmod +w "''${VARS_OUT}"' \
       -e 's/Icon=.*qemu.svg/Icon=qemu/' \
       -e 's,\$(command -v smbd),${samba}/bin/smbd,' \
-      quickemu
+      bin/quickemu
   '';
 
   nativeBuildInputs = [
@@ -92,11 +92,16 @@ stdenv.mkDerivation (finalAttrs: {
     runHook preInstall
 
     installManPage docs/quickget.1 docs/quickemu.1 docs/quickemu_conf.5
-    install -Dm755 -t "$out/bin" chunkcheck quickemu quickget quickreport
+    install -Dm755 -t "$out/bin" bin/quickemu bin/quickget bin/quickreport
+    install -Dm755 -t "$out/libexec/quickemu" libexec/quickemu/chunkcheck.py
+    install -d "$out/lib"
+    cp -r lib/quickemu "$out/lib/"
+    install -d "$out/share/quickemu"
+    cp -r schemas catalog "$out/share/quickemu/"
 
     # spice-gtk needs to be put in suffix so that when virtualisation.spiceUSBRedirection
     # is enabled, the wrapped spice-client-glib-usb-acl-helper is used
-    for f in chunkcheck quickget quickemu quickreport; do
+    for f in quickget quickemu quickreport; do
       wrapProgram $out/bin/$f \
         --prefix PATH : "${lib.makeBinPath runtimePaths}" \
         --suffix PATH : "${lib.makeBinPath [ spice-gtk ]}"

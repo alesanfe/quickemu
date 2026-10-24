@@ -1,4 +1,7 @@
-chunkcheck usr/bin
-quickemu usr/bin
-quickget usr/bin
-quickreport usr/bin
+bin/quickemu usr/bin
+bin/quickget usr/bin
+bin/quickreport usr/bin
+libexec/quickemu/chunkcheck.py usr/libexec/quickemu
+lib/quickemu usr/lib
+schemas usr/share/quickemu
+catalog usr/share/quickemu

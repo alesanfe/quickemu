@@ -5,13 +5,19 @@ Quickemu is a Bash wrapper around QEMU that automates VM creation for ~1000 oper
 ## Project structure
 
 ```
-quickemu        # Main VM launcher script (Bash)
-quickget        # OS downloader and config generator (Bash)
-quickreport     # System diagnostics tool (Bash)
-chunkcheck      # Download verification utility (Bash)
-flake.nix       # Nix flake for packaging
-package.nix     # Nix package definition
-devshell.nix    # Development environment
+bin/quickemu      # Main VM launcher (canonical entry)
+bin/quickget      # OS downloader and config generator
+bin/quickreport   # System diagnostics tool
+lib/quickemu/     # Modules sourced by the entries (cli, config, catalog,
+                  # host, planning, runtime, vm, adapters, support)
+libexec/quickemu/chunkcheck.py  # Download verification utility
+schemas/v1/       # Versioned JSON CLI contract (--format json)
+catalog/          # OS catalogue data (schema today, entries phased in)
+spec/             # ShellSpec suite (unit, integration, contract)
+probes/           # External-source checks (nightly, not PR-blocking)
+flake.nix         # Nix flake for packaging
+packaging/nix/package.nix  # Nix package definition
+devshell.nix      # Development environment
 ```
 
 ## Development environment
@@ -25,12 +31,12 @@ The devshell patches `quickemu` to use Nix store paths for OVMF and Samba, writi
 
 ## Build and test commands
 
-- Lint scripts: `shellcheck quickemu quickget quickreport chunkcheck`
-- Test quickget URLs: `./quickget --check <os> [release] [edition]`
-- Test ARM64 downloads: `./quickget --arch arm64 --check <os> [release] [edition]`
-- Test all architectures: `./quickget --check-all-arch <os> [release] [edition]`
-- List all supported OSes: `./quickget --list`
-- Run VM: `./quickemu --vm <name>.conf`
+- Lint scripts: `shellcheck bin/quickemu bin/quickget bin/quickreport`
+- Test quickget URLs: `./bin/quickget --check <os> [release] [edition]`
+- Test ARM64 downloads: `./bin/quickget --arch arm64 --check <os> [release] [edition]`
+- Test all architectures: `./bin/quickget --check-all-arch <os> [release] [edition]`
+- List all supported OSes: `./bin/quickget --list`
+- Run VM: `./bin/quickemu --vm <name>.conf`
 
 ## Code style
 
@@ -38,8 +44,8 @@ All scripts are Bash 4.0+ with ShellCheck compliance.
 
 | File | Indent | Notes |
 |------|--------|-------|
-| quickemu | 2 spaces | Main VM launcher |
-| quickget | 4 spaces | OS definitions and download logic |
+| bin/quickemu | 2 spaces | Main VM launcher |
+| bin/quickget | 4 spaces | OS definitions and download logic |
 
 **General conventions:**
 
@@ -84,7 +90,7 @@ fix(quickget): remove Athena OS (no longer getting updates)
 - PR titles must match Conventional Commits format (enforced by CI)
 - Single-commit PRs: commit message must match PR title
 - Run `shellcheck` before submitting
-- Test affected OS downloads with `./quickget --check <os> <release>`
+- Test affected OS downloads with `./bin/quickget --check <os> <release>`
 
 ## CI workflows
 

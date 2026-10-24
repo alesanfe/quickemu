@@ -23,7 +23,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          APP_VERSION=$(grep "^readonly VERSION" quickemu | cut -d'"' -f2)
+          APP_VERSION=$(grep "^readonly VERSION" bin/quickemu | cut -d'"' -f2)
           GIT_VERSION=$(git describe --tags | cut -d'-' -f1)
           echo "App version: ${REL_VERSION}"
           echo "Git version: ${GIT_VERSION}"
@@ -56,7 +56,7 @@ jobs:
       run: |
         sudo apt-get -y update
         sudo apt-get -y install debhelper devscripts
-        REL_VER=$(grep "^readonly VERSION" quickemu | cut -d'"' -f2)
+        REL_VER=$(grep "^readonly VERSION" bin/quickemu | cut -d'"' -f2)
         rm debian/changelog
         dch --package quickemu --newversion="${REL_VER}-1" --distribution=unstable "New upstream release." --create
         dpkg-buildpackage --build=binary --no-check-builddeps --compression=gzip
@@ -119,7 +119,7 @@ jobs:
         DEBEMAIL: ${{ secrets.DEBEMAIL }}
         DEBFULLNAME: ${{ secrets.DEBFULLNAME }}
       run: |
-        REL_VER=$(grep "^readonly VERSION" quickemu | cut -d'"' -f2)
+        REL_VER=$(grep "^readonly VERSION" bin/quickemu | cut -d'"' -f2)
         STAMP=$(date +%y%j.%H%M)
         for CODENAME in $(distro-info --supported); do
           rm debian/changelog

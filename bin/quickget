@@ -2647,8 +2647,8 @@ function get_macos() {
     esac
 
     CWD="$(dirname "${0}")"
-    if [ -x "${CWD}/chunkcheck" ]; then
-        CHUNKCHECK="${CWD}/chunkcheck"
+    if [ -x "${CWD}/../libexec/quickemu/chunkcheck.py" ]; then
+        CHUNKCHECK="${CWD}/../libexec/quickemu/chunkcheck.py"
     elif [ -x "$(command -v chunkcheck)" ]; then
         CHUNKCHECK="$(command -v chunkcheck)"
     fi
