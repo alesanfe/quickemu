@@ -2829,7 +2829,12 @@ function vm_boot() {
 
     if [ -z "${VM_PID}" ]; then
         if [ -n "${DRY_RUN}" ]; then
-            echo "${QEMU} ${SHELL_ARGS}"
+            if [ "${OUTPUT_FORMAT}" == "json" ]; then
+                printf '{"schemaVersion":1,"vm":"%s","command":"%s"}\n' \
+                    "${VMNAME}" "$(json_escape "${QEMU} ${SHELL_ARGS}")"
+            else
+                echo "${QEMU} ${SHELL_ARGS}"
+            fi
             exit 0
         fi
         echo "${QEMU}" "${SHELL_ARGS}" "2>/dev/null" >> "${VMDIR}/${VMNAME}.sh"
@@ -2981,6 +2986,7 @@ function usage() {
     echo "  --braille                         : Enable braille support. Requires SDL."
     echo "  --cpu-pinning                     : Choose which host cores correspond to which guest cores."
     echo "  --delete-disk                     : Delete the disk image and EFI variables"
+    echo "  --delete-plan                     : Show what --delete-vm would remove (no changes)"
     echo "  --delete-vm                       : Delete the entire VM and its configuration"
     echo "  --display                         : Select display backend. 'gtk' (default), 'sdl', 'cocoa', 'none', 'spice' or 'spice-app'"
     echo "  --fullscreen                      : Starts VM in full screen mode (Ctl+Alt+f to exit)"
@@ -3343,6 +3349,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/runtime/monitor.sh"
     # shellcheck source=lib/vm/status.sh
     source "${QE_LIBDIR}/vm/status.sh"
+    # shellcheck source=lib/vm/delete-plan.sh
+    source "${QE_LIBDIR}/vm/delete-plan.sh"
 else
     echo "ERROR! quickemu lib/ directory not found."
     exit 1
@@ -3398,6 +3406,9 @@ else
                 shift 2;;
             -delete|--delete|-delete-disk|--delete-disk)
                 ACTIONS+=(delete_disk)
+                shift;;
+            -delete-plan|--delete-plan)
+                ACTIONS+=(delete_plan)
                 shift;;
             -delete-vm|--delete-vm)
                 ACTIONS+=(delete_vm)
