@@ -447,7 +447,7 @@ function doctor_vm() {
     echo "Checking ${VMNAME} against host capabilities:"
     if [ "${OS_KERNEL}" == "Darwin" ]; then
         echo " o Host: macOS (HVF acceleration)"
-    elif [ -w /dev/kvm ]; then
+    elif host_has_kvm; then
         echo " o KVM:  /dev/kvm available"
     else
         echo " x KVM:  /dev/kvm not writable, VM will use slow TCG emulation"
@@ -473,16 +473,14 @@ function doctor_vm() {
         fi
     fi
     if [ -n "${ram}" ] && is_numeric "${ram%[GMK]}"; then
-        local RAM_MB=$(( ${ram%[GMK]} * 1024 )) FREE_MB=0
-        FREE_MB=$(awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo 2>/dev/null)
-        if [ -n "${FREE_MB}" ] && [ "${FREE_MB}" -gt 0 ] && [ "${RAM_MB}" -gt "${FREE_MB}" ]; then
-            echo " x RAM:  VM wants ${ram} but only ${FREE_MB}M available"
+        if plan_check_ram "${ram}"; then
+            echo " x RAM:  VM wants ${ram} but only $(host_free_mem_mb)M available"
             ISSUES=$((ISSUES + 1))
         else
-            echo " o RAM:  ${ram} requested (${FREE_MB:-?}M free)"
+            echo " o RAM:  ${ram} requested ($(host_free_mem_mb)M free)"
         fi
     fi
-    if [ "${tpm}" == "on" ] && ! command -v swtpm >/dev/null 2>&1; then
+    if plan_check_tpm "${tpm}"; then
         echo " x TPM:  tpm=on but swtpm not installed"
         ISSUES=$((ISSUES + 1))
     fi
@@ -3335,6 +3333,10 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/output/exit-codes.sh"
     # shellcheck source=lib/common/process.sh
     source "${QE_LIBDIR}/common/process.sh"
+    # shellcheck source=lib/host/capabilities.sh
+    source "${QE_LIBDIR}/host/capabilities.sh"
+    # shellcheck source=lib/planning/builder.sh
+    source "${QE_LIBDIR}/planning/builder.sh"
     # shellcheck source=lib/config/loader.sh
     source "${QE_LIBDIR}/config/loader.sh"
     # shellcheck source=lib/runtime/monitor.sh
