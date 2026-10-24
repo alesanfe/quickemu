@@ -86,4 +86,4 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Run unit + contract tests
-        run: bash tests/run_tests.sh
+        run: shellspec

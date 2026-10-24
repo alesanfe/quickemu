@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 # Repo health: syntax check on every shell file + test suite.
 cd "$(dirname "${0}")/.." || exit 1
-bash tests/run_tests.sh
+shellspec

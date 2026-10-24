@@ -11,7 +11,7 @@ tasks:
   test:
     desc: Run the unit/contract test suite
     cmds:
-      - bash tests/run_tests.sh
+      - shellspec
 
   check:
     desc: Validate an OS download URL

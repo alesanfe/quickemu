@@ -3370,27 +3370,27 @@ readonly DISK_MIN_SIZE=$((197632 * 8))
 readonly VERSION="4.9.9"
 
 # Library modules (progressive modularisation — see lib/).
-QE_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/lib" 2>/dev/null && pwd)"
+QE_LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/lib/quickemu" 2>/dev/null && pwd)"
 if [ -d "${QE_LIBDIR}" ]; then
-    # shellcheck source=lib/output/json.sh
-    source "${QE_LIBDIR}/output/json.sh"
-    # shellcheck source=lib/output/exit-codes.sh
-    source "${QE_LIBDIR}/output/exit-codes.sh"
-    # shellcheck source=lib/common/process.sh
-    source "${QE_LIBDIR}/common/process.sh"
-    # shellcheck source=lib/host/capabilities.sh
+    # shellcheck source=lib/cli/json.sh
+    source "${QE_LIBDIR}/cli/json.sh"
+    # shellcheck source=lib/cli/exit-codes.sh
+    source "${QE_LIBDIR}/cli/exit-codes.sh"
+    # shellcheck source=lib/support/process.sh
+    source "${QE_LIBDIR}/support/process.sh"
+    # shellcheck source=lib/quickemu/host/capabilities.sh
     source "${QE_LIBDIR}/host/capabilities.sh"
-    # shellcheck source=lib/planning/builder.sh
+    # shellcheck source=lib/quickemu/planning/builder.sh
     source "${QE_LIBDIR}/planning/builder.sh"
-    # shellcheck source=lib/catalog/validator.sh
+    # shellcheck source=lib/quickemu/catalog/validator.sh
     source "${QE_LIBDIR}/catalog/validator.sh"
-    # shellcheck source=lib/config/loader.sh
+    # shellcheck source=lib/quickemu/config/loader.sh
     source "${QE_LIBDIR}/config/loader.sh"
-    # shellcheck source=lib/runtime/monitor.sh
+    # shellcheck source=lib/quickemu/runtime/monitor.sh
     source "${QE_LIBDIR}/runtime/monitor.sh"
-    # shellcheck source=lib/vm/status.sh
+    # shellcheck source=lib/quickemu/vm/status.sh
     source "${QE_LIBDIR}/vm/status.sh"
-    # shellcheck source=lib/vm/delete-plan.sh
+    # shellcheck source=lib/quickemu/vm/delete-plan.sh
     source "${QE_LIBDIR}/vm/delete-plan.sh"
 else
     echo "ERROR! quickemu lib/ directory not found."

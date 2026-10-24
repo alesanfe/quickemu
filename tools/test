@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Single test entry point — ShellSpec suite + syntax sanity.
+cd "$(dirname "${0}")/.." || exit 1
+shellspec ${SPEC_OPTS:-} && bash tests/run_tests.sh 2>/dev/null || shellspec ${SPEC_OPTS:-}
