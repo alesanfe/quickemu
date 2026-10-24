@@ -11,3 +11,10 @@ plan_check_ram() { # ram (e.g. 4G) -> 0 warning (insufficient), 1 ok
 plan_check_tpm() { # tpm=on requires swtpm on host
     [ "${1}" == "on" ] && ! host_has_tool swtpm
 }
+
+plan_check_net() { # network name -> 0 ok / not applicable, 1 missing bridge
+    case "${1}" in
+    "" | none | restrict | passt | slirp) return 0 ;;
+    *) [ -d "/sys/class/net/${1}" ] ;;
+    esac
+}

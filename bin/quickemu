@@ -488,14 +488,16 @@ function doctor_vm() {
         echo " x TPM:  tpm=on but swtpm not installed"
         ISSUES=$((ISSUES + 1))
     fi
-    if [ -n "${network}" ] && [ "${network}" != "none" ] && [ "${network}" != "restrict" ] && [ "${network}" != "passt" ]; then
-        if [ ! -d "/sys/class/net/${network}" ]; then
+    case "${network}" in
+    "" | none | restrict | passt | slirp) ;;
+    *)
+        if plan_check_net "${network}"; then
+            echo " o NET:  bridge ${network} up"
+        else
             echo " x NET:  bridge interface ${network} does not exist"
             ISSUES=$((ISSUES + 1))
-        else
-            echo " o NET:  bridge ${network} up"
-        fi
-    fi
+        fi ;;
+    esac
     if [ "${ISSUES}" -eq 0 ]; then
         echo " - No problems detected."
     else
