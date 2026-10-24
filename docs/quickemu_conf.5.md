@@ -91,6 +91,15 @@ macos_release="catalina"
   - And VirtIO Block Media (disks) are supported/stable in Catalina and
     newer.
 
+### macOS host CPU requirements
+
+Newer macOS releases require newer CPU features on the host:
+
+- Ventura, Sonoma, Sequoia and Tahoe require a CPU with SSE 4.2 and
+  AVX2 support.
+- Catalina, Big Sur and Monterey require a CPU with SSE 4.2 support.
+- High Sierra, Mojave and older require a CPU with SSE 4.1 support.
+
 The default Windows 11 configuration looks like this:
 
 ``` shell

@@ -972,6 +972,15 @@ function configure_bios() {
             echo "       Use 'quickget' to download the required files."
             exit 1
         fi
+
+        # Truncated or corrupt firmware downloads produce unusable pflash
+        # devices (e.g. "system firmware block device pflash0 has invalid
+        # size"). OVMF_CODE.fd is ~2M and the OVMF_VARS file at least 128K.
+        if [ "$(wc -c < "${EFI_CODE}")" -lt 1048576 ] || [ "$(wc -c < "${EFI_VARS}")" -lt 131072 ]; then
+            echo "ERROR! macOS firmware in ${VMDIR} appears to be corrupt or incomplete."
+            echo "       Delete OVMF_CODE.fd and OVMF_VARS*.fd, then re-run quickget."
+            exit 1
+        fi
         BOOT_STATUS="EFI (macOS), OVMF ($(basename "${EFI_CODE}")), SecureBoot (${secureboot})."
     elif [[ "${boot}" == *"efi"* ]]; then
         EFI_VARS="${VMDIR}/OVMF_VARS.fd"
@@ -1449,8 +1458,11 @@ function configure_display() {
     # Build the video configuration
     VIDEO="${VGA:+${VGA} }-device ${DISPLAY_DEVICE}"
 
-    # ARM64 needs ramfb for UEFI boot display before virtio-gpu driver loads
-    if [ "${ARCH_VM}" == "aarch64" ]; then
+    # ARM64 needs ramfb for UEFI boot display only when the display device
+    # has no firmware driver. Modern AAVMF/EDK2 drives virtio-gpu directly,
+    # and the extra ramfb console just sits frozen in front of the real one
+    # (e.g. a black 800x600 surface under cocoa).
+    if [ "${ARCH_VM}" == "aarch64" ] && [[ ! "${DISPLAY_DEVICE}" =~ ^virtio-(gpu|gpu-pci|gpu-gl|gpu-gl-pci) ]]; then
         VIDEO="-device ramfb ${VIDEO}"
     fi
 
