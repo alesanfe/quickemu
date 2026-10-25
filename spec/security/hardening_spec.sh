@@ -20,8 +20,9 @@ setup() {
     VM="$TESTDIR/vm1.conf" disk_img="$VMDIR/disk.qcow2" monitor=none
     OUTPUT_FORMAT='' SEND_KEYS_ARG='' TYPE_TEXT=''
     SOCKET_MONITOR="$VMDIR/vm1-monitor.socket"
+    SOCKET_QMP="$VMDIR/vm1-qmp.socket"
 }
-cleanup() { rm -rf -- "$TESTDIR" "$TESTDIR.lock" 2>/dev/null; }
+cleanup() { [ -f "$TESTDIR/qmpd.pid" ] && kill "$(cat "$TESTDIR/qmpd.pid")" 2>/dev/null; rm -rf -- "$TESTDIR" "$TESTDIR.lock" 2>/dev/null; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
 in_subshell() { ( "$@" ); }
@@ -83,6 +84,37 @@ Describe 'vm_instance_verify strong identity'
         When call vm_instance_verify "$VMDIR/vm1.pid"
         The output should equal 'dead'
         The status should be failure
+    End
+End
+
+Describe 'QMP control channel'
+    fake_qmp() {
+        command -v socat >/dev/null 2>&1 || return 1
+        cat >"$TESTDIR/qmp_respond.sh" <<'SH'
+#!/bin/sh
+printf '%s\n' '{"QMP":{"version":{"qemu":{"major":9}},"capabilities":[]}}'
+read -r _l; printf '%s\n' '{"return":{}}'
+read -r _l; printf '%s\n' '{"return":{"status":"paused"}}'
+SH
+        chmod +x "$TESTDIR/qmp_respond.sh"
+        socat UNIX-LISTEN:"$SOCKET_QMP",fork EXEC:"$TESTDIR/qmp_respond.sh" >/dev/null 2>&1 &
+        echo $! >"$TESTDIR/qmpd.pid"
+        sleep 0.3
+    }
+    It 'query-status reports the QEMU-side state'
+        fake_qmp || Skip 'socat unavailable'
+        When call qmp_vm_status
+        The output should equal 'paused'
+        The status should be success
+    End
+    It 'status_vm prefers QMP state over process heuristics'
+        fake_qmp || Skip 'socat unavailable'
+        spawn_vm_proc
+        VM_PID=$(cat "$VMDIR/vm1.pid")
+        rm -f "$VMDIR/vm1.paused"
+        OUTPUT_FORMAT=json
+        When call in_subshell status_vm
+        The output should include '"state":"paused"'
     End
 End
 
