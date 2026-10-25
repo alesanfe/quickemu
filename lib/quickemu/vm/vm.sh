@@ -386,7 +386,14 @@ function rename_vm() {
 }
 
 function send_keys() {
-    monitor_send_cmd "sendkey ${SEND_KEYS_ARG}"
+    # QMP send-key takes a keys array of qcode entries; the HMP combo
+    # 'ctrl-alt-delete' splits on '-' into the same qcodes.
+    local KEYS_JSON="" PART=""
+    for PART in ${SEND_KEYS_ARG//-/ }; do
+        KEYS_JSON+="${KEYS_JSON:+,}{\"type\":\"qcode\",\"data\":\"${PART}\"}"
+    done
+    vm_control "sendkey ${SEND_KEYS_ARG}" \
+        "{\"execute\":\"send-key\",\"arguments\":{\"keys\":[${KEYS_JSON}]}}"
 }
 
 function type_text() {
