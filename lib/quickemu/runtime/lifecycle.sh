@@ -229,24 +229,90 @@ vm_proc_comm() { # pid -> process name or empty
     printf '%s' "${c%.exe}"
 }
 
-vm_pid_alive() { # pidfile -> 0 if process alive AND belongs to the VM
-    local pid comm expect
-    [ -f "${1}" ] || return 1
-    pid=$(tr -d '[:space:]' <"${1}")
-    [ -n "${pid}" ] || return 1
-    kill -0 "${pid}" 2>/dev/null || return 1
-    # PID reuse guard: a live PID is not proof the process is this VM's QEMU
-    # (pid files outlive crashes and PIDs get recycled). QEMU is launched
-    # with -name <vm>,process=<vm>, so the process comm is the VM name
-    # (truncated to 15 chars on Linux); accept qemu* too for VMs launched
-    # outside quickemu. comm may be empty on exotic systems: err on the safe
-    # side and report not-alive rather than risking kill of an alien PID.
+# ---- instance identity ----
+# Strong per-boot identity: a pidfile alone cannot distinguish a recycled
+# PID or a foreign process. qemu_spawn publishes
+# ${VMDIR}/${VMNAME}.runtime.json with the instance UUID, PID, process
+# start-time, owner uid and a stable fingerprint; vm_instance_verify then
+# answers "is this exactly the instance quickemu registered?".
+
+vm_instance_uuid() {
+    if [ -r /proc/sys/kernel/random/uuid ]; then
+        cat /proc/sys/kernel/random/uuid
+    else
+        printf '%s-%s-%s\n' "$(date +%s%N 2>/dev/null || date +%s)" "$$" "${RANDOM:-0}"
+    fi
+}
+
+# jiffies-since-boot start time (Linux/MSYS2 /proc). Empty when unavailable.
+vm_proc_start_time() { # pid -> start-time or empty
+    awk '{print $22}' "/proc/${1}/stat" 2>/dev/null
+}
+
+# Write VMDIR/VMNAME.runtime.json atomically for a live QEMU pid.
+vm_instance_publish() { # pid -> 0 ok / 1 failed
+    local pid="${1}" tmp id st fp
+    id=$(vm_instance_uuid)
+    st=$(vm_proc_start_time "${pid}")
+    fp=$(printf '%s' "${QEMU:-qemu}|${VM}|${VMNAME}" | sha256sum 2>/dev/null | awk '{print "sha256:"$1}')
+    tmp="${VMDIR}/.${VMNAME}.runtime.json.tmp"
+    printf '{"schemaVersion":%s,"instanceId":"%s","vmId":"%s","pid":%s,"processStartTime":%s,"uid":%s,"commandFingerprint":"%s","configPath":"%s","createdAt":"%s"}\n' \
+        "${QE_SCHEMA_VERSION:-1}" "$(json_escape "${id}")" "$(json_escape "${VMNAME}")" \
+        "${pid}" "${st:-null}" "$(id -u)" "${fp}" \
+        "$(json_escape "${VM}")" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"${tmp}" || return 1
+    chmod 600 "${tmp}" 2>/dev/null || true
+    mv -f "${tmp}" "${VMDIR}/${VMNAME}.runtime.json"
+}
+
+# Reads <pidfile> (and its sibling .runtime.json when present) and prints a
+# typed status word; exit 0 only when the process IS this instance.
+#   alive            verified instance (runtime + pid + uid + starttime + comm)
+#   alive-legacy     live process, no runtime record (pre-runtime VMs)
+#   dead             no live process
+#   pid-reused       live PID but start-time/proof differs from the runtime
+#   foreign-process  live PID belonging to an unrelated process
+#   uid-mismatch     live PID owned by a different uid
+#   runtime-corrupt  runtime JSON present but invalid/inconsistent
+vm_instance_verify() { # pidfile -> status word
+    local pf="${1}" rt pid st comm expect rt_pid rt_st rt_uid
+    [ -f "${pf}" ] || { echo dead; return 1; }
+    pid=$(tr -d '[:space:]' <"${pf}")
+    case "${pid}" in '' | *[!0-9]*) echo dead; return 1 ;; esac
+    rt="${pf%.pid}.runtime.json"
+    expect=$(basename "${pf}" .pid)
+    if [ ! -f "${rt}" ]; then
+        kill -0 "${pid}" 2>/dev/null || { echo dead; return 1; }
+        comm=$(vm_proc_comm "${pid}")
+        case "${comm}" in
+        "${expect}" | "${expect:0:15}" | qemu*) echo alive-legacy; return 0 ;;
+        esac
+        echo foreign-process; return 1
+    fi
+    rt_pid=$(sed -n 's/.*"pid":\([0-9][0-9]*\).*/\1/p' "${rt}")
+    rt_st=$(sed -n 's/.*"processStartTime":\([0-9][0-9]*\).*/\1/p' "${rt}")
+    rt_uid=$(sed -n 's/.*"uid":\([0-9][0-9]*\).*/\1/p' "${rt}")
+    if [ -z "${rt_pid}" ] || [ "${rt_pid}" != "${pid}" ]; then
+        echo runtime-corrupt; return 1
+    fi
+    kill -0 "${pid}" 2>/dev/null || { echo dead; return 1; }
+    if [ -n "${rt_uid}" ] && [ "${rt_uid}" != "$(id -u)" ]; then
+        echo uid-mismatch; return 1
+    fi
+    st=$(vm_proc_start_time "${pid}")
+    if [ -n "${rt_st}" ] && [ -n "${st}" ] && [ "${st}" != "${rt_st}" ]; then
+        echo pid-reused; return 1
+    fi
     comm=$(vm_proc_comm "${pid}")
-    expect=$(basename "${1}" .pid)
     case "${comm}" in
-    "${expect}" | "${expect:0:15}" | qemu*) return 0 ;;
+    "${expect}" | "${expect:0:15}" | qemu*) echo alive; return 0 ;;
     esac
-    return 1
+    echo foreign-process; return 1
+}
+
+vm_pid_alive() { # pidfile -> 0 if process alive AND belongs to the VM
+    local st
+    st=$(vm_instance_verify "${1}")
+    [ "${st}" = alive ] || [ "${st}" = alive-legacy ]
 }
 
 # True when the VM's pidfile exists and its process is alive.
@@ -293,7 +359,8 @@ function vm_runtime_cleanup() {
         "${VMDIR}/${VMNAME}-serial.socket" \
         "${VMDIR}/${VMNAME}-agent.sock" \
         "${VMDIR}/${VMNAME}.ports" \
-        "${VMDIR}/${VMNAME}.paused"
+        "${VMDIR}/${VMNAME}.paused" \
+        "${VMDIR}/${VMNAME}.runtime.json"
     # Drop the operation lock only when the VM is fully gone.
     rm -rf "${VMDIR}/${VMNAME}.lock"
     _port_registry_release

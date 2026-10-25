@@ -12,6 +12,10 @@ function qemu_spawn() {
     sleep 0.25
     if kill -0 "${VM_PID}" 2>/dev/null; then
         echo " - Process:  Started ${VM} as ${VMNAME} (${VM_PID})"
+        # Publish the strong instance identity so later lifecycle
+        # operations can tell this QEMU from a reused/foreign PID.
+        vm_instance_publish "${VM_PID}" || \
+            echo " - Process:  WARNING! Could not write ${VMNAME}.runtime.json"
         configure_cpu_pinning
         # quickemu exits right after spawning QEMU, but the companion daemons
         # (virtiofsd, swtpm) and runtime state files must not outlive the
