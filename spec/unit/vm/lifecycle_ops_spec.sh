@@ -29,10 +29,10 @@ setup() {
     SCREENSHOT_OUT=''
     CLONE_NAME='' CLONE_FULL='' EXPORT_FILE='' IMPORT_FILE='' RENAME_TO=''
     SEND_KEYS_ARG='' TYPE_TEXT='' SHORTCUT_OPTIONS=''
-    MONITOR_CMD_LOG='' QEMU='' QEMU_IMG='' swtpm='' tpm=''
+    MONITOR_CMD_LOG='' QEMU='' QEMU_IMG='' swtpm='' tpm='' SOCK_READY=1
     DRY_RUN='' VIRTIOFSD_PID='' VIRTIOFSD_SOCKET=''
 }
-cleanup() { rm -rf -- "$TESTDIR"; }
+cleanup() { qe_spec_cleanup; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
 
@@ -52,6 +52,14 @@ monitor_send_cmd() {
     return 0
 }
 swtpm_socket_ready() { return 0; }
+vm_monitor_socket_ready() { return "${SOCK_READY:-1}"; }
+# Spawn a fake VM process whose comm matches the VM name (QEMU renames
+# itself via -name <vm>,process=<vm>; vm_pid_alive now verifies identity).
+spawn_fake_vm() {
+    local name="${1:-${VMNAME:-vm1}}" fb="${FAKE_BIN:-${FAKEBIN:-${TESTDIR}/bin}}"
+    mkdir -p "$fb"; cp /bin/sleep "$fb/${name}"; "$fb/${name}" "${2:-60}" >/dev/null 2>&1 &
+}
+
 
 Describe 'vm_identify'
 It 'derives VM identity paths from the conf location'
@@ -65,7 +73,25 @@ It 'derives VM identity paths from the conf location'
 End
 End
 
+Describe 'vm_identify defaults'
+It 'places the VM directory next to the conf when disk_img is unset'
+    disk_img=''
+    When call vm_identify "$VMPARENT/vm-test.conf"
+    The status should be success
+    The variable VMDIR should eq "$VMPATH/vm-test"
+End
+End
+
 Describe 'delete_vm'
+It 'refuses to delete a running VM'
+    spawn_fake_vm
+    echo $! >"$VMDIR/vm-test.pid"
+    When call in_subshell delete_vm
+    The status should be failure
+    The output should include 'before deleting'
+    The directory "$VMDIR" should be exist
+    The file "$VM" should be exist
+End
 It 'removes the VM directory conf and desktop shortcut'
     mkdir -p "$HOME/.local/share/applications"
     : >"$HOME/.local/share/applications/vm-test.desktop"
@@ -93,22 +119,18 @@ It 'refuses to pause a VM that is not running'
     The output should include 'is not running'
 End
 It 'pauses a running VM through the QEMU monitor when available'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=socket
-    python3 - "$SOCKET_MONITOR" >/dev/null 2>&1 <<'EOF' &
-import socket,sys,time
-s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.listen(1); time.sleep(15)
-EOF
-    sleep 0.3
+    SOCK_READY=0
     When call pause_vm
     The status should be success
     The output should include 'paused'
     The contents of file "$TESTDIR/monitor.log" should include 'stop'
 End
 It 'pauses a running VM with SIGSTOP when the monitor is disabled'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=none
@@ -117,28 +139,47 @@ It 'pauses a running VM with SIGSTOP when the monitor is disabled'
     The output should include 'paused'
     The variable VM_PID should eq "$VM_PID"
 End
+It 'records a .paused marker when pausing through the monitor'
+    spawn_fake_vm
+    VM_PID=$!
+    echo "$VM_PID" >"$VMDIR/vm-test.pid"
+    monitor=socket
+    SOCK_READY=0
+    When call pause_vm
+    The status should be success
+    The output should include 'paused'
+    The file "$VMDIR/vm-test.paused" should be exist
+End
+It 'removes the .paused marker when resuming'
+    spawn_fake_vm
+    VM_PID=$!
+    echo "$VM_PID" >"$VMDIR/vm-test.pid"
+    : >"$VMDIR/vm-test.paused"
+    monitor=socket
+    SOCK_READY=0
+    When call resume_vm
+    The status should be success
+    The output should include 'resumed'
+    The file "$VMDIR/vm-test.paused" should not be exist
+End
 It 'refuses to resume a VM that is not running'
     When call resume_vm
     The status should be failure
     The output should include 'is not running'
 End
 It 'resumes a running VM through the QEMU monitor'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=socket
-    python3 - "$SOCKET_MONITOR" >/dev/null 2>&1 <<'EOF' &
-import socket,sys,time
-s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.listen(1); time.sleep(15)
-EOF
-    sleep 0.3
+    SOCK_READY=0
     When call resume_vm
     The status should be success
     The output should include 'resumed'
     The contents of file "$TESTDIR/monitor.log" should include 'cont'
 End
 It 'resumes a running VM with SIGCONT when the monitor is disabled'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=none
@@ -155,7 +196,7 @@ It 'refuses a VM that is not running'
     The output should include 'is not running'
 End
 It 'requires a monitor channel'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=none
@@ -164,7 +205,7 @@ It 'requires a monitor channel'
     The output should include 'monitor is disabled'
 End
 It 'requires the monitor socket to exist for socket monitors'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=socket
@@ -173,15 +214,11 @@ It 'requires the monitor socket to exist for socket monitors'
     The output should include 'No QEMU monitor socket'
 End
 It 'requires socat to be installed'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=socket
-    python3 - "$SOCKET_MONITOR" >/dev/null 2>&1 <<'EOF' &
-import socket,sys,time
-s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.listen(1); time.sleep(15)
-EOF
-    sleep 0.3
+    SOCK_READY=0
     # Hide socat from `command -v` lookups only; everything else delegates.
     command() { [ "$2" = 'socat' ] && return 1; builtin command "$@"; }
     When call screenshot_vm
@@ -189,16 +226,12 @@ EOF
     The output should include 'socat is required'
 End
 It 'saves a PPM screendump through the monitor'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=socket
     SCREENSHOT_OUT="$VMDIR/shot.ppm"
-    python3 - "$SOCKET_MONITOR" >/dev/null 2>&1 <<'EOF' &
-import socket,sys,time
-s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.listen(1); time.sleep(15)
-EOF
-    sleep 0.3
+    SOCK_READY=0
     printf '#!/bin/sh\nexit 0\n' >"$FAKE_BIN/socat"; chmod +x "$FAKE_BIN/socat"
     PATH="$FAKE_BIN:$PATH"
     When call screenshot_vm
@@ -207,16 +240,12 @@ EOF
     The file "$VMDIR/shot.ppm" should be exist
 End
 It 'converts to PNG when a converter is available'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=socket
     SCREENSHOT_OUT="$VMDIR/shot.png"
-    python3 - "$SOCKET_MONITOR" >/dev/null 2>&1 <<'EOF' &
-import socket,sys,time
-s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.listen(1); time.sleep(15)
-EOF
-    sleep 0.3
+    SOCK_READY=0
     printf '#!/bin/sh\nexit 0\n' >"$FAKE_BIN/socat"; chmod +x "$FAKE_BIN/socat"
     printf '#!/bin/sh\ncp "$1" "$2"\n' >"$FAKE_BIN/convert"; chmod +x "$FAKE_BIN/convert"
     PATH="$FAKE_BIN:$PATH"
@@ -240,7 +269,7 @@ It 'refuses to clone over an existing VM'
     The output should include 'already exists'
 End
 It 'refuses to clone a running VM'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     echo $! >"$VMDIR/vm-test.pid"
     CLONE_NAME=clone-1
     When call in_subshell clone_vm
@@ -293,7 +322,7 @@ End
 
 Describe 'export_vm and import_vm'
 It 'refuses to export a running VM'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     echo $! >"$VMDIR/vm-test.pid"
     When call in_subshell export_vm
     The status should be failure
@@ -337,9 +366,11 @@ End
 It 'refuses to import over an existing VM'
     IMPORT_FILE="$TESTDIR/ok.tar.gz"
     tar -C "$VMPARENT" -czf "$IMPORT_FILE" vm-test.conf vm-test
+    pushd "$VMPARENT" >/dev/null
     When call in_subshell import_vm
     The status should be failure
     The output should include 'already exists'
+    popd >/dev/null || :
 End
 It 'imports a valid tarball into a fresh directory'
     IMPORT_FILE="$TESTDIR/ok2.tar.gz"
@@ -371,7 +402,7 @@ It 'refuses to rename over an existing VM'
     The output should include 'already exists'
 End
 It 'refuses to rename a running VM'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     echo $! >"$VMDIR/vm-test.pid"
     RENAME_TO=renamed
     When call in_subshell rename_vm
@@ -434,7 +465,7 @@ It 'cleans up runtime files when the VM is not running'
     The file "$VMDIR/vm-test.sock" should not be exist
 End
 It 'kills a running VM and removes its pidfile'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     disown
     VM_PID=$!
     : >"$VMDIR/vm-test.pid"
@@ -442,6 +473,37 @@ It 'kills a running VM and removes its pidfile'
     The status should be success
     The output should include 'killed'
     The file "$VMDIR/vm-test.pid" should not be exist
+End
+It 'removes monitor serial ports and paused state artefacts'
+    spawn_fake_vm
+    disown
+    VM_PID=$!
+    : >"$VMDIR/vm-test.pid"
+    : >"$VMDIR/vm-test-monitor.socket"
+    : >"$VMDIR/vm-test-serial.socket"
+    : >"$VMDIR/vm-test.ports"
+    : >"$VMDIR/vm-test.paused"
+    stop_swtpm() { :; }
+    When call kill_vm
+    The status should be success
+    The output should include 'killed'
+    The file "$VMDIR/vm-test-monitor.socket" should not be exist
+    The file "$VMDIR/vm-test-serial.socket" should not be exist
+    The file "$VMDIR/vm-test.ports" should not be exist
+    The file "$VMDIR/vm-test.paused" should not be exist
+End
+It 'stops helper daemons when killing the VM'
+    spawn_fake_vm
+    disown
+    VM_PID=$!
+    : >"$VMDIR/vm-test.pid"
+    stop_swtpm() { echo swtpm-stopped >>"$TESTDIR/helpers.log"; }
+    stop_virtiofsd() { echo virtiofsd-stopped >>"$TESTDIR/helpers.log"; }
+    When call kill_vm
+    The status should be success
+    The output should include 'killed'
+    The contents of file "$TESTDIR/helpers.log" should include 'swtpm-stopped'
+    The contents of file "$TESTDIR/helpers.log" should include 'virtiofsd-stopped'
 End
 End
 
@@ -491,28 +553,51 @@ It 'refuses a VM that is not running'
     The output should include 'is not running'
 End
 It 'resets a running VM through the QEMU monitor'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=socket
-    python3 - "$SOCKET_MONITOR" >/dev/null 2>&1 <<'EOF' &
-import socket,sys,time
-s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.listen(1); time.sleep(15)
-EOF
-    sleep 0.3
+    SOCK_READY=0
     When call reset_vm
     The status should be success
     The output should include 'reset requested'
     The contents of file "$TESTDIR/monitor.log" should include 'system_reset'
 End
 It 'refuses a running VM without a monitor channel'
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm
     VM_PID=$!
     echo "$VM_PID" >"$VMDIR/vm-test.pid"
     monitor=none
     When call reset_vm
     The status should be failure
     The output should include 'no monitor channel'
+End
+End
+
+Describe 'snapshot operations on a running VM'
+run_vm() {
+    spawn_fake_vm
+    echo $! >"$VMDIR/vm-test.pid"
+    : >"$disk_img"
+    QEMU_IMG=/bin/true
+}
+It 'refuses to apply a snapshot while the VM runs'
+    run_vm
+    When call in_subshell snapshot_apply tag1
+    The status should be failure
+    The output should include 'before managing snapshots'
+End
+It 'refuses to create a snapshot while the VM runs'
+    run_vm
+    When call in_subshell snapshot_create tag1
+    The status should be failure
+    The output should include 'before managing snapshots'
+End
+It 'refuses to delete a snapshot while the VM runs'
+    run_vm
+    When call in_subshell snapshot_delete tag1
+    The status should be failure
+    The output should include 'before managing snapshots'
 End
 End
 
@@ -531,6 +616,13 @@ End
 It 'normalises qemu-img info JSON into the v1 contract'
     : >"$disk_img"
     QEMU_IMG=qemu_img_json_stub
+    # jq is a production dependency; provide a controlled double when the
+    # host lacks it so the contract transformation is still exercised.
+    if ! command -v jq >/dev/null 2>&1; then
+        printf '#!/bin/sh\nexec python3 -c '"'"'import json,sys\nd=json.load(sys.stdin)\nprint(json.dumps([{"id":s["id"],"name":s["name"],"date":s.get("date-sec",0)+s.get("date-nsec",0)/1e9,"vm-state-size":s.get("vm-state-size",0)} for s in d.get("snapshots",[])],separators=(",",":")))'"'"'\n' >"$FAKE_BIN/jq"
+        chmod +x "$FAKE_BIN/jq"
+        PATH="$FAKE_BIN:$PATH"
+    fi
     When call snapshot_list_json
     The status should be success
     The output should include '"name":"snap one"'

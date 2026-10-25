@@ -39,18 +39,21 @@ Describe 'missing dependencies'
         mkdir -p "$TESTDIR/none"
         no_socat() { ( PATH="$TESTDIR/none"; monitor=socket SOCKET_MONITOR=/x monitor_send_cmd 'info status' ); }
         When run no_socat
-        # socat missing -> command fails but function still returns its own status
-        The status should be success
-        The output should include 'via socket'
+        # socat missing -> clean, explicit failure (no hang, no silent corruption)
+        The status should be failure
+        The output should include 'socat is required'
     End
 End
 
 Describe 'interrupted or partial state'
     It 'monitor_send_cmd handles a dead monitor socket'
         monitor=socket SOCKET_MONITOR=/nonexistent.sock
+        # socat must exist so the channel checks are what fail
+        printf '#!/bin/sh\ncat >/dev/null\n' >"$TESTDIR/socat" && chmod +x "$TESTDIR/socat"
+        PATH="$TESTDIR:$PATH"
         When call monitor_send_cmd 'info status'
-        The status should be success
-        The output should include 'via socket'
+        The status should be failure
+        The output should include 'No qemu-monitor socket'
     End
 End
 End

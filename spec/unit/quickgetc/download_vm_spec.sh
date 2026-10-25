@@ -15,7 +15,7 @@ setup() {
     declare -gA IMAGES=()
     ENTRY='{"guest_os":"linux","arch":"x86_64","ram":4294967296}'
 }
-cleanup() { rm -rf -- "$TESTDIR"; }
+cleanup() { qe_spec_cleanup; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
 

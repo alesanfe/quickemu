@@ -1,5 +1,6 @@
 Describe 'QEMU command builder policies'
 Include lib/quickemu/runtime/launch.sh
+Include lib/quickemu/vm/network.sh
 
 setup() {
     declare -gA CPU_FLAG_MAP=()
@@ -160,6 +161,63 @@ It 'selects devices supported by the guest release'
     The variable NET_DEVICE should eq "$2"
     The variable MAC_DISK_DEV should eq "$3"
     The variable sound_card should eq "$4"
+End
+End
+
+Describe 'configure_ports network gating'
+ports_setup() {
+    TESTDIR=$(mktemp -d)
+    VMDIR="$TESTDIR" VMNAME=netvm
+    NET='user,hostname=netvm'
+    DRY_RUN='' ssh_port='' SSH_ACCESS='' ssh_host=''
+    port_forwards=() display=sdl ACCESS='' spice_port=''
+    network='' guest_os=linux PUBLIC='' gl=off
+}
+ports_cleanup() { rm -rf -- "$TESTDIR"; }
+BeforeEach 'ports_setup'
+AfterEach 'ports_cleanup'
+get_port() { printf '22221'; }
+ports_record() { printf '%s\n' "$1" >> "$TESTDIR/recorded"; }
+qe_safe_rm() { rm -f -- "$1" 2>/dev/null; }
+spice_record() { :; }
+
+It 'advertises an SSH forward in user networking mode'
+    When call configure_ports
+    The status should be success
+    The output should include 'ssh:'
+    The variable NET should include 'hostfwd=tcp:'
+End
+It 'forwards configured ports in user networking mode'
+    port_forwards=('8080:80')
+    When call configure_ports
+    The status should be success
+    The output should include 'PORTS'
+    The variable NET should include 'hostfwd=tcp::8080-:80'
+End
+It 'does not advertise an SSH forward when networking is disabled'
+    network=none
+    When call configure_ports
+    The status should be success
+    The output should not include 'ssh:'
+    The variable NET should not include 'hostfwd'
+End
+It 'does not advertise an SSH forward in bridged mode'
+    network=br0
+    When call configure_ports
+    The status should be success
+    The variable NET should not include 'hostfwd'
+End
+It 'does not advertise an SSH forward in passt mode'
+    network=passt
+    When call configure_ports
+    The status should be success
+    The variable NET should not include 'hostfwd'
+End
+It 'does not record port endpoints when networking is disabled'
+    network=none
+    When call configure_ports
+    The status should be success
+    The path "$TESTDIR/recorded" should not be exist
 End
 End
 End

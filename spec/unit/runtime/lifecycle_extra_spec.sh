@@ -1,6 +1,8 @@
 # shellcheck disable=SC2034
 Describe 'quickemu runtime lifecycle extras'
 Include lib/quickemu/runtime/lifecycle.sh
+Include lib/quickemu/runtime/launch.sh
+Include lib/quickemu/support/filesystem.sh
 
 setup() {
     TESTDIR=$(mktemp -d)
@@ -10,9 +12,18 @@ setup() {
     viewer_extra_args='' ssh_port='' spice_port='' monitor_telnet_host=''
     monitor_telnet_port='' serial_telnet_host='' serial_telnet_port=''
 }
-cleanup() { rm -rf -- "$TESTDIR"; }
+cleanup() { qe_spec_cleanup; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
+# QEMU renames its process via -name <vm>,process=<vm>; spawn a fake VM
+# whose comm matches so vm_pid_alive's identity check passes.
+spawn_fake_vm() {
+    # Copy sleep under the VM name so the process comm matches what QEMU's
+    # -name <vm>,process=<vm> renaming produces (exec -a does not change
+    # comm on all platforms).
+    local name="${1:-${VMNAME:-vm-test}}" fb="${FAKE_BIN:-${FAKEBIN:-${TESTDIR}/bin}}"
+    mkdir -p "$fb"; cp /bin/sleep "$fb/${name}"; "$fb/${name}" "${2:-60}" >/dev/null 2>&1 &
+}
 
 Describe 'vm_pid_alive / vm_running'
     It 'is false without a pid file'
@@ -20,7 +31,7 @@ Describe 'vm_pid_alive / vm_running'
         The status should be failure
     End
     It 'is true for a live pid'
-        sleep 30 & echo $! > "$TESTDIR/testvm.pid"
+        spawn_fake_vm testvm; echo $! > "$TESTDIR/testvm.pid"
         When call vm_pid_alive "$TESTDIR/testvm.pid"
         The status should be success
     End
@@ -30,7 +41,7 @@ Describe 'vm_pid_alive / vm_running'
         The status should be failure
     End
     It 'vm_running derives the pidfile from the VM dir'
-        sleep 30 & echo $! > "$TESTDIR/testvm.pid"
+        spawn_fake_vm testvm; echo $! > "$TESTDIR/testvm.pid"
         When call vm_running "$TESTDIR" testvm
         The status should be success
     End
@@ -74,6 +85,63 @@ Describe 'parse_ports_from_file'
         The variable monitor_telnet_port should eq '4440'
         The variable serial_telnet_port should eq '6660'
         The variable serial_telnet_host should include '0.0.0.0'
+    End
+    It 'succeeds quietly when the .ports file is missing'
+        rm -f "$TESTDIR/testvm.ports"
+        When call parse_ports_from_file
+        The status should be success
+        The error should be blank
+    End
+End
+
+Describe 'runtime_launcher_init'
+    It 'creates the VM directory before writing the launch script'
+        VMDIR="$TESTDIR/newvm"
+        When call runtime_launcher_init
+        The status should be success
+        The file "$VMDIR/testvm.sh" should be exist
+    End
+    It 'writes nothing in dry-run mode'
+        VMDIR="$TESTDIR/newvm" DRY_RUN=1
+        When call runtime_launcher_init
+        The status should be success
+        The path "$VMDIR" should not be exist
+    End
+End
+
+Describe 'stop_swtpm'
+    It 'removes the swtpm pid and socket files'
+        touch "$TESTDIR/testvm.swtpm-pid" "$TESTDIR/testvm.swtpm-sock"
+        When call stop_swtpm
+        The file "$TESTDIR/testvm.swtpm-pid" should not be exist
+        The file "$TESTDIR/testvm.swtpm-sock" should not be exist
+    End
+    It 'does not signal processes that are not swtpm'
+        sleep 30 & SLEEP_PID=$!
+        echo "$SLEEP_PID" > "$TESTDIR/testvm.swtpm-pid"
+        survives() { stop_swtpm; kill -0 "$SLEEP_PID"; }
+        When call survives
+        The status should be success
+    End
+End
+
+Describe 'vm_runtime_cleanup'
+    It 'removes stale runtime artefacts and stops helpers'
+        touch "$TESTDIR/testvm.pid" "$TESTDIR/testvm.spice" "$TESTDIR/testvm.sock" \
+              "$TESTDIR/testvm-monitor.socket" "$TESTDIR/testvm-serial.socket" \
+              "$TESTDIR/testvm.ports" "$TESTDIR/testvm.paused"
+        stop_swtpm() { :; }
+        stop_virtiofsd() { echo virtiofsd-stopped >> "$TESTDIR/helpers.log"; }
+        When call vm_runtime_cleanup
+        The status should be success
+        The path "$TESTDIR/testvm.pid" should not be exist
+        The path "$TESTDIR/testvm.spice" should not be exist
+        The path "$TESTDIR/testvm.sock" should not be exist
+        The path "$TESTDIR/testvm-monitor.socket" should not be exist
+        The path "$TESTDIR/testvm-serial.socket" should not be exist
+        The path "$TESTDIR/testvm.ports" should not be exist
+        The path "$TESTDIR/testvm.paused" should not be exist
+        The contents of file "$TESTDIR/helpers.log" should include 'virtiofsd-stopped'
     End
 End
 

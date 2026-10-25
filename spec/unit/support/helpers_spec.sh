@@ -22,33 +22,33 @@ It 'ignores an empty path without removing other files'
   : > "$d/file"
   When call qe_safe_rm ''
   The status should be success
-  The path "$d/file" should exist
+  The path "$d/file" should be exist
 End
 It 'removes a symlink without deleting its target'
   : > "$d/file"
   ln -s "$d/file" "$d/link"
   When call qe_safe_rm "$d/link"
   The status should be success
-  The path "$d/link" should not exist
-  The path "$d/file" should exist
+  The path "$d/link" should not be exist
+  The path "$d/file" should be exist
 End
 It 'treats spaces and Unicode as a single path'
   : > "$d/a b ü"
   When call qe_safe_rm "$d/a b ü"
   The status should be success
-  The path "$d/a b ü" should not exist
+  The path "$d/a b ü" should not be exist
 End
 It 'treats option-like names as paths'
   : > "$d/-flag"
   When call qe_safe_rm "$d/-flag"
   The status should be success
-  The path "$d/-flag" should not exist
+  The path "$d/-flag" should not be exist
 End
 It 'removes an existing file'
   f="$d/file"
   : > "$f"
   When call qe_safe_rm "$f"
-  The path "$f" should not exist
+  The path "$f" should not be exist
 End
 It 'is idempotent on a missing path'
   When call qe_safe_rm "$d/missing"
@@ -92,7 +92,7 @@ It 'writes nothing in plan mode'
   DRY_RUN=1
   When call vm_log "x"
   The status should eq 1
-  The path "$d/vm.log" should not exist
+  The path "$d/vm.log" should not be exist
 End
 End
 End

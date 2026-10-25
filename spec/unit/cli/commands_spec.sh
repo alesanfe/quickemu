@@ -1,6 +1,7 @@
 Describe 'CLI commands and parameter checks'
 Include lib/quickemu/cli/commands.sh
 Include lib/quickemu/support/validation.sh
+Include lib/quickemu/support/json.sh
 Include lib/quickemu/runtime/lifecycle.sh
 
 setup() {
@@ -17,9 +18,18 @@ setup() {
     VERSION='4.9.9' VMDIR="$TESTDIR" DRY_RUN='' VIRTIOFSD=''
     VIRTIOFSD_PID='' VIRTIOFSD_SOCKET='' HOME="$TESTDIR"
 }
-cleanup() { cd /; rm -rf -- "$TESTDIR"; }
+cleanup() { cd /; qe_spec_cleanup; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
+# QEMU renames its process via -name <vm>,process=<vm>; spawn a fake VM
+# whose comm matches so vm_pid_alive's identity check passes.
+spawn_fake_vm() {
+    # Copy sleep under the VM name so the process comm matches what QEMU's
+    # -name <vm>,process=<vm> renaming produces (exec -a does not change
+    # comm on all platforms).
+    local name="${1:-${VMNAME:-vm-test}}" fb="${FAKE_BIN:-${FAKEBIN:-${TESTDIR}/bin}}"
+    mkdir -p "$fb"; cp /bin/sleep "$fb/${name}"; "$fb/${name}" "${2:-60}" >/dev/null 2>&1 &
+}
 
 in_subshell() { ( "$@" ); }
 
@@ -66,6 +76,7 @@ Parameters
     spice
     spice-app
     none
+    vnc
 End
 It 'accepts the display option on Linux'
     display="$1" gl=off
@@ -138,6 +149,68 @@ End
 It 'accepts numeric ports'
     eval "$1=5901"
     When call ports_param_check
+    The status should be success
+End
+End
+
+Describe 'resolution_param_check'
+It 'accepts an unset resolution'
+    width='' height=''
+    When call resolution_param_check
+    The status should be success
+End
+It 'accepts a paired numeric resolution'
+    width=1920 height=1080
+    When call resolution_param_check
+    The status should be success
+End
+It 'rejects width without height'
+    width=1920 height=''
+    When call in_subshell resolution_param_check
+    The status should be failure
+    The output should include "--height"
+End
+It 'rejects height without width'
+    width='' height=1080
+    When call in_subshell resolution_param_check
+    The status should be failure
+    The output should include "--width"
+End
+It 'rejects a non-numeric resolution'
+    width=abc height=1080
+    When call in_subshell resolution_param_check
+    The status should be failure
+    The output should include 'must be a number'
+End
+End
+
+Describe 'access_param_check'
+Parameters
+    local
+    remote
+    192.168.1.10
+    spice.example.lan
+End
+It 'accepts the supported access scope or a host'
+    ACCESS="$1"
+    When call access_param_check
+    The status should be success
+End
+It 'rejects an empty-token access value'
+    ACCESS='not a host'
+    When call in_subshell access_param_check
+    The status should be failure
+    The output should include 'is not recognised'
+End
+It 'rejects a bad ssh-access value'
+    SSH_ACCESS='bad value'
+    When call in_subshell access_param_check
+    The status should be failure
+    The output should include 'is not recognised'
+End
+It 'accepts an empty access value'
+    ACCESS='' SSH_ACCESS=''
+    When call access_param_check
     The status should be success
 End
 End
@@ -346,6 +419,30 @@ It 'reports a stopped VM as schema v1 JSON with null pid'
     The status should be success
     The output should eq '{"schemaVersion":1,"name":"vm-test","state":"stopped","pid":null}'
 End
+It 'reports a monitor-paused VM via the .paused marker'
+    spawn_fake_vm
+    VM_PID=$!
+    : >"$VMDIR/vm-test.paused"
+    When call in_subshell status_vm
+    The status should be success
+    The output should include 'paused'
+End
+It 'reports a paused VM as schema v1 JSON'
+    spawn_fake_vm
+    VM_PID=$!
+    : >"$VMDIR/vm-test.paused"
+    OUTPUT_FORMAT=json
+    When call in_subshell status_vm
+    The status should be success
+    The output should eq "{\"schemaVersion\":1,\"name\":\"vm-test\",\"state\":\"paused\",\"pid\":${VM_PID}}"
+End
+It 'ignores a stale .paused marker when the VM is stopped'
+    VM_PID=''
+    : >"$VMDIR/vm-test.paused"
+    When call in_subshell status_vm
+    The status should be success
+    The output should eq 'stopped'
+End
 End
 
 Describe 'list_vms'
@@ -364,7 +461,7 @@ It 'lists stopped and running VMs in human format'
     printf 'guest_os="windows"\n' >a.conf
     printf 'guest_os=linux\n' >b.conf
     mkdir -p a b
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm a
     echo $! >a/a.pid
     echo 999999 >b/b.pid
     When call list_vms
@@ -377,7 +474,7 @@ End
 It 'lists VMs as schema v1 JSON'
     printf 'guest_os="windows"\n' >a.conf
     mkdir -p a
-    sleep 60 >/dev/null 2>&1 &
+    spawn_fake_vm a
     echo $! >a/a.pid
     OUTPUT_FORMAT=json
     When call list_vms
@@ -396,7 +493,7 @@ It 'emits the schema v1 capability contract'
     The output should include '"schemaVersion": 1'
     The output should include '"applicationVersion": "4.9.9"'
     The output should include '"structuredStatus": true'
-    The output should include '"safeDeletePlan": false'
+    The output should include '"safeDeletePlan": true'
 End
 End
 End

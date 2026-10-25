@@ -106,7 +106,7 @@ It 'does not create a configuration in download-only mode'
     OPERATION=download
     When run make_vm_config installer.iso
     The status should be success
-    The path "$VM_PATH.conf" should not exist
+    The path "$VM_PATH.conf" should not be exist
 End
 Describe 'cross architecture configuration'
 Parameters

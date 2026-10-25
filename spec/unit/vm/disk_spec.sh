@@ -34,7 +34,7 @@ It 'refuses a missing size before invoking the image tool'
     When run disk_resize
     The status should eq 1
     The output should include 'needs a size'
-    The path "$TESTDIR/image-args" should not exist
+    The path "$TESTDIR/image-args" should not be exist
     The contents of file "$disk_img" should eq original
 End
 It 'refuses to resize a running VM'
@@ -42,14 +42,14 @@ It 'refuses to resize a running VM'
     When run disk_resize
     The status should eq 1
     The output should include 'before resizing'
-    The path "$TESTDIR/image-args" should not exist
+    The path "$TESTDIR/image-args" should not be exist
 End
 It 'refuses a missing image'
     disk_img="$TESTDIR/missing.qcow2"
     When run disk_resize
     The status should eq 1
     The output should include 'not found'
-    The path "$TESTDIR/image-args" should not exist
+    The path "$TESTDIR/image-args" should not be exist
 End
 It 'passes the literal disk path and requested size'
     When call disk_resize
@@ -74,21 +74,21 @@ It 'refuses a running VM without invoking the tool'
     When run disk_compact
     The status should eq 1
     The output should include 'before compacting'
-    The path "$TESTDIR/image-args" should not exist
+    The path "$TESTDIR/image-args" should not be exist
 End
 It 'refuses a missing image'
     disk_img="$TESTDIR/missing.qcow2"
     When run disk_compact
     The status should eq 1
     The output should include 'not found'
-    The path "$TESTDIR/image-args" should not exist
+    The path "$TESTDIR/image-args" should not be exist
 End
 It 'replaces the image only after successful conversion'
     When call disk_compact
     The status should be success
     The output should include 'Compacted'
     The contents of file "$disk_img" should eq converted
-    The path "$disk_img.compact" should not exist
+    The path "$disk_img.compact" should not be exist
     The line 2 of contents of file "$TESTDIR/image-args" should eq '-O'
     The line 3 of contents of file "$TESTDIR/image-args" should eq qcow2
 End
@@ -98,11 +98,18 @@ It 'keeps the original image and cleans partial output on conversion failure'
     The status should eq 1
     The output should include 'Failed to compact'
     The contents of file "$disk_img" should eq original
-    The path "$disk_img.compact" should not exist
+    The path "$disk_img.compact" should not be exist
 End
 End
 
 Describe 'delete disk'
+It 'refuses to delete the disk of a running VM'
+    RUNNING=0
+    When run delete_disk
+    The status should eq 1
+    The output should include 'before deleting'
+    The contents of file "$disk_img" should eq original
+End
 It 'removes only the image and EFI variable files'
     : > "$TESTDIR/OVMF_VARS.fd"
     : > "$TESTDIR/test vm-vars.fd"
@@ -110,18 +117,18 @@ It 'removes only the image and EFI variable files'
     When call delete_disk
     The status should be success
     The output should include 'Deleted'
-    The path "$disk_img" should not exist
-    The path "$TESTDIR/OVMF_VARS.fd" should not exist
-    The path "$TESTDIR/test vm-vars.fd" should not exist
-    The path "$TESTDIR/keep.iso" should exist
-    The path "$TESTDIR/shortcut-call" should exist
+    The path "$disk_img" should not be exist
+    The path "$TESTDIR/OVMF_VARS.fd" should not be exist
+    The path "$TESTDIR/test vm-vars.fd" should not be exist
+    The path "$TESTDIR/keep.iso" should be exist
+    The path "$TESTDIR/shortcut-call" should be exist
 End
 It 'does nothing when the image is absent'
     disk_img="$TESTDIR/missing.qcow2"
     When call delete_disk
     The status should be success
     The output should include 'Doing nothing'
-    The path "$TESTDIR/shortcut-call" should not exist
+    The path "$TESTDIR/shortcut-call" should not be exist
 End
 End
 End

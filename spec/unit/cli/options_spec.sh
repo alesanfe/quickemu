@@ -104,6 +104,7 @@ Parameters
     --doctor        doctor_vm
     --autostart     autostart_create
     --shortcut      shortcut_create
+    --delete-shortcut delete_shortcut
     --disk-compact  disk_compact
 End
 It 'queues the action for execution'
@@ -186,6 +187,23 @@ It 'records pass-through options for the generated shortcut'
     The variable SHORTCUT_OPTIONS should include '--width 1920'
     The variable 'ACTIONS[*]' should include 'shortcut_create'
 End
+It 'records usb passthrough and status-quo for the generated shortcut'
+    When call cli_parse_args --usb-passthrough 0456:7890 --status-quo --offline --shortcut
+    The status should be success
+    The variable SHORTCUT_OPTIONS should include '--usb-passthrough 0456:7890'
+    The variable SHORTCUT_OPTIONS should include '--status-quo'
+    The variable SHORTCUT_OPTIONS should include '--offline'
+End
+End
+
+Describe 'display validation timing'
+It 'defers display_param_check until after the VM config is sourced'
+    display_param_check() { DISPLAY_CHECK_CALLED=1; }
+    When call cli_parse_args --display gtk
+    The status should be success
+    The variable display should eq 'gtk'
+    The variable DISPLAY_CHECK_CALLED should be blank
+End
 End
 
 Describe 'snapshot subcommand parsing'
@@ -208,6 +226,17 @@ It 'accepts list without a tag'
     When call cli_parse_args --snapshot list --vm a.conf
     The status should be success
     The variable SNAPSHOT_ACTION should eq 'list'
+End
+It 'accepts info as the last argument'
+    When call cli_parse_args --vm a.conf --snapshot info
+    The status should be success
+    The variable SNAPSHOT_ACTION should eq 'info'
+End
+It 'accepts list as the last argument'
+    When call cli_parse_args --vm a.conf --snapshot list
+    The status should be success
+    The variable SNAPSHOT_ACTION should eq 'list'
+    The variable SNAPSHOT_TAG should eq ''
 End
 It 'stores action and tag for create'
     When call cli_parse_args --snapshot create baseline --vm a.conf

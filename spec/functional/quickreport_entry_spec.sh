@@ -9,7 +9,7 @@ setup() {
     TESTDIR=$(mktemp -d)
     OS_KERNEL=Linux
     probe_os_name() { echo 'TestDistro 1.0'; }
-    probe_quickemu() { echo '/usr/bin/quickemu'; }
+    probe_quickemu() { echo 'quickemu'; }
     probe_memory_gb() { echo 32; }
     probe_gpus() { echo ' FakeGPU 3000'; }
     probe_qemu_arch() { echo x86_64; }

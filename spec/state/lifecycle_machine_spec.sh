@@ -8,9 +8,18 @@ setup() {
     TESTDIR=$(mktemp -d)
     VMDIR="$TESTDIR" VMNAME=vm1 DRY_RUN=''
 }
-cleanup() { rm -rf -- "$TESTDIR"; }
+cleanup() { qe_spec_cleanup; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
+# QEMU renames its process via -name <vm>,process=<vm>; spawn a fake VM
+# whose comm matches so vm_pid_alive's identity check passes.
+spawn_fake_vm() {
+    # Copy sleep under the VM name so the process comm matches what QEMU's
+    # -name <vm>,process=<vm> renaming produces (exec -a does not change
+    # comm on all platforms).
+    local name="${1:-${VMNAME:-vm-test}}" fb="${FAKE_BIN:-${FAKEBIN:-${TESTDIR}/bin}}"
+    mkdir -p "$fb"; cp /bin/sleep "$fb/${name}"; "$fb/${name}" "${2:-60}" >/dev/null 2>&1 &
+}
 
 Describe 'absent -> running -> absent transitions'
     It 'absent: vm_running is false without a pid file'
@@ -18,7 +27,7 @@ Describe 'absent -> running -> absent transitions'
         The status should be failure
     End
     It 'running: a live pid makes vm_running true'
-        sleep 30 & echo $! > "$TESTDIR/vm1.pid"
+        spawn_fake_vm vm1; echo $! > "$TESTDIR/vm1.pid"
         When call vm_running "$TESTDIR" vm1
         The status should be success
     End

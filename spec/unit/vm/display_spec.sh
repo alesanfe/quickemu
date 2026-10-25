@@ -21,17 +21,14 @@ setup() {
     PIPEWIRE_REMOTE="$TESTDIR/pipewire-0"
     PULSE_SERVER="$TESTDIR/native"
 }
-cleanup() { rm -rf -- "$TESTDIR"; }
+cleanup() { qe_spec_cleanup; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
 
-# Real Unix sockets so the audio backend probing can bind-check them.
-make_socket() { python3 - "$1" >/dev/null 2>&1 <<'EOF' &
-import socket,sys,time
-s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); time.sleep(10)
-EOF
-    sleep 0.3
-}
+# Seam stub: simulate live pipewire/pulse sockets (real AF_UNIX sockets
+# cannot be created on every host the suite runs on).
+make_socket() { AUDIO_SOCK_READY=0; }
+host_socket_present() { return "${AUDIO_SOCK_READY:-1}"; }
 check_cocoa_gl_es_support() { return "${COCOA_GL:-1}"; }
 qemu_probe() {
     case "$*" in
@@ -51,6 +48,7 @@ Parameters
     macos sdl x86_64 vmware-svga
     windows sdl x86_64 virtio-vga
     windows spice x86_64 qxl-vga
+    windows vnc x86_64 virtio-vga
     windows sdl aarch64 virtio-gpu-pci
     haiku sdl x86_64 qxl-vga
 End

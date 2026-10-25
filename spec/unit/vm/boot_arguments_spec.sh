@@ -86,7 +86,7 @@ It 'builds the requested network backend without starting a guest'
     The status should be success
     The output should include "$2"
     The output should include "$3"
-    The path "$TESTDIR/test-vm.pid" should not exist
+    The path "$TESTDIR/test-vm.pid" should not be exist
 End
 End
 It 'rejects passt on an unsupported QEMU version'
@@ -158,6 +158,50 @@ It 'selects a controller supported by the guest'
 End
 End
 
+Describe 'status-quo flag on system disks'
+Parameters
+    linux
+    reactos
+    templeos
+    windows-server
+End
+It 'appends -snapshot to every system disk definition'
+    guest_os="$1" STATUS_QUO='-snapshot'
+    When call build_arguments
+    The status should be success
+    The output should include '-snapshot'
+End
+End
+
+Describe 'persistent MAC address'
+It 'applies the configured MAC to user-mode networking'
+    macaddr='52:54:00:AB:51:AE'
+    When call build_arguments
+    The status should be success
+    The output should include 'mac=52:54:00:AB:51:AE'
+End
+It 'applies the configured MAC to restricted networking'
+    macaddr='52:54:00:AB:51:AE' network=restrict
+    When call build_arguments
+    The status should be success
+    The output should include 'mac=52:54:00:AB:51:AE'
+End
+It 'applies the configured MAC to bridged networking'
+    macaddr='52:54:00:AB:51:AE' network=br0
+    When call build_arguments
+    The status should be success
+    The output should include 'mac=52:54:00:AB:51:AE'
+End
+End
+
+It 'warns on an unrecognised guest_os value'
+    guest_os=dos
+    When call vm_boot
+    The status should be success
+    The output should include 'guest_os'
+    The output should include 'not a recognised'
+End
+
 It 'preserves spaces in the direct kernel command line'
     kernel="$TESTDIR/kernel with spaces" initrd="$TESTDIR/initrd with spaces"
     boot_args='console=ttyS0 root=/dev/vda rw'
@@ -173,7 +217,7 @@ It 'attaches an existing cloud-init seed without creating other artifacts'
     When call build_arguments
     The status should be success
     The output should include "file=$seed,media=cdrom,if=virtio,format=raw"
-    The path "$TESTDIR/test-vm.sh" should not exist
+    The path "$TESTDIR/test-vm.sh" should not be exist
 End
 It 'rejects malformed CPU pinning before launching'
     CPU_PINNING='0; touch bad'

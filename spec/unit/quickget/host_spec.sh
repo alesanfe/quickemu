@@ -34,7 +34,7 @@ Describe 'require_qemu_img'
         printf '#!/bin/sh\necho stub\n' > "$TESTDIR/qemu-img"
         chmod +x "$TESTDIR/qemu-img"
     }
-    cleanup() { rm -rf -- "$TESTDIR"; }
+    cleanup() { qe_spec_cleanup; }
     BeforeEach 'setup'
     AfterEach 'cleanup'
 
@@ -58,7 +58,7 @@ Describe 'resolve_quickemu'
         printf '#!/bin/sh\necho qe-stub\n' > "$TESTDIR/quickemu"
         chmod +x "$TESTDIR/quickemu"
     }
-    cleanup() { rm -rf -- "$TESTDIR"; }
+    cleanup() { qe_spec_cleanup; }
     BeforeEach 'setup'
     AfterEach 'cleanup'
 
