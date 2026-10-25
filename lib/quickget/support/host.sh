@@ -29,14 +29,11 @@ function require_qemu_img() {
 
 
 # Use command -v command to check if quickemu is in the system's PATH and
-# fallback to checking if quickemu is in the current directory, then to
-# the quickemu shipped next to this script (QG_BINDIR).
+# fallback to checking if quickemu is in the current directory.
 function resolve_quickemu() {
     command -v quickemu || \
     if [ -x "./quickemu" ]; then
         echo "$(pwd)/quickemu"
-    elif [ -n "${QG_BINDIR:-}" ] && [ -x "${QG_BINDIR}/quickemu" ]; then
-        echo "${QG_BINDIR}/quickemu"
     else
         echo "quickemu not found" >&2
         exit 1
