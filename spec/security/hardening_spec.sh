@@ -25,6 +25,7 @@ cleanup() { rm -rf -- "$TESTDIR" "$TESTDIR.lock" 2>/dev/null; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
 in_subshell() { ( "$@" ); }
+tar_listing() { tar -tzf "$TESTDIR/export.tar.gz"; }
 spawn_vm_proc() { mkdir -p "$TESTDIR/fakeproc"; cp "$(command -v sleep)" "$TESTDIR/fakeproc/vm1"; "$TESTDIR/fakeproc/vm1" 60 >/dev/null 2>&1 & echo "$!" >"$VMDIR/vm1.pid"; sleep 0.2; }
 
 Describe 'vm_pid_alive identity check'
@@ -232,6 +233,28 @@ Describe 'VM locking'
         The status should be success
         The output should include 'Deleted'
         The directory "$VMDIR" should not be exist
+    End
+    It 'rejects archives whose checksums do not verify'
+        mkdir -p "$TESTDIR/tampered/evilvm" && : >"$TESTDIR/tampered/evilvm/disk.qcow2"
+        printf 'guest_os="linux"\n' >"$TESTDIR/tampered/evilvm.conf"
+        printf '{"formatVersion":1,"quickemuVersion":"x","vm":"evilvm","checksums":"quickvm-checksums.sha256"}\n' >"$TESTDIR/tampered/quickvm-manifest.json"
+        printf '0000000000000000000000000000000000000000000000000000000000000000  evilvm.conf\n' >"$TESTDIR/tampered/quickvm-checksums.sha256"
+        tar -C "$TESTDIR/tampered" -czf "$TESTDIR/tampered.tar.gz" evilvm evilvm.conf quickvm-manifest.json quickvm-checksums.sha256
+        IMPORT_FILE="$TESTDIR/tampered.tar.gz"
+        mkdir -p "$TESTDIR/importcwd3"
+        in_cwd3() { ( cd "$TESTDIR/importcwd3" && "$@" ); }
+        When call in_cwd3 import_vm
+        The status should be failure
+        The error should include 'checksum'
+        The file "$TESTDIR/importcwd3/evilvm.conf" should not be exist
+    End
+    It 'exports a self-verifying manifest and checksums'
+        mkdir -p "$VMDIR"
+        : >"$VMDIR/disk.qcow2"
+        EXPORT_FILE="$TESTDIR/export.tar.gz"
+        When call export_vm
+        The status should be success
+        The result of function tar_listing should include 'quickvm-manifest.json'
     End
 End
 
