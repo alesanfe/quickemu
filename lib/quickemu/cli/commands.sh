@@ -266,10 +266,18 @@ function status_vm() {
     local STATE="stopped" PID_JSON="null"
     if [ -n "${VM_PID}" ]; then
         PID_JSON="${VM_PID}"
-        # Paused shows as either a SIGSTOP'd process (state T) or a live
-        # process suspended via the QEMU monitor 'stop' command (.paused
-        # marker written by pause_vm, removed by resume_vm/vm_runtime_cleanup).
-        if [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ] || [ -f "${VMDIR}/${VMNAME}.paused" ]; then
+        # Authoritative source: QMP query-status when the control channel
+        # is up (catches monitor-suspended guests even without .paused).
+        # Fallback: SIGSTOP'd process (state T) or the .paused marker
+        # written by pause_vm and cleared by resume_vm/vm_runtime_cleanup.
+        local QMP_STATE=""
+        QMP_STATE=$(qmp_vm_status 2>/dev/null)
+        if [ -n "${QMP_STATE}" ]; then
+            case "${QMP_STATE}" in
+            paused | inmigrate | suspended) STATE="paused" ;;
+            *) STATE="running" ;;
+            esac
+        elif [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ] || [ -f "${VMDIR}/${VMNAME}.paused" ]; then
             STATE="paused"
         else
             STATE="running"

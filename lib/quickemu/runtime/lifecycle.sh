@@ -356,6 +356,7 @@ function vm_runtime_cleanup() {
         "${VMDIR}/${VMNAME}.spice" \
         "${VMDIR}/${VMNAME}.sock" \
         "${VMDIR}/${VMNAME}-monitor.socket" \
+        "${VMDIR}/${VMNAME}-qmp.socket" \
         "${VMDIR}/${VMNAME}-serial.socket" \
         "${VMDIR}/${VMNAME}-agent.sock" \
         "${VMDIR}/${VMNAME}.ports" \

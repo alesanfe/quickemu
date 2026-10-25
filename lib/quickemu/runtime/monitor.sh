@@ -4,6 +4,35 @@
 # shellcheck disable=SC2154 # monitor/monitor_telnet_* are quickemu runtime globals
 # QEMU monitor socket command sender.
 
+# ---- qmp.sh ----
+# Minimal QMP (QEMU Machine Protocol) channel: machine-readable command
+# and state access next to the human HMP monitor. QEMU serves it on
+# <vm>-qmp.socket when launched with `-qmp unix:...,server,nowait`.
+
+vm_qmp_socket_ready() { [ -S "${SOCKET_QMP}" ]; }
+
+# Send one QMP command and print every reply line (greeting, caps
+# handshake reply, command reply, async events if any). Needs socat.
+qmp_command() { # json-command -> reply lines
+    [ -n "${1}" ] || return 1
+    vm_qmp_socket_ready || return 1
+    command -v socat >/dev/null 2>&1 || return 1
+    printf '{"execute":"qmp_capabilities"}\n%s\n' "${1}" |
+        socat -t "${QMP_TIMEOUT:-1}" -,shut-down unix-connect:"${SOCKET_QMP}" 2>/dev/null
+}
+
+# Last {"return":...} object of a query (the command reply), empty on
+# error/absent channel.
+qmp_query() { # json-command -> {"return":...} or empty
+    qmp_command "${1}" | grep -o '{"return".*}' | tail -1
+}
+
+# VM run state via QMP query-status: running|paused|shutdown|...
+# Empty when the QMP channel is unavailable.
+qmp_vm_status() {
+    qmp_query '{"execute":"query-status"}' | sed -n 's/.*"status":"\([^"]*\)".*/\1/p'
+}
+
 # True when the QEMU monitor unix socket is present for this VM.
 # Extracted so callers (pause/resume/shutdown/screenshot) share one check.
 function vm_monitor_socket_ready() {

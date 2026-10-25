@@ -19,6 +19,7 @@ vm_identify() { # conf_path -> sets VMNAME VMDIR VMPATH SOCKET_MONITOR SOCKET_SE
     fi
     SOCKET_MONITOR="${VMDIR}/${VMNAME}-monitor.socket"
     SOCKET_SERIAL="${VMDIR}/${VMNAME}-serial.socket"
+    SOCKET_QMP="${VMDIR}/${VMNAME}-qmp.socket"
 }
 
 # ---- lifecycle.sh ----
@@ -633,6 +634,9 @@ vm_boot_channels() {
     elif [ "${monitor}" == "socket" ]; then
         # shellcheck disable=SC2054,SC2206
         args+=(-monitor unix:${SOCKET_MONITOR},server,nowait)
+        # Machine control channel (QMP): structured state/commands, always
+        # next to the HMP socket so both consoles stay available.
+        args+=(-qmp unix:${SOCKET_QMP},server,nowait)
         if command -v socat &>/dev/null; then
             echo " - Monitor:  On host:  socat -,echo=0,icanon=0 unix-connect:${SOCKET_MONITOR}"
         elif command -v nc &>/dev/null; then
