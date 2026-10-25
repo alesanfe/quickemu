@@ -1,5 +1,6 @@
 # shellcheck disable=SC2034
 Describe 'quickemu runtime lifecycle extras'
+Include lib/quickemu/runtime/monitor.sh
 Include lib/quickemu/runtime/lifecycle.sh
 Include lib/quickemu/runtime/launch.sh
 Include lib/quickemu/support/filesystem.sh

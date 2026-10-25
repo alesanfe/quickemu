@@ -77,8 +77,8 @@ function pause_vm() {
     fi
     # Prefer the QEMU monitor 'stop' command: it suspends the vCPUs while
     # keeping the monitor socket responsive (screenshots, --monitor-cmd).
-    if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
-        monitor_send_cmd "stop" || return 1
+    if [ "${monitor}" != "none" ] && { vm_qmp_socket_ready || vm_monitor_socket_ready; }; then
+        vm_control "stop" '{"execute":"stop"}' || return 1
     else
         kill -STOP "${VM_PID}" || return 1
     fi
@@ -86,6 +86,7 @@ function pause_vm() {
     # VMs, whose process state stays S/R rather than T. vm_runtime_cleanup
     # removes it when the VM exits or is killed.
     : >"${VMDIR}/${VMNAME}.paused"
+    qe_event "vm.paused"
     echo " - ${VMNAME} (${VM_PID}) paused."
 }
 
@@ -97,7 +98,7 @@ function shutdown_vm() {
     fi
     if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
         monitor_send_cmd "system_powerdown" \
-            && echo " - ${VMNAME} (${VM_PID}) shutdown requested."
+            && { qe_event "vm.shutdown-requested"; echo " - ${VMNAME} (${VM_PID}) shutdown requested."; }
     else
         echo " - ${VMNAME}: no monitor channel; use --kill to force stop."
         return 1
@@ -113,7 +114,7 @@ function reset_vm() {
     fi
     if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
         monitor_send_cmd "system_reset" \
-            && echo " - ${VMNAME} (${VM_PID}) reset requested."
+            && { qe_event "vm.reset-requested"; echo " - ${VMNAME} (${VM_PID}) reset requested."; }
     else
         echo " - ${VMNAME}: no monitor channel; use --kill to force stop."
         return 1
@@ -125,8 +126,9 @@ function resume_vm() {
         echo " - ${VMNAME} is not running."
         return 1
     fi
-    if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
-        monitor_send_cmd "cont" || return 1
+    if [ "${monitor}" != "none" ] && { vm_qmp_socket_ready || vm_monitor_socket_ready; }; then
+        vm_control "cont" '{"execute":"cont"}' || return 1
+        qe_event "vm.resumed"
     else
         kill -CONT "${VM_PID}" || return 1
     fi
@@ -224,6 +226,8 @@ function clone_vm() {
 
 function export_vm() {
     local OUT="${EXPORT_FILE:-${VMNAME}.quickvm.tar.gz}" PARENT=""
+    local OPID
+    OPID=$(op_new "export" 2>/dev/null); op_set "${OPID:-none}" running 10 2>/dev/null
     local MEMBERS=("${VMNAME}.conf")
     if vm_running "${VMDIR}" "${VMNAME}"; then
         echo "ERROR! Stop ${VMNAME} before exporting."
@@ -262,7 +266,8 @@ function export_vm() {
         -czf "${OUT}" "${MEMBERS[@]}" \
         -C "${TMPDIR_EX}" quickvm-manifest.json quickvm-checksums.sha256
     rm -rf -- "${TMPDIR_EX}"
-    echo " - Exported ${VMNAME} to ${OUT}"
+    op_done "${OPID:-none}" 2>/dev/null
+    echo " - Exported ${VMNAME} to ${OUT} (operation ${OPID:-n/a})"
 }
 
 function import_vm() {
@@ -307,6 +312,8 @@ function import_vm() {
         echo "ERROR! ${BASE} already exists."
         exit 1
     fi
+    local OPID
+    OPID=$(op_new "import" 2>/dev/null); op_set "${OPID:-none}" running 10 2>/dev/null
     # Extract to a private staging dir first; move into place only on success.
     TMPDIR_IM=$(mktemp -d "${TMPDIR:-/tmp}/quickemu-import.XXXXXX") || exit 1
     if ! tar -xzf "${IN}" -C "${TMPDIR_IM}" 2>/dev/null; then
@@ -348,7 +355,8 @@ function import_vm() {
         fi
     done
     rm -rf -- "${TMPDIR_IM}"
-    echo " - Imported ${BASE} from ${IN}"
+    op_done "${OPID:-none}" 2>/dev/null
+    echo " - Imported ${BASE} from ${IN} (operation ${OPID:-n/a})"
     echo " - WARNING! ${BASE}.conf is executed as code on launch; review it before running the VM."
 }
 

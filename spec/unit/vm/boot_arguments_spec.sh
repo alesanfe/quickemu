@@ -1,4 +1,5 @@
 Describe 'VM boot argument assembly'
+Include lib/quickemu/runtime/ops.sh
 Include lib/quickemu/vm/vm.sh
 
 setup() {

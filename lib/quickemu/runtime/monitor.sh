@@ -39,6 +39,19 @@ function vm_monitor_socket_ready() {
     [ -S "${SOCKET_MONITOR}" ]
 }
 
+# Unified guest control: prefer the structured QMP channel, fall back to
+# the human monitor (HMP). Args: <hmp command> <qmp execute json>.
+# Returns 0 only when a channel accepted the command.
+vm_control() { # hmp-cmd qmp-json -> 0 ok / 1 no channel or rejected
+    local hmp="${1}" qmp="${2}"
+    if vm_qmp_socket_ready && command -v socat >/dev/null 2>&1; then
+        qmp_query "${qmp}" | grep -q '"return"' && return 0
+        # QMP up but the command errored: fall through to HMP rather
+        # than silently failing (e.g. command unsupported on this QEMU).
+    fi
+    monitor_send_cmd "${hmp}" >/dev/null 2>&1
+}
+
 function monitor_send_cmd {
     local MSG="${1}"
 

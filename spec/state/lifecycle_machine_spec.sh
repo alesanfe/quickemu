@@ -2,6 +2,7 @@
 # State-machine tests: model the VM lifecycle (absent -> configured ->
 # running -> stopped) and prove valid/invalid transitions behave.
 Describe 'VM lifecycle state machine'
+Include lib/quickemu/runtime/monitor.sh
 Include lib/quickemu/runtime/lifecycle.sh
 
 setup() {

@@ -1,7 +1,10 @@
 Describe 'CLI commands and parameter checks'
+Include lib/quickemu/runtime/ops.sh
 Include lib/quickemu/cli/commands.sh
 Include lib/quickemu/support/validation.sh
 Include lib/quickemu/support/json.sh
+Include lib/quickemu/support/events.sh
+Include lib/quickemu/runtime/monitor.sh
 Include lib/quickemu/runtime/lifecycle.sh
 
 setup() {

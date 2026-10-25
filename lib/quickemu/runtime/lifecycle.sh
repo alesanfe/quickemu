@@ -365,7 +365,46 @@ function vm_runtime_cleanup() {
     # Drop the operation lock only when the VM is fully gone.
     rm -rf "${VMDIR}/${VMNAME}.lock" "${VMDIR}/${VMNAME}.lock.shared"
     _port_registry_release
+    qe_event "vm.stopped"
     return 0
+}
+
+# ---- state.sh ----
+# Canonical VM state: one word answering "what is this VM doing?".
+# Sources in priority order: instance identity (runtime.json) -> QMP
+# query-status -> process/markers -> filesystem.
+vm_state() { # -> starting|running|paused|stopping|stopped|stale|unknown
+    local st qst
+    st=$(vm_instance_verify "${VMDIR}/${VMNAME}.pid" 2>/dev/null)
+    case "${st}" in
+    alive | alive-legacy)
+        qst=$(qmp_vm_status 2>/dev/null)
+        case "${qst}" in
+        paused | inmigrate | suspended) echo paused; return ;;
+        shutdown) echo stopping; return ;;
+        "") : ;; # channel absent -> fall back to markers
+        *) echo running; return ;;
+        esac
+        if [ -f "${VMDIR}/${VMNAME}.paused" ]; then echo paused
+        elif [ "$(ps -o stat= -p "$(tr -d '[:space:]' <"${VMDIR}/${VMNAME}.pid" 2>/dev/null)" 2>/dev/null | cut -c1)" == "T" ]; then echo paused
+        else echo running; fi
+        return ;;
+    dead) [ -f "${VMDIR}/${VMNAME}.pid" ] && { echo stale; return; }; echo stopped; return ;;
+    runtime-corrupt | runtime-missing) echo unknown; return ;;
+    *) echo unknown; return ;; # pid-reused/foreign/uid-mismatch: not ours
+    esac
+}
+
+# Actions allowed from each state (transition guard used by status JSON
+# and future dispatch). Prints a space-separated list.
+vm_allowed_ops() { # state -> ops
+    case "${1}" in
+    running) echo "pause resume shutdown reset kill status monitor-cmd screenshot send-keys type snapshot-clone export" ;;
+    paused) echo "resume shutdown kill status monitor-cmd screenshot" ;;
+    stopped | stale) echo "start delete clone rename export import snapshot apply create delete info list inspect-conf delete-plan" ;;
+    unknown) echo "status inspect-conf" ;;
+    *) echo "status" ;;
+    esac
 }
 
 # ---- lock.sh ----

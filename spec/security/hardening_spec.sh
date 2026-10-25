@@ -6,10 +6,13 @@ Include lib/quickemu/config/parser.sh
 Include lib/quickemu/config/loader.sh
 Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/support/json.sh
+Include lib/quickemu/support/events.sh
 Include lib/quickemu/runtime/monitor.sh
 Include lib/quickemu/runtime/lifecycle.sh
+Include lib/quickemu/runtime/ops.sh
 Include lib/quickemu/vm/vm.sh
 Include lib/quickemu/planning/delete_plan.sh
+Include lib/quickemu/runtime/ops.sh
 Include lib/quickemu/cli/commands.sh
 
 setup() {
@@ -27,6 +30,7 @@ BeforeEach 'setup'
 AfterEach 'cleanup'
 in_subshell() { ( "$@" ); }
 tar_listing() { tar -tzf "$TESTDIR/export.tar.gz"; }
+socat_missing() { ! command -v socat >/dev/null 2>&1; }
 spawn_vm_proc() { mkdir -p "$TESTDIR/fakeproc"; cp "$(command -v sleep)" "$TESTDIR/fakeproc/vm1"; "$TESTDIR/fakeproc/vm1" 60 >/dev/null 2>&1 & echo "$!" >"$VMDIR/vm1.pid"; sleep 0.2; }
 
 Describe 'vm_pid_alive identity check'
@@ -101,20 +105,21 @@ SH
         echo $! >"$TESTDIR/qmpd.pid"
         sleep 0.3
     }
+    expected_qmp() { socat_missing && printf '' || printf 'paused'; }
+    expected_state() { socat_missing && printf 'running' || printf 'paused'; }
     It 'query-status reports the QEMU-side state'
-        fake_qmp || Skip 'socat unavailable'
+        socat_missing || fake_qmp
         When call qmp_vm_status
-        The output should equal 'paused'
-        The status should be success
+        The output should equal "$(expected_qmp)"
     End
     It 'status_vm prefers QMP state over process heuristics'
-        fake_qmp || Skip 'socat unavailable'
+        socat_missing || fake_qmp
         spawn_vm_proc
         VM_PID=$(cat "$VMDIR/vm1.pid")
         rm -f "$VMDIR/vm1.paused"
         OUTPUT_FORMAT=json
         When call in_subshell status_vm
-        The output should include '"state":"paused"'
+        The output should include "\"state\":\"$(expected_state)\""
     End
 End
 

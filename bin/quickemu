@@ -116,6 +116,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/support/validation.sh"
     # shellcheck source=lib/quickemu/support/logging.sh
     source "${QE_LIBDIR}/support/logging.sh"
+    # shellcheck source=lib/quickemu/support/events.sh
+    source "${QE_LIBDIR}/support/events.sh"
     # host: machine facts
     # shellcheck source=lib/quickemu/host/cpu.sh
     source "${QE_LIBDIR}/host/cpu.sh"
@@ -132,6 +134,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/config/loader.sh"
     # shellcheck source=lib/quickemu/config/normalizer.sh
     source "${QE_LIBDIR}/config/normalizer.sh"
+    # shellcheck source=lib/quickemu/config/toml.sh
+    source "${QE_LIBDIR}/config/toml.sh"
     # catalog: OS knowledge
     # shellcheck source=lib/quickemu/catalog/catalog.sh
     source "${QE_LIBDIR}/catalog/catalog.sh"
@@ -158,6 +162,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/runtime/lifecycle.sh"
     # shellcheck source=lib/quickemu/runtime/launch.sh
     source "${QE_LIBDIR}/runtime/launch.sh"
+    # shellcheck source=lib/quickemu/runtime/ops.sh
+    source "${QE_LIBDIR}/runtime/ops.sh"
     # cli: user boundary
     # shellcheck source=lib/quickemu/cli/commands.sh
     source "${QE_LIBDIR}/cli/commands.sh"

@@ -83,6 +83,19 @@ else
             ACTIONS+=(capabilities)
             shift
             ;;
+        -host-info | --host-info)
+            ACTIONS+=(host_info)
+            shift
+            ;;
+        -migrate-conf | --migrate-conf)
+            ACTIONS+=(migrate_conf)
+            shift
+            ;;
+        -op-status | --op-status)
+            OP_ID="${2}"
+            ACTIONS+=(operation_status)
+            shift 2
+            ;;
         -status | --status)
             ACTIONS+=(status_vm)
             shift

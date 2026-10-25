@@ -381,7 +381,31 @@ function capabilities() {
     # Public contract for external consumers (quickgui, scripts, CI).
     # Keep this in sync with schemas/v1/capabilities.schema.json.
     qe_ok "capabilities" "$(cat <<JSON
-{"applicationVersion":"${VERSION}","capabilities":{"structuredCatalog":true,"structuredStatus":true,"listVms":true,"snapshots":true,"structuredSnapshots":true,"monitorCommands":true,"sendKeys":true,"screenshot":true,"clone":true,"rename":true,"exportImport":true,"diskOps":true,"downloadProgress":false,"safeDeletePlan":true}}
+{"applicationVersion":"${VERSION}","capabilities":{"structuredCatalog":true,"structuredStatus":true,"listVms":true,"snapshots":true,"structuredSnapshots":true,"monitorCommands":true,"sendKeys":true,"screenshot":true,"clone":true,"rename":true,"exportImport":true,"diskOps":true,"downloadProgress":false,"safeDeletePlan":true,"verifiableDeletePlan":true,"qmpChannel":true,"instanceIdentity":true,"sharedExclusiveLocks":true,"portRegistry":true,"verifiedArchives":true,"structuredEvents":true,"asyncOperations":true,"tomlConfig":true,"hostInventory":true}}
 JSON
 )"
+}
+
+# --host-info: versioned host inventory for QuickGUI (dependencies,
+# acceleration and machine facts in one machine-readable call).
+host_info() {
+    local KVM="false"
+    [ -w /dev/kvm ] && KVM="true"
+    qe_ok "host.info" "$(printf '{"kernel":"%s","arch":"%s","cpuCores":%s,"memTotalKb":%s,"kvm":%s,"qemu":"%s","qemuImg":%s,"socat":%s,"jq":%s,"swtpm":%s}'         "$(json_escape "$(uname -sr)")" "$(uname -m)" "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"         "$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)" "${KVM}"         "$(json_escape "$(${QEMU:-qemu-system-x86_64} --version 2>/dev/null | head -1)")"         "$(command -v qemu-img >/dev/null && echo true || echo false)"         "$(command -v socat >/dev/null && echo true || echo false)"         "$(command -v jq >/dev/null && echo true || echo false)"         "$(command -v swtpm >/dev/null && echo true || echo false)")"
+}
+
+# --migrate-conf: write a TOML migration of the VM config next to the
+# original (the .conf is never modified or executed).
+migrate_conf() {
+    conf_migrate "${VM}" "${VM%.conf}.toml"
+}
+
+# --op-status <id>: print the state of an async operation recorded by
+# export/import/clone-style long operations.
+operation_status() {
+    if [ -z "${OP_ID}" ]; then
+        echo "ERROR! '--op-status' needs an operationId." >&2
+        return 1
+    fi
+    op_status "${OP_ID}"
 }
