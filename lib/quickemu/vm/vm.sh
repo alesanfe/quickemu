@@ -1192,6 +1192,35 @@ function vm_boot() {
         args+=(-device ${NET_DEVICE},netdev=nic${MAC} -netdev ${NET},id=nic)
     fi
 
+    # Secondary NICs declared in the conf array:
+    #   extra_nics=("user" "restrict" "bridge:br1")
+    # Per-entry forms: user | restrict | bridge:<iface>. Each gets its own
+    # netdev id (nicN) and an optional MAC via extra_macs[i].
+    local EN_IDX=0 EN_ENTRY EN_MODE EN_MAC
+    for EN_ENTRY in "${extra_nics[@]}"; do
+        [ -z "${EN_ENTRY}" ] && continue
+        case "${EN_ENTRY}" in
+        bridge:*) EN_MODE="bridge"; EN_ENTRY="${EN_ENTRY#bridge:}" ;;
+        user | restrict | passt) EN_MODE="${EN_ENTRY}" ;;
+        *) echo " - WARNING! extra_nics[${EN_IDX}] '${EN_ENTRY}' unknown (user|restrict|bridge:<iface>); skipping."; EN_IDX=$((EN_IDX + 1)); continue ;;
+        esac
+        EN_MAC=""
+        [ -n "${extra_macs[${EN_IDX}]:-}" ] && EN_MAC=",mac=${extra_macs[${EN_IDX}]}"
+        case "${EN_MODE}" in
+        bridge)
+            echo " - Network:  Bridged NIC${EN_IDX} (${EN_ENTRY})"
+            # shellcheck disable=SC2054,SC2206
+            args+=(-nic bridge,br=${EN_ENTRY},helper=${BRIDGE_HELPER:-},model=${NET_DEVICE}${EN_MAC})
+            ;;
+        *)
+            echo " - Network:  ${EN_MODE} NIC${EN_IDX} (${NET_DEVICE})"
+            # shellcheck disable=SC2054,SC2206
+            args+=(-device ${NET_DEVICE},netdev=nic${EN_IDX}${EN_MAC} -netdev ${EN_MODE},id=nic${EN_IDX})
+            ;;
+        esac
+        EN_IDX=$((EN_IDX + 1))
+    done
+
     # Add the disks
     # - https://turlucode.com/qemu-disk-io-performance-comparison-native-or-threads-windows-10-version/
     # Optimise disk I/O: enable TRIM/discard, zero detection for thin provisioning,
