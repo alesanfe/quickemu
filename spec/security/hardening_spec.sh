@@ -27,7 +27,7 @@ in_subshell() { ( "$@" ); }
 
 Describe 'vm_pid_alive identity check'
     It 'rejects a live PID that is not a qemu process'
-        sleep 30 >/dev/null 2>&1 </dev/null &
+        sleep 30 >/dev/null 2>&1 &
         echo "$!" >"$VMDIR/vm1.pid"
         When call vm_pid_alive "$VMDIR/vm1.pid"
         The status should be failure
@@ -42,14 +42,14 @@ Describe 'delete_vm path confinement'
         vm_identify "$VM"
         When call in_subshell delete_vm
         The status should be failure
-        The output should include 'refuses'
+        The error should include 'refuses'
         The directory "$OUTSIDE" should be exist
     End
     It 'refuses dangerous VMDIR targets like HOME or /'
         disk_img="$HOME/x" vm_identify "$VM"
         When call in_subshell delete_vm
         The status should be failure
-        The output should include 'refuses'
+        The error should include 'refuses'
     End
     It 'still deletes a legit VMDIR inside the conf directory'
         VMDIR="$TESTDIR/vm1" vm_identify "$VM"
@@ -76,7 +76,7 @@ EOF
         in_cwd() { ( cd "$TESTDIR/importcwd" && "$@" ); }
         When call in_cwd import_vm
         The status should be failure
-        The output should include 'Unsafe path'
+        The error should include 'Unsafe path'
         The file "$TESTDIR/importcwd/outside_marker" should not be exist
     End
     It 'rejects archives containing symlink members'
@@ -94,7 +94,7 @@ EOF
         in_cwd2() { ( cd "$TESTDIR/importcwd2" && "$@" ); }
         When call in_cwd2 import_vm
         The status should be failure
-        The output should include 'links or special'
+        The error should include 'links or special'
     End
 End
 
@@ -103,7 +103,7 @@ Describe 'VM locking'
         vm_lock_acquire || return 1
         When call vm_lock_acquire
         The status should be failure
-        The output should include 'locked'
+        The error should include 'locked'
     End
     It 'releases the lock so a later operation can proceed'
         vm_lock_acquire || return 1
