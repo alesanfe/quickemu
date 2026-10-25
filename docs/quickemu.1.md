@@ -83,6 +83,18 @@ You can also pass optional parameters
 **--status**
 :   Show whether the VM is running, paused, stale or stopped
 
+**--host-info**
+:   Print the machine-readable host inventory (kernel, arch, cores, RAM,
+    KVM, QEMU and dependency availability) in the JSON envelope.
+
+**--migrate-conf**
+:   Write '<vm>.toml' next to the .conf: a declarative migration produced
+    WITHOUT executing the config. The original is never modified.
+
+**--op-status \<id\>**
+:   Print the state of an async operation (export/import/clone records an
+    operationId under <vmdir>/ops/ while it runs).
+
 **--inspect-conf**
 :   Print the VM configuration values WITHOUT executing the .conf file.
     Use on untrusted configurations: a legacy .conf is executable Bash and

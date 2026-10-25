@@ -38,7 +38,10 @@ function usage() {
     echo "  --kill                            : Kill the VM process if it is running"
     echo "  --shutdown                        : Request a graceful ACPI shutdown via the monitor"
     echo "  --reset                           : Hard reset the VM via the monitor (system_reset)"
-    echo "  --status                          : Show whether the VM is running or stopped"
+    echo "  --status                          : Show whether the VM is running or stopped
+  --host-info                       : Print machine-readable host inventory (JSON)
+  --migrate-conf                    : Write a TOML migration of the VM config (original kept)
+  --op-status <id>                  : Show the state of an async operation"
     echo "  --capabilities                    : Print the machine-readable capability descriptor (JSON)"
     echo "  --format human|json               : Output format for --status and --list-vms (default: human)"
     echo "  --pause                           : Pause (SIGSTOP) the running VM"

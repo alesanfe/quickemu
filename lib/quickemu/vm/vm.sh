@@ -314,6 +314,8 @@ function import_vm() {
     fi
     local OPID
     OPID=$(op_new "import" 2>/dev/null); op_set "${OPID:-none}" running 10 2>/dev/null
+    # Any early exit after registration marks the operation failed.
+    trap 'op_fail "${OPID:-none}" IMPORT_ABORTED "import did not complete" 2>/dev/null' RETURN
     # Extract to a private staging dir first; move into place only on success.
     TMPDIR_IM=$(mktemp -d "${TMPDIR:-/tmp}/quickemu-import.XXXXXX") || exit 1
     if ! tar -xzf "${IN}" -C "${TMPDIR_IM}" 2>/dev/null; then
@@ -355,6 +357,7 @@ function import_vm() {
         fi
     done
     rm -rf -- "${TMPDIR_IM}"
+    trap - RETURN
     op_done "${OPID:-none}" 2>/dev/null
     echo " - Imported ${BASE} from ${IN} (operation ${OPID:-n/a})"
     echo " - WARNING! ${BASE}.conf is executed as code on launch; review it before running the VM."
@@ -385,15 +388,19 @@ function rename_vm() {
     echo " - Renamed ${VMNAME} to ${NEW_NAME}"
 }
 
-function send_keys() {
-    # QMP send-key takes a keys array of qcode entries; the HMP combo
-    # 'ctrl-alt-delete' splits on '-' into the same qcodes.
+# Send one HMP-style combo ('ctrl-alt-delete') through the best channel:
+# QMP send-key when the control socket is up, HMP sendkey otherwise.
+vm_send_key_combo() { # combo -> 0/1
     local KEYS_JSON="" PART=""
-    for PART in ${SEND_KEYS_ARG//-/ }; do
+    for PART in ${1//-/ }; do
         KEYS_JSON+="${KEYS_JSON:+,}{\"type\":\"qcode\",\"data\":\"${PART}\"}"
     done
-    vm_control "sendkey ${SEND_KEYS_ARG}" \
+    vm_control "sendkey ${1}" \
         "{\"execute\":\"send-key\",\"arguments\":{\"keys\":[${KEYS_JSON}]}}"
+}
+
+function send_keys() {
+    vm_send_key_combo "${SEND_KEYS_ARG}"
 }
 
 function type_text() {
@@ -429,7 +436,7 @@ function type_text() {
             continue
             ;;
         esac
-        monitor_send_cmd "sendkey ${KEY}"
+        vm_send_key_combo "${KEY}"
         sleep 0.05
     done
 }

@@ -29,7 +29,8 @@
    "required": [
     "name",
     "state",
-    "pid"
+    "pid",
+    "allowedOps"
    ],
    "properties": {
     "name": {
@@ -50,6 +51,12 @@
       "integer",
       "null"
      ]
+    },
+    "allowedOps": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
     }
    }
   },

@@ -49,7 +49,7 @@ vm_control() { # hmp-cmd qmp-json -> 0 ok / 1 no channel or rejected
         # QMP up but the command errored: fall through to HMP rather
         # than silently failing (e.g. command unsupported on this QEMU).
     fi
-    monitor_send_cmd "${hmp}" >/dev/null 2>&1
+    monitor_send_cmd "${hmp}"
 }
 
 function monitor_send_cmd {
