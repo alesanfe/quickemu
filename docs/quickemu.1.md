@@ -42,10 +42,18 @@ You can also pass optional parameters
 :   Delete the disk image and EFI variables
 
 **--delete-plan**
-:   Show what '--delete-vm' would remove without changing anything
+:   Show what '--delete-vm' would remove without changing anything. Prints a
+    'planId' (sha256 of the canonical resource list); pass it to '--delete-vm'
+    via '--plan-id' so deletion refuses to run if the filesystem changed
+    meanwhile (DELETE_PLAN_STALE).
+
+**--plan-id \<sha256:...\>**
+:   Verify '--delete-vm' against the planId printed by '--delete-plan'.
+    Rejects stale plans (files added/modified after the plan was made).
 
 **--delete-vm**
-:   Delete the entire VM and its configuration
+:   Delete the entire VM and its configuration. Requires the VM stopped and
+    confines deletion to the VM directory resolved under the conf directory.
 
 **--delete-shortcut**
 :   Delete the desktop shortcut for this VM
@@ -74,6 +82,11 @@ You can also pass optional parameters
 
 **--status**
 :   Show whether the VM is running, paused, stale or stopped
+
+**--inspect-conf**
+:   Print the VM configuration values WITHOUT executing the .conf file.
+    Use on untrusted configurations: a legacy .conf is executable Bash and
+    sourcing it runs arbitrary code.
 
 **--capabilities**
 :   Print the machine-readable capability descriptor (JSON)

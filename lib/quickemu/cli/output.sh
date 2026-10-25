@@ -26,7 +26,8 @@ function usage() {
     echo "  --braille                         : Enable braille support. Requires SDL."
     echo "  --cpu-pinning                     : Choose which host cores correspond to which guest cores."
     echo "  --delete-disk                     : Delete the disk image and EFI variables"
-    echo "  --delete-plan                     : Show what --delete-vm would remove (no changes)"
+    echo "  --delete-plan                     : Show what --delete-vm would remove; prints a planId (no changes)
+  --plan-id <sha256:...>            : Verify --delete-vm against a --delete-plan planId"
     echo "  --delete-vm                       : Delete the entire VM and its configuration"
     echo "  --delete-shortcut                 : Delete the desktop shortcut for this VM"
     echo "  --display                         : Select display backend. 'gtk' (default), 'sdl', 'cocoa', 'none', 'spice', 'spice-app' or 'vnc'"
