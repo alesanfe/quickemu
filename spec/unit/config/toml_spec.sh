@@ -5,6 +5,7 @@ Include lib/quickemu/config/loader.sh
 Include lib/quickemu/config/toml.sh
 
 in_subshell() { ( "$@" ); }
+echo_loaded() { echo "${guest_os:-unset} ${ram:-unset}"; }
 
 setup() { TESTDIR=$(mktemp -d); }
 cleanup() { rm -rf -- "$TESTDIR"; }
@@ -37,5 +38,27 @@ T
         The output should include 'Migrated' 
         The contents of file "$TESTDIR/vm1.toml" should include 'guest_os = "linux"'
         The contents of file "$TESTDIR/vm1.toml" should include 'ram = "4G"'
+    End
+End
+
+Describe 'vm_config_load'
+Include lib/quickemu/config/parser.sh
+Include lib/quickemu/config/loader.sh
+Include lib/quickemu/config/toml.sh
+    echo_loaded() { echo "${guest_os:-unset} ${ram:-unset}"; }
+    It 'loads a toml config without executing it'
+        D=$(mktemp -d)
+        printf 'guest_os = "windows"\nram = "8G"\n' >"$D/vm1.toml"
+        vm_config_load "$D/vm1.toml"
+        When call echo_loaded
+        The output should include 'windows 8G'
+        rm -rf "$D"
+    End
+    It 'rejects a malformed toml'
+        D=$(mktemp -d)
+        printf 'not valid\n' >"$D/bad.toml"
+        When call vm_config_load "$D/bad.toml"
+        The status should be failure
+        rm -rf "$D"
     End
 End

@@ -21,7 +21,7 @@ function probe_os_name() {
 # Print the resolved quickemu executable path, or nothing if missing.
 function probe_quickemu() {
     local CWD
-    CWD="$(dirname "${0}")"
+    CWD="$(dirname "${1:-${0}}")"
     if [ -x "${CWD}/quickemu" ]; then
         echo "${CWD}/quickemu"
     elif [ -x "$(command -v quickemu)" ]; then

@@ -8,6 +8,7 @@
 # VM identity: what a VM is — name, config dir, disk dir, artefact paths.
 vm_identify() { # conf_path -> sets VMNAME VMDIR VMPATH SOCKET_MONITOR SOCKET_SERIAL
     VMNAME=$(basename "${1}" .conf)         # name of the VM
+    VMNAME="${VMNAME%.toml}"                # declarative configs keep the same identity
     VMPATH=$(realpath "$(dirname "${1}")")  # path to the top-level VM directory
     if [ -n "${disk_img}" ]; then
         VMDIR=$(dirname "${disk_img}")      # directory the VM disk and state files are stored

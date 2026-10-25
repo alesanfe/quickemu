@@ -219,8 +219,7 @@ if [ "${QEMU_VER_SHORT}" -lt 61 ]; then
 fi
 
 if [ -n "${VM}" ] && [ -e "${VM}" ]; then
-    # shellcheck source=/dev/null
-    source "${VM}"
+    vm_config_load "${VM}" || exit 1
     PUBLIC="${public_dir:-${PUBLIC}}"
     # monitor_cmd is a documented VM config option; the CLI flag wins.
     MONITOR_CMD="${MONITOR_CMD:-${monitor_cmd}}"
