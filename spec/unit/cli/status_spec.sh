@@ -46,14 +46,14 @@ AfterEach 'cleanup'
 It 'prints a message when no confs exist'
 cd "$(mktemp -d)" || return
 OUTPUT_FORMAT="human"
-When call list_vms
+When run list_vms
 The output should include 'No VM configurations found'
 End
 
 It 'emits empty JSON array when no confs exist'
 cd "$(mktemp -d)" || return
 OUTPUT_FORMAT="json"
-When call list_vms
+When run list_vms
 The output should eq '{"schemaVersion":1,"vms":[]}'
 End
 

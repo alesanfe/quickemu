@@ -24,7 +24,7 @@ for a in "$@"; do
     fi
     prev="$a"
 done
-sleep "${STUB_QEMU_SLEEP:-1}" &
+sleep "${STUB_QEMU_SLEEP:-1}" >/dev/null 2>&1 &
 echo $! >"${STUB_PID_FILE:-/tmp/qemu-stub.pid}"
 wait
 exit 0
