@@ -1299,6 +1299,28 @@ function vm_boot() {
         fi
     fi
 
+    # Secondary disks declared in the conf array:
+    #   extra_disks=("data.qcow2" "scratch.img:raw")
+    # Optional :format suffix per disk (default qcow2); missing files are
+    # warned and skipped, never fatal.
+    local ED_IDX=0 ED_DISK ED_PATH ED_FMT
+    for ED_DISK in "${extra_disks[@]}"; do
+        [ -z "${ED_DISK}" ] && continue
+        case "${ED_DISK}" in
+        *:*) ED_PATH="${ED_DISK%:*}"; ED_FMT="${ED_DISK##*:}" ;;
+        *) ED_PATH="${ED_DISK}"; ED_FMT="qcow2" ;;
+        esac
+        if [ ! -f "${ED_PATH}" ]; then
+            echo " - WARNING! extra_disks[${ED_IDX}] '${ED_PATH}' not found; skipping."
+            ED_IDX=$((ED_IDX + 1))
+            continue
+        fi
+        # shellcheck disable=SC2054,SC2206
+        args+=(-device virtio-blk-pci,drive=ExtraDisk${ED_IDX}
+            -drive id=ExtraDisk${ED_IDX},if=none,format=${ED_FMT},file="${ED_PATH}",${DRIVE_OPTIMISATIONS} ${STATUS_QUO})
+        ED_IDX=$((ED_IDX + 1))
+    done
+
     vm_boot_fileshare
 
     vm_boot_passthru

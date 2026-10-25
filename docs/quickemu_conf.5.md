@@ -29,6 +29,7 @@ arch=""           # x86_64 (default) or aarch64
 boot="efi"
 cpu_cores=""
 disk_img=""
+extra_disks=()   # secondary disks: extra_disks=("data.qcow2" "scratch.img:raw")
 disk_format="qcow2"
 disk_size=""
 display=""
