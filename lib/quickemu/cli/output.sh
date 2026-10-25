@@ -28,7 +28,10 @@ function usage() {
     echo "  --delete-disk                     : Delete the disk image and EFI variables"
     echo "  --delete-plan                     : Show what --delete-vm would remove; prints a planId (no changes)
   --plan-id <sha256:...>            : Verify --delete-vm against a --delete-plan planId"
-    echo "  --delete-vm                       : Delete the entire VM and its configuration"
+    echo "  --trash                           : With --delete-vm: move the VM to trash instead of deleting
+  --trash-list                      : List trashed VMs
+  --trash-restore <vm>              : Restore a trashed VM
+  --delete-vm                       : Delete the entire VM and its configuration"
     echo "  --delete-shortcut                 : Delete the desktop shortcut for this VM"
     echo "  --display                         : Select display backend. 'gtk' (default), 'sdl', 'cocoa', 'none', 'spice', 'spice-app' or 'vnc'"
     echo "  --fullscreen                      : Starts VM in full screen mode (Ctl+Alt+f to exit)"

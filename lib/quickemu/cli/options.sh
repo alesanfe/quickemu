@@ -91,6 +91,19 @@ else
             ACTIONS+=(migrate_conf)
             shift
             ;;
+        -trash | --trash)
+            TRASH=1
+            shift
+            ;;
+        -trash-list | --trash-list)
+            ACTIONS+=(trash_list)
+            shift
+            ;;
+        -trash-restore | --trash-restore)
+            RESTORE_VM="${2}"
+            ACTIONS+=(trash_restore)
+            shift 2
+            ;;
         -op-status | --op-status)
             OP_ID="${2}"
             ACTIONS+=(operation_status)

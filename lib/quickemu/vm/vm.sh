@@ -62,13 +62,91 @@ function delete_vm() {
     fi
     echo "Deleting ${VMNAME} completely"
     if [ -d "${VMDIR}" ]; then
-        rm -rf -- "${VMDIR}"
-        rm "${VM}"
-        echo " - Deleted ${VM} and ${VMDIR}/"
+        if [ -n "${TRASH}" ]; then
+            local TRASH_ROOT="${XDG_DATA_HOME:-${HOME}/.local/share}/quickemu/trash"
+            local SLOT="${TRASH_ROOT}/$(date -u +%Y%m%dT%H%M%SZ)-${VMNAME}"
+            mkdir -p "${TRASH_ROOT}" || exit 1
+            mkdir -p "${SLOT}/vm" || exit 1
+            mv "${VMDIR}" "${SLOT}/vm/$(basename "${VMDIR}")" || { echo "ERROR! Could not move ${VMDIR} to trash." >&2; exit 1; }
+            mv "${VM}" "${SLOT}/vm/$(basename "${VM}")" || { echo "ERROR! Could not move ${VM} to trash." >&2; exit 1; }
+            printf '{"vm":"%s","trashedAt":"%s","originConfDir":"%s"}\n' \
+                "$(json_escape "${VMNAME}")" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                "$(json_escape "$(dirname "${VM}")")" >"${SLOT}/trash-meta.json"
+            qe_event "vm.trashed" "{\"slot\":\"$(json_escape "${SLOT}")\"}"
+            echo " - Moved ${VMNAME} to trash (${SLOT}); restore with --trash-restore ${VMNAME}"
+        else
+            rm -rf -- "${VMDIR}"
+            rm "${VM}"
+            echo " - Deleted ${VM} and ${VMDIR}/"
+        fi
         delete_shortcut
     else
         echo " - ${VMDIR} not found. Doing nothing."
     fi
+}
+
+# Trash management: entries are <trash>/<timestamp>-<vm>/ with vm/ content
+# and a trash-meta.json manifest.
+trash_root() { printf '%s/quickemu/trash' "${XDG_DATA_HOME:-${HOME}/.local/share}"; }
+
+function trash_list() {
+    local ROOT SLOT META
+    ROOT=$(trash_root)
+    if [ "${OUTPUT_FORMAT:-}" == "json" ]; then
+        local JSON="[" FIRST=1
+        for SLOT in "${ROOT}"/*/; do
+            [ -d "${SLOT}" ] || continue
+            [ ${FIRST} -eq 0 ] && JSON+=","
+            FIRST=0
+            META=$(cat "${SLOT}trash-meta.json" 2>/dev/null || printf '{}')
+            JSON+="{\"slot\":\"$(json_escape "${SLOT%/}")\",\"meta\":${META}}"
+        done
+        qe_ok "vm.trash.list" "{\"items\":[${JSON}]}"
+    else
+        echo "Trash contents:"
+        for SLOT in "${ROOT}"/*/; do
+            [ -d "${SLOT}" ] || continue
+            META=$(sed -n 's/.*"vm":"\([^"]*\)".*/\1/p' "${SLOT}trash-meta.json" 2>/dev/null)
+            printf ' - %s%s\n' "$(basename "${SLOT}")" "${META:+ (${META})}"
+        done
+    fi
+}
+
+function trash_restore() {
+    local NAME="${RESTORE_VM:-${1}}" ROOT SLOT="" MATCH=0
+    ROOT=$(trash_root)
+    if [ -z "${NAME}" ]; then
+        echo "ERROR! '--trash-restore' needs a VM name." >&2
+        return 1
+    fi
+    for SLOT in "${ROOT}"/*"-${NAME}"/; do
+        [ -d "${SLOT}" ] && MATCH=$((MATCH + 1))
+    done
+    if [ "${MATCH}" -eq 0 ]; then
+        echo "ERROR! No trash entry for '${NAME}'." >&2
+        return 1
+    fi
+    if [ "${MATCH}" -gt 1 ]; then
+        echo "ERROR! Multiple trash entries for '${NAME}'; remove extras first." >&2
+        return 1
+    fi
+    SLOT="${ROOT}/$(ls -1 "${ROOT}" | grep -m1 -- "-${NAME}$")"
+    local SRC_DIR="${SLOT}/vm/${NAME}" SRC_CONF="${SLOT}/vm/${NAME}.conf" DEST_DIR
+    DEST_DIR=$(dirname "${SRC_CONF}")/..
+    # Restore next to where the conf lived? Simpler: restore into the conf's
+    # original directory recorded in the manifest.
+    local CONFDIR
+    CONFDIR=$(sed -n 's/.*"originConfDir":"\([^"]*\)".*/\1/p' "${SLOT}/trash-meta.json" 2>/dev/null)
+    CONFDIR="${CONFDIR:-.}"
+    if [ -e "${CONFDIR}/${NAME}.conf" ] || [ -d "${CONFDIR}/${NAME}" ]; then
+        echo "ERROR! ${NAME} already exists in ${CONFDIR}." >&2
+        return 1
+    fi
+    [ -d "${SRC_DIR}" ] && mv "${SRC_DIR}" "${CONFDIR}/${NAME}"
+    mv "${SRC_CONF}" "${CONFDIR}/${NAME}.conf" || return 1
+    rm -rf -- "${SLOT}"
+    qe_event "vm.restored" "{\"vm\":\"$(json_escape "${NAME}")\"}"
+    echo " - Restored ${NAME} from trash into ${CONFDIR}"
 }
 
 function pause_vm() {
