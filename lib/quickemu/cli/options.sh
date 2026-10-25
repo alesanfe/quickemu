@@ -13,7 +13,7 @@ else
     # --vm x`. A leading bare word matching a known action is rewritten to
     # its flag form; everything else falls through untouched.
     case "${1:-}" in
-    status | vfio-scan | pause | resume | reset | shutdown | kill | restart | delete-vm | delete-plan | list-vms | capabilities | host-info | migrate-conf | inspect-conf | backup | backup-list | trash | trash-list | clone | rename | snapshot-apply | snapshot-create | snapshot-delete | snapshot-info | snapshot-list | monitor-cmd | send-keys | type | screenshot | viewer | fullscreen | status-quo | vnc | spice-console | publicdir | ignore-msrs | ignore-msrs-always | create-disk | disk-resize | disk-resize-commit | backup-verify | backup-restore | trash-restore | op-status)
+    status | vfio-scan | disk-compact | move | pause | resume | reset | shutdown | kill | restart | delete-vm | delete-plan | list-vms | capabilities | host-info | migrate-conf | inspect-conf | backup | backup-list | trash | trash-list | clone | rename | snapshot-apply | snapshot-create | snapshot-delete | snapshot-info | snapshot-list | monitor-cmd | send-keys | type | screenshot | viewer | fullscreen | status-quo | vnc | spice-console | publicdir | ignore-msrs | ignore-msrs-always | create-disk | disk-resize | disk-resize-commit | backup-verify | backup-restore | trash-restore | op-status)
         set -- "--${1}" "${@:2}"
         ;;
     esac
@@ -90,6 +90,15 @@ else
         -capabilities | --capabilities)
             ACTIONS+=(capabilities)
             shift
+            ;;
+        -disk-compact | --disk-compact)
+            ACTIONS+=(disk_compact)
+            shift
+            ;;
+        -move | --move)
+            MOVE_TO="${2}"
+            ACTIONS+=(move_vm)
+            shift 2
             ;;
         -vfio-scan | --vfio-scan)
             ACTIONS+=(vfio_scan)

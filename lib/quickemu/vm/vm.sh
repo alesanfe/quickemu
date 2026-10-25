@@ -1573,3 +1573,36 @@ function vfio_scan() {
         [ -n "${gpu_passthrough:-}" ] && echo " - Configured gpu_passthrough: ${gpu_passthrough}"
     fi
 }
+
+# --move <dir>: relocate the VM directory and conf to another location.
+# Transactional: conf path references are rewritten and any failure
+# rolls the moves back.
+function move_vm() {
+    local DEST="${MOVE_TO}"
+    if [ -z "${DEST}" ]; then
+        echo "ERROR! '--move' needs a destination directory." >&2
+        return 1
+    fi
+    if vm_running "${VMDIR}" "${VMNAME}"; then
+        echo "ERROR! Stop ${VMNAME} before moving." >&2
+        return 1
+    fi
+    [ -d "${DEST}" ] || { echo "ERROR! Destination ${DEST} does not exist." >&2; return 1; }
+    [ -e "${DEST}/${VMNAME}.conf" ] || [ -e "${DEST}/$(basename "${VMDIR}")" ] \
+        && { echo "ERROR! ${VMNAME} already exists in ${DEST}." >&2; return 1; }
+    local OLD_DIR="${VMDIR}" NEW_DIR="${DEST}/$(basename "${VMDIR}")"
+    if [ -d "${OLD_DIR}" ]; then
+        mv "${OLD_DIR}" "${NEW_DIR}" || { echo "ERROR! Could not move ${OLD_DIR}." >&2; return 1; }
+    fi
+    if ! mv "${VM}" "${DEST}/${VMNAME}.conf"; then
+        [ -d "${NEW_DIR}" ] && mv "${NEW_DIR}" "${OLD_DIR}"
+        echo "ERROR! Could not move ${VM}; rolled back." >&2
+        return 1
+    fi
+    # Point conf-relative paths at the new location when they were absolute.
+    if grep -q "${OLD_DIR}/" "${DEST}/${VMNAME}.conf" 2>/dev/null; then
+        sed -i "s|${OLD_DIR}/|${NEW_DIR}/|g" "${DEST}/${VMNAME}.conf" || true
+    fi
+    qe_event "vm.moved" "{\"dest\":\"$(json_escape "${DEST}")\"}"
+    echo " - Moved ${VMNAME} to ${DEST}"
+}
