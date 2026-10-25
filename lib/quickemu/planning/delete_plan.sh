@@ -24,6 +24,22 @@ delete_plan_items() { # -> ITEMS[]
     fi
 }
 
+# Backing-chain guard: a qcow2 whose backing_file resolves to a path
+# inside VMDIR makes the VM a dependency owner — deletion would orphan
+# the child. Report dependents so delete can warn/refuse.
+delete_plan_dependents() { # -> prints "child -> backing" lines
+    local F BF
+    [ -d "${VMDIR}" ] || return 0
+    command -v qemu-img >/dev/null 2>&1 || return 0
+    while IFS= read -r F; do
+        case "${F}" in *.qcow2) ;; *) continue ;; esac
+        BF=$(qemu-img info --output=json "${F}" 2>/dev/null | sed -n 's/.*"backing-filename": *"\([^"]*\)".*//p')
+        [ -z "${BF}" ] && continue
+        case "${BF}" in "${VMDIR}/"*|"./"*|"$(basename "${VMDIR}")/"*) printf '%s -> %s
+' "${F}" "${BF}" ;; esac
+    done < <(find "${VMDIR}" -name '*.qcow2' -type f 2>/dev/null)
+}
+
 # planId = sha256 over a canonical serialization of the plan. Any change to
 # the resource set or contents (size/mtime) after --delete-plan invalidates
 # the id, so --delete-vm --plan-id can refuse a stale plan.
