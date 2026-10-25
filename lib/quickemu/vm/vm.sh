@@ -232,11 +232,35 @@ function export_vm() {
     if [ -d "${PARENT}/${VMNAME}" ]; then
         MEMBERS+=("${VMNAME}")
     fi
+    # Manifest + checksums: the archive is self-verifying on import.
+    # Enumerate the same files tar will ship, relative to PARENT.
+    local TMPDIR_EX="" F=""
+    TMPDIR_EX=$(mktemp -d "${TMPDIR:-/tmp}/quickemu-export.XXXXXX") || exit 1
+    {
+        printf '%s\n' "${VMNAME}.conf"
+        if [ -d "${PARENT}/${VMNAME}" ]; then
+            (cd "${PARENT}" && find "${VMNAME}" -type f \
+                ! -name '*.pid' ! -name '*.sock' ! -name '*.socket' \
+                ! -name '*.ports' ! -name '*.spice' ! -name '*.monitor' \
+                ! -name '*.lock*' ! -name '*.runtime.json' \
+                | LC_ALL=C sort)
+        fi
+    } >"${TMPDIR_EX}/members.txt"
+    : >"${TMPDIR_EX}/quickvm-checksums.sha256"
+    while IFS= read -r F; do
+        (cd "${PARENT}" && sha256sum -- "${F}" 2>/dev/null) >>"${TMPDIR_EX}/quickvm-checksums.sha256"
+    done <"${TMPDIR_EX}/members.txt"
+    printf '{"formatVersion":1,"quickemuVersion":"%s","createdAt":"%s","vm":"%s","checksums":"quickvm-checksums.sha256"}\n' \
+        "${VERSION:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)" \
+        "$(json_escape "${VMNAME}")" >"${TMPDIR_EX}/quickvm-manifest.json"
     tar -C "${PARENT}" \
         --exclude="${VMNAME}/*.pid" --exclude="${VMNAME}/*.sock" \
         --exclude="${VMNAME}/*.socket" --exclude="${VMNAME}/*.ports" \
         --exclude="${VMNAME}/*.spice" --exclude="${VMNAME}/*.monitor" \
-        -czf "${OUT}" "${MEMBERS[@]}"
+        --exclude="${VMNAME}/*.lock*" --exclude="${VMNAME}/*.runtime.json" \
+        -czf "${OUT}" "${MEMBERS[@]}" \
+        -C "${TMPDIR_EX}" quickvm-manifest.json quickvm-checksums.sha256
+    rm -rf -- "${TMPDIR_EX}"
     echo " - Exported ${VMNAME} to ${OUT}"
 }
 
@@ -246,6 +270,12 @@ function import_vm() {
         echo "ERROR! '--import' needs an existing .tar.gz file."
         exit 1
     fi
+    # Anti-bomb limits before any inspection cost: member count and depth.
+    local MEMBER_COUNT
+    MEMBER_COUNT=$(tar -tzf "${IN}" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${MEMBER_COUNT:-0}" -gt 100000 ]; then
+        qe_die "vm.import" UNSAFE_ARCHIVE "Archive has ${MEMBER_COUNT} members (limit 100000)." 12
+    fi
     # Member whitelist: refuse absolute paths, traversal and links/devices
     # BEFORE writing anything (tar slip / symlink overwrite attacks).
     while IFS= read -r MEMBER; do
@@ -254,6 +284,9 @@ function import_vm() {
             qe_die "vm.import" UNSAFE_ARCHIVE "Unsafe path in archive: '${MEMBER}'" 12
             ;;
         esac
+        if [ "$(printf '%s' "${MEMBER}" | tr -cd '/' | wc -c)" -gt 16 ]; then
+            qe_die "vm.import" UNSAFE_ARCHIVE "Path too deep in archive: '${MEMBER}'" 12
+        fi
     done < <(tar -tzf "${IN}" 2>/dev/null)
     if tar -tzvf "${IN}" 2>/dev/null | awk '$1 ~ /^[lhbcp]/ { exit 42 }'; [ $? -eq 42 ]; then
         qe_die "vm.import" UNSAFE_ARCHIVE "Archive contains links or special files; refusing import." 12
@@ -279,6 +312,31 @@ function import_vm() {
         rm -rf -- "${TMPDIR_IM}"
         echo "ERROR! Failed to extract ${IN}."
         exit 1
+    fi
+    # Self-verifying archives: check the manifest and every declared
+    # checksum BEFORE installing anything into the working tree.
+    if [ -f "${TMPDIR_IM}/quickvm-manifest.json" ]; then
+        local MFMT MVM
+        MFMT=$(sed -n 's/.*"formatVersion":\([0-9][0-9]*\).*/\1/p' "${TMPDIR_IM}/quickvm-manifest.json")
+        if [ -z "${MFMT}" ] || [ "${MFMT}" -gt 1 ]; then
+            rm -rf -- "${TMPDIR_IM}"
+            qe_die "vm.import" UNSAFE_ARCHIVE "Unsupported manifest formatVersion '${MFMT:-missing}'." 12
+        fi
+        MVM=$(sed -n 's/.*"vm":"\([^"]*\)".*/\1/p' "${TMPDIR_IM}/quickvm-manifest.json")
+        if [ -n "${MVM}" ] && [ "${MVM}" != "${BASE}" ]; then
+            rm -rf -- "${TMPDIR_IM}"
+            qe_die "vm.import" IMPORT_CONFLICT "Manifest vm '${MVM}' does not match '${BASE}'." 12
+        fi
+        if [ ! -f "${TMPDIR_IM}/quickvm-checksums.sha256" ]; then
+            rm -rf -- "${TMPDIR_IM}"
+            qe_die "vm.import" UNSAFE_ARCHIVE "Manifest present but checksums missing." 12
+        fi
+        if ! (cd "${TMPDIR_IM}" && sha256sum -c --quiet quickvm-checksums.sha256 >/dev/null 2>&1); then
+            rm -rf -- "${TMPDIR_IM}"
+            qe_die "vm.import" CHECKSUM_MISMATCH "Archive checksum verification failed." 12
+        fi
+    else
+        echo " - WARNING! ${IN} has no manifest; integrity is not verified."
     fi
     for ENTRY in "${TMPDIR_IM}"/* "${TMPDIR_IM}"/.[!.]*; do
         [ -e "${ENTRY}" ] || continue
