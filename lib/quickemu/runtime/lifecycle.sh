@@ -362,7 +362,7 @@ function vm_runtime_cleanup() {
         "${VMDIR}/${VMNAME}.paused" \
         "${VMDIR}/${VMNAME}.runtime.json"
     # Drop the operation lock only when the VM is fully gone.
-    rm -rf "${VMDIR}/${VMNAME}.lock"
+    rm -rf "${VMDIR}/${VMNAME}.lock" "${VMDIR}/${VMNAME}.lock.shared"
     _port_registry_release
     return 0
 }
@@ -371,9 +371,66 @@ function vm_runtime_cleanup() {
 # Per-VM operation lock (mkdir is atomic on POSIX filesystems).
 # Prevents concurrent boot/destructive operations on the same VM.
 
-vm_lock_acquire() { # -> 0 acquired / 1 already locked
-    local lockdir="${VMDIR}/${VMNAME}.lock" tries=0 max="${VM_LOCK_TRIES:-1}" owner=""
+# Lock modes: exclusive (default, mutating ops) and shared (read-only
+# ops like status/inspect/delete-plan). Layout per VM:
+#   <vm>.lock/            exclusive holder (contains pid file)
+#   <vm>.lock.shared/     reader pids, one file per reader
+# A writer must win the mkdir AND wait for readers to drain; readers
+# fail fast while a writer holds the lock.
+
+# Remove reader slots whose owning process is gone.
+_vm_lock_prune_readers() { # shared dir
+    local f pid
+    [ -d "${1}" ] || return 0
+    for f in "${1}"/*.pid; do
+        [ -f "${f}" ] || continue
+        pid=$(tr -d '[:space:]' <"${f}" 2>/dev/null)
+        if [ -z "${pid}" ] || ! kill -0 "${pid}" 2>/dev/null; then
+            rm -f -- "${f}"
+        fi
+    done
+}
+
+_vm_lock_has_live_readers() { # shared dir -> 0 if any live reader
+    local f pid
+    [ -d "${1}" ] || return 1
+    for f in "${1}"/*.pid; do
+        [ -f "${f}" ] || continue
+        pid=$(tr -d '[:space:]' <"${f}" 2>/dev/null)
+        [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null && return 0
+    done
+    return 1
+}
+
+vm_lock_acquire() { # [shared|exclusive] -> 0 acquired / 1 already locked
+    local mode="${1:-exclusive}"
+    local lockdir="${VMDIR}/${VMNAME}.lock" sharedir="${VMDIR}/${VMNAME}.lock.shared"
+    local tries=0 max="${VM_LOCK_TRIES:-1}" owner=""
     mkdir -p "${VMDIR}" || return 1
+    if [ "${mode}" = shared ]; then
+        while :; do
+            # Reclaim a dead writer before refusing readers.
+            if [ -d "${lockdir}" ] && [ -f "${lockdir}/pid" ]; then
+                owner=$(tr -d '[:space:]' <"${lockdir}/pid")
+                [ -n "${owner}" ] && ! kill -0 "${owner}" 2>/dev/null && rm -rf "${lockdir}"
+            fi
+            [ -d "${lockdir}" ] || break
+            tries=$((tries + 1)); [ "${tries}" -ge "${max}" ] && {
+                echo "ERROR! ${VMNAME} is locked by another operation." >&2
+                return 1
+            }
+            sleep 0.2
+        done
+        mkdir -p "${sharedir}" || return 1
+        echo "${BASHPID:-$$}" >"${sharedir}/${BASHPID:-$$}.pid"
+        # Writer may have raced in after our check: back out if so.
+        if [ -d "${lockdir}" ]; then
+            rm -f "${sharedir}/${BASHPID:-$$}.pid"
+            echo "ERROR! ${VMNAME} is locked by another operation." >&2
+            return 1
+        fi
+        return 0
+    fi
     while ! mkdir "${lockdir}" 2>/dev/null; do
         # Reclaim the lock if the owning process is gone (crash-safe).
         if [ -f "${lockdir}/pid" ]; then
@@ -395,11 +452,32 @@ vm_lock_acquire() { # -> 0 acquired / 1 already locked
         sleep 0.2
     done
     echo "$$" >"${lockdir}/pid"
+    # We hold the exclusive slot: live readers must drain before we return.
+    # Dead reader slots are pruned; a bounded wait avoids deadlock when a
+    # reader is stuck (VM_LOCK_TRIES applies again).
+    tries=0
+    while _vm_lock_has_live_readers "${sharedir}"; do
+        _vm_lock_prune_readers "${sharedir}"
+        _vm_lock_has_live_readers "${sharedir}" || break
+        tries=$((tries + 1))
+        if [ "${tries}" -ge "${max}" ]; then
+            rm -rf "${lockdir}"
+            echo "ERROR! ${VMNAME} has readers; exclusive operation refused." >&2
+            return 1
+        fi
+        sleep 0.2
+    done
     return 0
 }
 
-vm_lock_release() {
-    rm -rf "${VMDIR}/${VMNAME}.lock"
+vm_lock_release() { # [shared|exclusive] -> releases our own hold only
+    local mode="${1:-exclusive}"
+    if [ "${mode}" = shared ]; then
+        rm -f "${VMDIR}/${VMNAME}.lock.shared/${BASHPID:-$$}.pid"
+        rmdir "${VMDIR}/${VMNAME}.lock.shared" 2>/dev/null || true
+    else
+        rm -rf "${VMDIR}/${VMNAME}.lock"
+    fi
 }
 
 # ---- port registry ----

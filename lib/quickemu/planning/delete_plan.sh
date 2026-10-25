@@ -30,6 +30,10 @@ delete_plan_id() { # ITEMS[] -> prints sha256:<hash>
 }
 
 function delete_plan() {
+    # Shared (reader) lock: the plan must not enumerate resources while a
+    # writer is mid-mutation, and its own planId check then matches what
+    # --delete-vm --plan-id will see.
+    vm_lock_acquire shared || return 1
     local ITEMS=()
     delete_plan_items
     local PLAN_ID
@@ -52,4 +56,5 @@ function delete_plan() {
         fi
         echo "Plan id: ${PLAN_ID} (required by --delete-vm --plan-id)"
     fi
+    vm_lock_release shared
 }
