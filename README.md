@@ -15,6 +15,15 @@
   &nbsp;<a href="https://linkedin.com/in/martinwimpress" target="_blank"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-1667be?style=for-the-badge&logo=linkedin&logoColor=%23ffffff"></a>&nbsp;
 </p>
 
+## Contents
+
+- [Introduction](#introduction)
+- [Features](#features)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
 # Introduction
 
@@ -75,6 +84,16 @@ The presenters of Linux Matters 🐧🎙️ are the creators of each of the prin
 
 </div>
 
+# Installation
+
+Quickemu is packaged for several Linux distributions and is also available as a
+Nix flake from this repository. Full instructions for every supported platform
+are in the wiki:
+
+- [**Installation**](https://github.com/quickemu-project/quickemu/wiki/01-Installation) 💾
+
+Prefer a graphical interface? Try [**Quickgui**](https://github.com/quickemu-project/quickgui), the desktop frontend for Quickemu.
+
 # Quick start
 
 [Once Quickemu is installed](https://github.com/quickemu-project/quickemu/wiki/01-Installation), there are two simple steps to create and run a virtual machine:
@@ -113,3 +132,18 @@ The wiki describes how to get up and running with Quickemu and also covers more 
 - [**Advanced quickget features**](https://github.com/quickemu-project/quickemu/wiki/06-Advanced-quickget-features) 🤓
 - [**Alternative frontends**](https://github.com/quickemu-project/quickemu/wiki/07-Alternative-frontends) 🧑‍💻
 - [**References**](https://github.com/quickemu-project/quickemu/wiki/08-References) 📚️
+
+Developer documentation (architecture, ADRs and the JSON CLI contract) lives in [`docs/`](docs/) and the manual pages are generated from `docs/*.md`.
+
+# Contributing
+
+Contributions are welcome: bug reports, feature requests, documentation fixes
+and pull requests. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first —
+commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/).
+
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+
+# License
+
+Quickemu is distributed under the [MIT License](LICENSE).
