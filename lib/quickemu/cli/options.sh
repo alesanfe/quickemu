@@ -203,6 +203,10 @@ else
             ACTIONS+=(shortcut_create)
             shift
             ;;
+        -plan-id | --plan-id)
+            DELETE_PLAN_ID="${2}"
+            shift 2
+            ;;
         -inspect-conf | --inspect-conf)
             ACTIONS+=(inspect_conf)
             shift

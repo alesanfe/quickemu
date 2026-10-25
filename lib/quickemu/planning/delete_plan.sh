@@ -4,12 +4,36 @@
 # Safe delete plan: inspect what --delete-vm would remove BEFORE
 # executing it. Never deletes anything.
 
-function delete_plan() {
-    local ITEMS=() F=""
+# Collect the resources --delete-vm would remove (sorted, canonical).
+delete_plan_items() { # -> ITEMS[]
+    ITEMS=()
+    local F=""
     [ -f "${VM}" ] && ITEMS+=("${VM}")
     if [ -d "${VMDIR}" ]; then
-        while IFS= read -r F; do ITEMS+=("${F}"); done < <(find "${VMDIR}" -mindepth 1)
+        while IFS= read -r F; do ITEMS+=("${F}"); done < <(find "${VMDIR}" -mindepth 1 | LC_ALL=C sort)
     fi
+}
+
+# planId = sha256 over a canonical serialization of the plan. Any change to
+# the resource set or contents (size/mtime) after --delete-plan invalidates
+# the id, so --delete-vm --plan-id can refuse a stale plan.
+delete_plan_id() { # ITEMS[] -> prints sha256:<hash>
+    local I="" line=""
+    {
+        printf 'vm=%s\n' "${VMNAME}"
+        for I in "${ITEMS[@]}"; do
+            line="${I}"
+            [ -e "${I}" ] || [ -L "${I}" ] && line+="|$(stat -c '%s|%y|%F' "${I}" 2>/dev/null || stat -f '%z|%m|%HT' "${I}" 2>/dev/null)"
+            printf '%s\n' "${line}"
+        done
+    } | sha256sum 2>/dev/null | awk '{print "sha256:"$1}'
+}
+
+function delete_plan() {
+    local ITEMS=()
+    delete_plan_items
+    local PLAN_ID
+    PLAN_ID=$(delete_plan_id)
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
         local PLAN="[" FIRST=1 I=""
         for I in "${ITEMS[@]}"; do
@@ -17,8 +41,8 @@ function delete_plan() {
             FIRST=0
             PLAN+="\"$(json_escape "${I}")\""
         done
-        qe_ok "vm.delete-plan" "$(printf '{"vm":"%s","delete":%s}' \
-            "$(json_escape "${VMNAME}")" "${PLAN}]")"
+        qe_ok "vm.delete-plan" "$(printf '{"vm":"%s","planId":"%s","delete":%s}' \
+            "$(json_escape "${VMNAME}")" "${PLAN_ID}" "${PLAN}]")"
     else
         echo "Delete plan for ${VMNAME}:"
         if [ ${#ITEMS[@]} -eq 0 ]; then
@@ -26,5 +50,6 @@ function delete_plan() {
         else
             for I in "${ITEMS[@]}"; do echo " - ${I}"; done
         fi
+        echo "Plan id: ${PLAN_ID} (required by --delete-vm --plan-id)"
     fi
 }

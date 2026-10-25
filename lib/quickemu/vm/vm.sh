@@ -47,6 +47,17 @@ function delete_vm() {
             qe_die "vm.delete" PERMISSION_DENIED "quickemu refuses to delete '${RESOLVED}': not the VM directory ${EXPECTED}." 12
         fi
     fi
+    # Transaction guard: when --plan-id was given, the plan must still
+    # match the filesystem — anything added/changed since --delete-plan
+    # invalidates it (DELETE_PLAN_STALE).
+    if [ -n "${DELETE_PLAN_ID:-}" ]; then
+        local ITEMS=() ACTUAL
+        delete_plan_items
+        ACTUAL=$(delete_plan_id)
+        if [ "${ACTUAL}" != "${DELETE_PLAN_ID}" ]; then
+            qe_die "vm.delete" DELETE_PLAN_STALE "delete plan is stale (expected ${DELETE_PLAN_ID}, got ${ACTUAL}); regenerate with --delete-plan" 5
+        fi
+    fi
     echo "Deleting ${VMNAME} completely"
     if [ -d "${VMDIR}" ]; then
         rm -rf -- "${VMDIR}"
