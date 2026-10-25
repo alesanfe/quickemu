@@ -9,6 +9,14 @@ if [ $# -lt 1 ]; then
     usage
     exit 1
 else
+    # Subcommand aliases: `quickemu status --vm x` == `quickemu --status
+    # --vm x`. A leading bare word matching a known action is rewritten to
+    # its flag form; everything else falls through untouched.
+    case "${1:-}" in
+    status | pause | resume | reset | shutdown | kill | restart | delete-vm | delete-plan | list-vms | capabilities | host-info | migrate-conf | inspect-conf | backup | backup-list | trash | trash-list | clone | rename | snapshot-apply | snapshot-create | snapshot-delete | snapshot-info | snapshot-list | monitor-cmd | send-keys | type | screenshot | viewer | fullscreen | status-quo | vnc | spice-console | publicdir | ignore-msrs | ignore-msrs-always | create-disk | disk-resize | disk-resize-commit | backup-verify | backup-restore | trash-restore | op-status)
+        set -- "--${1}" "${@:2}"
+        ;;
+    esac
     while [ $# -gt 0 ]; do
         case "${1}" in
         -access | --access)
