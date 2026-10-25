@@ -29,3 +29,12 @@ dist/
 RELEASE_NOTES.md
 vm-test/
 X-Test*/
+
+# Local test/dev artifacts
+/nul
+/quickreport.txt
+/*.quickvm.tar.gz
+/shellspec-*/
+
+# Debian build output (source lives in packaging/debian/)
+/debian/
