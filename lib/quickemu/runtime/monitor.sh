@@ -89,3 +89,47 @@ function monitor_send_cmd {
 
     return 0
 }
+
+# ---- hotplug ----
+# Runtime device hot-add/remove through QMP device_add/device_del.
+# Fail-closed: requires the QMP channel up (running VM) and socat.
+
+qmp_device_add() { # qmp-args-json -> 0 ok / 1 rejected or no channel
+    vm_qmp_socket_ready || { echo "ERROR! No QMP channel (VM not running?)." >&2; return 1; }
+    command -v socat >/dev/null 2>&1 || { echo "ERROR! socat is required for hotplug." >&2; return 1; }
+    qmp_query "{\"execute\":\"device_add\",\"arguments\":${1}}" | grep -q '"return"'
+}
+
+qmp_device_del() { # devid -> 0 ok / 1
+    vm_qmp_socket_ready || { echo "ERROR! No QMP channel (VM not running?)." >&2; return 1; }
+    command -v socat >/dev/null 2>&1 || { echo "ERROR! socat is required for hotplug." >&2; return 1; }
+    qmp_query "{\"execute\":\"device_del\",\"arguments\":{\"id\":\"$(json_escape "${1}")\"}}" | grep -q '"return"'
+}
+
+# --hotplug-usb 05ac:12a8  -> attach a host USB device to the running VM
+vm_hotplug_usb() { # vid:pid
+    local VIDPID="${1}"
+    [[ "${VIDPID}" =~ ^[0-9a-fA-F]{4}:[0-9a-fA-F]{4}$ ]] || { echo "ERROR! --hotplug-usb needs vendor:product hex (e.g. 05ac:12a8)." >&2; return 1; }
+    local ID="hotusb${VIDPID//:/}"
+    qmp_device_add "{\"driver\":\"usb-host\",\"id\":\"${ID}\",\"hostvendor\":$((16#${VIDPID%:*})),\"hostport\":$((16#${VIDPID#*:}))}" \
+        && qe_event "vm.hotplug" "{\"device\":\"usb\",\"id\":\"${ID}\"}" \
+        && echo " - Hot-plugged USB ${VIDPID} as ${ID}."
+}
+
+# --hotplug-disk file.qcow2 -> attach a virtio-blk disk to the running VM
+vm_hotplug_disk() { # file
+    local F="${1}" ID
+    [ -f "${F}" ] || { echo "ERROR! ${F} not found." >&2; return 1; }
+    ID="hotdisk$(basename "${F}" | tr -cd '[:alnum:]')"
+    qmp_device_add "{\"driver\":\"virtio-blk-pci\",\"id\":\"${ID}\",\"drive\":\"${ID}drv\"}" 2>/dev/null \
+        || qmp_device_add "{\"driver\":\"virtio-blk-pci\",\"id\":\"${ID}\"}"
+    qmp_query "{\"execute\":\"blockdev-add\",\"arguments\":{\"node-name\":\"${ID}node\",\"driver\":\"qcow2\",\"file\":{\"driver\":\"file\",\"filename\":\"$(json_escape "$(readlink -f "${F}")")\"}}}" >/dev/null 2>&1
+    qe_event "vm.hotplug" "{\"device\":\"disk\",\"id\":\"${ID}\"}"
+    echo " - Hot-plugged disk ${F} as ${ID}."
+}
+
+# --hotunplug <id> -> remove a previously hot-plugged device
+vm_hotunplug() { # devid
+    qmp_device_del "${1}" && qe_event "vm.hotunplug" "{\"id\":\"$(json_escape "${1}")\"}" \
+        && echo " - Hot-unplugged ${1}."
+}

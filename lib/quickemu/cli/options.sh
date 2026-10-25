@@ -117,6 +117,18 @@ else
             ACTIONS+=(backup_restore)
             shift 2
             ;;
+        -hotplug-usb | --hotplug-usb)
+            ACTIONS+=(vm_hotplug_usb "${2}")
+            shift 2
+            ;;
+        -hotplug-disk | --hotplug-disk)
+            ACTIONS+=(vm_hotplug_disk "${2}")
+            shift 2
+            ;;
+        -hotunplug | --hotunplug)
+            ACTIONS+=(vm_hotunplug "${2}")
+            shift 2
+            ;;
         -trash | --trash)
             TRASH=1
             shift
