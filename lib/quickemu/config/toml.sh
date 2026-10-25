@@ -45,12 +45,13 @@ toml_parse() { # file -> key\tvalue lines on stdout
 # toml_validate <file>: 0 when the file parses cleanly and only uses keys
 # from the known config schema.
 toml_validate() { # file -> 0 ok / 1 malformed or unknown key
-    local kv="" k=""
+    local parsed="" k=""
     local KNOWN="formatVersion guest_os arch disk_img disk_format disk_size iso img fixed_iso floppy ram cpu_cores network bridge macaddr ssh_port spice_port display monitor serial sound_card sound_duplex public_dir seed kernel initrd boot_args boot tpm secureboot gl width height vnc_listen monitor_cmd port_forwards usb_devices gpu_passthrough viewer max_outputs cpu_pinning"
-    while IFS=$'\t' read -r kv _; do
-        k="${kv%%$'\t'*}"
+    parsed=$(toml_parse "${1}") || return 1
+    while IFS=$'\t' read -r k _; do
+        [ -z "${k}" ] && continue
         case " ${KNOWN} " in *" ${k%%.*} "*) ;; *) return 1 ;; esac
-    done < <(toml_parse "${1}") || return 1
+    done <<<"${parsed}"
     return 0
 }
 

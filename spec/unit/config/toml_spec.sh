@@ -59,6 +59,7 @@ Include lib/quickemu/config/toml.sh
         printf 'not valid\n' >"$D/bad.toml"
         When call vm_config_load "$D/bad.toml"
         The status should be failure
+        The error should include 'Invalid TOML'
         rm -rf "$D"
     End
 End
