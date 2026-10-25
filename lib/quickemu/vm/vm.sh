@@ -336,13 +336,15 @@ function clone_vm() {
         exit 1
     fi
     mkdir -p "${NEW_DIR}"
+    # Rollback: any failure after this point removes the partial clone.
+    trap 'rm -rf -- "${NEW_DIR}" "${PARENT}/${NEW_NAME}.conf"; echo " - Clone aborted; removed partial ${NEW_NAME}." >&2' RETURN
     # Copy the config, rewriting references to the old VM directory.
     sed "s|${VMNAME}/|${NEW_NAME}/|g" "${VM}" >"${PARENT}/${NEW_NAME}.conf"
     # Copy firmware vars, TPM state and auxiliary files; skip the disk and
     # runtime artefacts (pidfiles, sockets, logs, port maps).
     for ITEM in "${VMDIR}"/*; do
         case "$(basename "${ITEM}")" in
-        "$(basename "${disk_img}")" | *.pid | *.sock | *.socket | *.ports | *.log | *.sh | *.spice | *.monitor) continue ;;
+        "$(basename "${disk_img}")" | *.pid | *.sock | *.socket | *.ports | *.log | *.sh | *.spice | *.monitor | *.runtime.json | *.events.jsonl | *.paused | *.lock | *.lock.shared | *.qmp | ops | backups) continue ;;
         esac
         if [ -d "${ITEM}" ]; then
             cp -a "${ITEM}" "${NEW_DIR}/"
@@ -353,15 +355,17 @@ function clone_vm() {
     if [ -f "${disk_img}" ]; then
         require_qemu_img
         if [ -n "${CLONE_FULL}" ]; then
-            ${QEMU_IMG} convert -O "${disk_format}" "${disk_img}" "${NEW_DIR}/$(basename "${disk_img}")"
+            ${QEMU_IMG} convert -O "${disk_format}" "${disk_img}" "${NEW_DIR}/$(basename "${disk_img}")" || exit 1
             echo " - Cloned ${VMNAME} to ${NEW_NAME} (full disk copy)."
         else
-            ${QEMU_IMG} create -f qcow2 -b "${disk_img}" -F "${disk_format}" "${NEW_DIR}/$(basename "${disk_img}")" >/dev/null
+            ${QEMU_IMG} create -f qcow2 -b "${disk_img}" -F "${disk_format}" "${NEW_DIR}/$(basename "${disk_img}")" >/dev/null || exit 1
             echo " - Cloned ${VMNAME} to ${NEW_NAME} (shared backing disk)."
         fi
     else
         echo " - Cloned ${VMNAME} to ${NEW_NAME} (config only; no disk image found)."
     fi
+    trap - RETURN
+    qe_event "vm.cloned" "{\"clone\":\"$(json_escape "${NEW_NAME}")\"}"
 }
 
 function export_vm() {
@@ -518,13 +522,30 @@ function rename_vm() {
         echo "ERROR! Stop ${VMNAME} before renaming."
         exit 1
     fi
-    [ -d "${VMDIR}" ] && mv "${VMDIR}" "${PARENT}/${NEW_NAME}"
-    mv "${VM}" "${PARENT}/${NEW_NAME}.conf"
+    # Transactional rename: dir move -> conf move -> conf rewrite. Any
+    # step that fails rolls the earlier steps back so the VM is never
+    # left half-renamed.
+    local MOVED_DIR=0
+    if [ -d "${VMDIR}" ]; then
+        mv "${VMDIR}" "${PARENT}/${NEW_NAME}" || { echo "ERROR! Could not move ${VMDIR}." >&2; exit 1; }
+        MOVED_DIR=1
+    fi
+    if ! mv "${VM}" "${PARENT}/${NEW_NAME}.conf"; then
+        [ ${MOVED_DIR} -eq 1 ] && mv "${PARENT}/${NEW_NAME}" "${VMDIR}"
+        echo "ERROR! Could not rename ${VM}; rolled back." >&2
+        exit 1
+    fi
     # Escape sed metacharacters in the names before rewriting the conf.
     local OLD_ESC NEW_ESC
     OLD_ESC=$(printf '%s' "${VMNAME}/" | sed 's/[&|\\]/\\&/g')
     NEW_ESC=$(printf '%s' "${NEW_NAME}/" | sed 's/[&|\\]/\\&/g')
-    sed -i "s|${OLD_ESC}|${NEW_ESC}|g" "${PARENT}/${NEW_NAME}.conf"
+    if ! sed -i "s|${OLD_ESC}|${NEW_ESC}|g" "${PARENT}/${NEW_NAME}.conf"; then
+        [ ${MOVED_DIR} -eq 1 ] && mv "${PARENT}/${NEW_NAME}" "${VMDIR}"
+        mv "${PARENT}/${NEW_NAME}.conf" "${VM}"
+        echo "ERROR! Could not rewrite ${NEW_NAME}.conf; rolled back." >&2
+        exit 1
+    fi
+    qe_event "vm.renamed" "{\"newName\":\"$(json_escape "${NEW_NAME}")\"}"
     echo " - Renamed ${VMNAME} to ${NEW_NAME}"
 }
 
