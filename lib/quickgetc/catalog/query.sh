@@ -24,7 +24,7 @@ function find_edition_entry() {
         if [ -n "${ARCH}" ]; then
             unsupported_arch
         else
-            ENTRY=$(jq -c '.[0]' <<< "${EDITION_ENTRIES}")
+            ENTRY=$(jq -c -s '.[0]' <<< "${EDITION_ENTRIES}")
         fi
     fi
 }
@@ -51,6 +51,7 @@ function find_os_entry() {
     if [ -z "${OS_ENTRY}" ]; then
         echo -e "ERROR! ${OS} is not a supported OS.\n"
         os_support | fold -s -w "$(tput cols)"
+        exit 1
     fi
     PRETTY_NAME=$(jq -r '.pretty_name' <<< "${OS_ENTRY}")
 }

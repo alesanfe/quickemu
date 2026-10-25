@@ -1,7 +1,6 @@
 # shellcheck shell=bash
 Describe 'catalog'
-Include lib/quickemu/catalog/resolver.sh
-Include lib/quickemu/catalog/validator.sh
+Include lib/quickemu/catalog/catalog.sh
 
 Describe 'catalog_lookup'
 setup() {

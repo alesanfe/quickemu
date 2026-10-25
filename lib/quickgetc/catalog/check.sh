@@ -25,3 +25,27 @@ function test_result() {
         echo -e "${OS} ${URL}"
     fi
 }
+
+
+# Iterate every release entry of an OS and report each source URL,
+# either printing it (show) or probing it (test).
+function test_all() {
+    local OS_NAME="${1}"
+    local ENTRY REL EDN URLS URL CHECK
+    find_os_entry "${OS_NAME}"
+
+    while IFS= read -r ENTRY; do
+        REL=$(jq -r '.release' <<< "${ENTRY}")
+        EDN=$(jq -r '.edition // ""' <<< "${ENTRY}")
+        URLS=$(jq -r '[.. | objects | .url? // empty] | unique | .[]' <<< "${ENTRY}")
+        while IFS= read -r URL; do
+            [ -z "${URL}" ] && continue
+            if [ "${OPERATION}" == "show" ]; then
+                test_result "${OS_NAME}" "${REL}" "${EDN}" "${URL}"
+            elif [ "${OPERATION}" == "test" ]; then
+                CHECK=$(web_check "${URL}" && echo "PASS" || echo "FAIL")
+                test_result "${OS_NAME}" "${REL}" "${EDN}" "${URL}" "${CHECK}"
+            fi
+        done <<< "${URLS}"
+    done < <(jq -c '.releases[]' <<< "${OS_ENTRY}")
+}

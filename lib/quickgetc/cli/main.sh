@@ -11,8 +11,10 @@ function open_homepage() {
     URL=$(get_homepage)
     if [ -n "${URL}" ]; then
         xdg-open "${URL}" || sensible-browser "${URL}" || x-www-browser "${URL}" || gnome-open "${URL}"
+        exit 0
     else
         echo "ERROR! No homepage found for ${PRETTY_NAME}"
+        exit 1
     fi
 }
 
@@ -81,8 +83,11 @@ case "${1}" in
     --help|-help|--h|-h)
         help_message
         exit 0;;
-    --url|-url)
-        OPERATION="show"
+    --url|-url|--check|-check)
+        case "${1}" in
+            *check*) OPERATION="test";;
+            *)       OPERATION="show";;
+        esac
         shift
         if [ -z "${1}" ]; then
             for OS in $(os_support); do

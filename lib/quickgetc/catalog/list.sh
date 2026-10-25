@@ -15,7 +15,7 @@ function list_json() {
 function list_csv() {
     echo "Display Name,OS,Release,Option,Downloader,PNG,SVG"
 
-    jq -r '.[] | .name as $name | .pretty_name as $pretty_name | .releases[] | [$name, $pretty_name, .release, .edition, null, "https://quickemu-project.github.io/quickemu-icons/png/\($name)/\($name)-quickemu-white-pinkbg.png", "https://quickemu-project.github.io/quickemu-icons/svg/\($name)/\($name)-quickemu-white-pinkbg.svg"] | @tsv' <<< "${JSON}" | tr "\t" ","
+    jq -r '.[] | .name as $name | .pretty_name as $pretty_name | .releases[] | [$pretty_name, $name, .release, .edition, null, "https://quickemu-project.github.io/quickemu-icons/png/\($name)/\($name)-quickemu-white-pinkbg.png", "https://quickemu-project.github.io/quickemu-icons/svg/\($name)/\($name)-quickemu-white-pinkbg.svg"] | @tsv' <<< "${JSON}" | tr "\t" ","
 
     exit 0
 }

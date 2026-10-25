@@ -1,6 +1,9 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034,SC2154
 # Sourced partial: shares the conf-schema global namespace with bin/quickemu.
+# CLI output boundary: usage text, stable exit-code docs and contract emitters.
+
+# ---- usage.sh ----
 # Command-line help output.
 
 function usage() {
@@ -30,6 +33,8 @@ function usage() {
     echo "  --ignore-msrs-always              : Configure KVM to always ignore unhandled machine-specific registers"
     echo "  --ignore-tsc-warning              : Skip TSC stability warning for macOS VMs on AMD"
     echo "  --kill                            : Kill the VM process if it is running"
+    echo "  --shutdown                        : Request a graceful ACPI shutdown via the monitor"
+    echo "  --reset                           : Hard reset the VM via the monitor (system_reset)"
     echo "  --status                          : Show whether the VM is running or stopped"
     echo "  --capabilities                    : Print the machine-readable capability descriptor (JSON)"
     echo "  --format human|json               : Output format for --status and --list-vms (default: human)"
@@ -79,4 +84,19 @@ function usage() {
     echo "  --sound-duplex <type>             : Set sound card duplex. @Options: 'hda-micro' (default: speaker/mic), 'hda-duplex' (line-in/line-out), 'hda-output' (output-only)"
     echo "  --extra_args <arguments>          : Pass additional arguments to qemu"
     echo "  --version                         : Print version"
+}
+
+# ---- emit.sh ----
+# Contract emitters: the machine-readable output boundary (schemas/v1).
+# The sibling emitters for --status/--list live inline in cli/status.sh.
+
+# Emit the dry-run execution plan in the requested output format.
+emit_execution_plan() {
+    local vm_name="$1" command="$2"
+    if [ "${OUTPUT_FORMAT}" == "json" ]; then
+        printf '{"schemaVersion":%s,"vm":"%s","command":"%s"}\n' \
+            "${QE_SCHEMA_VERSION}" "${vm_name}" "$(json_escape "${command}")"
+    else
+        echo "${command}"
+    fi
 }

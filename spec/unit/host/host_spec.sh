@@ -1,7 +1,6 @@
 Describe 'lib/host/'
-Include lib/quickemu/host/capabilities.sh
-Include lib/quickemu/host/architecture.sh
 Include lib/quickemu/host/cpu.sh
+Include lib/quickemu/host/memory.sh
 
 It 'normalises host arch'
 When call host_arch

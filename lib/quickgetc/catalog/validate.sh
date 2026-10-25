@@ -28,11 +28,27 @@ function error_no_edition_required() {
 function error_specify_release() {
     show_os_info
     list_releases
+    exit 1
 }
 
 
 function release_requires_edition() {
     [ "$(jq -s 'any(.[]; .edition == null)' <<< "${RELEASE_ENTRIES}")" == "false" ]
+}
+
+
+function error_not_supported_edition() {
+    echo "ERROR! ${EDITION} is not a supported ${PRETTY_NAME} ${RELEASE} edition."
+    echo " - Supported editions: $(jq -s -r '[.[] | .edition] | unique | join(" ")' <<< "${RELEASE_ENTRIES}")"
+    exit 1
+}
+
+
+function error_not_supported_argument() {
+    echo "ERROR! Not supported argument"
+    echo "To see all possible arguments, use:"
+    echo "   quickgetc -h  or  quickgetc --help"
+    exit 1
 }
 
 

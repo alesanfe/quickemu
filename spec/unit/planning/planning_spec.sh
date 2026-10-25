@@ -1,7 +1,11 @@
 # shellcheck shell=bash
 Describe 'planning gates'
 Include lib/quickemu/support/validation.sh
-Include lib/quickemu/planning/builder.sh
+Include lib/quickemu/support/logging.sh
+Include lib/quickemu/host/cpu.sh
+Include lib/quickemu/host/network.sh
+Include lib/quickemu/vm/network.sh
+Include lib/quickemu/planning/execution_plan.sh
 
 Describe 'plan_check_ram'
 # Stub the host probe: pretend 8192 MiB are free.

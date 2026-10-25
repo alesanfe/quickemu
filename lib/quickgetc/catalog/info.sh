@@ -5,12 +5,12 @@
 
 
 function get_homepage() {
-    jq -r '.homepage' <<< "${OS_ENTRY}"
+    jq -r '.homepage // ""' <<< "${OS_ENTRY}"
 }
 
 
 function get_description() {
-    jq -r '.description' <<< "${OS_ENTRY}"
+    jq -r '.description // ""' <<< "${OS_ENTRY}"
 }
 
 

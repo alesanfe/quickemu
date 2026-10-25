@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quickemu-project.github.io/schemas/vm-snapshots-v1.schema.json",
+  "title": "quickemu VM snapshots (--snapshot list --format json)",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "vm",
+    "snapshots"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "vm": {
+      "type": "string"
+    },
+    "snapshots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "date": {
+            "type": "number",
+            "description": "Snapshot creation timestamp (Unix seconds, fractional)"
+          },
+          "vm-state-size": {
+            "type": "integer",
+            "description": "Bytes of saved VM state; 0 for disk-only snapshots"
+          }
+        }
+      }
+    }
+  }
+}

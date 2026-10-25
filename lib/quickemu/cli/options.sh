@@ -61,6 +61,14 @@ else
             ACTIONS+=(kill_vm)
             shift
             ;;
+        -shutdown | --shutdown)
+            ACTIONS+=(shutdown_vm)
+            shift
+            ;;
+        -reset | --reset)
+            ACTIONS+=(reset_vm)
+            shift
+            ;;
         -format | --format)
             OUTPUT_FORMAT="${2}"
             if [ "${OUTPUT_FORMAT}" != "human" ] && [ "${OUTPUT_FORMAT}" != "json" ]; then

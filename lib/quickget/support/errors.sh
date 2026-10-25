@@ -53,10 +53,11 @@ function error_specify_release() {
 
 
 function error_not_supported_release() {
+    local GENERATOR="${1:-releases_${OS}}"
     if [[ ! " ${RELEASES[*]} " =~ \ "${RELEASE}"\  ]]; then
         echo -e "ERROR! ${DISPLAY_NAME} ${RELEASE} is not a supported release.\n"
         echo -n ' - Supported releases: '
-        "releases_${OS}"
+        "${GENERATOR}"
         exit 1
     fi
 }

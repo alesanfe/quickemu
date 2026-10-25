@@ -15,10 +15,8 @@ plan_check_tpm() { # tpm=on requires swtpm on host
 }
 
 plan_check_net() { # network name -> 0 ok / not applicable, 1 missing bridge
-    case "${1}" in
-    "" | none | restrict | passt | slirp) return 0 ;;
-    *) [ -d "/sys/class/net/${1}" ] ;;
-    esac
+    [ "$(vm_net_mode "${1}")" == "bridge" ] || return 0
+    host_iface_exists "${1}"
 }
 
 # Pre-execution gate: warn (and unless bypassed, prompt/abort) when the

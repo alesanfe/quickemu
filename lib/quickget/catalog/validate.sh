@@ -59,7 +59,7 @@ function validate_release() {
         *) RELEASE_GENERATOR="${1}";;
     esac
     RELEASES=$(${RELEASE_GENERATOR})
-    error_not_supported_release
+    error_not_supported_release "${RELEASE_GENERATOR}"
 }
 
 # Early architecture validation for OSes without edition-dependent arch

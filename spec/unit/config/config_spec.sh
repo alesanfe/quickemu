@@ -1,4 +1,5 @@
 Describe 'lib/config/loader.sh'
+Include lib/quickemu/config/parser.sh
 Include lib/quickemu/config/loader.sh
 
 setup() {

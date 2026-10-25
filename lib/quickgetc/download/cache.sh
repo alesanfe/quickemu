@@ -28,7 +28,7 @@ function populate_cache() {
     fi 
     if ! JSON=$(zstd -dc "${CACHE_DIR}/${CACHE_FILE}"); then
         echo "ERROR! Failed to decompress ${CACHE_DIR}/${CACHE_FILE}. Try running quickgetc again."
-        rm "${CACHE_DIR}/${CACHE_FILE}"
+        rm -f "${CACHE_DIR}/${CACHE_FILE}"
         exit 1
     fi
 }
