@@ -21,3 +21,11 @@
 *.xml
 *.zs-old
 .direnv/
+__pycache__/
+*.pyc
+coverage/
+coverage-full/
+dist/
+RELEASE_NOTES.md
+vm-test/
+X-Test*/
