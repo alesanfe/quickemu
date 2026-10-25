@@ -87,7 +87,7 @@ function delete_vm() {
 
 # Trash management: entries are <trash>/<timestamp>-<vm>/ with vm/ content
 # and a trash-meta.json manifest.
-trash_root() { printf '%s/quickemu/trash' "${XDG_DATA_HOME:-${HOME}/.local/share}"; }
+trash_root() { printf '%s/trash' "$(qe_data_dir)"; }
 
 # ---- backups ----
 # Backups reuse the self-verifying export format (manifest + sha256sums):

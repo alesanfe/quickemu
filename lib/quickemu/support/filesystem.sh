@@ -44,3 +44,10 @@ function get_qemu_share_path() {
     # Fallback for system installations
     echo "/usr/share"
 }
+
+# freedesktop/XDG paths for per-user state. XDG_RUNTIME_DIR is the right
+# home for sockets, pids and the port registry on Linux; macOS/unset fall
+# back to TMPDIR. Data/state dirs are used by trash/backups.
+qe_runtime_dir() { printf '%s/quickemu-%s' "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}" "${UID}"; }
+qe_state_dir() { printf '%s/quickemu' "${XDG_STATE_HOME:-${HOME}/.local/state}"; }
+qe_data_dir() { printf '%s/quickemu' "${XDG_DATA_HOME:-${HOME}/.local/share}"; }

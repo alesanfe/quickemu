@@ -530,7 +530,7 @@ vm_lock_release() { # [shared|exclusive] -> releases our own hold only
 #   port <TAB> vmname <TAB> pid <TAB> epoch
 # The dir itself is created atomically; writers take a global mkdir lock.
 
-QE_PORT_REGISTRY="${QE_PORT_REGISTRY:-${TMPDIR:-/tmp}/quickemu-${UID}-ports}"
+QE_PORT_REGISTRY="${QE_PORT_REGISTRY:-$(qe_runtime_dir)/ports}"
 
 _port_registry_lock() { # global lock for the whole select+register op
     local tries=0
