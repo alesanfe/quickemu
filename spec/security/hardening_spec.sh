@@ -9,6 +9,7 @@ Include lib/quickemu/support/json.sh
 Include lib/quickemu/runtime/monitor.sh
 Include lib/quickemu/runtime/lifecycle.sh
 Include lib/quickemu/vm/vm.sh
+Include lib/quickemu/planning/delete_plan.sh
 Include lib/quickemu/cli/commands.sh
 
 setup() {
@@ -118,6 +119,28 @@ Describe 'VM locking'
         When call vm_lock_acquire
         The status should be success
         vm_lock_release
+    End
+    It 'emits a stable planId and delete-vm verifies it'
+        OUTPUT_FORMAT=json
+        When call delete_plan
+        The output should include '"planId":"sha256:'
+    End
+    It 'refuses delete when the planId does not match'
+        OUTPUT_FORMAT=''
+        DELETE_PLAN_ID='sha256:bogus'
+        When call in_subshell delete_vm
+        The status should be failure
+        The error should include 'stale'
+        The directory "$VMDIR" should be exist
+    End
+    It 'deletes when the planId matches the current plan'
+        OUTPUT_FORMAT=''
+        ITEMS=()
+        delete_plan_items
+        DELETE_PLAN_ID=$(delete_plan_id)
+        When call in_subshell delete_vm
+        The status should be success
+        The directory "$VMDIR" should not be exist
     End
 End
 
