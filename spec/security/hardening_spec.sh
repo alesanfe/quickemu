@@ -25,12 +25,62 @@ cleanup() { rm -rf -- "$TESTDIR" "$TESTDIR.lock" 2>/dev/null; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
 in_subshell() { ( "$@" ); }
+spawn_vm_proc() { mkdir -p "$TESTDIR/fakeproc"; cp "$(command -v sleep)" "$TESTDIR/fakeproc/vm1"; "$TESTDIR/fakeproc/vm1" 60 >/dev/null 2>&1 & echo "$!" >"$VMDIR/vm1.pid"; sleep 0.2; }
 
 Describe 'vm_pid_alive identity check'
     It 'rejects a live PID that is not a qemu process'
         sleep 30 >/dev/null 2>&1 &
         echo "$!" >"$VMDIR/vm1.pid"
         When call vm_pid_alive "$VMDIR/vm1.pid"
+        The status should be failure
+    End
+End
+
+Describe 'vm_instance_verify strong identity'
+    It 'verifies a published instance as alive'
+        spawn_vm_proc
+        VM="$TESTDIR/vm1.conf" QEMU=qemu vm_instance_publish "$(cat "$VMDIR/vm1.pid")"
+        When call vm_instance_verify "$VMDIR/vm1.pid"
+        The output should equal 'alive'
+        The status should be success
+    End
+    It 'reports runtime-corrupt for an empty runtime file'
+        spawn_vm_proc
+        : >"$VMDIR/vm1.runtime.json"
+        When call vm_instance_verify "$VMDIR/vm1.pid"
+        The output should equal 'runtime-corrupt'
+        The status should be failure
+    End
+    It 'reports uid-mismatch when the runtime records a different owner'
+        spawn_vm_proc
+        VM="$TESTDIR/vm1.conf" QEMU=qemu vm_instance_publish "$(cat "$VMDIR/vm1.pid")"
+        sed -i 's/"uid":[0-9]*/"uid":99999/' "$VMDIR/vm1.runtime.json"
+        When call vm_instance_verify "$VMDIR/vm1.pid"
+        The output should equal 'uid-mismatch'
+        The status should be failure
+    End
+    It 'reports pid-reused when the process start-time differs'
+        spawn_vm_proc
+        VM="$TESTDIR/vm1.conf" QEMU=qemu vm_instance_publish "$(cat "$VMDIR/vm1.pid")"
+        sed -i 's/"processStartTime":[0-9]*/"processStartTime":1/' "$VMDIR/vm1.runtime.json"
+        When call vm_instance_verify "$VMDIR/vm1.pid"
+        The output should equal 'pid-reused'
+        The status should be failure
+    End
+    It 'reports foreign-process for a non-VM process without runtime'
+        sleep 60 >/dev/null 2>&1 &
+        echo "$!" >"$VMDIR/vm1.pid"
+        When call vm_instance_verify "$VMDIR/vm1.pid"
+        The output should equal 'foreign-process'
+        The status should be failure
+    End
+    It 'reports dead for a terminated instance'
+        spawn_vm_proc
+        VM="$TESTDIR/vm1.conf" QEMU=qemu vm_instance_publish "$(cat "$VMDIR/vm1.pid")"
+        kill "$(cat "$VMDIR/vm1.pid")" 2>/dev/null
+        sleep 0.3
+        When call vm_instance_verify "$VMDIR/vm1.pid"
+        The output should equal 'dead'
         The status should be failure
     End
 End
