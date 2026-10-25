@@ -10,7 +10,17 @@ delete_plan_items() { # -> ITEMS[]
     local F=""
     [ -f "${VM}" ] && ITEMS+=("${VM}")
     if [ -d "${VMDIR}" ]; then
-        while IFS= read -r F; do ITEMS+=("${F}"); done < <(find "${VMDIR}" -mindepth 1 | LC_ALL=C sort)
+        # Runtime artifacts (locks, instance identity, pid/socket/port
+        # state) are cleaned by vm_runtime_cleanup, not user data, and
+        # must not appear in the plan or influence planId.
+        while IFS= read -r F; do ITEMS+=("${F}"); done < <(
+            find "${VMDIR}" -mindepth 1 \
+                ! -name '*.lock' ! -name '*.lock.shared' \
+                ! -name '*.runtime.json' ! -name '*.pid' \
+                ! -name '*.sock' ! -name '*.socket' ! -name '*.ports' \
+                ! -name '*.paused' ! -name '*.spice' ! -name '*.monitor' \
+                | LC_ALL=C sort
+        )
     fi
 }
 

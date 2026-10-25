@@ -406,8 +406,10 @@ vm_lock_acquire() { # [shared|exclusive] -> 0 acquired / 1 already locked
     local mode="${1:-exclusive}"
     local lockdir="${VMDIR}/${VMNAME}.lock" sharedir="${VMDIR}/${VMNAME}.lock.shared"
     local tries=0 max="${VM_LOCK_TRIES:-1}" owner=""
-    mkdir -p "${VMDIR}" || return 1
     if [ "${mode}" = shared ]; then
+        # A read lock on a VM that does not exist is trivially acquired:
+        # there is nothing to read and nothing to create.
+        [ -d "${VMDIR}" ] || return 0
         while :; do
             # Reclaim a dead writer before refusing readers.
             if [ -d "${lockdir}" ] && [ -f "${lockdir}/pid" ]; then
@@ -431,6 +433,7 @@ vm_lock_acquire() { # [shared|exclusive] -> 0 acquired / 1 already locked
         fi
         return 0
     fi
+    mkdir -p "${VMDIR}" || return 1
     while ! mkdir "${lockdir}" 2>/dev/null; do
         # Reclaim the lock if the owning process is gone (crash-safe).
         if [ -f "${lockdir}/pid" ]; then
