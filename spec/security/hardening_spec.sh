@@ -85,6 +85,46 @@ Describe 'vm_instance_verify strong identity'
     End
 End
 
+Describe 'shared and exclusive VM locks'
+    dead_pid() { sleep 0.05 & local p=$!; wait $p 2>/dev/null; echo "$p"; }
+    It 'allows two concurrent shared readers'
+        When call in_subshell vm_lock_acquire shared
+        The status should be success
+    End
+    It 'refuses an exclusive lock while a live reader holds a slot'
+        mkdir -p "$VMDIR/vm1.lock.shared"
+        sleep 60 & reader=$!
+        echo "$reader" >"$VMDIR/vm1.lock.shared/$reader.pid"
+        When call in_subshell vm_lock_acquire
+        The status should be failure
+        The error should include 'readers'
+        kill "$reader" 2>/dev/null
+    End
+    It 'refuses a shared lock while a writer holds the lock'
+        mkdir -p "$VMDIR/vm1.lock"
+        sleep 60 & writer=$!
+        echo "$writer" >"$VMDIR/vm1.lock/pid"
+        When call in_subshell vm_lock_acquire shared
+        The status should be failure
+        The error should include 'locked'
+        kill "$writer" 2>/dev/null
+    End
+    It 'reclaims an exclusive lock whose owner is dead'
+        mkdir -p "$VMDIR/vm1.lock"
+        dead=$(dead_pid)
+        echo "$dead" >"$VMDIR/vm1.lock/pid"
+        When call in_subshell vm_lock_acquire shared
+        The status should be success
+    End
+    It 'prunes stale reader slots before taking the exclusive lock'
+        mkdir -p "$VMDIR/vm1.lock.shared"
+        dead=$(dead_pid)
+        echo "$dead" >"$VMDIR/vm1.lock.shared/$dead.pid"
+        When call in_subshell vm_lock_acquire
+        The status should be success
+    End
+End
+
 Describe 'delete_vm path confinement'
     It 'refuses to delete a VMDIR outside the conf directory'
         OUTSIDE="$TESTDIR/outside"
