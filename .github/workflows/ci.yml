@@ -1,8 +1,16 @@
 name: CI
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: shellspec
+      - name: Install shellspec
+        run: |
+          curl -sSfL https://github.com/shellspec/shellspec/archive/refs/tags/0.28.1.tar.gz | tar -xz
+          chmod +x shellspec-0.28.1/shellspec
+          echo "$PWD/shellspec-0.28.1" >> "$GITHUB_PATH"
+      - name: Run unit + contract tests
+        run: shellspec

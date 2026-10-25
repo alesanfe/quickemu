@@ -5,6 +5,9 @@ on:
     branches: '**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   shellcheck:
     name: Shellcheck
@@ -12,7 +15,4 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Run ShellCheck
-        uses: ludeeus/action-shellcheck@master
-        with:
-          format: gcc
-          severity: warning
+        run: shellcheck -S warning --format=gcc bin/quickemu bin/quickget bin/quickgetc bin/quickreport $(find lib -name '*.sh')

@@ -5,20 +5,26 @@ on:
     branches:
       - master
     paths:
-      - quickemu
-      - quickget
-      - packaging/debian/**
-      - flake.nix
-      - package.nix
+      - 'bin/**'
+      - 'lib/**'
+      - 'libexec/**'
+      - 'packaging/**'
+      - 'spec/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.shellspec'
   push:
     branches:
       - master
     paths:
-      - quickemu
-      - quickget
-      - packaging/debian/**
-      - flake.nix
-      - package.nix
+      - 'bin/**'
+      - 'lib/**'
+      - 'libexec/**'
+      - 'packaging/**'
+      - 'spec/**'
+      - 'flake.nix'
+      - 'flake.lock'
+      - '.shellspec'
   workflow_dispatch:
 
 # TODO: arm64 runner
@@ -36,11 +42,12 @@ jobs:
       run: |
         sudo apt-get -y update
         sudo apt-get -y install debhelper devscripts
+        cp -a packaging/debian debian
         REL_VER=$(grep "^readonly VERSION" bin/quickemu | cut -d'"' -f2)
         rm debian/changelog
         dch --package quickemu --newversion="${REL_VER}-1" --distribution=unstable "New upstream release." --create
         dpkg-buildpackage --build=binary --no-check-builddeps --compression=gzip
-        sudo apt-get -y install ../quickemu_${REL_VER}-1_all.deb
+        sudo apt-get -y install "../quickemu_${REL_VER}-1_all.deb"
         quickemu --help
         quickget --help
 
@@ -64,7 +71,7 @@ jobs:
           ./result/bin/quickget --help
           ./result/bin/quickreport
           # Text a VM if the Nix Installer successfully enabled KVM
-          if [ $DETERMINATE_NIX_KVM -eq 1 ]; then
+          if [ "$DETERMINATE_NIX_KVM" -eq 1 ]; then
             ./result/bin/quickget alpine v3.20
             ./result/bin/quickemu --vm alpine-v3.20.conf --display none
             sleep 5
@@ -79,11 +86,3 @@ jobs:
             ./result/bin/quickemu --vm alpine-v3.20.conf --delete-disk
             ./result/bin/quickemu --vm alpine-v3.20.conf --delete-vm
           fi
-
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Run unit + contract tests
-        run: shellspec

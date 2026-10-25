@@ -6,12 +6,16 @@ on:
     branches:
       - master
     paths:
-      - quickget
+      - 'bin/quickget'
+      - 'lib/quickget/**'
+      - 'catalog/**'
   pull_request:
     branches:
       - '**'
     paths:
-      - quickget
+      - 'bin/quickget'
+      - 'lib/quickget/**'
+      - 'catalog/**'
 
 jobs:
   detect-distros:
