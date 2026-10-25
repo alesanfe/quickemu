@@ -260,16 +260,12 @@ function fileshare_param_check() {
 # VM state queries (public contract, schema v1).
 
 function status_vm() {
-    # Report the real VM state instead of only the presence of a pid file:
-    # running | paused (SIGSTOP'd or monitor 'stop') | stale (pid file left
-    # by a dead process) | stopped.
-    local STATE="stopped" PID_JSON="null"
+    # Canonical state from the state machine (instance identity -> QMP ->
+    # process markers -> filesystem), plus the ops legal from that state.
+    local STATE PID_JSON="null" OPS_JSON="" OP=""
     if [ -n "${VM_PID}" ]; then
         PID_JSON="${VM_PID}"
-        # Authoritative source: QMP query-status when the control channel
-        # is up (catches monitor-suspended guests even without .paused).
-        # Fallback: SIGSTOP'd process (state T) or the .paused marker
-        # written by pause_vm and cleared by resume_vm/vm_runtime_cleanup.
+        # Live instance: authoritative QMP state, then process markers.
         local QMP_STATE=""
         QMP_STATE=$(qmp_vm_status 2>/dev/null)
         if [ -n "${QMP_STATE}" ]; then
@@ -282,12 +278,14 @@ function status_vm() {
         else
             STATE="running"
         fi
-    elif [ -f "${VMDIR}/${VMNAME}.pid" ]; then
-        STATE="stale"
+    else
+        # No live pid known: state machine resolves stopped/stale/unknown.
+        STATE=$(vm_state)
     fi
+    for OP in $(vm_allowed_ops "${STATE}"); do OPS_JSON+="${OPS_JSON:+,}\"${OP}\""; done
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
-        qe_ok "vm.status" "$(printf '{"name":"%s","state":"%s","pid":%s}' \
-            "$(json_escape "${VMNAME}")" "${STATE}" "${PID_JSON}")"
+        qe_ok "vm.status" "$(printf '{"name":"%s","state":"%s","pid":%s,"allowedOps":[%s]}' \
+            "$(json_escape "${VMNAME}")" "${STATE}" "${PID_JSON}" "${OPS_JSON}")"
         exit 0
     fi
     if [ -n "${VM_PID}" ]; then

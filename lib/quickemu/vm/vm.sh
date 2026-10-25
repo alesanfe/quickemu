@@ -159,7 +159,7 @@ function screenshot_vm() {
     if [[ "${OUT}" == *.png ]]; then
         PPM="${OUT%.png}.ppm"
     fi
-    monitor_send_cmd "screendump ${PPM}"
+    vm_control "screendump ${PPM}" "{\"execute\":\"screendump\",\"arguments\":{\"filename\":\"${PPM}\"}}"
     sleep 0.5
     if [ ! -s "${PPM}" ]; then
         echo " - ERROR! Screenshot was not created at ${PPM}."

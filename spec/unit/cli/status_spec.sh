@@ -25,14 +25,14 @@ It 'emits v1 JSON when stopped'
 VMNAME="testvm" VM_PID="" OUTPUT_FORMAT="json"
 When call qe_in_subshell status_vm
 The output should include '"command":"vm.status"'
-    The output should include '"data":{"name":"testvm","state":"stopped","pid":null}'
+    The output should include '"data":{"name":"testvm","state":"stopped","pid":null'
 End
 
 It 'emits v1 JSON when running'
 VMNAME="vm x" VM_PID="99" OUTPUT_FORMAT="json"
 When call qe_in_subshell status_vm
 The output should include '"command":"vm.status"'
-    The output should include '"data":{"name":"vm x","state":"running","pid":99}'
+    The output should include '"data":{"name":"vm x","state":"running","pid":99'
 End
 End
 
