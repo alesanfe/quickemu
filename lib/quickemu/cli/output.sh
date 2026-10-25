@@ -46,6 +46,7 @@ function usage() {
     echo "  --shutdown                        : Request a graceful ACPI shutdown via the monitor"
     echo "  --reset                           : Hard reset the VM via the monitor (system_reset)"
     echo "  --status                          : Show whether the VM is running or stopped
+  --vfio-scan                       : Inventory IOMMU groups and passthrough-capable GPUs
   --host-info                       : Print machine-readable host inventory (JSON)
   --migrate-conf                    : Write a TOML migration of the VM config (original kept)
   --op-status <id>                  : Show the state of an async operation"

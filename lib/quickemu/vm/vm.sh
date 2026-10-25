@@ -1533,3 +1533,43 @@ function snapshot_list_json() {
     qe_ok "vm.snapshot.list" "$(printf '{"vm":"%s","snapshots":%s}' \
         "$(json_escape "${VMNAME}")" "${SNAPS:-[]}")"
 }
+
+# ---- vfio ----
+# Guided passthrough inventory: IOMMU groups, candidate GPU devices,
+# their bound drivers and what gpu_passthrough would need. Read-only —
+# it never binds/unbinds devices.
+function vfio_scan() {
+    local IOMMU="absent" GROUPS=0 GPU_JSON="" FIRST=1 DEV DRIVER DESC CLASS
+    if [ -d /sys/kernel/iommu_groups ]; then
+        GROUPS=$(find /sys/kernel/iommu_groups -maxdepth 2 -name devices -type d 2>/dev/null | wc -l)
+        IOMMU="present"
+    fi
+    if command -v lspci >/dev/null 2>&1; then
+        while IFS= read -r LINE; do
+            DEV="${LINE%% *}"
+            DESC="${LINE#* }"
+            DRIVER=""
+            [ -e "/sys/bus/pci/devices/0000:${DEV}/driver" ] && DRIVER=$(basename "$(readlink -f "/sys/bus/pci/devices/0000:${DEV}/driver")" 2>/dev/null)
+            [ ${FIRST} -eq 0 ] && GPU_JSON+=","
+            FIRST=0
+            GPU_JSON+="{\"pci\":\"$(json_escape "${DEV}")\",\"name\":\"$(json_escape "${DESC}")\",\"driver\":\"$(json_escape "${DRIVER}")\",\"vfioReady\":$([ "${DRIVER}" == "vfio-pci" ] && echo true || echo false)}"
+        done < <(lspci -Dnn 2>/dev/null | grep -Ei "vga|3d controller|display controller")
+    fi
+    if [ "${OUTPUT_FORMAT:-}" == "json" ]; then
+        qe_ok "vm.vfio.scan" "$(printf '{"iommu":"%s","iommuGroups":%s,"configuredPassthrough":"%s","devices":[%s]}' \
+            "${IOMMU}" "${GROUPS}" "$(json_escape "${gpu_passthrough:-}")" "${GPU_JSON}")"
+    else
+        echo "VFIO/IOMMU inventory:"
+        echo " - IOMMU groups: ${GROUPS} (${IOMMU})"
+        [ "${IOMMU}" == "absent" ] && echo "   -> Enable intel_iommu=on or amd_iommu=on in the kernel command line."
+        command -v lspci >/dev/null 2>&1 || { echo " - lspci not available (install pciutils)."; return 0; }
+        lspci -Dnn 2>/dev/null | grep -Ei "vga|3d controller|display controller" | while read -r LINE; do
+            DEV="${LINE%% *}"
+            DRIVER=""
+            [ -e "/sys/bus/pci/devices/0000:${DEV}/driver" ] && DRIVER=$(basename "$(readlink -f "/sys/bus/pci/devices/0000:${DEV}/driver")" 2>/dev/null)
+            printf ' - %s %s\n' "${LINE}" "${DRIVER:+[driver: ${DRIVER}]}"
+            [ "${DRIVER}" == "vfio-pci" ] && echo "     -> bound to vfio-pci; passable via gpu_passthrough=\"${DEV}\""
+        done
+        [ -n "${gpu_passthrough:-}" ] && echo " - Configured gpu_passthrough: ${gpu_passthrough}"
+    fi
+}
