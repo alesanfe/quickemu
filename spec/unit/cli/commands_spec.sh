@@ -411,13 +411,16 @@ It 'reports a running VM as schema v1 JSON'
     VM_PID=4242 OUTPUT_FORMAT=json
     When call in_subshell status_vm
     The status should be success
-    The output should eq '{"schemaVersion":1,"name":"vm-test","state":"running","pid":4242}'
+    The output should include '"command":"vm.status"'
+        The output should include '"success":true'
+        The output should include '"data":{"name":"vm-test","state":"running","pid":4242}'
 End
 It 'reports a stopped VM as schema v1 JSON with null pid'
     VM_PID='' OUTPUT_FORMAT=json
     When call in_subshell status_vm
     The status should be success
-    The output should eq '{"schemaVersion":1,"name":"vm-test","state":"stopped","pid":null}'
+    The output should include '"command":"vm.status"'
+        The output should include '"data":{"name":"vm-test","state":"stopped","pid":null}'
 End
 It 'reports a monitor-paused VM via the .paused marker'
     spawn_fake_vm
@@ -434,7 +437,8 @@ It 'reports a paused VM as schema v1 JSON'
     OUTPUT_FORMAT=json
     When call in_subshell status_vm
     The status should be success
-    The output should eq "{\"schemaVersion\":1,\"name\":\"vm-test\",\"state\":\"paused\",\"pid\":${VM_PID}}"
+    The output should include "\"command\":\"vm.status\""
+        The output should include "\"data\":{\"name\":\"vm-test\",\"state\":\"paused\",\"pid\":${VM_PID}}"
 End
 It 'ignores a stale .paused marker when the VM is stopped'
     VM_PID=''
@@ -455,7 +459,8 @@ It 'reports an empty directory as JSON'
     OUTPUT_FORMAT=json
     When call list_vms
     The status should be success
-    The output should eq '{"schemaVersion":1,"vms":[]}'
+    The output should include '"command":"vm.list"'
+        The output should include '"data":{"vms":[]}'
 End
 It 'lists stopped and running VMs in human format'
     printf 'guest_os="windows"\n' >a.conf
@@ -490,10 +495,10 @@ Describe 'capabilities'
 It 'emits the schema v1 capability contract'
     When call capabilities
     The status should be success
-    The output should include '"schemaVersion": 1'
-    The output should include '"applicationVersion": "4.9.9"'
-    The output should include '"structuredStatus": true'
-    The output should include '"safeDeletePlan": true'
+    The output should include '"command":"capabilities"'
+    The output should include '"applicationVersion":"4.9.9"'
+    The output should include '"structuredStatus":true'
+    The output should include '"safeDeletePlan":true'
 End
 End
 End

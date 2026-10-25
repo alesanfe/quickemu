@@ -21,13 +21,15 @@ End
 It 'emits v1 JSON when stopped'
 VMNAME="testvm" VM_PID="" OUTPUT_FORMAT="json"
 When call qe_in_subshell status_vm
-The output should eq '{"schemaVersion":1,"name":"testvm","state":"stopped","pid":null}'
+The output should include '"command":"vm.status"'
+    The output should include '"data":{"name":"testvm","state":"stopped","pid":null}'
 End
 
 It 'emits v1 JSON when running'
 VMNAME="vm x" VM_PID="99" OUTPUT_FORMAT="json"
 When call qe_in_subshell status_vm
-The output should eq '{"schemaVersion":1,"name":"vm x","state":"running","pid":99}'
+The output should include '"command":"vm.status"'
+    The output should include '"data":{"name":"vm x","state":"running","pid":99}'
 End
 End
 
@@ -54,7 +56,8 @@ It 'emits empty JSON array when no confs exist'
 cd "$(mktemp -d)" || return
 OUTPUT_FORMAT="json"
 When run list_vms
-The output should eq '{"schemaVersion":1,"vms":[]}'
+The output should include '"command":"vm.list"'
+    The output should include '"data":{"vms":[]}'
 End
 
 It 'lists confs as JSON with states'

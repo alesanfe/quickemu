@@ -88,7 +88,7 @@ It 'refuses to delete a running VM'
     echo $! >"$VMDIR/vm-test.pid"
     When call in_subshell delete_vm
     The status should be failure
-    The output should include 'before deleting'
+    The error should include 'before deleting'
     The directory "$VMDIR" should be exist
     The file "$VM" should be exist
 End

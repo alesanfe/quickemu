@@ -1,6 +1,7 @@
 # shellcheck disable=SC2034
 Describe 'cli output boundary'
 Include lib/quickemu/cli/output.sh
+Include lib/quickemu/support/json.sh
 
 VERSION='4.9.9' QEMU_VER_LONG='8.2.0' LAUNCHER='quickemu' QE_SCHEMA_VERSION=1
 json_escape() { printf '%s' "$1"; }

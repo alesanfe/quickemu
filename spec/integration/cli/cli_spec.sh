@@ -12,7 +12,7 @@ BeforeEach 'entry_setup'
 
 It 'bin/quickemu delegates to the root script'
 When call "$QE_ROOT/bin/quickemu" --capabilities
-The output should include '"schemaVersion": 1'
+The output should include '"command":"capabilities"'
 The status should be success
 End
 
@@ -59,7 +59,7 @@ It 'refuses --delete-vm while the VM is running'
     spawn_fake_vm victim; echo $! > victim/victim.pid
     When run qe --vm victim.conf --delete-vm
     The status should be failure
-    The output should include 'before deleting'
+    The error should include 'before deleting'
     The directory "$TESTDIR/victim" should be exist
     The file "$TESTDIR/victim.conf" should be exist
 End
