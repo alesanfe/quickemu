@@ -89,6 +89,67 @@ function delete_vm() {
 # and a trash-meta.json manifest.
 trash_root() { printf '%s/quickemu/trash' "${XDG_DATA_HOME:-${HOME}/.local/share}"; }
 
+# ---- backups ----
+# Backups reuse the self-verifying export format (manifest + sha256sums):
+# <vmdir>/backups/<utc>-<vm>.quickvm.tar.gz. Restoring is an import into a
+# chosen directory/name.
+backup_dir() { printf '%s/backups' "${VMDIR}"; }
+
+function backup_vm() {
+    local DIR OUT
+    DIR=$(backup_dir)
+    mkdir -p "${DIR}" || return 1
+    OUT="${DIR}/$(date -u +%Y%m%dT%H%M%SZ)-${VMNAME}.quickvm.tar.gz"
+    EXPORT_FILE="${OUT}" export_vm
+}
+
+function backup_list() {
+    local DIR F
+    DIR=$(backup_dir)
+    if [ "${OUTPUT_FORMAT:-}" == "json" ]; then
+        local JSON="" FIRST=1
+        for F in "${DIR}"/*.quickvm.tar.gz; do
+            [ -f "${F}" ] || continue
+            [ ${FIRST} -eq 0 ] && JSON+=","
+            FIRST=0
+            JSON+="{\"file\":\"$(json_escape "${F}")\",\"size\":$(stat -c%s "${F}" 2>/dev/null || stat -f%z "${F}" 2>/dev/null || echo 0)}"
+        done
+        qe_ok "vm.backup.list" "{\"backups\":[${JSON}]}"
+    else
+        echo "Backups in ${DIR}:"
+        for F in "${DIR}"/*.quickvm.tar.gz; do
+            [ -f "${F}" ] && printf ' - %s\n' "$(basename "${F}")"
+        done
+    fi
+}
+
+function backup_verify() { # file -> 0 ok / 1 corrupt
+    local F="${1:-${BACKUP_FILE}}"
+    local TMP
+    [ -f "${F}" ] || { echo "ERROR! Backup ${F} not found." >&2; return 1; }
+    TMP=$(mktemp -d)
+    tar -tzf "${F}" >"${TMP}/listing" 2>/dev/null || { rm -rf "${TMP}"; echo "ERROR! Not a gzip tar." >&2; return 1; }
+    grep -qx 'quickvm-manifest.json' "${TMP}/listing" || { rm -rf "${TMP}"; echo "ERROR! No quickvm-manifest.json (not a verified backup)." >&2; return 1; }
+    tar -xzf "${F}" -C "${TMP}" quickvm-checksums.sha256 quickvm-manifest.json 2>/dev/null
+    (cd "${TMP}" && while read -r F2; do
+        [ "${F2}" = "quickvm-manifest.json" ] || [ "${F2}" = "quickvm-checksums.sha256" ] && continue
+        tar -xzf "${F}" -C "${TMP}" -- "${F2}" 2>/dev/null || true
+    done <"${TMP}/listing")
+    local RC=0
+    (cd "${TMP}" && sha256sum -c quickvm-checksums.sha256 --ignore-missing 2>/dev/null) || RC=1
+    rm -rf "${TMP}"
+    if [ ${RC} -eq 0 ]; then echo " - Backup ${F} verified OK."; else echo "ERROR! Backup ${F} failed verification." >&2; fi
+    return ${RC}
+}
+
+function backup_restore() { # backup-file [dest-dir]
+    local F="${1:-${BACKUP_FILE}}" DEST="${2:-${RESTORE_DIR:-.}}"
+    [ -f "${F}" ] || { echo "ERROR! Backup ${F} not found." >&2; return 1; }
+    case "${F}" in /*) ;; *) F="$(pwd)/${F}" ;; esac
+    backup_verify "${F}" || return 1
+    (cd "${DEST}" && IMPORT_FILE="${F}" import_vm)
+}
+
 function trash_list() {
     local ROOT SLOT META
     ROOT=$(trash_root)

@@ -91,6 +91,24 @@ else
             ACTIONS+=(migrate_conf)
             shift
             ;;
+        -backup | --backup)
+            ACTIONS+=(backup_vm)
+            shift
+            ;;
+        -backup-list | --backup-list)
+            ACTIONS+=(backup_list)
+            shift
+            ;;
+        -backup-verify | --backup-verify)
+            BACKUP_FILE="${2}"
+            ACTIONS+=(backup_verify)
+            shift 2
+            ;;
+        -backup-restore | --backup-restore)
+            BACKUP_FILE="${2}"
+            ACTIONS+=(backup_restore)
+            shift 2
+            ;;
         -trash | --trash)
             TRASH=1
             shift

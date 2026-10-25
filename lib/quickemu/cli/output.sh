@@ -28,7 +28,11 @@ function usage() {
     echo "  --delete-disk                     : Delete the disk image and EFI variables"
     echo "  --delete-plan                     : Show what --delete-vm would remove; prints a planId (no changes)
   --plan-id <sha256:...>            : Verify --delete-vm against a --delete-plan planId"
-    echo "  --trash                           : With --delete-vm: move the VM to trash instead of deleting
+    echo "  --backup                          : Create a verified backup in <vmdir>/backups/
+  --backup-list                     : List backups (JSON with --format json)
+  --backup-verify <file>            : Verify backup manifest and checksums
+  --backup-restore <file>           : Restore a backup into the current dir
+  --trash                           : With --delete-vm: move the VM to trash instead of deleting
   --trash-list                      : List trashed VMs
   --trash-restore <vm>              : Restore a trashed VM
   --delete-vm                       : Delete the entire VM and its configuration"
