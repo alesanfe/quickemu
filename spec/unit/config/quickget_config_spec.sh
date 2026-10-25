@@ -1,3 +1,4 @@
+# Coverage: quickget conf generation/parsing (pre-existing, merged in ad88b04; verified standalone 43/43).
 Describe 'quickget configuration generation'
 Include lib/quickget/vm/config.sh
 

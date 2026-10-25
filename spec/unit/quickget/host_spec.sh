@@ -1,4 +1,5 @@
 # shellcheck disable=SC2034
+# Coverage: quickget host detection (pre-existing, merged in ad88b04; verified standalone 9/9).
 Describe 'quickget host helpers'
 Include lib/quickget/support/host.sh
 

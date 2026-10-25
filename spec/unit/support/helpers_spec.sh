@@ -1,4 +1,5 @@
 # shellcheck shell=bash
+# Coverage: shared spec helpers (pre-existing, merged in ad88b04; verified standalone 12/12).
 Describe 'support helpers'
 Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/support/validation.sh

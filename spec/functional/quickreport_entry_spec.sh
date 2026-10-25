@@ -1,4 +1,5 @@
 # shellcheck disable=SC2034
+# Coverage: quickreport report composition (pre-existing, merged in ad88b04).
 # Covers lib/quickreport/cli/report.sh composition and the entry point.
 Describe 'quickreport'
 Include spec/spec_helper.sh

@@ -78,6 +78,29 @@ function resolution_param_check() {
         echo "ERROR! --height must be a number!"
         exit 1
     fi
+    if [ -n "${width}" ] && { [ "${width}" -lt 1 ] || [ "${width}" -gt 16384 ]; }; then
+        echo "ERROR! --width must be between 1 and 16384."
+        exit 1
+    fi
+    if [ -n "${height}" ] && { [ "${height}" -lt 1 ] || [ "${height}" -gt 16384 ]; }; then
+        echo "ERROR! --height must be between 1 and 16384."
+        exit 1
+    fi
+}
+
+# guest_os drives firmware/disk/display heuristics; a value outside the
+# charset quickget produces is either a typo or a crafted value. The full
+# OS enum lives in quickget (os_info), so here we check shape, not
+# membership: empty or non [a-z0-9-] values are rejected.
+function guest_os_param_check() {
+    if [ -z "${guest_os}" ]; then
+        echo "WARNING! guest_os is not set in ${VM}; assuming 'linux' heuristics." >&2
+        return 0
+    fi
+    if [[ ! "${guest_os}" =~ ^[a-z0-9-]+$ ]]; then
+        echo "ERROR! '${guest_os}' is not a valid guest_os (expected [a-z0-9-]+)."
+        exit 1
+    fi
 }
 
 # ACCESS/SSH_ACCESS accept a scope keyword ('local'|'remote') or a single
@@ -129,6 +152,14 @@ function ports_param_check() {
 
     if [ -n "${monitor_telnet_port}" ] && ! is_numeric "${monitor_telnet_port}"; then
         echo "ERROR: telnet port must be a number!"
+        exit 1
+    fi
+
+    # -vnc host:display (display 0-99 maps to TCP 5900+display); host may be
+    # empty (listen on all interfaces) or a hostname/IP. Reject anything
+    # else so the value cannot smuggle QEMU options into -vnc.
+    if [ -n "${vnc_listen}" ] && [[ ! "${vnc_listen}" =~ ^([A-Za-z0-9._-]+)?:[0-9]{1,2}$ ]] && [[ ! "${vnc_listen}" =~ ^\[[0-9A-Fa-f:]+\]:[0-9]{1,2}$ ]]; then
+        echo "ERROR! '${vnc_listen}' is not a valid VNC listen address (expected host:display)."
         exit 1
     fi
 

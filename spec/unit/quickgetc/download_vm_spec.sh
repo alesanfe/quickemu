@@ -1,4 +1,5 @@
 # shellcheck disable=SC2034
+# Coverage: quickgetc download cache + vm config (pre-existing, merged in ad88b04; needs jq+quickemu on PATH for full pass).
 Describe 'quickgetc download cache and vm config'
 Include lib/quickgetc/download/cache.sh
 Include lib/quickgetc/vm/config.sh

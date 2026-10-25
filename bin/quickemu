@@ -334,6 +334,7 @@ access_param_check
 network_param_check
 ports_param_check
 sound_card_param_check
+guest_os_param_check
 # --dry-run only prints the execution plan; skip checks that gate on
 # installed host tools (swtpm, spicy/remote-viewer) since nothing runs.
 if [ -z "${DRY_RUN}" ]; then
