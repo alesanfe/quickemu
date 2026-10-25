@@ -296,6 +296,7 @@ function vm_runtime_cleanup() {
         "${VMDIR}/${VMNAME}.paused"
     # Drop the operation lock only when the VM is fully gone.
     rm -rf "${VMDIR}/${VMNAME}.lock"
+    _port_registry_release
     return 0
 }
 
@@ -334,6 +335,60 @@ vm_lock_release() {
     rm -rf "${VMDIR}/${VMNAME}.lock"
 }
 
+# ---- port registry ----
+# Cross-VM port reservation registry: closes most of the find-then-bind
+# TOCTOU between two quickemu instances on the same host/user.
+# Layout: one file per VM inside a per-user dir; each line is
+#   port <TAB> vmname <TAB> pid <TAB> epoch
+# The dir itself is created atomically; writers take a global mkdir lock.
+
+QE_PORT_REGISTRY="${QE_PORT_REGISTRY:-${TMPDIR:-/tmp}/quickemu-${UID}-ports}"
+
+_port_registry_lock() { # global lock for the whole select+register op
+    local tries=0
+    while ! mkdir "${QE_PORT_REGISTRY}.lock" 2>/dev/null; do
+        # Reclaim if the owner died while holding it.
+        if [ -f "${QE_PORT_REGISTRY}.lock/pid" ]; then
+            local owner
+            owner=$(cat "${QE_PORT_REGISTRY}.lock/pid" 2>/dev/null)
+            [ -n "${owner}" ] && ! kill -0 "${owner}" 2>/dev/null && { rm -rf "${QE_PORT_REGISTRY}.lock"; continue; }
+        fi
+        tries=$((tries + 1)); [ "${tries}" -ge 25 ] && return 1
+        sleep 0.2
+    done
+    echo "$$" >"${QE_PORT_REGISTRY}.lock/pid"
+}
+
+_port_registry_unlock() { rm -rf "${QE_PORT_REGISTRY}.lock"; }
+
+# Is <port> already reserved by a live quickemu instance? Prunes stale rows.
+_port_registry_taken() { # port -> 0 if reserved by a live vm
+    [ -d "${QE_PORT_REGISTRY}" ] || return 1
+    local row p vm pid
+    for f in "${QE_PORT_REGISTRY}"/*; do
+        [ -f "${f}" ] || continue
+        while IFS=$'\t' read -r p vm pid _; do
+            [ "${p}" = "${1}" ] || continue
+            if kill -0 "${pid}" 2>/dev/null; then return 0; fi
+            rm -f -- "${f}" 2>/dev/null || true   # stale reservation
+            break
+        done <"${f}"
+    done
+    return 1
+}
+
+_port_registry_reserve() { # port -> writes reservation for this VM
+    mkdir -p "${QE_PORT_REGISTRY}" 2>/dev/null || return 1
+    printf '%s\t%s\t%s\t%s\n' "${1}" "${VMNAME:-unknown}" "$$" "$(date +%s)" \
+        >"${QE_PORT_REGISTRY}/${VMNAME:-unknown}.reserved"
+}
+
+# Drop this VM's reservations (called from vm_runtime_cleanup and on
+# failed boots so a dead VM never holds a port hostage).
+_port_registry_release() {
+    rm -f -- "${QE_PORT_REGISTRY}/${VMNAME:-unknown}.reserved" 2>/dev/null || true
+}
+
 # ---- ports.sh ----
 # Host TCP port allocation for guests and .ports runtime state.
 
@@ -341,16 +396,26 @@ function get_port() {
     local PORT_START=$1
     local PORT_RANGE=$((PORT_START + $2))
     local PORT
+    # Select and register the port atomically: two quickemu instances must
+    # not pick the same free port before QEMU has bound it.
+    _port_registry_lock || {
+        echo "ERROR! Could not acquire the port allocation lock." >&2
+        return 1
+    }
     for ((PORT = PORT_START; PORT <= PORT_RANGE; PORT++)); do
+        _port_registry_taken "${PORT}" && continue
         # A connect to 127.0.0.1 always completes immediately (accepted or
         # refused), so no timeout wrapper is needed. A failed connect means
         # the port is free. This also works on macOS where GNU 'timeout' is
         # not installed.
         if ! (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then
+            _port_registry_reserve "${PORT}" 2>/dev/null || true
+            _port_registry_unlock
             echo "${PORT}"
             return 0
         fi
     done
+    _port_registry_unlock
     return 1
 }
 

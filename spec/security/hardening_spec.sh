@@ -140,6 +140,7 @@ Describe 'VM locking'
         DELETE_PLAN_ID=$(delete_plan_id)
         When call in_subshell delete_vm
         The status should be success
+        The output should include 'Deleted'
         The directory "$VMDIR" should not be exist
     End
 End
