@@ -1,15 +1,67 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://quickemu-project.github.io/schemas/capabilities-v1.schema.json",
-  "title": "quickemu capabilities descriptor",
-  "type": "object",
-  "required": ["schemaVersion", "applicationVersion", "capabilities"],
-  "properties": {
-    "schemaVersion": {"type": "integer", "const": 1},
-    "applicationVersion": {"type": "string"},
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://quickemu-project.github.io/schemas/capabilities-v1.schema.json",
+ "title": "quickemu capabilities response (unified envelope)",
+ "type": "object",
+ "required": [
+  "schemaVersion",
+  "command",
+  "success",
+  "data",
+  "warnings",
+  "errors",
+  "meta"
+ ],
+ "properties": {
+  "schemaVersion": {
+   "type": "integer",
+   "const": 1
+  },
+  "command": {
+   "type": "string",
+   "const": "capabilities"
+  },
+  "success": {
+   "type": "boolean"
+  },
+  "data": {
+   "type": "object",
+   "required": [
+    "applicationVersion",
+    "capabilities"
+   ],
+   "properties": {
+    "applicationVersion": {
+     "type": "string"
+    },
     "capabilities": {
-      "type": "object",
-      "additionalProperties": {"type": "boolean"}
+     "type": "object"
     }
+   }
+  },
+  "warnings": {
+   "type": "array"
+  },
+  "errors": {
+   "type": "array"
+  },
+  "meta": {
+   "type": "object",
+   "required": [
+    "quickemuVersion",
+    "timestamp"
+   ],
+   "properties": {
+    "quickemuVersion": {
+     "type": "string"
+    },
+    "timestamp": {
+     "type": "string"
+    },
+    "operationId": {
+     "type": "string"
+    }
+   }
   }
+ }
 }

@@ -1,46 +1,67 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://quickemu-project.github.io/schemas/vm-snapshots-v1.schema.json",
-  "title": "quickemu VM snapshots (--snapshot list --format json)",
-  "type": "object",
-  "required": [
-    "schemaVersion",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://quickemu-project.github.io/schemas/vm-snapshots-v1.schema.json",
+ "title": "quickemu vm.snapshot.list response (unified envelope)",
+ "type": "object",
+ "required": [
+  "schemaVersion",
+  "command",
+  "success",
+  "data",
+  "warnings",
+  "errors",
+  "meta"
+ ],
+ "properties": {
+  "schemaVersion": {
+   "type": "integer",
+   "const": 1
+  },
+  "command": {
+   "type": "string",
+   "const": "vm.snapshot.list"
+  },
+  "success": {
+   "type": "boolean"
+  },
+  "data": {
+   "type": "object",
+   "required": [
     "vm",
     "snapshots"
-  ],
-  "properties": {
-    "schemaVersion": {
-      "type": "integer",
-      "const": 1
-    },
+   ],
+   "properties": {
     "vm": {
-      "type": "string"
+     "type": "string"
     },
     "snapshots": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "name": {
-            "type": "string"
-          },
-          "date": {
-            "type": "number",
-            "description": "Snapshot creation timestamp (Unix seconds, fractional)"
-          },
-          "vm-state-size": {
-            "type": "integer",
-            "description": "Bytes of saved VM state; 0 for disk-only snapshots"
-          }
-        }
-      }
+     "type": "array"
     }
+   }
+  },
+  "warnings": {
+   "type": "array"
+  },
+  "errors": {
+   "type": "array"
+  },
+  "meta": {
+   "type": "object",
+   "required": [
+    "quickemuVersion",
+    "timestamp"
+   ],
+   "properties": {
+    "quickemuVersion": {
+     "type": "string"
+    },
+    "timestamp": {
+     "type": "string"
+    },
+    "operationId": {
+     "type": "string"
+    }
+   }
   }
+ }
 }

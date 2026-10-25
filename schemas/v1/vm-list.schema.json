@@ -1,23 +1,89 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://quickemu-project.github.io/schemas/vm-list-v1.schema.json",
-  "title": "quickemu VM list (--list-vms --format json)",
-  "type": "object",
-  "required": ["schemaVersion", "vms"],
-  "properties": {
-    "schemaVersion": {"type": "integer", "const": 1},
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://quickemu-project.github.io/schemas/vm-list-v1.schema.json",
+ "title": "quickemu vm.list response (unified envelope)",
+ "type": "object",
+ "required": [
+  "schemaVersion",
+  "command",
+  "success",
+  "data",
+  "warnings",
+  "errors",
+  "meta"
+ ],
+ "properties": {
+  "schemaVersion": {
+   "type": "integer",
+   "const": 1
+  },
+  "command": {
+   "type": "string",
+   "const": "vm.list"
+  },
+  "success": {
+   "type": "boolean"
+  },
+  "data": {
+   "type": "object",
+   "required": [
+    "vms"
+   ],
+   "properties": {
     "vms": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["name", "guest_os", "state", "pid"],
-        "properties": {
-          "name": {"type": "string"},
-          "guest_os": {"type": "string"},
-          "state": {"type": "string", "enum": ["running", "stopped", "paused", "stale"]},
-          "pid": {"type": ["integer", "null"]}
-        }
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": [
+       "name",
+       "guest_os",
+       "state",
+       "pid"
+      ],
+      "properties": {
+       "name": {
+        "type": "string"
+       },
+       "guest_os": {
+        "type": "string"
+       },
+       "state": {
+        "type": "string"
+       },
+       "pid": {
+        "type": [
+         "integer",
+         "null"
+        ]
+       }
       }
+     }
     }
+   }
+  },
+  "warnings": {
+   "type": "array"
+  },
+  "errors": {
+   "type": "array"
+  },
+  "meta": {
+   "type": "object",
+   "required": [
+    "quickemuVersion",
+    "timestamp"
+   ],
+   "properties": {
+    "quickemuVersion": {
+     "type": "string"
+    },
+    "timestamp": {
+     "type": "string"
+    },
+    "operationId": {
+     "type": "string"
+    }
+   }
   }
+ }
 }

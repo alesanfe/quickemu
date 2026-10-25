@@ -96,8 +96,8 @@ function usage() {
 emit_execution_plan() {
     local vm_name="$1" command="$2"
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
-        printf '{"schemaVersion":%s,"vm":"%s","command":"%s"}\n' \
-            "${QE_SCHEMA_VERSION}" "${vm_name}" "$(json_escape "${command}")"
+        qe_ok "vm.plan" "$(printf '{"vm":"%s","command":"%s"}' \
+            "$(json_escape "${vm_name}")" "$(json_escape "${command}")")"
     else
         echo "${command}"
     fi

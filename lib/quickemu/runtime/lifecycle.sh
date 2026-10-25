@@ -317,7 +317,11 @@ vm_lock_acquire() { # -> 0 acquired / 1 already locked
         fi
         tries=$((tries + 1))
         if [ "${tries}" -ge "${max}" ]; then
-            echo "ERROR! ${VMNAME} is locked by another operation."
+            if [ "${OUTPUT_FORMAT:-}" == "json" ]; then
+                qe_fail "vm.lock" VM_LOCKED "${VMNAME} is locked by another operation."
+            else
+                echo "ERROR! ${VMNAME} is locked by another operation." >&2
+            fi
             return 1
         fi
         sleep 0.2

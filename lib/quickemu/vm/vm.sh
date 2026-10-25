@@ -34,8 +34,7 @@ function delete_shortcut() {
 
 function delete_vm() {
     if vm_running "${VMDIR}" "${VMNAME}"; then
-        echo "ERROR! Stop ${VMNAME} before deleting it."
-        exit 1
+        qe_die "vm.delete" VM_MUST_BE_STOPPED "Stop ${VMNAME} before deleting it." 5
     fi
     # Confinement: only ever delete the canonical <confdir>/<VMNAME> tree.
     # VMDIR derives from disk_img inside the sourced conf, so a crafted or
@@ -45,8 +44,7 @@ function delete_vm() {
         EXPECTED="$(cd "$(dirname "${VM}")" && pwd -P)/${VMNAME}"
         RESOLVED="$(cd "${VMDIR}" && pwd -P)"
         if [ "${RESOLVED}" != "${EXPECTED}" ]; then
-            echo "ERROR! quickemu refuses to delete '${RESOLVED}': not the VM directory ${EXPECTED}."
-            exit 1
+            qe_die "vm.delete" PERMISSION_DENIED "quickemu refuses to delete '${RESOLVED}': not the VM directory ${EXPECTED}." 12
         fi
     fi
     echo "Deleting ${VMNAME} completely"
@@ -242,14 +240,12 @@ function import_vm() {
     while IFS= read -r MEMBER; do
         case "${MEMBER}" in
         /* | '..' | ../* | */.. | */../*)
-            echo "ERROR! Unsafe path in archive: '${MEMBER}'"
-            exit 1
+            qe_die "vm.import" UNSAFE_ARCHIVE "Unsafe path in archive: '${MEMBER}'" 12
             ;;
         esac
     done < <(tar -tzf "${IN}" 2>/dev/null)
     if tar -tzvf "${IN}" 2>/dev/null | awk '$1 ~ /^[lhbcp]/ { exit 42 }'; [ $? -eq 42 ]; then
-        echo "ERROR! Archive contains links or special files; refusing import."
-        exit 1
+        qe_die "vm.import" UNSAFE_ARCHIVE "Archive contains links or special files; refusing import." 12
     fi
     BASE=$(tar -tzf "${IN}" 2>/dev/null | grep -m1 '\.conf$' | xargs -r basename | sed 's/\.conf$//')
     if [ -z "${BASE}" ]; then
@@ -1215,6 +1211,6 @@ function snapshot_list_json() {
                 "vm-state-size": (."vm-state-size" // 0)
               }]')" || SNAPS="[]"
     fi
-    printf '{"schemaVersion":%s,"vm":"%s","snapshots":%s}\n' \
-        "${QE_SCHEMA_VERSION}" "$(json_escape "${VMNAME}")" "${SNAPS:-[]}"
+    qe_ok "vm.snapshot.list" "$(printf '{"vm":"%s","snapshots":%s}' \
+        "$(json_escape "${VMNAME}")" "${SNAPS:-[]}")"
 }

@@ -1,36 +1,81 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://quickemu-project.github.io/schemas/vm-status-v1.schema.json",
-  "title": "quickemu VM status (--status --format json)",
-  "type": "object",
-  "required": [
-    "schemaVersion",
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://quickemu-project.github.io/schemas/vm-status-v1.schema.json",
+ "title": "quickemu vm.status response (unified envelope)",
+ "type": "object",
+ "required": [
+  "schemaVersion",
+  "command",
+  "success",
+  "data",
+  "warnings",
+  "errors",
+  "meta"
+ ],
+ "properties": {
+  "schemaVersion": {
+   "type": "integer",
+   "const": 1
+  },
+  "command": {
+   "type": "string",
+   "const": "vm.status"
+  },
+  "success": {
+   "type": "boolean"
+  },
+  "data": {
+   "type": "object",
+   "required": [
     "name",
     "state",
     "pid"
-  ],
-  "properties": {
-    "schemaVersion": {
-      "type": "integer",
-      "const": 1
-    },
+   ],
+   "properties": {
     "name": {
-      "type": "string"
+     "type": "string"
     },
     "state": {
-      "type": "string",
-      "enum": [
-        "running",
-        "stopped",
-        "paused",
-        "stale"
-      ]
+     "type": "string",
+     "enum": [
+      "stopped",
+      "running",
+      "paused",
+      "stale",
+      "unknown"
+     ]
     },
     "pid": {
-      "type": [
-        "integer",
-        "null"
-      ]
+     "type": [
+      "integer",
+      "null"
+     ]
     }
+   }
+  },
+  "warnings": {
+   "type": "array"
+  },
+  "errors": {
+   "type": "array"
+  },
+  "meta": {
+   "type": "object",
+   "required": [
+    "quickemuVersion",
+    "timestamp"
+   ],
+   "properties": {
+    "quickemuVersion": {
+     "type": "string"
+    },
+    "timestamp": {
+     "type": "string"
+    },
+    "operationId": {
+     "type": "string"
+    }
+   }
   }
+ }
 }

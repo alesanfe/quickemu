@@ -247,8 +247,8 @@ function status_vm() {
         STATE="stale"
     fi
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
-        printf '{"schemaVersion":%s,"name":"%s","state":"%s","pid":%s}\n' \
-            "${QE_SCHEMA_VERSION}" "$(json_escape "${VMNAME}")" "${STATE}" "${PID_JSON}"
+        qe_ok "vm.status" "$(printf '{"name":"%s","state":"%s","pid":%s}' \
+            "$(json_escape "${VMNAME}")" "${STATE}" "${PID_JSON}")"
         exit 0
     fi
     if [ -n "${VM_PID}" ]; then
@@ -266,14 +266,14 @@ function list_vms() {
     shopt -u nullglob
     if [ ${#CONFS[@]} -eq 0 ]; then
         if [ "${OUTPUT_FORMAT}" == "json" ]; then
-            echo '{"schemaVersion":'"${QE_SCHEMA_VERSION}"',"vms":[]}'
+            qe_ok "vm.list" '{"vms":[]}'
         else
             echo "No VM configurations found in $(pwd)."
         fi
         return 0
     fi
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
-        printf '{"schemaVersion":%s,"vms":[' "${QE_SCHEMA_VERSION}"
+        local VMS_JSON="["
         for CONF in "${CONFS[@]}"; do
             DIR="$(basename "${CONF}" .conf)"
             OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
@@ -292,12 +292,12 @@ function list_vms() {
                     PID="null"
                 fi
             fi
-            [ ${FIRST} -eq 0 ] && printf ','
+            [ ${FIRST} -eq 0 ] && VMS_JSON+=","
             FIRST=0
-            printf '{"name":"%s","guest_os":"%s","state":"%s","pid":%s}' \
-                "$(json_escape "${DIR}")" "$(json_escape "${OS:-linux}")" "${STATE}" "${PID}"
+            VMS_JSON+=$(printf '{"name":"%s","guest_os":"%s","state":"%s","pid":%s}' \
+                "$(json_escape "${DIR}")" "$(json_escape "${OS:-linux}")" "${STATE}" "${PID}")
         done
-        printf ']}\n'
+        qe_ok "vm.list" "{\"vms\":${VMS_JSON}]}"
         return 0
     fi
     printf '%-28s %-16s %-9s %s\n' "VM" "GUEST OS" "STATE" "PID"
@@ -340,27 +340,9 @@ function inspect_conf() {
 
 function capabilities() {
     # Public contract for external consumers (quickgui, scripts, CI).
-    # Keep this in sync with schemas/capabilities-v1.schema.json.
-    cat <<JSON
-{
-  "schemaVersion": ${QE_SCHEMA_VERSION},
-  "applicationVersion": "${VERSION}",
-  "capabilities": {
-    "structuredCatalog": true,
-    "structuredStatus": true,
-    "listVms": true,
-    "snapshots": true,
-    "structuredSnapshots": true,
-    "monitorCommands": true,
-    "sendKeys": true,
-    "screenshot": true,
-    "clone": true,
-    "rename": true,
-    "exportImport": true,
-    "diskOps": true,
-    "downloadProgress": false,
-    "safeDeletePlan": true
-  }
-}
+    # Keep this in sync with schemas/v1/capabilities.schema.json.
+    qe_ok "capabilities" "$(cat <<JSON
+{"applicationVersion":"${VERSION}","capabilities":{"structuredCatalog":true,"structuredStatus":true,"listVms":true,"snapshots":true,"structuredSnapshots":true,"monitorCommands":true,"sendKeys":true,"screenshot":true,"clone":true,"rename":true,"exportImport":true,"diskOps":true,"downloadProgress":false,"safeDeletePlan":true}}
 JSON
+)"
 }

@@ -1,1 +1,76 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://quickemu-project.github.io/schemas/vm-delete-plan-v1.schema.json","title":"quickemu delete plan (--delete-plan --format json)","type":"object","required":["schemaVersion","vm","delete"],"properties":{"schemaVersion":{"type":"integer","const":1},"vm":{"type":"string"},"delete":{"type":"array","items":{"type":"string"}}}}
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://quickemu-project.github.io/schemas/delete-plan-v1.schema.json",
+ "title": "quickemu vm.delete-plan response (unified envelope)",
+ "type": "object",
+ "required": [
+  "schemaVersion",
+  "command",
+  "success",
+  "data",
+  "warnings",
+  "errors",
+  "meta"
+ ],
+ "properties": {
+  "schemaVersion": {
+   "type": "integer",
+   "const": 1
+  },
+  "command": {
+   "type": "string",
+   "const": "vm.delete-plan"
+  },
+  "success": {
+   "type": "boolean"
+  },
+  "data": {
+   "type": "object",
+   "required": [
+    "vm",
+    "delete"
+   ],
+   "properties": {
+    "vm": {
+     "type": "string"
+    },
+    "delete": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "planId": {
+     "type": "string"
+    },
+    "validUntil": {
+     "type": "string"
+    }
+   }
+  },
+  "warnings": {
+   "type": "array"
+  },
+  "errors": {
+   "type": "array"
+  },
+  "meta": {
+   "type": "object",
+   "required": [
+    "quickemuVersion",
+    "timestamp"
+   ],
+   "properties": {
+    "quickemuVersion": {
+     "type": "string"
+    },
+    "timestamp": {
+     "type": "string"
+    },
+    "operationId": {
+     "type": "string"
+    }
+   }
+  }
+ }
+}
