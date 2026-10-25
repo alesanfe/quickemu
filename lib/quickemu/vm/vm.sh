@@ -1399,6 +1399,12 @@ function snapshot_apply() {
     fi
 }
 
+# True when a snapshot tag already exists in the disk image.
+snapshot_tag_exists() { # tag -> 0/1
+    [ -e "${disk_img}" ] || return 1
+    ${QEMU_IMG} snapshot -l "${disk_img}" 2>/dev/null | grep -qw -- "${1}"
+}
+
 function snapshot_create() {
     echo "Snapshotting ${disk_img}"
     local TAG="${1}"
@@ -1409,6 +1415,9 @@ function snapshot_create() {
     if vm_running "${VMDIR}" "${VMNAME}"; then
         echo " - ERROR! Stop ${VMNAME} before managing snapshots."
         exit 1
+    fi
+    if snapshot_tag_exists "${TAG}"; then
+        qe_die "vm.snapshot" SNAPSHOT_CONFLICT "snapshot tag '${TAG}' already exists in ${disk_img}" 12
     fi
 
     if [ -e "${disk_img}" ]; then
@@ -1432,6 +1441,9 @@ function snapshot_delete() {
     if vm_running "${VMDIR}" "${VMNAME}"; then
         echo " - ERROR! Stop ${VMNAME} before managing snapshots."
         exit 1
+    fi
+    if ! snapshot_tag_exists "${TAG}"; then
+        qe_die "vm.snapshot" NOT_FOUND "snapshot '${TAG}' not found in ${disk_img}" 12
     fi
 
     if [ -e "${disk_img}" ]; then
