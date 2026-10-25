@@ -36,6 +36,7 @@ The devshell patches `quickemu` to use Nix store paths for OVMF and Samba, writi
 ## Build and test commands
 
 - Lint scripts: `shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport $(find lib -name '*.sh')`
+- Run tests (ShellSpec 0.28.1 is vendored): `./shellspec-0.28.1/shellspec [spec/file.sh]` — needs `jq`, `qemu-img`, `qemu-system-*`, `socat` and `python3` for full coverage; on hosts without them expect env-dependent failures in contract/quickget/quickgetc specs.
 - Test quickget URLs: `./bin/quickget --check <os> [release] [edition]`
 - Test ARM64 downloads: `./bin/quickget --arch arm64 --check <os> [release] [edition]`
 - Test all architectures: `./bin/quickget --check-all-arch <os> [release] [edition]`

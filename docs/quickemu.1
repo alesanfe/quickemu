@@ -23,16 +23,26 @@ Enable remote spice access support.
 Enable braille support.
 Requires SDL.
 .TP
+\f[B]\-\-cpu\-pinning <mapping>\f[R]
+Choose which host cores correspond to which guest cores
+(comma\-separated, e.g. 0,2,4,6).
+.TP
 \f[B]\-\-delete\-disk\f[R]
 Delete the disk image and EFI variables
+.TP
+\f[B]\-\-delete\-plan\f[R]
+Show what \-\-delete\-vm would remove without changing anything.
 .TP
 \f[B]\-\-delete\-vm\f[R]
 Delete the entire VM and its configuration
 .TP
+\f[B]\-\-delete\-shortcut\f[R]
+Delete the desktop shortcut for this VM.
+.TP
 \f[B]\-\-display\f[R]
 Select display backend.
-\(aqgtk\(aq (default), \(aqsdl\(aq, \(aqcocoa\(aq, \(aqnone\(aq,
-\(aqspice\(aq or \(aqspice\-app\(aq
+\(aqgtk\(aq (default), \(aqsdl\(aq, \(aqcocoa\(aq, \(aqvnc\(aq,
+\(aqnone\(aq, \(aqspice\(aq or \(aqspice\-app\(aq
 .TP
 \f[B]\-\-fullscreen\f[R]
 Starts VM in full screen mode (Ctl+Alt+f to exit)
@@ -40,8 +50,24 @@ Starts VM in full screen mode (Ctl+Alt+f to exit)
 \f[B]\-\-ignore\-msrs\-always\f[R]
 Configure KVM to always ignore unhandled machine\-specific registers
 .TP
+\f[B]\-\-ignore\-tsc\-warning\f[R]
+Skip the TSC stability warning for macOS guests on AMD hosts.
+.TP
 \f[B]\-\-kill\f[R]
 Kill the VM process if it is running
+.TP
+\f[B]\-\-shutdown\f[R]
+Request a graceful ACPI shutdown via the monitor (system_powerdown).
+.TP
+\f[B]\-\-reset\f[R]
+Hard reset the VM via the monitor (system_reset).
+.TP
+\f[B]\-\-capabilities\f[R]
+Print the machine\-readable capability descriptor (JSON).
+.TP
+\f[B]\-\-format human|json\f[R]
+Output format for \-\-status, \-\-list\-vms, \-\-snapshot and
+\-\-dry\-run (default: human).
 .TP
 \f[B]\-\-offline\f[R]
 Override all network settings and start the VM offline
@@ -111,6 +137,9 @@ Delete a snapshot.
 .TP
 \f[B]\-\-snapshot info\f[R]
 Show disk/snapshot info.
+.TP
+\f[B]\-\-snapshot list\f[R]
+List snapshots (\-\-format json emits the schema v1 contract).
 .TP
 \f[B]\-\-status\-quo\f[R]
 Do not commit any changes to disk/snapshot.
@@ -188,7 +217,12 @@ Set usb\-controller.
 \f[B]\-\-sound\-card <type>\f[R]
 Set sound card.
 \(atOptions: \(aqintel\-hda\(aq (default), \(aqac97\(aq, \(aqes1370\(aq,
-\(aqsb16\(aq, \(aqnone\(aq
+\(aqsb16\(aq, \(aqusb\-audio\(aq, \(aqvirtio\-sound\-pci\(aq, \(aqnone\(aq
+.TP
+\f[B]\-\-sound\-duplex <type>\f[R]
+Set sound card duplex.
+\(atOptions: \(aqhda\-micro\(aq (default: speaker/mic),
+\(aqhda\-duplex\(aq (line\-in/line\-out), \(aqhda\-output\(aq (output\-only)
 .TP
 \f[B]\-\-extra_args <arguments>\f[R]
 Pass additional arguments to qemu

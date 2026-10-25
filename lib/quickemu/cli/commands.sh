@@ -36,7 +36,7 @@ function display_param_check() {
             exit 1
         fi
     else
-        if [ "${display}" != "gtk" ] && [ "${display}" != "none" ] && [ "${display}" != "sdl" ] && [ "${display}" != "spice" ] && [ "${display}" != "spice-app" ]; then
+        if [ "${display}" != "gtk" ] && [ "${display}" != "none" ] && [ "${display}" != "sdl" ] && [ "${display}" != "spice" ] && [ "${display}" != "spice-app" ] && [ "${display}" != "vnc" ]; then
             echo "ERROR! Requested output '${display}' is not recognised."
             exit 1
         fi
@@ -61,7 +61,62 @@ function display_param_check() {
     esac
 }
 
+function resolution_param_check() {
+    if [ -n "${width}" ] && [ -z "${height}" ]; then
+        echo "ERROR! '--width ${width}' requires '--height'."
+        exit 1
+    fi
+    if [ -n "${height}" ] && [ -z "${width}" ]; then
+        echo "ERROR! '--height ${height}' requires '--width'."
+        exit 1
+    fi
+    if [ -n "${width}" ] && ! is_numeric "${width}"; then
+        echo "ERROR! --width must be a number!"
+        exit 1
+    fi
+    if [ -n "${height}" ] && ! is_numeric "${height}"; then
+        echo "ERROR! --height must be a number!"
+        exit 1
+    fi
+}
+
+# ACCESS/SSH_ACCESS accept a scope keyword ('local'|'remote') or a single
+# host/IP token to bind listeners to. Anything else (spaces, shell
+# metacharacters) would produce a malformed hostfwd/bind address.
+function access_param_check() {
+    local VAR="" VALUE=""
+    for VAR in ACCESS SSH_ACCESS; do
+        VALUE="${!VAR}"
+        [ -z "${VALUE}" ] && continue
+        case "${VALUE}" in
+        local | remote) ;;
+        *)
+            if [[ ! "${VALUE}" =~ ^[a-zA-Z0-9._-]+$ ]]; then
+                echo "ERROR! '${VALUE}' is not recognised for ${VAR}. Use 'local', 'remote' or a host/IP."
+                exit 1
+            fi
+            ;;
+        esac
+    done
+}
+
+# macaddr is applied to the QEMU NIC model string; an unchecked value could
+# inject extra ,key=val options into -device/-nic arguments.
+function network_param_check() {
+    if [ -n "${macaddr}" ] && [[ ! "${macaddr}" =~ ^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; then
+        echo "ERROR! '${macaddr}' is not a valid MAC address for macaddr."
+        exit 1
+    fi
+}
+
 function ports_param_check() {
+    local FORWARD=""
+    for FORWARD in "${port_forwards[@]}"; do
+        if [[ ! "${FORWARD}" =~ ^[0-9]+:[0-9]+$ ]]; then
+            echo "ERROR! '${FORWARD}' is not a valid port forward (expected host:guest numbers)."
+            exit 1
+        fi
+    done
     if [ -n "${ssh_port}" ] && ! is_numeric "${ssh_port}"; then
         echo "ERROR: ssh_port must be a number!"
         exit 1
@@ -180,7 +235,10 @@ function status_vm() {
     local STATE="stopped" PID_JSON="null"
     if [ -n "${VM_PID}" ]; then
         PID_JSON="${VM_PID}"
-        if [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ]; then
+        # Paused shows as either a SIGSTOP'd process (state T) or a live
+        # process suspended via the QEMU monitor 'stop' command (.paused
+        # marker written by pause_vm, removed by resume_vm/vm_runtime_cleanup).
+        if [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ] || [ -f "${VMDIR}/${VMNAME}.paused" ]; then
             STATE="paused"
         else
             STATE="running"
@@ -190,7 +248,7 @@ function status_vm() {
     fi
     if [ "${OUTPUT_FORMAT}" == "json" ]; then
         printf '{"schemaVersion":%s,"name":"%s","state":"%s","pid":%s}\n' \
-            "${QE_SCHEMA_VERSION}" "${VMNAME}" "${STATE}" "${PID_JSON}"
+            "${QE_SCHEMA_VERSION}" "$(json_escape "${VMNAME}")" "${STATE}" "${PID_JSON}"
         exit 0
     fi
     if [ -n "${VM_PID}" ]; then
@@ -224,7 +282,11 @@ function list_vms() {
             if [ -f "${DIR}/${DIR}.pid" ]; then
                 PID=$(cat "${DIR}/${DIR}.pid")
                 if vm_pid_alive "${DIR}/${DIR}.pid"; then
-                    STATE="running"
+                    if [ -f "${DIR}/${DIR}.paused" ]; then
+                        STATE="paused"
+                    else
+                        STATE="running"
+                    fi
                 else
                     STATE="stale"
                     PID="null"
@@ -233,7 +295,7 @@ function list_vms() {
             [ ${FIRST} -eq 0 ] && printf ','
             FIRST=0
             printf '{"name":"%s","guest_os":"%s","state":"%s","pid":%s}' \
-                "${DIR}" "${OS:-linux}" "${STATE}" "${PID}"
+                "$(json_escape "${DIR}")" "$(json_escape "${OS:-linux}")" "${STATE}" "${PID}"
         done
         printf ']}\n'
         return 0
@@ -247,13 +309,32 @@ function list_vms() {
         if [ -f "${DIR}/${DIR}.pid" ]; then
             PID=$(cat "${DIR}/${DIR}.pid")
             if vm_pid_alive "${DIR}/${DIR}.pid"; then
-                STATE="running"
+                if [ -f "${DIR}/${DIR}.paused" ]; then
+                    STATE="paused"
+                else
+                    STATE="running"
+                fi
             else
                 STATE="stale"
                 PID=""
             fi
         fi
         printf '%-28s %-16s %-9s %s\n' "${DIR}" "${OS:-linux}" "${STATE}" "${PID}"
+    done
+}
+
+# Read a .conf WITHOUT executing it: conf files are bash and are executed
+# via `source` on normal launch, so imported/foreign confs should be
+# inspected first. Uses the declarative conf_get parser.
+function inspect_conf() {
+    local F="${1:-${VM}}" KEY VALUE
+    if [ ! -f "${F}" ]; then
+        echo "ERROR! ${F} not found."
+        return 1
+    fi
+    for KEY in guest_os arch boot tpm secureboot disk_img disk_format disk_size iso img fixed_iso floppy ram cpu_cores network bridge macaddr port_forwards display monitor serial sound_card public_dir seed kernel initrd boot_args gpu_passthrough vnc_listen; do
+        VALUE=$(conf_get "${F}" "${KEY}" 2>/dev/null) || continue
+        printf '%s="%s"\n' "${KEY}" "${VALUE}"
     done
 }
 
@@ -278,7 +359,7 @@ function capabilities() {
     "exportImport": true,
     "diskOps": true,
     "downloadProgress": false,
-    "safeDeletePlan": false
+    "safeDeletePlan": true
   }
 }
 JSON

@@ -25,34 +25,49 @@ These are the options and defaults for the \<vm\>.conf file
 
 ``` shell
 # Lowercase variables are used in the VM config file only
+arch=""           # x86_64 (default) or aarch64
 boot="efi"
 cpu_cores=""
 disk_img=""
+disk_format="qcow2"
 disk_size=""
 display=""
 extra_args=""
 fixed_iso=""
 floppy=""
+gl=""             # on, off (empty: auto-detect)
 guest_os="linux"
 img=""
 iso=""
-macaddr=""
+kernel=""         # direct kernel boot: path to a kernel image
+initrd=""         # initrd to pair with kernel=
+boot_args=""      # -append arguments when kernel= is set
+seed=""           # cloud-init/NoCloud seed ISO attached as a cdrom
+macaddr=""        # applied to the NIC in every mode except network="none"
 macos_release=""
-network=""
+max_outputs=""    # multi-head outputs for virtio/qxl displays
+network=""        # '' (user), 'none', 'restrict', 'passt' or a bridge name
+bridge=""         # deprecated alias for network= (quickemu <= 4.0)
 port_forwards=()
 preallocation="off"
 ram=""
 secureboot="off"
 tpm="off"
 usb_devices=()
+gpu_passthrough=""
 viewer="spicy"
 viewer_extra_args=""
+width=""          # requires height=; both must be numeric
+height=""         # requires width=; both must be numeric
 ssh_port=""
 spice_port=""
 public_dir=""
 monitor="socket"
 monitor_telnet_port="4440"
 monitor_telnet_host="localhost"
+sound_card=""     # intel-hda (default), ac97, es1370, ich9-intel-hda, sb16, usb-audio, virtio-sound-pci, none
+sound_duplex="hda-micro"  # hda-micro, hda-duplex, hda-output
+vnc_listen="127.0.0.1:0"  # -vnc listen address when display="vnc"
 monitor_cmd=""
 serial="socket"
 serial_telnet_port="6660"
@@ -248,9 +263,10 @@ additional line to your virtual machine configuration:
 
 - `network="br0"`
 
-If you want to have a persistent MAC address for your bridged network
-interface in the guest VM you can add `macaddr` to the virtual machine
-configuration. QEMU requires that the MAC address is in the range:
+If you want to have a persistent MAC address for the guest VM network
+interface you can add `macaddr` to the virtual machine configuration. It
+is applied to the guest NIC in user, restricted, passt and bridged
+networking modes. QEMU requires that the MAC address is in the range:
 **52:54:00:AB:00:00 - 52:54:00:AB:FF:FF**
 
 So you can generate your own MAC addresses with:

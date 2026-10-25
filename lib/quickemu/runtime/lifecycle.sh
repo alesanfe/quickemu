@@ -217,15 +217,118 @@ function start_viewer {
 
 # ---- pid.sh ----
 # PID file helpers for VM liveness.
-vm_pid_alive() { # pidfile -> 0 if process alive
-    local pid
+
+# Best-effort process name: ps -o comm= where supported (Linux, macOS,
+# BSD), /proc/<pid>/exename elsewhere (Cygwin/MSYS2).
+vm_proc_comm() { # pid -> process name or empty
+    local pid="${1}" c=""
+    c=$(ps -p "${pid}" -o comm= 2>/dev/null | tr -d ' ')
+    if [ -z "${c}" ] && [ -r "/proc/${pid}/exename" ]; then
+        c=$(basename "$(cat "/proc/${pid}/exename" 2>/dev/null)" 2>/dev/null)
+    fi
+    printf '%s' "${c%.exe}"
+}
+
+vm_pid_alive() { # pidfile -> 0 if process alive AND belongs to the VM
+    local pid comm expect
     [ -f "${1}" ] || return 1
     pid=$(tr -d '[:space:]' <"${1}")
-    [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null
+    [ -n "${pid}" ] || return 1
+    kill -0 "${pid}" 2>/dev/null || return 1
+    # PID reuse guard: a live PID is not proof the process is this VM's QEMU
+    # (pid files outlive crashes and PIDs get recycled). QEMU is launched
+    # with -name <vm>,process=<vm>, so the process comm is the VM name
+    # (truncated to 15 chars on Linux); accept qemu* too for VMs launched
+    # outside quickemu. comm may be empty on exotic systems: err on the safe
+    # side and report not-alive rather than risking kill of an alien PID.
+    comm=$(vm_proc_comm "${pid}")
+    expect=$(basename "${1}" .pid)
+    case "${comm}" in
+    "${expect}" | "${expect:0:15}" | qemu*) return 0 ;;
+    esac
+    return 1
 }
 
 # True when the VM's pidfile exists and its process is alive.
 vm_running() { vm_pid_alive "${1}/${2:-$(basename "${1}" .conf)}.pid"; }
+
+function stop_swtpm() {
+    local pid_file="${VMDIR}/${VMNAME}.swtpm-pid"
+    local socket="${VMDIR}/${VMNAME}.swtpm-sock"
+    local pid=""
+
+    if [ -r "${pid_file}" ]; then
+        pid=$(tr -d '[:space:]' <"${pid_file}")
+    fi
+
+    if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+        # Guard against PID reuse: only signal the process if it is still
+        # a swtpm instance.
+        if [ "$(ps -p "${pid}" -o comm= 2>/dev/null)" = "swtpm" ]; then
+            kill -TERM "${pid}" 2>/dev/null
+            local i
+            for i in 1 2 3 4 5; do
+                kill -0 "${pid}" 2>/dev/null || break
+                sleep 0.2
+            done
+            if kill -0 "${pid}" 2>/dev/null; then
+                kill -KILL "${pid}" 2>/dev/null
+            fi
+        fi
+    fi
+
+    rm -f "${pid_file}" "${socket}"
+}
+
+# Remove every runtime artefact a boot can leave behind and stop the
+# companion daemons (virtiofsd, swtpm). Idempotent; safe on a VM that is
+# already stopped, was killed, or exited on its own.
+function vm_runtime_cleanup() {
+    stop_virtiofsd
+    stop_swtpm
+    rm -f "${VMDIR}/${VMNAME}.pid" \
+        "${VMDIR}/${VMNAME}.spice" \
+        "${VMDIR}/${VMNAME}.sock" \
+        "${VMDIR}/${VMNAME}-monitor.socket" \
+        "${VMDIR}/${VMNAME}-serial.socket" \
+        "${VMDIR}/${VMNAME}-agent.sock" \
+        "${VMDIR}/${VMNAME}.ports" \
+        "${VMDIR}/${VMNAME}.paused"
+    # Drop the operation lock only when the VM is fully gone.
+    rm -rf "${VMDIR}/${VMNAME}.lock"
+    return 0
+}
+
+# ---- lock.sh ----
+# Per-VM operation lock (mkdir is atomic on POSIX filesystems).
+# Prevents concurrent boot/destructive operations on the same VM.
+
+vm_lock_acquire() { # -> 0 acquired / 1 already locked
+    local lockdir="${VMDIR}/${VMNAME}.lock" tries=0 max="${VM_LOCK_TRIES:-1}" owner=""
+    mkdir -p "${VMDIR}" || return 1
+    while ! mkdir "${lockdir}" 2>/dev/null; do
+        # Reclaim the lock if the owning process is gone (crash-safe).
+        if [ -f "${lockdir}/pid" ]; then
+            owner=$(tr -d '[:space:]' <"${lockdir}/pid")
+            if [ -n "${owner}" ] && ! kill -0 "${owner}" 2>/dev/null; then
+                rm -rf "${lockdir}"
+                continue
+            fi
+        fi
+        tries=$((tries + 1))
+        if [ "${tries}" -ge "${max}" ]; then
+            echo "ERROR! ${VMNAME} is locked by another operation."
+            return 1
+        fi
+        sleep 0.2
+    done
+    echo "$$" >"${lockdir}/pid"
+    return 0
+}
+
+vm_lock_release() {
+    rm -rf "${VMDIR}/${VMNAME}.lock"
+}
 
 # ---- ports.sh ----
 # Host TCP port allocation for guests and .ports runtime state.
@@ -235,13 +338,16 @@ function get_port() {
     local PORT_RANGE=$((PORT_START + $2))
     local PORT
     for ((PORT = PORT_START; PORT <= PORT_RANGE; PORT++)); do
-        # Make sure port scans do not block too long.
-        timeout 0.1s bash -c "echo >/dev/tcp/127.0.0.1/${PORT}" >/dev/null 2>&1
-        if [ ${?} -eq 1 ]; then
+        # A connect to 127.0.0.1 always completes immediately (accepted or
+        # refused), so no timeout wrapper is needed. A failed connect means
+        # the port is free. This also works on macOS where GNU 'timeout' is
+        # not installed.
+        if ! (exec 3<>"/dev/tcp/127.0.0.1/${PORT}") 2>/dev/null; then
             echo "${PORT}"
-            break
+            return 0
         fi
     done
+    return 1
 }
 
 function parse_ports_from_file {
@@ -249,6 +355,9 @@ function parse_ports_from_file {
     local host_name=""
     local port_name=""
     local port_number=""
+
+    # VMs created before .ports bookkeeping have no file; nothing to parse.
+    [ -f "${FILE}" ] || return 0
 
     # Loop over each line in the file
     while IFS= read -r CONF || [ -n "${CONF}" ]; do

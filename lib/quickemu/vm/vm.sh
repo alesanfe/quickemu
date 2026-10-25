@@ -7,9 +7,16 @@
 # ---- identity.sh ----
 # VM identity: what a VM is — name, config dir, disk dir, artefact paths.
 vm_identify() { # conf_path -> sets VMNAME VMDIR VMPATH SOCKET_MONITOR SOCKET_SERIAL
-    VMDIR=$(dirname "${disk_img}")          # directory the VM disk and state files are stored
     VMNAME=$(basename "${1}" .conf)         # name of the VM
     VMPATH=$(realpath "$(dirname "${1}")")  # path to the top-level VM directory
+    if [ -n "${disk_img}" ]; then
+        VMDIR=$(dirname "${disk_img}")      # directory the VM disk and state files are stored
+    else
+        # No disk_img configured: follow the quickget convention of a per-VM
+        # directory named after the conf, alongside it. (Previously this
+        # resolved to '.', silently mixing VM state into the current dir.)
+        VMDIR="${VMPATH}/${VMNAME}"
+    fi
     SOCKET_MONITOR="${VMDIR}/${VMNAME}-monitor.socket"
     SOCKET_SERIAL="${VMDIR}/${VMNAME}-serial.socket"
 }
@@ -26,9 +33,25 @@ function delete_shortcut() {
 }
 
 function delete_vm() {
+    if vm_running "${VMDIR}" "${VMNAME}"; then
+        echo "ERROR! Stop ${VMNAME} before deleting it."
+        exit 1
+    fi
+    # Confinement: only ever delete the canonical <confdir>/<VMNAME> tree.
+    # VMDIR derives from disk_img inside the sourced conf, so a crafted or
+    # typo'd conf must not be able to redirect rm -rf to HOME, / or elsewhere.
+    if [ -d "${VMDIR}" ]; then
+        local EXPECTED RESOLVED
+        EXPECTED="$(cd "$(dirname "${VM}")" && pwd -P)/${VMNAME}"
+        RESOLVED="$(cd "${VMDIR}" && pwd -P)"
+        if [ "${RESOLVED}" != "${EXPECTED}" ]; then
+            echo "ERROR! quickemu refuses to delete '${RESOLVED}': not the VM directory ${EXPECTED}."
+            exit 1
+        fi
+    fi
     echo "Deleting ${VMNAME} completely"
     if [ -d "${VMDIR}" ]; then
-        rm -rf "${VMDIR}"
+        rm -rf -- "${VMDIR}"
         rm "${VM}"
         echo " - Deleted ${VM} and ${VMDIR}/"
         delete_shortcut
@@ -44,11 +67,16 @@ function pause_vm() {
     fi
     # Prefer the QEMU monitor 'stop' command: it suspends the vCPUs while
     # keeping the monitor socket responsive (screenshots, --monitor-cmd).
-    if [ "${monitor}" != "none" ] && [ -S "${SOCKET_MONITOR}" ]; then
-        monitor_send_cmd "stop" && echo " - ${VMNAME} (${VM_PID}) paused."
+    if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
+        monitor_send_cmd "stop" || return 1
     else
-        kill -STOP "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) paused."
+        kill -STOP "${VM_PID}" || return 1
     fi
+    # The marker lets status_vm/list_vms report 'paused' for monitor-suspended
+    # VMs, whose process state stays S/R rather than T. vm_runtime_cleanup
+    # removes it when the VM exits or is killed.
+    : >"${VMDIR}/${VMNAME}.paused"
+    echo " - ${VMNAME} (${VM_PID}) paused."
 }
 
 function shutdown_vm() {
@@ -57,7 +85,7 @@ function shutdown_vm() {
         echo " - ${VMNAME} is not running."
         return 1
     fi
-    if [ "${monitor}" != "none" ] && [ -S "${SOCKET_MONITOR}" ]; then
+    if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
         monitor_send_cmd "system_powerdown" \
             && echo " - ${VMNAME} (${VM_PID}) shutdown requested."
     else
@@ -73,7 +101,7 @@ function reset_vm() {
         echo " - ${VMNAME} is not running."
         return 1
     fi
-    if [ "${monitor}" != "none" ] && [ -S "${SOCKET_MONITOR}" ]; then
+    if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
         monitor_send_cmd "system_reset" \
             && echo " - ${VMNAME} (${VM_PID}) reset requested."
     else
@@ -87,11 +115,13 @@ function resume_vm() {
         echo " - ${VMNAME} is not running."
         return 1
     fi
-    if [ "${monitor}" != "none" ] && [ -S "${SOCKET_MONITOR}" ]; then
-        monitor_send_cmd "cont" && echo " - ${VMNAME} (${VM_PID}) resumed."
+    if [ "${monitor}" != "none" ] && vm_monitor_socket_ready; then
+        monitor_send_cmd "cont" || return 1
     else
-        kill -CONT "${VM_PID}" && echo " - ${VMNAME} (${VM_PID}) resumed."
+        kill -CONT "${VM_PID}" || return 1
     fi
+    rm -f "${VMDIR}/${VMNAME}.paused"
+    echo " - ${VMNAME} (${VM_PID}) resumed."
 }
 
 function screenshot_vm() {
@@ -105,7 +135,7 @@ function screenshot_vm() {
         echo " - ERROR! No QEMU monitor channel for ${VMNAME} (monitor is disabled)."
         return 1
     fi
-    if [ "${monitor}" == "socket" ] && [ ! -S "${SOCKET_MONITOR}" ]; then
+    if [ "${monitor}" == "socket" ] && ! vm_monitor_socket_ready; then
         echo " - ERROR! No QEMU monitor socket for ${VMNAME}."
         return 1
     fi
@@ -202,9 +232,23 @@ function export_vm() {
 }
 
 function import_vm() {
-    local IN="${IMPORT_FILE}" BASE=""
+    local IN="${IMPORT_FILE}" BASE="" TMPDIR_IM="" MEMBER="" ENTRY=""
     if [ -z "${IN}" ] || [ ! -f "${IN}" ]; then
         echo "ERROR! '--import' needs an existing .tar.gz file."
+        exit 1
+    fi
+    # Member whitelist: refuse absolute paths, traversal and links/devices
+    # BEFORE writing anything (tar slip / symlink overwrite attacks).
+    while IFS= read -r MEMBER; do
+        case "${MEMBER}" in
+        /* | '..' | ../* | */.. | */../*)
+            echo "ERROR! Unsafe path in archive: '${MEMBER}'"
+            exit 1
+            ;;
+        esac
+    done < <(tar -tzf "${IN}" 2>/dev/null)
+    if tar -tzvf "${IN}" 2>/dev/null | awk '$1 ~ /^[lhbcp]/ { exit 42 }'; [ $? -eq 42 ]; then
+        echo "ERROR! Archive contains links or special files; refusing import."
         exit 1
     fi
     BASE=$(tar -tzf "${IN}" 2>/dev/null | grep -m1 '\.conf$' | xargs -r basename | sed 's/\.conf$//')
@@ -212,12 +256,34 @@ function import_vm() {
         echo "ERROR! No .conf found inside ${IN}."
         exit 1
     fi
+    case "${BASE}" in
+    "" | . | .. | */* | -*)
+        echo "ERROR! Unsafe VM name '${BASE}' in archive."
+        exit 1
+        ;;
+    esac
     if [ -e "${BASE}.conf" ] || [ -d "${BASE}" ]; then
         echo "ERROR! ${BASE} already exists."
         exit 1
     fi
-    tar -xzf "${IN}"
+    # Extract to a private staging dir first; move into place only on success.
+    TMPDIR_IM=$(mktemp -d "${TMPDIR:-/tmp}/quickemu-import.XXXXXX") || exit 1
+    if ! tar -xzf "${IN}" -C "${TMPDIR_IM}" 2>/dev/null; then
+        rm -rf -- "${TMPDIR_IM}"
+        echo "ERROR! Failed to extract ${IN}."
+        exit 1
+    fi
+    for ENTRY in "${TMPDIR_IM}"/* "${TMPDIR_IM}"/.[!.]*; do
+        [ -e "${ENTRY}" ] || continue
+        if ! mv -- "${ENTRY}" .; then
+            rm -rf -- "${TMPDIR_IM}"
+            echo "ERROR! Failed to install ${ENTRY}."
+            exit 1
+        fi
+    done
+    rm -rf -- "${TMPDIR_IM}"
     echo " - Imported ${BASE} from ${IN}"
+    echo " - WARNING! ${BASE}.conf is executed as code on launch; review it before running the VM."
 }
 
 function rename_vm() {
@@ -237,7 +303,11 @@ function rename_vm() {
     fi
     [ -d "${VMDIR}" ] && mv "${VMDIR}" "${PARENT}/${NEW_NAME}"
     mv "${VM}" "${PARENT}/${NEW_NAME}.conf"
-    sed -i "s|${VMNAME}/|${NEW_NAME}/|g" "${PARENT}/${NEW_NAME}.conf"
+    # Escape sed metacharacters in the names before rewriting the conf.
+    local OLD_ESC NEW_ESC
+    OLD_ESC=$(printf '%s' "${VMNAME}/" | sed 's/[&|\\]/\\&/g')
+    NEW_ESC=$(printf '%s' "${NEW_NAME}/" | sed 's/[&|\\]/\\&/g')
+    sed -i "s|${OLD_ESC}|${NEW_ESC}|g" "${PARENT}/${NEW_NAME}.conf"
     echo " - Renamed ${VMNAME} to ${NEW_NAME}"
 }
 
@@ -316,22 +386,12 @@ function kill_vm() {
     echo "Killing ${VMNAME}"
     if [ -z "${VM_PID}" ]; then
         echo " - ${VMNAME} is not running."
-        qe_safe_rm "${VMDIR}/${VMNAME}.pid"
-        qe_safe_rm "${VMDIR}/${VMNAME}.spice"
-        qe_safe_rm "${VMDIR}/${VMNAME}.sock"
-        stop_virtiofsd
-    elif [ -n "${VM_PID}" ]; then
-        if kill -9 "${VM_PID}" >/dev/null 2>&1; then
-            echo " - ${VMNAME} (${VM_PID}) killed."
-            qe_safe_rm "${VMDIR}/${VMNAME}.pid"
-            qe_safe_rm "${VMDIR}/${VMNAME}.spice"
-            qe_safe_rm "${VMDIR}/${VMNAME}.sock"
-            stop_virtiofsd
-        else
-            echo " - ${VMNAME} (${VM_PID}) was not killed."
-        fi
-    elif [ ! -r "${VMDIR}/${VMNAME}.pid" ]; then
-        echo " - ${VMNAME} has no ${VMDIR}/${VMNAME}.pid"
+        vm_runtime_cleanup
+    elif kill -9 "${VM_PID}" >/dev/null 2>&1; then
+        echo " - ${VMNAME} (${VM_PID}) killed."
+        vm_runtime_cleanup
+    else
+        echo " - ${VMNAME} (${VM_PID}) was not killed."
     fi
 }
 
@@ -604,6 +664,19 @@ function vm_boot() {
     boot=${boot,,}
     guest_os=${guest_os,,}
     args=()
+
+    # Warn on unrecognised guest_os values (a typo silently gets generic
+    # defaults). 'custom' configs may use arbitrary values, so warn only.
+    case ${guest_os} in
+    batocera | freedos | haiku | kolibrios | linux | linux_old | macos | reactos | solaris | templeos | windows | windows-server | *bsd) ;;
+    *) echo " - WARNING!  '${guest_os}' is not a recognised guest_os value; using generic defaults." ;;
+    esac
+
+    # $bridge backwards compatibility for Quickemu <= 4.0. Resolved before
+    # configure_ports so SSH forward output reflects the real network mode.
+    if [ -n "${bridge}" ]; then
+        network="${bridge}"
+    fi
     # Set the hostname of the VM
     NET="user,hostname=${VMNAME}"
 
@@ -825,9 +898,15 @@ function vm_boot() {
     # shellcheck disable=SC2206
     args+=(-audiodev ${AUDIO_DEV} ${SOUND})
 
-    # $bridge backwards compatibility for Quickemu <= 4.0
-    if [ -n "${bridge}" ]; then
-        network="${bridge}"
+    # A configured MAC address applies to the NIC device in every mode that
+    # creates one. With network=none there is no NIC to attach it to.
+    local MAC=""
+    if [ -n "${macaddr}" ]; then
+        if [ "${network}" == "none" ]; then
+            echo " - WARNING!  macaddr '${macaddr}' is ignored because networking is disabled."
+        else
+            MAC=",mac=${macaddr}"
+        fi
     fi
 
     if [ "${network}" == "none" ]; then
@@ -837,7 +916,7 @@ function vm_boot() {
     elif [ "${network}" == "restrict" ]; then
         echo " - Network:  Restricted (${NET_DEVICE})"
         # shellcheck disable=SC2054,SC2206
-        args+=(-device ${NET_DEVICE},netdev=nic -netdev ${NET},restrict=y,id=nic)
+        args+=(-device ${NET_DEVICE},netdev=nic${MAC} -netdev ${NET},restrict=y,id=nic)
     elif [ "${network}" == "passt" ]; then
         # passt provides unprivileged user-mode networking; QEMU 10.1+
         echo " - Network:  passt (${NET_DEVICE})"
@@ -846,16 +925,10 @@ function vm_boot() {
             exit 1
         fi
         # shellcheck disable=SC2054,SC2206
-        args+=(-device ${NET_DEVICE},netdev=nic -netdev passt,id=nic)
+        args+=(-device ${NET_DEVICE},netdev=nic${MAC} -netdev passt,id=nic)
     elif [ -n "${network}" ]; then
         # Enable bridge mode networking
         echo " - Network:  Bridged (${network})"
-
-        # If a persistent MAC address is provided, use it.
-        local MAC=""
-        if [ -n "${macaddr}" ]; then
-            MAC=",mac=${macaddr}"
-        fi
 
         local BRIDGE_HELPER=""
         BRIDGE_HELPER=$(type -p qemu-bridge-helper)
@@ -864,7 +937,7 @@ function vm_boot() {
     else
         echo " - Network:  User (${NET_DEVICE})"
         # shellcheck disable=SC2054,SC2206
-        args+=(-device ${NET_DEVICE},netdev=nic -netdev ${NET},id=nic)
+        args+=(-device ${NET_DEVICE},netdev=nic${MAC} -netdev ${NET},id=nic)
     fi
 
     # Add the disks
@@ -949,12 +1022,12 @@ function vm_boot() {
     elif [ "${guest_os}" == "reactos" ]; then
         # https://reactos.org/wiki/QEMU
         # shellcheck disable=SC2054,SC2206
-        args+=(-drive if=ide,index=0,media=disk,file="${disk_img}")
+        args+=(-drive if=ide,index=0,media=disk,file="${disk_img}" ${STATUS_QUO})
 
     elif [ "${guest_os}" == "templeos" ]; then
         # TempleOS supports ATA/IDE disks only
         # shellcheck disable=SC2054,SC2206
-        args+=(-drive if=ide,index=0,media=disk,file="${disk_img}")
+        args+=(-drive if=ide,index=0,media=disk,file="${disk_img}" ${STATUS_QUO})
 
     elif [ "${guest_os}" == "windows-server" ]; then
         # shellcheck disable=SC2054,SC2206
@@ -1056,6 +1129,12 @@ function snapshot_apply() {
         echo " - ERROR! No snapshot tag provided."
         exit
     fi
+    # qemu-img snapshot writes the image metadata; doing so while QEMU holds
+    # the disk corrupts the running guest's view of it.
+    if vm_running "${VMDIR}" "${VMNAME}"; then
+        echo " - ERROR! Stop ${VMNAME} before managing snapshots."
+        exit 1
+    fi
 
     if [ -e "${disk_img}" ]; then
         if ${QEMU_IMG} snapshot -q -a "${TAG}" "${disk_img}"; then
@@ -1075,6 +1154,10 @@ function snapshot_create() {
         echo "- ERROR! No snapshot tag provided."
         exit
     fi
+    if vm_running "${VMDIR}" "${VMNAME}"; then
+        echo " - ERROR! Stop ${VMNAME} before managing snapshots."
+        exit 1
+    fi
 
     if [ -e "${disk_img}" ]; then
         if ${QEMU_IMG} snapshot -q -c "${TAG}" "${disk_img}"; then
@@ -1093,6 +1176,10 @@ function snapshot_delete() {
     if [ -z "${TAG}" ]; then
         echo " - ERROR! No snapshot tag provided."
         exit
+    fi
+    if vm_running "${VMDIR}" "${VMNAME}"; then
+        echo " - ERROR! Stop ${VMNAME} before managing snapshots."
+        exit 1
     fi
 
     if [ -e "${disk_img}" ]; then
@@ -1129,5 +1216,5 @@ function snapshot_list_json() {
               }]')" || SNAPS="[]"
     fi
     printf '{"schemaVersion":%s,"vm":"%s","snapshots":%s}\n' \
-        "${QE_SCHEMA_VERSION}" "${VMNAME}" "${SNAPS:-[]}"
+        "${QE_SCHEMA_VERSION}" "$(json_escape "${VMNAME}")" "${SNAPS:-[]}"
 }

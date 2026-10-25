@@ -1,0 +1,5 @@
+# Enforce LF line endings on checkout (see .editorconfig).
+# All scripts in this repo are Bash and require LF; a Windows checkout
+# with core.autocrlf=true would otherwise produce CRLF and break
+# shellspec, shellcheck and the tools themselves.
+* text=auto eol=lf

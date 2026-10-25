@@ -13,12 +13,18 @@ function qemu_spawn() {
     if kill -0 "${VM_PID}" 2>/dev/null; then
         echo " - Process:  Started ${VM} as ${VMNAME} (${VM_PID})"
         configure_cpu_pinning
+        # quickemu exits right after spawning QEMU, but the companion daemons
+        # (virtiofsd, swtpm) and runtime state files must not outlive the
+        # guest. This watcher reaps them when QEMU exits on its own; it is
+        # cheap (one short sleep loop) and terminates with the VM.
+        (
+            while kill -0 "${VM_PID}" 2>/dev/null; do sleep 2; done
+            vm_runtime_cleanup
+        ) &>/dev/null &
+        disown
     else
         echo " - Process:  ERROR! Failed to start ${VM} as ${VMNAME}"
-        rm -f "${VMDIR}/${VMNAME}.pid"
-        rm -f "${VMDIR}/${VMNAME}.spice"
-        rm -f "${VMDIR}/${VMNAME}.sock"
-        stop_virtiofsd
+        vm_runtime_cleanup
         echo && cat "${VMDIR}/${VMNAME}.log"
         exit 1
     fi
@@ -27,7 +33,13 @@ function qemu_spawn() {
 # Initialise the generated launch script for this boot.
 # Skipped in plan mode (--dry-run): the .sh is an execution artifact.
 function runtime_launcher_init() {
-    [ -z "${DRY_RUN}" ] && echo "#!/usr/bin/env bash" >"${VMDIR}/${VMNAME}.sh"
+    if [ -z "${DRY_RUN}" ]; then
+        # The VMDIR is normally created by configure_storage, but the launcher
+        # script is written first; create it here so a first boot of a brand
+        # new VM does not fail on the redirection.
+        mkdir -p "${VMDIR}"
+        echo "#!/usr/bin/env bash" >"${VMDIR}/${VMNAME}.sh"
+    fi
 }
 
 # True when the swtpm control socket will be usable for this boot —
@@ -243,7 +255,9 @@ function configure_cpu() {
     *) HYPERVISOR="" ;;
     esac
 
-    if [ -z "${HYPERVISOR}" ]; then
+    # --dry-run only emits the execution plan; hardware-virtualisation
+    # capability is a runtime requirement, not a planning one.
+    if [ -z "${HYPERVISOR}" ] && [ -z "${DRY_RUN}" ]; then
         # A CPU with Intel VT-x / AMD SVM support is required
         if [ "${HOST_CPU_VENDOR}" == "GenuineIntel" ]; then
             if ! check_cpu_flag vmx; then
@@ -945,40 +959,47 @@ function configure_ports() {
         qe_safe_rm "${VMDIR}/${VMNAME}.sock"
     fi
 
-    if [ -z "${ssh_port}" ]; then
-        # Find a free port to expose ssh to the guest
-        ssh_port=$(get_port 22220 9)
-    fi
+    # hostfwd only applies to QEMU user-mode networking ('-netdev user').
+    # With network=none/bridge/passt, advertising an SSH forward would print a
+    # port that nothing listens on and write misleading .ports state.
+    local NET_MODE
+    NET_MODE=$(vm_net_mode "${network}")
+    if [ "${NET_MODE}" == "user" ] || [ "${NET_MODE}" == "restrict" ]; then
+        if [ -z "${ssh_port}" ]; then
+            # Find a free port to expose ssh to the guest
+            ssh_port=$(get_port 22220 9)
+        fi
 
-    if [ -z "${SSH_ACCESS}" ] || [ "${SSH_ACCESS}" == "local" ]; then
-        SSH_ADDR="127.0.0.1"
-        ssh_host="localhost"
-    elif [ "${SSH_ACCESS}" == "remote" ]; then
-        SSH_ADDR=""
-        ssh_host="localhost"
-    else
-        SSH_ADDR="${SSH_ACCESS}"
-        ssh_host="${SSH_ACCESS}"
-    fi
+        if [ -z "${SSH_ACCESS}" ] || [ "${SSH_ACCESS}" == "local" ]; then
+            SSH_ADDR="127.0.0.1"
+            ssh_host="localhost"
+        elif [ "${SSH_ACCESS}" == "remote" ]; then
+            SSH_ADDR=""
+            ssh_host="localhost"
+        else
+            SSH_ADDR="${SSH_ACCESS}"
+            ssh_host="${SSH_ACCESS}"
+        fi
 
-    if [ -n "${ssh_port}" ]; then
-        ports_record "ssh,${ssh_port}"
-        NET="${NET},hostfwd=tcp:${SSH_ADDR}:${ssh_port}-:22"
-        echo " - ssh:      On host:  ssh user@${ssh_host} -p ${ssh_port}"
-    else
-        echo " - ssh:      All ssh ports have been exhausted."
-    fi
+        if [ -n "${ssh_port}" ]; then
+            ports_record "ssh,${ssh_port}"
+            NET="${NET},hostfwd=tcp:${SSH_ADDR}:${ssh_port}-:22"
+            echo " - ssh:      On host:  ssh user@${ssh_host} -p ${ssh_port}"
+        else
+            echo " - ssh:      All ssh ports have been exhausted."
+        fi
 
-    # Have any port forwards been requested?
-    if ((${#port_forwards[@]})); then
-        echo " - PORTS:    Port forwards requested:"
-        for FORWARD in "${port_forwards[@]}"; do
-            HOST_PORT=$(echo "${FORWARD}" | cut -d':' -f1)
-            GUEST_PORT=$(echo "${FORWARD}" | cut -d':' -f2)
-            echo "              - ${HOST_PORT} => ${GUEST_PORT}"
-            NET="${NET},hostfwd=tcp::${HOST_PORT}-:${GUEST_PORT}"
-            NET="${NET},hostfwd=udp::${HOST_PORT}-:${GUEST_PORT}"
-        done
+        # Have any port forwards been requested?
+        if ((${#port_forwards[@]})); then
+            echo " - PORTS:    Port forwards requested:"
+            for FORWARD in "${port_forwards[@]}"; do
+                HOST_PORT=$(echo "${FORWARD}" | cut -d':' -f1)
+                GUEST_PORT=$(echo "${FORWARD}" | cut -d':' -f2)
+                echo "              - ${HOST_PORT} => ${GUEST_PORT}"
+                NET="${NET},hostfwd=tcp::${HOST_PORT}-:${GUEST_PORT}"
+                NET="${NET},hostfwd=udp::${HOST_PORT}-:${GUEST_PORT}"
+            done
+        fi
     fi
 
     if [ "${display}" == "none" ] || [ "${display}" == "spice" ] || [ "${display}" == "spice-app" ]; then
@@ -1116,6 +1137,7 @@ function configure_tpm() {
         if [ -z "${DRY_RUN}" ]; then
             echo "${SWTPM} ${tpm_args[*]} &" >>"${VMDIR}/${VMNAME}.sh"
             ${SWTPM} "${tpm_args[@]}" >>"${VMDIR}/${VMNAME}.log" &
+            echo "${!}" >"${VMDIR}/${VMNAME}.swtpm-pid"
             echo " - TPM:      ${VMDIR}/${VMNAME}.swtpm-sock (${!})"
             sleep 0.25
         else

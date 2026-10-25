@@ -34,11 +34,21 @@ You can also pass optional parameters
 **--braille**
 :   Enable braille support. Requires SDL.
 
+**--cpu-pinning \<mapping\>**
+:   Choose which host cores correspond to which guest cores
+    (comma-separated, e.g. 0,2,4,6)
+
 **--delete-disk**
 :   Delete the disk image and EFI variables
 
+**--delete-plan**
+:   Show what '--delete-vm' would remove without changing anything
+
 **--delete-vm**
 :   Delete the entire VM and its configuration
+
+**--delete-shortcut**
+:   Delete the desktop shortcut for this VM
 
 **--display**
 :   Select display backend. 'gtk' (default), 'sdl', 'cocoa', 'vnc', 'none',
@@ -50,11 +60,27 @@ You can also pass optional parameters
 **--ignore-msrs-always**
 :   Configure KVM to always ignore unhandled machine-specific registers
 
+**--ignore-tsc-warning**
+:   Skip the TSC stability warning for macOS guests on AMD hosts
+
 **--kill**
 :   Kill the VM process if it is running
 
+**--shutdown**
+:   Request a graceful ACPI shutdown via the monitor (system_powerdown)
+
+**--reset**
+:   Hard reset the VM via the monitor (system_reset)
+
 **--status**
-:   Show whether the VM is running or stopped
+:   Show whether the VM is running, paused, stale or stopped
+
+**--capabilities**
+:   Print the machine-readable capability descriptor (JSON)
+
+**--format human|json**
+:   Output format for '--status', '--list-vms', '--snapshot' and '--dry-run'
+    (default: human)
 
 **--pause**
 :   Pause the running VM (QEMU monitor stop)
@@ -125,6 +151,9 @@ You can also pass optional parameters
 **--snapshot info**
 :   Show disk/snapshot info.
 
+**--snapshot list**
+:   List snapshots ('--format json' emits the schema v1 contract).
+
 **--status-quo**
 :   Do not commit any changes to disk/snapshot.
 
@@ -189,7 +218,11 @@ You can also pass optional parameters
 
 **--sound-card \<type\>**
 :   Set sound card. @Options: 'intel-hda' (default), 'ac97', 'es1370',
-    'sb16', 'none'
+    'sb16', 'usb-audio', 'virtio-sound-pci', 'none'
+
+**--sound-duplex \<type\>**
+:   Set sound card duplex. @Options: 'hda-micro' (default: speaker/mic),
+    'hda-duplex' (line-in/line-out), 'hda-output' (output-only)
 
 **--extra_args \<arguments\>**
 :   Pass additional arguments to qemu

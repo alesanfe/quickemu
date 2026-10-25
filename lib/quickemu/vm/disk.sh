@@ -5,6 +5,10 @@
 
 function delete_disk() {
     echo "Deleting ${VMNAME} virtual hard disk"
+    if vm_running "${VMDIR}" "${VMNAME}"; then
+        echo "ERROR! Stop ${VMNAME} before deleting its disk."
+        exit 1
+    fi
     if [ -e "${disk_img}" ]; then
         rm "${disk_img}" >/dev/null 2>&1
         # Remove any EFI vars, but not for macOS

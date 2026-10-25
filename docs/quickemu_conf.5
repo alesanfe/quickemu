@@ -15,27 +15,40 @@ These are the options and defaults for the <vm>.conf file
 .IP
 .EX
 # Lowercase variables are used in the VM config file only
+arch=\(dq\(dq           # x86_64 (default) or aarch64
 boot=\(dqefi\(dq
 cpu_cores=\(dq\(dq
 disk_img=\(dq\(dq
+disk_format=\(dqqcow2\(dq
 disk_size=\(dq\(dq
 display=\(dq\(dq
 extra_args=\(dq\(dq
 fixed_iso=\(dq\(dq
 floppy=\(dq\(dq
+gl=\(dq\(dq             # on, off (empty: auto\-detect)
 guest_os=\(dqlinux\(dq
 img=\(dq\(dq
 iso=\(dq\(dq
-macaddr=\(dq\(dq
+kernel=\(dq\(dq         # direct kernel boot: path to a kernel image
+initrd=\(dq\(dq         # initrd to pair with kernel=
+boot_args=\(dq\(dq      # \-append arguments when kernel= is set
+seed=\(dq\(dq           # cloud\-init/NoCloud seed ISO attached as a cdrom
+macaddr=\(dq\(dq        # applied to the NIC in every mode except network=\(dqnone\(dq
 macos_release=\(dq\(dq
-network=\(dq\(dq
+max_outputs=\(dq\(dq    # multi\-head outputs for virtio/qxl displays
+network=\(dq\(dq        # \(aq\(aq (user), \(aqnone\(aq, \(aqrestrict\(aq, \(aqpasst\(aq or a bridge name
+bridge=\(dq\(dq         # deprecated alias for network= (quickemu <= 4.0)
 port_forwards=()
 preallocation=\(dqoff\(dq
 ram=\(dq\(dq
 secureboot=\(dqoff\(dq
 tpm=\(dqoff\(dq
 usb_devices=()
+gpu_passthrough=\(dq\(dq
 viewer=\(dqspicy\(dq
+viewer_extra_args=\(dq\(dq
+width=\(dq\(dq          # requires height=; both must be numeric
+height=\(dq\(dq         # requires width=; both must be numeric
 ssh_port=\(dq\(dq
 spice_port=\(dq\(dq
 public_dir=\(dq\(dq
@@ -43,6 +56,9 @@ monitor=\(dqsocket\(dq
 monitor_telnet_port=\(dq4440\(dq
 monitor_telnet_host=\(dqlocalhost\(dq
 monitor_cmd=\(dq\(dq
+sound_card=\(dq\(dq     # intel\-hda (default), ac97, es1370, ich9\-intel\-hda, sb16, usb\-audio, virtio\-sound\-pci, none
+sound_duplex=\(dqhda\-micro\(dq  # hda\-micro, hda\-duplex, hda\-output
+vnc_listen=\(dq127.0.0.1:0\(dq  # \-vnc listen address when display=\(dqvnc\(dq
 serial=\(dqsocket\(dq
 serial_telnet_port=\(dq6660\(dq
 serial_telnet_host=\(dqlocalhost\(dq

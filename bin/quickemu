@@ -170,6 +170,19 @@ else
     exit 1
 fi
 
+cli_parse_args "${@}"
+
+# Actions that do not require a VM configuration run early so they work
+# from any directory, without --vm and without QEMU installed.
+for ACTION in "${ACTIONS[@]}"; do
+    case "${ACTION}" in
+    capabilities | list_vms | import_vm)
+        ${ACTION}
+        exit 0
+        ;;
+    esac
+done
+
 ARCH_HOST=$(uname -m)
 QEMU_IMG=$(command -v qemu-img)
 if [ ! -x "${QEMU_IMG}" ]; then
@@ -199,23 +212,12 @@ if [ "${QEMU_VER_SHORT}" -lt 61 ]; then
     exit 1
 fi
 
-cli_parse_args "${@}"
-
-# Actions that do not require a VM configuration run early so they work
-# from any directory and without --vm.
-for ACTION in "${ACTIONS[@]}"; do
-    case "${ACTION}" in
-    capabilities | list_vms)
-        ${ACTION}
-        exit 0
-        ;;
-    esac
-done
-
 if [ -n "${VM}" ] && [ -e "${VM}" ]; then
     # shellcheck source=/dev/null
     source "${VM}"
     PUBLIC="${public_dir:-${PUBLIC}}"
+    # monitor_cmd is a documented VM config option; the CLI flag wins.
+    MONITOR_CMD="${MONITOR_CMD:-${monitor_cmd}}"
 
     # Re-detect architecture and QEMU binary after sourcing config
     # Config file can set arch="aarch64" to override the default
@@ -261,16 +263,28 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
         if ! vm_pid_alive "${VMDIR}/${VMNAME}.pid"; then
             #VM is not running, cleaning up.
             VM_PID=""
-            rm -f "${VMDIR}/${VMNAME}.pid"
-            rm -f "${VMDIR}/${VMNAME}.spice"
-            rm -f "${VMDIR}/${VMNAME}.sock"
+            vm_runtime_cleanup
         fi
     fi
 
-    # Iterate over any actions and exit.
+    # Iterate over any actions and exit. Mutating actions run under the
+    # per-VM lock so two quickemu processes cannot collide on the same VM.
     if [ ${#ACTIONS[@]} -ge 1 ]; then
         for ACTION in "${ACTIONS[@]}"; do
-            ${ACTION}
+            case "${ACTION}" in
+            delete_vm | delete_disk | clone_vm | rename_vm | export_vm | kill_vm | pause_vm | resume_vm | shutdown_vm | reset_vm | send_keys | type_text | screenshot_vm | autostart_vm | create_shortcut | delete_shortcut)
+                (
+                    vm_lock_acquire || exit 1
+                    ${ACTION}
+                )
+                ACTION_RC=$?
+                vm_lock_release
+                [ ${ACTION_RC} -ne 0 ] && exit ${ACTION_RC}
+                ;;
+            *)
+                ${ACTION}
+                ;;
+            esac
         done
         exit
     fi
@@ -315,19 +329,34 @@ else
 fi
 
 display_param_check
+resolution_param_check
+access_param_check
+network_param_check
 ports_param_check
 sound_card_param_check
-tpm_param_check
-viewer_param_check
+# --dry-run only prints the execution plan; skip checks that gate on
+# installed host tools (swtpm, spicy/remote-viewer) since nothing runs.
+if [ -z "${DRY_RUN}" ]; then
+    tpm_param_check
+    viewer_param_check
+fi
 fileshare_param_check
 
 if [ -z "${VM_PID}" ]; then
-    vm_boot
     if [ -n "${DRY_RUN}" ]; then
+        # In json mode the plan must be the only thing on stdout.
+        if [ "${OUTPUT_FORMAT}" == "json" ]; then
+            vm_boot >&2
+        else
+            vm_boot
+        fi
         emit_execution_plan "${VMNAME}" "${QEMU} ${SHELL_ARGS}"
         exit 0
     fi
+    vm_lock_acquire || exit 1
+    vm_boot
     qemu_spawn "${args[@]}"
+    vm_lock_release
     start_viewer
     # If the VM being started is an uninstalled Windows VM then auto-skip the press-any key prompt.
     if [ -n "${iso}" ] && [[ "${guest_os}" == "windows"* ]]; then

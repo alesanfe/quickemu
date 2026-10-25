@@ -41,7 +41,9 @@ else
         -display | --display)
             SHORTCUT_OPTIONS+="--display ${2} "
             display="${2}"
-            display_param_check
+            # display_param_check is deferred to the launch path: at parse
+            # time QEMU has not been resolved yet, so the GTK availability
+            # probe would always fail and silently downgrade to SDL.
             shift 2
             ;;
         -fullscreen | --fullscreen | -full-screen | --full-screen)
@@ -162,6 +164,7 @@ else
             shift
             ;;
         -usb-passthrough | --usb-passthrough)
+            SHORTCUT_OPTIONS+="--usb-passthrough ${2} "
             usb_devices+=("${2}")
             shift 2
             ;;
@@ -180,7 +183,7 @@ else
                 exit 1
             fi
             SNAPSHOT_ACTION="${2}"
-            if [ -z "${3}" ] && [ "${SNAPSHOT_ACTION}" != "info" ]; then
+            if [ -z "${3}" ] && [ "${SNAPSHOT_ACTION}" != "info" ] && [ "${SNAPSHOT_ACTION}" != "list" ]; then
                 echo "ERROR! '--snapshot ${SNAPSHOT_ACTION}' needs a tag."
                 exit 1
             fi
@@ -192,11 +195,20 @@ else
             fi
             ;;
         -status-quo | --status-quo)
+            SHORTCUT_OPTIONS+="--status-quo "
             STATUS_QUO="-snapshot"
             shift
             ;;
         -shortcut | --shortcut)
             ACTIONS+=(shortcut_create)
+            shift
+            ;;
+        -inspect-conf | --inspect-conf)
+            ACTIONS+=(inspect_conf)
+            shift
+            ;;
+        -delete-shortcut | --delete-shortcut)
+            ACTIONS+=(delete_shortcut)
             shift
             ;;
         -vm | --vm)

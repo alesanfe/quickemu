@@ -3,6 +3,11 @@
 # Sourced partial: shares the conf-schema global namespace with bin/quickemu.
 # VM display aspect: maps the display= conf to QEMU video/display args.
 
+# True when the given path is a live socket (pipewire/pulseaudio detection).
+function host_socket_present() {
+    [ -S "${1}" ]
+}
+
 function configure_display() {
     # Determine which audio driver to use: PipeWire, PulseAudio, or ALSA
     # Socket detection is more reliable than process detection on headless servers
@@ -14,10 +19,10 @@ function configure_display() {
     local qemu_audio_drivers=""
     qemu_audio_drivers=$("${QEMU}" -audio-help 2>/dev/null)
 
-    if [ "${QEMU_VER_SHORT}" -ge 81 ] && [ -S "${pw_socket}" ] && grep -qw 'driver=pipewire' <<<"${qemu_audio_drivers}"; then
+    if [ "${QEMU_VER_SHORT}" -ge 81 ] && host_socket_present "${pw_socket}" && grep -qw 'driver=pipewire' <<<"${qemu_audio_drivers}"; then
         # QEMU's pipewire audio backend was added in version 8.1
         AUDIO_DRIVER="pipewire"
-    elif [ -S "${pa_socket}" ] && grep -qw 'driver=pa' <<<"${qemu_audio_drivers}"; then
+    elif host_socket_present "${pa_socket}" && grep -qw 'driver=pa' <<<"${qemu_audio_drivers}"; then
         AUDIO_DRIVER="pa"
     fi
 
@@ -64,7 +69,7 @@ function configure_display() {
         else
             case ${display} in
             none | spice) DISPLAY_DEVICE="qxl-vga" ;;
-            cocoa | gtk | sdl | spice-app) DISPLAY_DEVICE="virtio-vga" ;;
+            cocoa | gtk | sdl | spice-app | vnc) DISPLAY_DEVICE="virtio-vga" ;;
             esac
         fi
         ;;
