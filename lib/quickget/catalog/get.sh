@@ -1636,3 +1636,20 @@ function get_biebian() {
     echo "${URL}/${ISO}/download 80be226276a2ef02156d29ffa1a24adb561955cd8c2342666ae82164e84c590e"
 }
 
+function get_maxlinux() {
+    # MAX 12.5 (MAdrid_linuX) — verified file on the RedIRIS mirror
+    local BASE="https://ftp.rediris.es/mirror/MaX-Linux/MaXdesktop"
+    local ISO="MAX-12.5-FINAL-live-amd64.iso"
+    echo "${BASE}/MAX-${RELEASE}/${ISO}"
+}
+
+
+function get_vitalinux() {
+    # Vitalinux — official Aragon education mirror index + .md5 sibling
+    local URL="https://mirror.vitalinux.educa.aragon.es/isos"
+    local ISO
+    ISO="$(web_pipe "${URL}/" | grep -o 'vitalinux-[0-9.-]*desktop-amd64\\.iso' | sort -Vr | head -1)"
+    local HASH
+    HASH="$(web_pipe "${URL}/${ISO}.md5" | cut -d' ' -f1)"
+    echo "${URL}/${ISO:-vitalinux-3.5-2026.05.12-desktop-amd64.iso} ${HASH}"
+}

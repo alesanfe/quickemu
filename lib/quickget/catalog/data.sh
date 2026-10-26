@@ -1087,3 +1087,12 @@ function releases_biebian() {
     echo 1.0
 }
 
+function releases_maxlinux() {
+    echo 12.5
+}
+
+
+function releases_vitalinux() {
+    echo 3.5
+}
+

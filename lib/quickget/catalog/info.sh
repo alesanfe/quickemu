@@ -55,6 +55,8 @@ function os_info() {
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
+        maxlinux)         INFO="MAX|-|https://www.educa2.madrid.org/web/max|MAdrid_linuX — education distro by the Madrid regional government.";;
+        vitalinux)        INFO="Vitalinux|-|https://vitalinux.educa.aragon.es/|Education distribution by the Aragon government.";;
         biebian)          INFO="Biebian|-|https://biebian.sourceforge.net/|Justin Bieber Linux, 2011 meme distro.";;
         syllable)         INFO="Syllable|-|https://syllable.org/|Fast, lightweight non-Linux desktop OS (AtheOS descendant).";;
         amogos)           INFO="AmogOS|-|https://github.com/Amog-OS/AmogOS|Meme Linux distribution based on Among Us theming.";;
@@ -229,6 +231,7 @@ function os_support() {
     macos \
     mageia \
     manjaro \
+    maxlinux \
     midnightbsd \
     mxlinux \
     netboot \
@@ -293,6 +296,7 @@ function os_support() {
     ubuntustudio \
     uwuntu \
     vanillaos \
+    vitalinux \
     void \
     vyos \
     whonix \
