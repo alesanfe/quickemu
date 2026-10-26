@@ -28,7 +28,9 @@ when a measurable trigger below fires, and always incrementally
 ## Extraction order (only when a trigger fires)
 
 1. `quickemu-qmp` — QMP client helper (connect/handshake/execute/watch;
-   JSON envelope on stdout, logs on stderr).
+   JSON envelope on stdout, logs on stderr). **DONE** — `tools/quickemu-qmp`
+   (Go 1.22, stdlib only, 5 unit tests with a fake-QMP socket). Wired:
+   `qmp_command` prefers the binary, falls back to socat.
 2. Process identity reader (pid/starttime/uid/tree verification).
 3. Async-op registry worker.
 4. Port registry.

@@ -38,3 +38,4 @@ X-Test*/
 
 # Debian build output (source lives in packaging/debian/)
 /debian/
+tools/quickemu-qmp/quickemu-qmp

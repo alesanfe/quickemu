@@ -16,6 +16,7 @@ lib/quickgetc/    # quickgetc layers (same layout as lib/quickget)
 lib/quickreport/  # quickreport layers (host probes + cli report)
 libexec/quickemu/chunkcheck.py  # Download verification utility
 schemas/v1/       # Versioned JSON CLI contract (--format json)
+tools/quickemu-qmp/  # ADR-0001 phase 1: extracted QMP client (Go)
 catalog/          # OS catalogue data (schema today, entries phased in)
 spec/             # ShellSpec suite (unit, integration, contract)
 probes/           # External-source checks (nightly, not PR-blocking)
