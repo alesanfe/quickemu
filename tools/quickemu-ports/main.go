@@ -51,7 +51,7 @@ func main() {
 		os.Exit(2)
 	}
 	sub := os.Args[1]
-	var reg, port, pidS, inst string
+	var reg, port, pidS, inst, proto, bind string
 	var lo, hi int
 	for i := 2; i+1 < len(os.Args); i += 2 {
 		switch os.Args[i] {
@@ -67,6 +67,10 @@ func main() {
 			lo, _ = strconv.Atoi(os.Args[i+1])
 		case "--hi":
 			hi, _ = strconv.Atoi(os.Args[i+1])
+		case "--proto":
+			proto = os.Args[i+1] // tcp|udp, default tcp
+		case "--bind":
+			bind = os.Args[i+1] // 127.0.0.1, 0.0.0.0, ::1, ::
 		}
 	}
 	if reg == "" {
@@ -103,23 +107,61 @@ func main() {
 		os.Remove(filepath.Join(reg, port))
 		ok(`{"port":` + port + `}`)
 	case "check":
-		ln, err := net.Listen("tcp", ":"+port)
+		if proto == "" {
+			proto = "tcp"
+		}
+		if bind == "" {
+			bind = ":"
+		}
+		addr := bind + port
+		var err error
+		if proto == "udp" {
+			var pc net.PacketConn
+			pc, err = net.ListenPacket("udp", addr)
+			if err == nil {
+				pc.Close()
+			}
+		} else {
+			var ln net.Listener
+			ln, err = net.Listen("tcp", addr)
+			if err == nil {
+				ln.Close()
+			}
+		}
 		if err != nil {
 			die("PORT_BOUND", err.Error())
 		}
-		ln.Close()
-		ok(`{"port":` + port + `,"free":true}`)
+		ok(`{"port":` + port + `,"proto":"` + proto + `","bind":"` + bind + `","free":true}`)
 	case "find":
 		for p := lo; p <= hi; p++ {
 			f := filepath.Join(reg, strconv.Itoa(p))
 			if _, err := os.Stat(f); err == nil {
 				continue
 			}
-			ln, err := net.Listen("tcp", ":"+strconv.Itoa(p))
-			if err != nil {
+			if proto == "" {
+				proto = "tcp"
+			}
+			b := bind
+			if b == "" {
+				b = ":"
+			}
+			free := false
+			if proto == "udp" {
+				pc, err := net.ListenPacket("udp", b+strconv.Itoa(p))
+				if err == nil {
+					pc.Close()
+					free = true
+				}
+			} else {
+				ln, err := net.Listen("tcp", b+strconv.Itoa(p))
+				if err == nil {
+					ln.Close()
+					free = true
+				}
+			}
+			if !free {
 				continue
 			}
-			ln.Close()
 			fmt.Println(p)
 			return
 		}

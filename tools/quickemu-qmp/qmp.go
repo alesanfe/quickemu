@@ -15,6 +15,8 @@ import (
 
 var qmpRaw bool // --raw: emit the bare QMP reply line for Bash callers
 
+var qmpSeq int // monotonic command ids for request/response correlation
+
 type qmpConn struct {
 	c   net.Conn
 	r   *bufio.Reader
@@ -92,7 +94,11 @@ func runExecute(socket, command string, timeout time.Duration) int {
 			break
 		}
 	}
-	// the actual command
+	// the actual command — attach a correlation id so an interleaved
+	// async event or a stale reply can never be mistaken for ours.
+	qmpSeq++
+	wantID := fmt.Sprintf("qe-%d", qmpSeq)
+	cmd["id"] = wantID
 	if err := q.write(cmd); err != nil {
 		return emit("qmp.execute", nil, "QMP_WRITE", err.Error())
 	}
@@ -101,8 +107,16 @@ func runExecute(socket, command string, timeout time.Duration) int {
 		if err != nil {
 			return emit("qmp.execute", nil, "QMP_TIMEOUT", err.Error())
 		}
-		_ = ev
+		if ev != nil {
+			fmt.Fprintf(os.Stderr, "qmp event: %s\n", mustJSON(ev))
+			continue // strictly separated from the response stream
+		}
 		if m == nil {
+			continue
+		}
+		// correlate: a reply bearing a different id is a stale/async
+		// artifact — skip it instead of desynchronising the channel.
+		if rid, ok := m["id"]; ok && rid != wantID {
 			continue
 		}
 		if e, ok := m["error"]; ok {

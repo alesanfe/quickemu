@@ -105,7 +105,7 @@ func main() {
 		fmt.Println(id)
 	case "set":
 		var id, state string
-		var progress int
+		var progress, wpid int
 		for i := 0; i+1 < len(args); i++ {
 			switch args[i] {
 			case "--id":
@@ -115,12 +115,27 @@ func main() {
 			case "--progress":
 				fmt.Sscanf(args[i+1], "%d", &progress)
 			case "--worker-pid":
-				// parsed below via load
+				fmt.Sscanf(args[i+1], "%d", &wpid)
 			}
 		}
 		o := load(dir, id)
+		// terminal states are one-way: a finished op never re-arms.
+		switch o.State {
+		case "completed", "failed", "cancelled", "interrupted":
+			die("OP_FINISHED", "operation "+id+" is terminal ("+o.State+")")
+		}
+		// requested->confirmed cancellation is an explicit transition,
+		// not a silent flag flip.
+		if state == "cancelled" && o.State != "cancelRequested" {
+			o.State = "cancelRequested"
+			writeOp(dir, o)
+			return
+		}
 		o.State = state
 		o.Progress = progress
+		if wpid > 0 {
+			o.WorkerPid = wpid
+		}
 		writeOp(dir, o)
 	case "done":
 		id := flag(args, "--id")
@@ -156,8 +171,11 @@ func main() {
 		}
 		if o.WorkerPid > 0 && syscall.Kill(o.WorkerPid, 0) == nil {
 			syscall.Kill(o.WorkerPid, syscall.SIGTERM)
+			o.State = "cancelRequested" // worker confirms via set/cancelled
+			writeOp(dir, o)
+			return
 		}
-		o.State = "cancelled"
+		o.State = "cancelled" // no live worker: cancel is final now
 		writeOp(dir, o)
 	case "prune":
 		keep := 10
