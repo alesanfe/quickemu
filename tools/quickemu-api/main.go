@@ -4,6 +4,7 @@
 package main
 
 import (
+	"os/exec"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -17,6 +18,11 @@ var (
 	dataDir = env("XDG_DATA_HOME", os.Getenv("HOME")+"/.local/share") + "/quickemu"
 	token   string
 )
+
+func runCmd(name string, args ...string) (string, error) {
+	out, err := exec.Command(name, args...).CombinedOutput()
+	return string(out), err
+}
 
 func env(k, d string) string {
 	if v := os.Getenv(k); v != "" {
@@ -106,6 +112,32 @@ func main() {
 		default:
 			write(w, 404, map[string]any{"errors": []any{map[string]any{"code": "NOT_FOUND"}}})
 		}
+	}))
+	// POST /v1/vm/<n>/cmd — authenticated, whitelisted mutating ops
+	// proxied to the CLI (the process boundary that already enforces
+	// locks, plans and the state machine). Read-only without --token.
+	safeCmds := map[string]bool{"start": true, "stop": true, "shutdown": true, "pause": true, "resume": true, "kill": true, "reset": true}
+	mux.HandleFunc("/v1/vm-cmd/", auth(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			write(w, 405, map[string]any{"errors": []any{map[string]any{"code": "METHOD"}}})
+			return
+		}
+		var req struct {
+			VM  string `json:"vm"`
+			Cmd string `json:"cmd"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
+			strings.Contains(req.VM, "..") ||
+			strings.ContainsAny(req.VM, "/\\") || !safeCmds[req.Cmd] {
+			write(w, 400, map[string]any{"errors": []any{map[string]any{"code": "INVALID_ARGUMENT"}}})
+			return
+		}
+		if token == "" { // write endpoints require the token to be configured
+			write(w, 403, map[string]any{"errors": []any{map[string]any{"code": "WRITE_DISABLED"}}})
+			return
+		}
+		out, err := runCmd("quickemu", "--vm", filepath.Join(dataDir, "vms", req.VM, req.VM+".conf"), "--"+req.Cmd)
+		write(w, 200, map[string]any{"data": map[string]any{"output": out, "error": fmt.Sprint(err)}})
 	}))
 	mux.HandleFunc("/v1/health", func(w http.ResponseWriter, _ *http.Request) {
 		write(w, 200, map[string]any{"data": map[string]any{"ok": true}})
