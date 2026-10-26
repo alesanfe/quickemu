@@ -1069,3 +1069,12 @@ function editions_whonix() {
     echo gateway workstation
 }
 
+function releases_amogos() {
+    echo x64-1.5.0
+}
+
+
+function releases_gnulinex() {
+    echo v0.0.1
+}
+

@@ -1608,3 +1608,16 @@ function get_whonix() {
     echo "${BASE}/${VER}/${ISO}"
 }
 
+function get_amogos() {
+    local ISO="AmogOS-1.5.0-x86_64.iso"
+    local URL="https://github.com/Amog-OS/AmogOS/releases/download/${RELEASE}"
+    echo "${URL}/${ISO}"
+}
+
+
+function get_gnulinex() {
+    local ISO="gnuLinEx-amd64-netinst.iso"
+    local URL="https://github.com/CarlosGamer98YT/gnuLinEx/releases/download/${RELEASE}"
+    echo "${URL}/${ISO} f649fbcd8f08788ff9015ba48471b932b9328433196f8f68461c8711cf671804"
+}
+

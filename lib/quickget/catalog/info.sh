@@ -55,6 +55,8 @@ function os_info() {
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
+        amogos)           INFO="AmogOS|-|https://github.com/Amog-OS/AmogOS|Meme Linux distribution based on Among Us theming.";;
+        gnulinex)         INFO="gnuLinEx|-|https://github.com/CarlosGamer98YT/gnuLinEx|Community continuation of the Extremadura gnuLinEx distribution.";;
         backbox)          INFO="BackBox|-|https://linux.backbox.org/|Ubuntu-based pentesting and security assessment distribution.";;
         caine)            INFO="CAINE|-|https://www.caine-live.net/|Digital forensics live distribution (Computer Aided INvestigative Environment).";;
         rebeccablackos)   INFO="RebeccaBlackOS|-|https://rebeccablackos.com/|Debian-based experimental Wayland lab (VT-less kernel).";;
@@ -169,6 +171,7 @@ function os_support() {
     backbox \
     caine \
     alpine \
+    amogos \
     android \
     antix \
     archcraft \
@@ -204,6 +207,7 @@ function os_support() {
     gentoo \
     ghostbsd \
     gnomeos \
+    gnulinex \
     gobolinux \
     guix \
     haiku \
