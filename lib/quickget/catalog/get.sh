@@ -1684,3 +1684,10 @@ function get_hannahmontana() {
     local URL="https://sourceforge.net/projects/hannah-montana-linux-v26-lite/files/v${RELEASE}"
     echo "${URL}/${ISO}/download"
 }
+
+function get_linkat() {
+    # Linkat 22.04 — official xtec.cat download host
+    local ISO="linkat-22.04.3-amd64.iso"
+    local URL="http://download-linkat.xtec.cat/d83/ISO"
+    echo "${URL}/${ISO}"
+}

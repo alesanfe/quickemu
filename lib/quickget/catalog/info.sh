@@ -58,6 +58,7 @@ function os_info() {
         guadalinex)       INFO="Guadalinex|-|https://www.guadalinex.org/|Historic education distro of Andalusia (preserved on ArchiveOS).";;
         hannahmontana)    INFO="Hannah Montana Linux|-|https://sourceforge.net/projects/hannah-montana-linux-v26-lite/|Debian-based meme distro, 2026 revival.";;
         lliurex)          INFO="LliureX|-|https://lliurex.net/|Education distro of the Valencian regional government.";;
+        linkat)           INFO="Linkat|-|https://projectes.xtec.cat/linkat/|Education distro of the Catalan Department of Education.";;
         maxlinux)         INFO="MAX|-|https://www.educa2.madrid.org/web/max|MAdrid_linuX — education distro by the Madrid regional government.";;
         vitalinux)        INFO="Vitalinux|-|https://vitalinux.educa.aragon.es/|Education distribution by the Aragon government.";;
         biebian)          INFO="Biebian|-|https://biebian.sourceforge.net/|Justin Bieber Linux, 2011 meme distro.";;
@@ -231,6 +232,7 @@ function os_support() {
     linuxlite \
     linuxmint \
     lliurex \
+    linkat \
     lmde \
     lubuntu \
     maboxlinux \

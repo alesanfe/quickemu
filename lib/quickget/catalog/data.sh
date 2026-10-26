@@ -1115,3 +1115,7 @@ function releases_hannahmontana() {
     echo 26.1.1
 }
 
+function releases_linkat() {
+    echo 22.04
+}
+
