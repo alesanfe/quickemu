@@ -201,6 +201,13 @@ else
             ACTIONS+=(operation_cancel)
             shift 2
             ;;
+        -plugin | --plugin)
+            plugin_dispatch "${2}" "${@:3}"
+            ;;
+        -plugins | --plugins)
+            ACTIONS+=(plugin_list)
+            shift
+            ;;
         -stats | --stats)
             ACTIONS+=(vm_stats)
             shift
