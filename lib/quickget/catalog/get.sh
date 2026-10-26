@@ -1621,3 +1621,18 @@ function get_gnulinex() {
     echo "${URL}/${ISO} f649fbcd8f08788ff9015ba48471b932b9328433196f8f68461c8711cf671804"
 }
 
+function get_syllable() {
+    # Syllable Desktop — SourceForge, ISO inside .iso.7z
+    local ISO="SyllableDesktop-${RELEASE}-1.i586.iso.7z"
+    local URL="https://sourceforge.net/projects/syllable/files/Syllable/${RELEASE}"
+    echo "${URL}/${ISO}/download 6599c235ba7242bc58b2dabc69559b25c183e32629b4af2b03be7be355e45fca"
+}
+
+
+function get_biebian() {
+    # Biebian (Justin Bieber Linux) — SourceForge, JBL_1.0.iso
+    local ISO="JBL_${RELEASE}.iso"
+    local URL="https://sourceforge.net/projects/biebian/files"
+    echo "${URL}/${ISO}/download 80be226276a2ef02156d29ffa1a24adb561955cd8c2342666ae82164e84c590e"
+}
+

@@ -1078,3 +1078,12 @@ function releases_gnulinex() {
     echo v0.0.1
 }
 
+function releases_syllable() {
+    echo 0.6.7
+}
+
+
+function releases_biebian() {
+    echo 1.0
+}
+

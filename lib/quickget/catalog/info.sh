@@ -55,6 +55,8 @@ function os_info() {
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
+        biebian)          INFO="Biebian|-|https://biebian.sourceforge.net/|Justin Bieber Linux, 2011 meme distro.";;
+        syllable)         INFO="Syllable|-|https://syllable.org/|Fast, lightweight non-Linux desktop OS (AtheOS descendant).";;
         amogos)           INFO="AmogOS|-|https://github.com/Amog-OS/AmogOS|Meme Linux distribution based on Among Us theming.";;
         gnulinex)         INFO="gnuLinEx|-|https://github.com/CarlosGamer98YT/gnuLinEx|Community continuation of the Extremadura gnuLinEx distribution.";;
         backbox)          INFO="BackBox|-|https://linux.backbox.org/|Ubuntu-based pentesting and security assessment distribution.";;
@@ -169,6 +171,7 @@ function os_support() {
     echo 9front \
     alma \
     backbox \
+    biebian \
     caine \
     alpine \
     amogos \
@@ -271,6 +274,7 @@ function os_support() {
     solus \
     sparkylinux \
     spirallinux \
+    syllable \
     systemrescue \
     tails \
     templeos \
