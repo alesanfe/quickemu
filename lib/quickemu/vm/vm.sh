@@ -51,13 +51,17 @@ function delete_vm() {
     fi
     # Transaction guard: when --plan-id was given, the plan must still
     # match the filesystem — anything added/changed since --delete-plan
-    # invalidates it (DELETE_PLAN_STALE).
+    # invalidates it. QuickGUI distinguishes expiry from divergence:
+    # PLAN_EXPIRED when the resources no longer hash at all (plan was
+    # consumed or pruned), PLAN_MISMATCH when they hash differently.
     if [ -n "${DELETE_PLAN_ID:-}" ]; then
         local ITEMS=() ACTUAL
         delete_plan_items
         ACTUAL=$(delete_plan_id)
         if [ "${ACTUAL}" != "${DELETE_PLAN_ID}" ]; then
-            qe_die "vm.delete" DELETE_PLAN_STALE "delete plan is stale (expected ${DELETE_PLAN_ID}, got ${ACTUAL}); regenerate with --delete-plan" 5
+            local PCODE="PLAN_MISMATCH"
+            [ -z "${ACTUAL}" ] || [ "${ACTUAL}" = "sha256:empty" ] && PCODE="PLAN_EXPIRED"
+            qe_die "vm.delete" "${PCODE}" "delete plan is stale (expected ${DELETE_PLAN_ID}, got ${ACTUAL:-none}); regenerate with --delete-plan" 5
         fi
     fi
     echo "Deleting ${VMNAME} completely"

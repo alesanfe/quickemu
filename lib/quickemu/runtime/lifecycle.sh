@@ -473,7 +473,7 @@ vm_lock_acquire() { # [shared|exclusive] -> 0 acquired / 1 already locked
             fi
             [ -d "${lockdir}" ] || break
             tries=$((tries + 1)); [ "${tries}" -ge "${max}" ] && {
-                echo "ERROR! ${VMNAME} is locked by another operation." >&2
+                [ "${OUTPUT_FORMAT:-}" == "json" ] && qe_fail "vm.lock" LOCK_BUSY "${VMNAME} is locked by another operation." ||                     echo "ERROR! ${VMNAME} is locked by another operation." >&2
                 return 1
             }
             sleep 0.2
@@ -483,7 +483,7 @@ vm_lock_acquire() { # [shared|exclusive] -> 0 acquired / 1 already locked
         # Writer may have raced in after our check: back out if so.
         if [ -d "${lockdir}" ]; then
             rm -f "${sharedir}/${BASHPID:-$$}.pid"
-            echo "ERROR! ${VMNAME} is locked by another operation." >&2
+            [ "${OUTPUT_FORMAT:-}" == "json" ] && qe_fail "vm.lock" LOCK_BUSY "${VMNAME} is locked by another operation." ||                 echo "ERROR! ${VMNAME} is locked by another operation." >&2
             return 1
         fi
         return 0
@@ -610,7 +610,7 @@ function get_port() {
     # Select and register the port atomically: two quickemu instances must
     # not pick the same free port before QEMU has bound it.
     _port_registry_lock || {
-        echo "ERROR! Could not acquire the port allocation lock." >&2
+        [ "${OUTPUT_FORMAT:-}" == "json" ] && qe_fail "vm.port" LOCK_TIMEOUT "Could not acquire the port allocation lock." ||             echo "ERROR! Could not acquire the port allocation lock." >&2
         return 1
     }
     for ((PORT = PORT_START; PORT <= PORT_RANGE; PORT++)); do
