@@ -10,9 +10,13 @@ command -v socat >/dev/null || { echo "SKIP: socat missing"; exit 0; }
 command -v qemu-img >/dev/null || { echo "SKIP: qemu-img missing"; exit 0; }
 
 qemu-img create -f qcow2 disk.qcow2 64M >/dev/null
+# QEMU needs a bootable medium; a small ISO satisfies the check and
+# lets the VM reach 'running' so lifecycle+QMP can be exercised.
+dd if=/dev/zero of=smoke.iso bs=1M count=8 2>/dev/null
 cat >smoke.conf <<'CONF'
 guest_os="linux"
 disk_img="disk.qcow2"
+iso="smoke.iso"
 ram="256M"
 display="none"
 monitor="socket"

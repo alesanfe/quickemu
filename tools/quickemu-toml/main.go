@@ -62,19 +62,11 @@ func main() {
 		die("BAD_ARGS", "--file required")
 	}
 	var doc map[string]any
-	md, err := toml.DecodeFile(file, &doc)
-	if err != nil {
+	if _, err := toml.DecodeFile(file, &doc); err != nil {
 		die("TOML_PARSE", err.Error())
 	}
-	if len(md.Undecoded()) > 0 { // unknown keys are data, not errors —
-		// but decode-failures already aborted above; report unknowns
-		// as warnings so .conf parity stays observable.
-		und := make([]string, 0, len(md.Undecoded()))
-		for _, k := range md.Undecoded() {
-			und = append(und, k.String())
-		}
-		fmt.Fprintf(os.Stderr, "unknown keys: %v\n", und)
-	}
+	// map[string]any accepts every key; strict-key warnings need a
+	// typed-schema decode, which is a separate contract.
 	out := map[string]any{}
 	flat("", doc, out)
 	switch sub {

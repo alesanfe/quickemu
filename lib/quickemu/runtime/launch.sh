@@ -207,6 +207,14 @@ function configure_cpu() {
         CPU_KVM_UNHALT=",kvm_pv_unhalt"
         GUEST_TWEAKS+=" -global kvm-pit.lost_tick_policy=discard"
         QEMU_ACCEL="kvm"
+        # No usable /dev/kvm (WSL, containers, missing perms): fall back
+        # to TCG emulation instead of requesting an accel QEMU can't
+        # provide. CPU 'host' also requires KVM/HVF, so pick an
+        # emulable model unless the conf sets one explicitly.
+        if [ ! -w /dev/kvm ]; then
+            QEMU_ACCEL="tcg"
+            [ -z "${cpu_model}" ] && CPU_MODEL="qemu64"
+        fi
     fi
 
     if [ "${ARCH_VM}" == "aarch64" ]; then
@@ -261,8 +269,11 @@ function configure_cpu() {
     esac
 
     # --dry-run only emits the execution plan; hardware-virtualisation
-    # capability is a runtime requirement, not a planning one.
-    if [ -z "${HYPERVISOR}" ] && [ -z "${DRY_RUN}" ]; then
+    # capability is a runtime requirement, not a planning one. It's also
+    # only needed when hardware accel will actually be used: a guest
+    # resolved to plain TCG emulation boots fine without VT-x/SVM
+    # (e.g. WSL or containers without /dev/kvm).
+    if [ -z "${HYPERVISOR}" ] && [ -z "${DRY_RUN}" ] && [ "${QEMU_ACCEL:-}" != "tcg" ]; then
         # A CPU with Intel VT-x / AMD SVM support is required
         if [ "${HOST_CPU_VENDOR}" == "GenuineIntel" ]; then
             if ! check_cpu_flag vmx; then
