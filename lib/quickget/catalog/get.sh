@@ -1805,3 +1805,9 @@ function get_wifislax() {
     local ISO="wifislax-4-10-1-final.iso"
     echo "https://archive.org/download/wifislax-4-10-1-final_202406/${ISO} d9010acaa7bfa2a16594f3ee0670dc85"
 }
+
+function get_os2warp() {
+    # IBM OS/2 Warp 4 (1996) — preserved on archive.org; needs floppy+CD
+    # boot inside QEMU (historic, no networking support expected)
+    echo "https://archive.org/download/IBMOS2Warp4Collection/OS2WARP4-EN.iso"
+}

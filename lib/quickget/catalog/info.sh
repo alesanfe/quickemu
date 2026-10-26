@@ -277,6 +277,7 @@ function os_support() {
     opensuse \
     opnsense \
     oraclelinux \
+    os2warp \
     parrotsec \
     pclinuxos \
     pentoo \

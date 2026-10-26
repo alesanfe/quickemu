@@ -1206,3 +1206,7 @@ function releases_wifislax() {
     echo 4.10.1
 }
 
+function releases_os2warp() {
+    echo 4
+}
+
