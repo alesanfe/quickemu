@@ -497,6 +497,17 @@ vm_lock_acquire() { # [shared|exclusive] -> 0 acquired / 1 already locked
                 rm -rf "${lockdir}"
                 continue
             fi
+        else
+            # A lock dir with no pid file older than ~2s is a crash
+            # remnant (the writer died between mkdir and the pid
+            # write). Fresh pid-less locks are left alone: the writer
+            # may just be mid-record.
+            local _lm
+            _lm=$(stat -c %Y "${lockdir}" 2>/dev/null || stat -f %m "${lockdir}" 2>/dev/null || echo 0)
+            if [ $(( $(date +%s) - ${_lm:-0} )) -gt 2 ]; then
+                rm -rf "${lockdir}"
+                continue
+            fi
         fi
         tries=$((tries + 1))
         if [ "${tries}" -ge "${max}" ]; then
