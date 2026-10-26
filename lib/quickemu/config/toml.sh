@@ -14,6 +14,9 @@ toml_parse() { # file -> key\tvalue lines on stdout
     local file="${1}" line="" section="" key="" val=""
     [ -f "${file}" ] || return 1
     while IFS= read -r line || [ -n "${line}" ]; do
+        # Bound input: a single pathological line must not stall the
+        # parser (fuzz finding — config keys are never kilobytes long).
+        [ "${#line}" -gt 4096 ] && return 1
         line="${line%%#*}"
         line="${line#"${line%%[![:space:]]*}"}"
         line="${line%"${line##*[![:space:]]}"}"

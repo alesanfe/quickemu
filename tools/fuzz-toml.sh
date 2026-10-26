@@ -2,17 +2,16 @@
 # Deterministic TOML parser fuzzer: feeds hostile inputs to toml_parse
 # and asserts it never hangs, never executes payload, and returns 0/1.
 set -u
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
-source lib/quickemu/config/parser.sh
-source lib/quickemu/config/loader.sh
-source lib/quickemu/config/toml.sh
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${ROOT}"
 
 FAIL=0; D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 run_case() { # name input -> expect bounded exit
     printf '%s' "${2}" >"${D}/f.toml"
-    timeout 5 toml_parse "${D}/f.toml" >/dev/null 2>&1
+    timeout 5 bash -c 'cd "'"${ROOT}"'"; source lib/quickemu/config/parser.sh; source lib/quickemu/config/loader.sh; source lib/quickemu/config/toml.sh; toml_parse "${1}"' _ "${D}/f.toml" >/dev/null 2>&1
     local RC=$?
     [ ${RC} -ge 124 ] && { echo "HANG: ${1}"; FAIL=1; return; }
+    [ ${RC} -gt 1 ] && { echo "CRASH(${RC}): ${1}"; FAIL=1; return; }
 }
 # hostile corpus
 run_case "unicode"      "$(printf 'guest_os = "linu\303\251\u1234"\n')"
@@ -33,7 +32,7 @@ run_case "nestarr"      'x = [["a","b"],["c"]]'
 # execution safety: payload must never run
 rm -f "${D}/pwned"
 printf 'guest_os = "$(touch %s/pwned)"\n' "${D}" >"${D}/f.toml"
-timeout 5 toml_parse "${D}/f.toml" >/dev/null 2>&1
+timeout 5 bash -c 'cd "'"${ROOT}"'"; source lib/quickemu/config/parser.sh; source lib/quickemu/config/loader.sh; source lib/quickemu/config/toml.sh; toml_parse "${1}"' _ "${D}/f.toml" >/dev/null 2>&1
 [ -f "${D}/pwned" ] && { echo "EXEC-LEAK: toml_parse ran payload"; FAIL=1; }
 echo "fuzz-toml: ${FAIL:-0} failures"
 exit ${FAIL:-0}
