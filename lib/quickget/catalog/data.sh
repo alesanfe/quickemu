@@ -1312,3 +1312,7 @@ function editions_nova() {
     echo escritorio ligero
 }
 
+function releases_bosslinux() {
+    echo 8.0
+}
+

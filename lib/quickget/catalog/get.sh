@@ -1942,3 +1942,9 @@ function get_nova() {
     local ISO="nova-${EDITION}-${RELEASE}-amd64.iso"
     echo "https://sourceforge.net/projects/archiveos/files/n/nova/${ISO}/download"
 }
+
+function get_bosslinux() {
+    # BOSS Linux (India, government-backed) — ArchiveOS preservation
+    local ISO="boss-8.0-amd64-DVD-301019.iso"
+    echo "https://sourceforge.net/projects/archiveos/files/b/boss/${ISO}/download"
+}

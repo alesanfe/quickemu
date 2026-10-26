@@ -21,6 +21,7 @@ function os_info() {
         azurelinux)       INFO="Azure Linux|-|https://github.com/microsoft/azurelinux|Microsoft's internal Linux distribution for cloud infrastructure and edge.";;
         batocera)         INFO="Batocera|-|https://batocera.org/|Retro-gaming distribution with the aim of turning any computer/nano computer into a gaming console during a game or permanently.";;
         bazzite)          INFO="Bazzite|-|https://github.com/ublue-os/bazzite/|Container native gaming and a ready-to-game SteamOS like.";;
+        bosslinux)        INFO="BOSS Linux|-|https://bosslinux.in/|Bharat Operating System Solutions (India, government).";;
         blankon)          INFO="BlankOn|-|https://blankonlinux.id/|Indonesian national Linux distribution.";;
         biglinux)         INFO="BigLinux|-|https://www.biglinux.com.br/|Is the right choice if you want to have an easy and enriching experience with Linux. It has been perfected over more than 19 years, following our motto: 'In search of the perfect system'.";;
         blackarch)        INFO="BlackArch|-|https://blackarch.org/|Arch-based penetration testing distribution for security researchers.";;
@@ -199,6 +200,7 @@ function os_support() {
     alma \
     backbox \
     biebian \
+    bosslinux \
     blankon \
     caine \
     canaima \
