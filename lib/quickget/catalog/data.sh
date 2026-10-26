@@ -1109,7 +1109,13 @@ function editions_guadalinex() {
 
 
 function releases_lliurex() {
-    echo 25
+    echo 25 23
+}
+
+
+function editions_lliurex() {
+    # 25 ships only the home-desktop image; 23 splits desktop/server/client
+    [ "${RELEASE}" = "23" ] && echo desktop server client || echo desktop
 }
 
 

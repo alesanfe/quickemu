@@ -1687,9 +1687,10 @@ function get_guadalinex() {
 
 
 function get_lliurex() {
-    # LliureX — verified filename on the official index
+    # LliureX — verified filenames on the official index
     local BASE="http://lliurex.net/isos/${RELEASE}"
     local ISO="LliureX-home-desktop_${RELEASE}_latest.iso"
+    [ "${RELEASE}" = "23" ] && ISO="LliureX-${EDITION}_64bits_${RELEASE}_latest.iso"
     echo "${BASE}/${ISO}"
 }
 
