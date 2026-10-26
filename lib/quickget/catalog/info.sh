@@ -21,6 +21,7 @@ function os_info() {
         azurelinux)       INFO="Azure Linux|-|https://github.com/microsoft/azurelinux|Microsoft's internal Linux distribution for cloud infrastructure and edge.";;
         batocera)         INFO="Batocera|-|https://batocera.org/|Retro-gaming distribution with the aim of turning any computer/nano computer into a gaming console during a game or permanently.";;
         bazzite)          INFO="Bazzite|-|https://github.com/ublue-os/bazzite/|Container native gaming and a ready-to-game SteamOS like.";;
+        blankon)          INFO="BlankOn|-|https://blankonlinux.id/|Indonesian national Linux distribution.";;
         biglinux)         INFO="BigLinux|-|https://www.biglinux.com.br/|Is the right choice if you want to have an easy and enriching experience with Linux. It has been perfected over more than 19 years, following our motto: 'In search of the perfect system'.";;
         blackarch)        INFO="BlackArch|-|https://blackarch.org/|Arch-based penetration testing distribution for security researchers.";;
         blendos)          INFO="BlendOS|-|https://blendos.co/|A seamless blend of all Linux distributions. Allows you to have an immutable, atomic and declarative Arch Linux system, with application support from several Linux distributions & Android.";;
@@ -132,6 +133,7 @@ function os_info() {
         qubes)            INFO="Qubes OS|-|https://www.qubes-os.org/|A reasonably secure operating system that uses Xen-based virtualization to provide strong isolation.";;
         reactos)          INFO="ReactOS|-|https://reactos.org/|Imagine running your favorite Windows applications and drivers in an open-source environment you can trust.";;
         redoxos)          INFO="Redox OS|-|https://www.redox-os.org/|Unix-like microkernel operating system written in Rust, with a focus on safety and correctness.";;
+        rosalinux)        INFO="ROSA Linux|-|https://www.rosalinux.ru/|Russian enterprise Linux distribution.";;
         rebornos)         INFO="RebornOS|-|https://rebornos.org/|Aiming to make Arch Linux as user friendly as possible by providing interface solutions to things you normally have to do in a terminal.";;
         rockylinux)       INFO="Rocky Linux|-|https://rockylinux.org/|Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.";;
         siduction)        INFO="Siduction|-|https://siduction.org/|Operating system based on the Linux kernel and the GNU project. In addition, there are applications and libraries from Debian.";;
@@ -194,6 +196,7 @@ function os_support() {
     alma \
     backbox \
     biebian \
+    blankon \
     caine \
     canaima \
     altlinux \
@@ -305,6 +308,7 @@ function os_support() {
     qubes \
     reactos \
     rebeccablackos \
+    rosalinux \
     rebornos \
     recreomatic \
     redoxos \

@@ -1905,3 +1905,18 @@ function get_hamonikr() {
     [ "${EDITION}" = "lite" ] && ISO="hamonikr-kumkang-${RELEASE}-Lite-amd64.iso"
     echo "https://mirror.hamonikr.org/hamonikr/${ISO} ${HASH}"
 }
+
+function get_blankon() {
+    # BlankOn Sinambung (Indonesia) — official jahitan host, rolling image
+    local ISO="blankon-sinambung-26.09-verbeek-amd64.iso"
+    echo "https://jahitan.blankonlinux.id/releases/current/${ISO}"
+}
+
+
+function get_rosalinux() {
+    # ROSA FRESH 13.2 (Russia) — official mirror, per-edition subdirs
+    local ED
+    ED="$(echo "${EDITION}" | tr '[:lower:]' '[:upper:]')"
+    local ISO="ROSA.FRESH.${ED}.13.2.x86_64.iso"
+    echo "https://mirror.rosa.ru/rosa/rosa13/iso/ROSA.FRESH.13/${EDITION}/${ISO}"
+}

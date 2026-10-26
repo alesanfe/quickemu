@@ -1275,3 +1275,17 @@ function editions_hamonikr() {
     echo lts hwe lite
 }
 
+function releases_blankon() {
+    echo sinambung
+}
+
+
+function releases_rosalinux() {
+    echo 13
+}
+
+
+function editions_rosalinux() {
+    echo plasma6 plasma5 gnome lxqt server
+}
+
