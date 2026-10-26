@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 Describe 'async operation registry'
 Include lib/quickemu/support/json.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/runtime/lifecycle.sh
 Include lib/quickemu/runtime/ops.sh
 
