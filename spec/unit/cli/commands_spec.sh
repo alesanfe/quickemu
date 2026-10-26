@@ -19,7 +19,7 @@ setup() {
     sound_card='' sound_duplex='hda-duplex' tpm='' viewer='none'
     PUBLIC='' guest_os=linux USER=tester STAT=stat
     VM_PID='' VMNAME=vm-test OUTPUT_FORMAT='' QE_SCHEMA_VERSION=1
-    VERSION='4.9.9' VMDIR="$TESTDIR" DRY_RUN='' VIRTIOFSD=''
+    VERSION='5.0.0' VMDIR="$TESTDIR" DRY_RUN='' VIRTIOFSD=''
     VIRTIOFSD_PID='' VIRTIOFSD_SOCKET='' HOME="$TESTDIR"
 }
 cleanup() { cd /; qe_spec_cleanup; }
@@ -500,7 +500,7 @@ It 'emits the schema v1 capability contract'
     When call capabilities
     The status should be success
     The output should include '"command":"capabilities"'
-    The output should include '"applicationVersion":"4.9.9"'
+    The output should include '"applicationVersion":"5.0.0"'
     The output should include '"structuredStatus":true'
     The output should include '"safeDeletePlan":true'
 End
