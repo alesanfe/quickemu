@@ -16,5 +16,15 @@ source "${QR_LIBDIR}/cli/report.sh"
 
 OS_KERNEL=$(uname -s)
 
-clear
-quick_report | tee quickreport.txt
+# --format json emits the structured envelope; default is the human
+# report. All output passes through qr_redact (HOME/user/host/IP/MAC/
+# credentialed-URL scrubbing).
+case "${1:-}" in
+--format=json | --format json)
+    quick_report_json | tee quickreport.json
+    ;;
+*)
+    clear
+    quick_report | qr_redact | tee quickreport.txt
+    ;;
+esac

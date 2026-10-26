@@ -100,6 +100,14 @@ else
             ACTIONS+=(move_vm)
             shift 2
             ;;
+        -doctor | --doctor)
+            ACTIONS+=(qe_doctor_wrap)
+            shift
+            ;;
+        -fix | --fix)
+            DOCTOR_FIX="--fix"
+            shift
+            ;;
         -vfio-scan | --vfio-scan)
             ACTIONS+=(vfio_scan)
             shift

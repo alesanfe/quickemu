@@ -390,7 +390,7 @@ host_info() {
     local KVM="false"
     [ -w /dev/kvm ] && KVM="true"
     local IOMMU="false" GPUS="" FIRST=1 LINE
-    [ -d /sys/kernel/iommu_groups ] && [ -n "$(find /sys/kernel/iommu_groups -maxdepth 1 -type d -name '[0-9]*' -o -maxdepth 2 -name devices 2>/dev/null | head -1)" ] && IOMMU="true"
+    if [ -d /sys/kernel/iommu_groups ] && find /sys/kernel/iommu_groups -maxdepth 2 -name devices 2>/dev/null | grep -q .; then IOMMU="true"; fi
     if command -v lspci >/dev/null 2>&1; then
         while IFS= read -r LINE; do
             [ ${FIRST} -eq 0 ] && GPUS+=","
@@ -398,8 +398,17 @@ host_info() {
             GPUS+="\"$(json_escape "${LINE}")\""
         done < <(lspci -Dnn 2>/dev/null | grep -Ei "vga|3d|display" | cut -d' ' -f1,4- | head -8)
     fi
-    qe_ok "host.info" "$(printf '{"kernel":"%s","arch":"%s","cpuCores":%s,"memTotalKb":%s,"kvm":%s,"iommu":%s,"qemu":"%s","qemuImg":%s,"socat":%s,"jq":%s,"swtpm":%s,"gpus":[%s]}'         "$(json_escape "$(uname -sr)")" "$(uname -m)" "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"         "$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)" "${KVM}" "${IOMMU}"         "$(json_escape "$(${QEMU:-qemu-system-x86_64} --version 2>/dev/null | head -1)")"         "$(command -v qemu-img >/dev/null && echo true || echo false)"         "$(command -v socat >/dev/null && echo true || echo false)"         "$(command -v jq >/dev/null && echo true || echo false)"         "$(command -v swtpm >/dev/null && echo true || echo false)" "${GPUS}")"
+    local QE_VER
+    QE_VER=$(${QEMU:-qemu-system-x86_64} --version 2>/dev/null | head -1)
+    local OVMF="false" AAVMF="false"
+    ls /usr/share/OVMF*/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_CODE.fd 2>/dev/null | grep -q . && OVMF="true"
+    ls /usr/share/AAVMF* /usr/share/edk2/aarch64/QEMU_EFI.fd 2>/dev/null | grep -q . && AAVMF="true"
+    local FREE_HUGE
+    FREE=$(df -k "${XDG_DATA_HOME:-$HOME/.local/share}" 2>/dev/null | awk 'NR==2{print $4}')
+    HUGE=$(awk '/HugePages_Total/{print $2}' /proc/meminfo 2>/dev/null || echo 0)
+    qe_ok "host.info" "$(printf '{\"kernel\":\"%s\",\"arch\":\"%s\",\"cpuCores\":%s,\"memTotalKb\":%s,\"kvm\":%s,\"iommu\":%s,\"qemu\":\"%s\",\"qemuAarch64\":%s,\"qemuImg\":%s,\"socat\":%s,\"jq\":%s,\"swtpm\":%s,\"ovmf\":%s,\"aavmf\":%s,\"passt\":%s,\"virtiofsd\":%s,\"spicy\":%s,\"remoteViewer\":%s,\"freeKb\":%s,\"hugePages\":%s,\"gpus\":[%s]}'         "$(json_escape "$(uname -sr)")" "$(uname -m)" "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"         "$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)" "${KVM}" "${IOMMU}"         "$(json_escape "${QE_VER}")"         "$(command -v qemu-system-aarch64 >/dev/null && echo true || echo false)"         "$(command -v qemu-img >/dev/null && echo true || echo false)"         "$(command -v socat >/dev/null && echo true || echo false)"         "$(command -v jq >/dev/null && echo true || echo false)"         "$(command -v swtpm >/dev/null && echo true || echo false)"         "${OVMF}" "${AAVMF}"         "$(command -v passt >/dev/null && echo true || echo false)"         "$(command -v virtiofsd >/dev/null && echo true || echo false)"         "$(command -v spicy >/dev/null && echo true || echo false)"         "$(command -v remote-viewer >/dev/null && echo true || echo false)"         "${FREE:-0}" "${HUGE:-0}" "${GPUS}")"
 }
+
 
 # --migrate-conf: write a TOML migration of the VM config next to the
 # original (the .conf is never modified or executed). With --dry-run
@@ -443,3 +452,5 @@ operation_cancel() {
 
 # --events [cursor]: JSONL events with seq > cursor for resumable tails.
 events_read() { qe_events_read "${EVENTS_CURSOR:-0}"; }
+
+qe_doctor_wrap() { qe_doctor "${DOCTOR_FIX:-}"; }

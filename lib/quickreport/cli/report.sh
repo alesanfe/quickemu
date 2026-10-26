@@ -79,3 +79,27 @@ function quick_report() {
 ----------------------------------"
     probe_cpu_info
 }
+
+# qr_redact: stream filter removing host-identifying secrets from the
+# report (HOME, username, hostname, IPs, MACs, credentialed URLs).
+qr_redact() {
+    sed -E \
+        -e "s|${HOME//\//\/}|<home>|g" \
+        -e "s|${USER:-nobody}|<user>|g" \
+        -e "s|$(hostname -s 2>/dev/null || hostname)|<host>|g" \
+        -e 's|([0-9]{1,3}\.){3}[0-9]{1,3}|<ip>|g' \
+        -e 's|([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}|<mac>|g' \
+        -e 's|(https?://)[^:/@]+:[^@/]+@|\1<creds>@|g'
+}
+
+# Structured report: the same facts as a versioned JSON envelope.
+quick_report_json() {
+    local QEMU_VER=""
+    QEMU_ARCH=$(probe_qemu_arch)
+    command -v "qemu-system-${QEMU_ARCH}" >/dev/null 2>&1 \
+        && QEMU_VER=$("qemu-system-${QEMU_ARCH}" --version 2>/dev/null | head -n1)
+    printf '{"schemaVersion":1,"command":"host.report","success":true,"data":{"os":"%s","kernel":"%s","arch":"%s","quickemu":"%s","qemu":"%s","curl":%s},"warnings":[],"errors":[],"meta":{"redacted":true}}\n' \
+        "$(probe_os_name | qr_redact)" "$(uname -sr)" "$(uname -m)" \
+        "$(probe_quickemu "${0}")" "${QEMU_VER}" \
+        "$(command -v curl >/dev/null && echo true || echo false)" | qr_redact
+}

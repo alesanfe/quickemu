@@ -1,32 +1,53 @@
-# ADR 0001: Keep the Bash backend; no Go/Python rewrite for now
+# ADR 0001: Bash backend — kept, with measurable extraction triggers
 
 ## Context
 
-Quickemu is a Bash wrapper around QEMU. Recent hardening (instance
-identity, QMP, TOML config, async ops, structured events, verified
-import/export, transactional clone/move/rename) removed the technical
-drivers that motivated a rewrite discussion.
+Quickemu is a Bash wrapper around QEMU. Hardening this cycle (instance
+identity, QMP, TOML, async ops, structured events, verified archives,
+transactional ops) removed the original rewrite drivers.
 
 ## Decision
 
-**Keep the Bash backend.** Do not start a Go/Python rewrite.
+**Keep Bash as the primary backend.** Extraction to Go happens only
+when a measurable trigger below fires, and always incrementally
+(helper binary behind the existing JSON contract — never a rewrite).
 
-## Rationale
+## Extraction triggers (any one fires → open the phase)
 
-- The original pain points (weak process identity, no structured
-  control channel, executable config, no operation tracking) are now
-  solved in Bash: QMP, vm_state, toml_parse, ops registry, JSONL events.
-- A rewrite would duplicate the entire surface area (~15k lines of
-  OS-specific launch logic across ~1000 supported OSes) for years of
-  compatibility burden.
-- The remaining scale limits (hundreds of concurrent VMs, daemon mode)
-  are not proven requirements today.
+- **Protocol**: QMP needs >1 concurrent request, or event-multiplexing
+  that Bash cannot express without races.
+- **Concurrency**: an async-op race reproduced in tests that locks
+  cannot fix; port-registry TOCTOU returns after the critical section.
+- **Portability**: a function needs >3 GNU-vs-BSD fallbacks (ps, stat,
+  date, readlink) to stay correct.
+- **Performance**: `list_vms` >500ms at 100 VMs; `toml_parse` >200ms
+  on a 100-key file; events write >50ms/record.
+- **Security**: a requirement to `eval` config, or descriptor-inheritance
+  control Bash cannot provide.
 
-## Conditions to revisit
+## Extraction order (only when a trigger fires)
 
-- CI suite flaky beyond the per-spec-runner fix.
-- Measured perf problems (boot dispatch >500ms) on real workloads.
-- A daemon/remote-API requirement emerging from Quickgui adoption.
-- If so: prefer *incremental extraction* (host probes, port registry,
-  QMP client as a Go helper binary consumed via the JSON contract)
-  over a total rewrite.
+1. `quickemu-qmp` — QMP client helper (connect/handshake/execute/watch;
+   JSON envelope on stdout, logs on stderr).
+2. Process identity reader (pid/starttime/uid/tree verification).
+3. Async-op registry worker.
+4. Port registry.
+5. TOML parser — only if measurable parser faults appear.
+6. Archive/import helpers — only if limits appear.
+
+Each phase is a standalone Go helper behind the JSON envelope
+(schemaVersion, command, data, warnings, errors, meta.backendVersion).
+`QUICKEMU_BACKEND=compare` runs old+new on fixtures and diffs envelopes
+before Bash code is retired; the helper-missing case keeps Bash
+fallback during a defined transition window.
+
+## Language criteria
+
+- **Go**: anything concurrent or protocol-persistent (QMP, ops, ports,
+  daemon-adjacent). Single binary, no runtime dep.
+- **Python**: migration/validation tooling only, never hot path.
+- Never both in the runtime without an ADR.
+
+## Review
+
+Re-evaluate at each release candidate or when a trigger fires.
