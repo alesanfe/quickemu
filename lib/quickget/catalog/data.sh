@@ -990,3 +990,52 @@ function releases_openmandriva() { echo rome; }
 function editions_openmandriva() { echo plasma plasma-wayland gnome lxqt; }
 
 function editions_q4os() { echo kde trinity; }
+
+function releases_ponyos() {
+    echo 9.0
+}
+
+
+function releases_nyarch() {
+    echo 26.04
+}
+
+
+function editions_nyarch() {
+    echo gnome kde
+}
+
+
+function releases_nst() {
+    echo 44-15105
+}
+
+
+function releases_9front() {
+    echo latest
+}
+
+
+function releases_securityonion() {
+    echo latest
+}
+
+
+function releases_pentoo() {
+    echo latest
+}
+
+
+function editions_pentoo() {
+    echo full core
+}
+
+
+function releases_kicksecure() {
+    echo latest
+}
+
+
+function releases_uwuntu() {
+    echo 22.10
+}

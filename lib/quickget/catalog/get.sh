@@ -1505,3 +1505,67 @@ function get_truenas-scale() {
     HASH=$(web_pipe "${BASE}/${DIR}/${VDIR}/${ISO}.sha256" | cut -d' ' -f1)
     echo "${BASE}/${DIR}/${VDIR}/${ISO} ${HASH}"
 }
+
+function get_ponyos() {
+    local ISO="image.iso"
+    local URL="https://github.com/klange/ponyos/releases/download/v${RELEASE}"
+    echo "${URL}/${ISO} 1ce72ca37b038e81874d090d5544ccccc453be7f188b5ee96656b754c6881385"
+}
+
+
+function get_nyarch() {
+    local EDITION_CAP
+    EDITION_CAP="$(echo "${EDITION}" | sed 's/./\u&/')"
+    local ISO="Nyarch-${EDITION_CAP}-${RELEASE}.iso"
+    local URL="https://sourceforge.net/projects/nyarchlinux/files"
+    echo "${URL}/${ISO}/download"
+}
+
+
+function get_nst() {
+    local ISO="nst-${RELEASE}.x86_64.iso"
+    local URL="https://sourceforge.net/projects/nst/files/NST/NST%20${RELEASE}"
+    echo "${URL}/${ISO}/download"
+}
+
+
+function get_9front() {
+    local URL="https://9front.org/iso"
+    local ISO
+    ISO="$(web_pipe "${URL}/" | grep -o '9front-[0-9]*\\.amd64.iso' | sort -Vr | head -1)"
+    echo "${URL}/${ISO}"
+}
+
+
+function get_securityonion() {
+    local URL="https://download.securityonion.net/file/securityonion"
+    local ISO
+    ISO="$(web_pipe "${URL}/" | grep -o 'securityonion-[0-9.]*-[0-9]*\\.iso' | sort -Vr | head -1)"
+    echo "${URL}/${ISO}"
+}
+
+
+function get_pentoo() {
+    local URL="https://www.pentoo.ch/isos"
+    local ISO
+    ISO="$(web_pipe "${URL}/" | grep -o "pentoo-${EDITION}-[a-zA-Z0-9_-]*\\.iso" | sort -Vr | head -1)"
+    echo "${URL}/${ISO}"
+}
+
+
+function get_kicksecure() {
+    local BASE="https://download.kicksecure.com/kicksecure"
+    local VER
+    VER="$(web_pipe "${BASE}/" | grep -o 'href="17\\.[0-9.]*/' | cut -d'"' -f2 | tr -d '/' | sort -Vr | head -1)"
+    local ISO
+    ISO="$(web_pipe "${BASE}/${VER}/" | grep -o 'Kicksecure[^" ]*Intel_AMD64\\.iso' | head -1)"
+    echo "${BASE}/${VER}/${ISO}"
+}
+
+
+function get_uwuntu() {
+    local ISO
+    ISO="$(web_pipe "https://uwuntuos.com/" | grep -o 'href="[^"]*\\.iso' | cut -d'"' -f2 | grep -i "22.10" | head -1 | xargs basename 2>/dev/null)"
+    echo "https://uwuntuos.com/releases/${RELEASE}/${ISO:-uwuntu-22.10-leo-dango-amd64.iso}"
+}
+

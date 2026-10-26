@@ -55,6 +55,14 @@ function os_info() {
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
+        9front)           INFO="9front|-|https://9front.org/|Community fork of Plan 9 from Bell Labs.";;
+        kicksecure)       INFO="Kicksecure|-|https://www.kicksecure.com/|Hardened Debian-based security-focused distribution.";;
+        nst)              INFO="Network Security Toolkit|-|https://www.networksecuritytoolkit.org/|Fedora-based distro for network analysis and monitoring.";;
+        nyarch)           INFO="Nyarch Linux|-|https://nyarchlinux.moe/|Arch-based anime-themed distribution.";;
+        pentoo)           INFO="Pentoo|-|https://www.pentoo.ch/|Gentoo-based pentesting live distribution.";;
+        ponyos)           INFO="PonyOS|-|https://ponyos.org/|Hobby Unix-like OS with its own kernel — not Linux.";;
+        securityonion)    INFO="Security Onion|-|https://securityonionsolutions.com/|SOC/NIDS hunting distro with Zeek, Suricata and PCAP tools.";;
+        uwuntu)           INFO="UwUntu|-|https://uwuntuos.com/|Ubuntu-based meme distribution.";;
         kubuntu)          INFO="Kubuntu|-|https://kubuntu.org/|Free, complete, and open-source alternative to Microsoft Windows and Mac OS X which contains everything you need to work, play, or share.";;
         linuxlite)        INFO="Linux Lite|-|https://www.linuxliteos.com/|Your first simple, fast and free stop in the world of Linux.";;
         linuxmint)        INFO="Linux Mint|-|https://linuxmint.com/|Designed to work out of the box and comes fully equipped with the apps most people need.";;
@@ -151,7 +159,8 @@ function os_homepage() {
 
 
 function os_support() {
-    echo alma \
+    echo 9front \
+    alma \
     alpine \
     android \
     antix \
@@ -193,8 +202,9 @@ function os_support() {
     haiku \
     kali \
     kaos \
-    kdeneon \
     kdelinux \
+    kdeneon \
+    kicksecure \
     kolibrios \
     kubuntu \
     linuxlite \
@@ -202,40 +212,45 @@ function os_support() {
     lmde \
     lubuntu \
     maboxlinux \
-    midnightbsd \
     macos \
     mageia \
     manjaro \
+    midnightbsd \
     mxlinux \
     netboot \
     netbsd \
     nitrux \
-    nobara \
     nixos \
+    nobara \
+    nst \
     nwg-shell \
+    nyarch \
     omarchy \
     openbsd \
     openfyde \
     openindiana \
-    openmediavault \
     openmandriva \
-    opnsense \
+    openmediavault \
     opensuse \
+    opnsense \
     oraclelinux \
     parrotsec \
     pclinuxos \
+    pentoo \
     peppermint \
+    ponyos \
     popos \
     porteus \
     primtux \
-    q4os \
     proxmox-ve \
     pureos \
+    q4os \
     qubes \
     reactos \
     rebornos \
     redoxos \
     rockylinux \
+    securityonion \
     siduction \
     slackware \
     slax \
@@ -244,8 +259,8 @@ function os_support() {
     solus \
     sparkylinux \
     spirallinux \
-    tails \
     systemrescue \
+    tails \
     templeos \
     tinycore \
     trisquel \
@@ -259,11 +274,12 @@ function os_support() {
     ubuntucinnamon \
     ubuntukylin \
     ubuntustudio \
+    uwuntu \
     vanillaos \
-    vyos \
     void \
+    vyos \
     windows \
     windows-server \
     xubuntu \
     zorin
-}
+    }
