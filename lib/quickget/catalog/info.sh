@@ -191,6 +191,7 @@ function os_support() {
     backbox \
     biebian \
     caine \
+    canaima \
     alpine \
     amogos \
     android \
@@ -236,6 +237,7 @@ function os_support() {
     guadalinex \
     guadalinexedu \
     educaandos \
+    emmabuntus \
     guix \
     haiku \
     hannahmontana \

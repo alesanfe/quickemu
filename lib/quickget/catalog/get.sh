@@ -1833,3 +1833,23 @@ function get_fedoracore() {
     [ "${RELEASE}" = "2" ] && ISO="FC2-i386-disc1.iso"
     echo "${BASE}/${ISO}"
 }
+
+function get_canaima() {
+    # Canaima GNU/Linux (Venezuela) — official CNTI download host
+    local ISO
+    if [ "${RELEASE}" = "9.0" ]; then
+        ISO="canaima-9.0-${EDITION}-beta_amd64.iso"
+        echo "https://descargas.softwarelibre.gob.ve/canaima/iso/wakupe/${ISO}"
+    else
+        ISO="canaima-8.4-1-ISO-FULL_amd64.iso"
+        echo "https://descargas.softwarelibre.gob.ve/canaima/iso/kavanayen/${ISO} 99c1820f7412d9b20cf81843f898ec1c"
+    fi
+}
+
+
+function get_emmabuntus() {
+    # Emmabuntüs DE6 (France) — SourceForge, sha256 verified
+    local ISO="emmabuntus-de6-core-amd64-13.7-1.03.iso"
+    local URL="https://sourceforge.net/projects/emmabuntus/files/Emmabuntus_DE6/Images/1.03"
+    echo "${URL}/${ISO}/download 48655233f33a5a71301cfc4935c6b77622b2a4d043485c48061397e1111465c3"
+}

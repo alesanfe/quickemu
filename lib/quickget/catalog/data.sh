@@ -1220,3 +1220,17 @@ function releases_fedoracore() {
     echo 6 5 4 3 2 1
 }
 
+function releases_canaima() {
+    echo 9.0 8.4
+}
+
+
+function editions_canaima() {
+    [ "${RELEASE}" = "9.0" ] && echo xfce kde gnome || echo full
+}
+
+
+function releases_emmabuntus() {
+    echo 13.7
+}
+
