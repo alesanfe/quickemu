@@ -1316,3 +1316,17 @@ function releases_bosslinux() {
     echo 8.0
 }
 
+function releases_life() {
+    echo 24.04 22.04
+}
+
+
+function releases_lernstick() {
+    echo 13
+}
+
+
+function editions_lernstick() {
+    echo edu edu-mini exam
+}
+

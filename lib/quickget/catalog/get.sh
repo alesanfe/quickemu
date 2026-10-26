@@ -1948,3 +1948,18 @@ function get_bosslinux() {
     local ISO="boss-8.0-amd64-DVD-301019.iso"
     echo "https://sourceforge.net/projects/archiveos/files/b/boss/${ISO}/download"
 }
+
+function get_life() {
+    # Li-f-e (Linux for Education, India) — SourceForge cyberorg-home/Li-f-e
+    local ISO="Life-${RELEASE}.amd64.iso"
+    [ "${RELEASE}" = "22.04" ] && ISO="Li-f-e-22.04.3.amd64.iso"
+    echo "https://sourceforge.net/projects/cyberorg-home/files/Li-f-e/${ISO}/download"
+}
+
+
+function get_lernstick() {
+    # Lernstick (Switzerland, education/exam) — releases.lernstick.ch index
+    local ISO="lernstick_debian${RELEASE}_${EDITION}_latest.iso"
+    [ "${EDITION}" = "exam" ] && ISO="lernstick_pruefungsumgebung_debian${RELEASE}_latest.iso"
+    echo "https://releases.lernstick.ch/${ISO}"
+}

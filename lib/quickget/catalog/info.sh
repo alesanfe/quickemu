@@ -70,6 +70,8 @@ function os_info() {
         recreomatic)      INFO="Recreomatic|-|https://archive.org/details/guadalinex-v9-32B|Guadalinex-related live distro (archive.org).";;
         hannahmontana)    INFO="Hannah Montana Linux|-|https://sourceforge.net/projects/hannah-montana-linux-v26-lite/|Debian-based meme distro, 2026 revival.";;
         lliurex)          INFO="LliureX|-|https://lliurex.net/|Education distro of the Valencian regional government.";;
+        lernstick)        INFO="Lernstick|-|https://lernstick.ch/|Swiss education/exam-focused live system.";;
+        life)             INFO="Li-f-e|-|https://www.opensuse.org/|Linux for Education (Ubuntu MATE based, India).";;
         linkat)           INFO="Linkat|-|https://projectes.xtec.cat/linkat/|Education distro of the Catalan Department of Education.";;
         maxlinux)         INFO="MAX|-|https://www.educa2.madrid.org/web/max|MAdrid_linuX — education distro by the Madrid regional government.";;
         metamorphose)     INFO="Metamorphose|-|https://metamorphose.miraheze.org/|Brazilian educational Linux distribution.";;
@@ -266,6 +268,8 @@ function os_support() {
     linuxlite \
     linuxmint \
     lliurex \
+    lernstick \
+    life \
     linkat \
     lmde \
     lubuntu \
