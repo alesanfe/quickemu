@@ -1266,3 +1266,12 @@ function editions_altlinux() {
     echo workstation simply server kworkstation education
 }
 
+function releases_hamonikr() {
+    echo 7.0
+}
+
+
+function editions_hamonikr() {
+    echo lts hwe lite
+}
+

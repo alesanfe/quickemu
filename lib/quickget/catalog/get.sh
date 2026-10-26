@@ -1887,3 +1887,21 @@ function get_altlinux() {
     [ "${EDITION}" = "server" ] && VER="11.1"
     echo "${BASE}/${PREFIX}-${VER}-x86_64.iso"
 }
+
+function get_hamonikr() {
+    # HamoniKR (South Korea) — official mirror + sha256 per edition
+    local HASH=""
+    case "${EDITION}" in
+        lts)  HASH="580687cc7274f6a2f2bdf81d0e4b11512ad5c37cee019df748b43e7c61d950e1";;
+        hwe)  HASH="e781f32da41b654db16406737ea5aa96271d4e461cbe2b3a58f536dfeaa095bf";;
+        lite) HASH="7133b53dc211e37827ea29268216de6a11f8308b442ba143ec85f809833348db";;
+    esac
+    local SUFFIX=""
+    [ "${EDITION}" != "lts" ] && SUFFIX="-$(echo "${EDITION}" | tr '[:lower:]' '[:upper:]')"
+    local ISO="hamonikr-kumkang-${RELEASE}${SUFFIX}-amd64.iso"
+    # real filenames: hamonikr-kumkang-7.0-LTS-amd64.iso / -HWE- / -Lite-
+    [ "${EDITION}" = "lts" ] && ISO="hamonikr-kumkang-${RELEASE}-LTS-amd64.iso"
+    [ "${EDITION}" = "hwe" ] && ISO="hamonikr-kumkang-${RELEASE}-HWE-amd64.iso"
+    [ "${EDITION}" = "lite" ] && ISO="hamonikr-kumkang-${RELEASE}-Lite-amd64.iso"
+    echo "https://mirror.hamonikr.org/hamonikr/${ISO} ${HASH}"
+}

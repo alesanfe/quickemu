@@ -51,6 +51,7 @@ function os_info() {
         gnomeos)          INFO="GNOME OS|-|https://os.gnome.org/|Alpha nightly bleeding edge distro of GNOME";;
         gobolinux)        INFO="GoboLinux|-|https://gobolinux.org/|Alternative Linux distribution which redefines the filesystem hierarchy.";;
         guix)             INFO="Guix|-|https://guix.gnu.org/|Distribution of the GNU operating system developed by the GNU Project—which respects the freedom of computer users.";;
+        hamonikr)         INFO="HamoniKR|-|https://hamonikr.org/|Korean public-sector Linux distribution.";;
         haiku)            INFO="Haiku|-|https://www.haiku-os.org/|Specifically targets personal computing. Inspired by the BeOS, Haiku is fast, simple to use, easy to learn and yet very powerful.";;
         kali)             INFO="Kali|-|https://www.kali.org/|The most advanced Penetration Testing Distribution.";;
         kaos)             INFO="KaOS|-|https://kaosx.us/|Independent rolling Linux distribution focused on KDE and Qt.";;
@@ -243,6 +244,7 @@ function os_support() {
     educaandos \
     emmabuntus \
     guix \
+    hamonikr \
     haiku \
     hannahmontana \
     kali \
