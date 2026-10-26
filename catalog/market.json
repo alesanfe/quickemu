@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "name": "ubuntu-desktop",
+      "desc": "Ubuntu desktop, sane defaults (4G/4c)",
+      "conf": "guest_os=\"linux\"\nram=\"4G\"\ncpu_cores=4\ndisk_img=\"disk.qcow2\"\n"
+    },
+    {
+      "name": "windows-gaming",
+      "desc": "Windows gaming profile (8G/6c, virtio-vga-gl)",
+      "conf": "guest_os=\"windows\"\nram=\"8G\"\ncpu_cores=6\nvideo=\"virtio-vga-gl\"\n"
+    },
+    {
+      "name": "linux-minimal",
+      "desc": "Minimal headless Linux (512M/1c, no net)",
+      "conf": "guest_os=\"linux\"\nram=\"512M\"\ncpu_cores=1\ndisplay=\"none\"\nnetwork=\"none\"\n"
+    },
+    {
+      "name": "ci-server",
+      "desc": "CI worker (2G/2c, headless, user-net)",
+      "conf": "guest_os=\"linux\"\nram=\"2G\"\ncpu_cores=2\ndisplay=\"none\"\nnetwork=\"user\"\n"
+    }
+  ]
+}

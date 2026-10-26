@@ -5,7 +5,7 @@
 # {"templates":[{"name":"ubuntu-24.04","conf":"<contents>"}]} served
 # anywhere (http(s) or file path).
 set -eu
-CATALOG="${MARKET_CATALOG:-catalog.json}"
+CATALOG="${MARKET_CATALOG:-https://raw.githubusercontent.com/alesanfe/quickemu/master/catalog/market.json}"
 case "${1:-}" in
 list)
     curl -fsSL "${CATALOG}" | jq -r '.templates[].name'
