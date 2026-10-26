@@ -648,6 +648,8 @@ function get_port() {
         fi
     done
     _port_registry_unlock
+    # Exhausted range -> stable PORT_BUSY code (contract v1).
+    [ "${OUTPUT_FORMAT:-}" == "json" ] &&         qe_fail "vm.port" PORT_BUSY "No free host port in range ${PORT_START}-${PORT_RANGE}." ||         echo "ERROR! No free host port in range ${PORT_START}-${PORT_RANGE}." >&2
     return 1
 }
 

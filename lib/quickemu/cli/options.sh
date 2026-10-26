@@ -192,11 +192,11 @@ else
             ACTIONS+=(snapshot_verify)
             shift
             ;;
-        -op-list | --op-list)
+        -op-list | --op-list | -operation-list | --operation-list)
             ACTIONS+=(operation_list)
             shift
             ;;
-        -op-cancel | --op-cancel)
+        -op-cancel | --op-cancel | -operation-cancel | --operation-cancel)
             OP_ID="${2}"
             ACTIONS+=(operation_cancel)
             shift 2
@@ -229,7 +229,7 @@ else
             ACTIONS+=(operation_watch)
             shift
             ;;
-        -op-status | --op-status)
+        -op-status | --op-status | -operation-status | --operation-status)
             OP_ID="${2}"
             ACTIONS+=(operation_status)
             shift 2

@@ -44,7 +44,7 @@ func opsDir(vmdir string) string { return filepath.Join(vmdir, "ops") }
 func load(dir, id string) *Op {
 	b, err := os.ReadFile(filepath.Join(dir, id+".json"))
 	if err != nil {
-		die("NOT_FOUND", "unknown operation "+id)
+		die("OPERATION_NOT_FOUND", "unknown operation "+id)
 	}
 	var o Op
 	if json.Unmarshal(b, &o) != nil {
@@ -223,7 +223,7 @@ func flag(args []string, name string) string {
 func must(p string) []byte {
 	b, err := os.ReadFile(p)
 	if err != nil {
-		die("NOT_FOUND", p)
+		die("OPERATION_NOT_FOUND", p)
 	}
 	return b
 }

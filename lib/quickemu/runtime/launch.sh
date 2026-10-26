@@ -980,6 +980,7 @@ function configure_ports() {
         if [ -z "${ssh_port}" ]; then
             # Find a free port to expose ssh to the guest
             ssh_port=$(get_port 22220 9)
+            [ -z "${ssh_port}" ] &&                 qe_die "vm.port" PORT_BUSY "No free SSH forward port (range 22220-22229)." 1
         fi
 
         if [ -z "${SSH_ACCESS}" ] || [ "${SSH_ACCESS}" == "local" ]; then
@@ -1047,6 +1048,7 @@ function configure_ports() {
                 fi
 
                 if [ -z "${spice_port}" ]; then
+                    [ "${OUTPUT_FORMAT:-}" == "json" ] &&                         qe_die "vm.port" PORT_BUSY "Requested SPICE display, but no SPICE ports are free." 1
                     echo " - SPICE:    All SPICE ports have been exhausted."
                     echo "             ERROR! Requested SPICE display, but no SPICE ports are free."
                     exit 1
