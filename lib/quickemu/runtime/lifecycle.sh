@@ -295,6 +295,21 @@ vm_instance_verify() { # pidfile -> status word
         echo runtime-corrupt; return 1
     fi
     kill -0 "${pid}" 2>/dev/null || { echo dead; return 1; }
+    # ADR-0001 phase 2: prefer the Go proc-identity helper when present.
+    local PROC_BIN=""
+    command -v quickemu-proc >/dev/null 2>&1 && PROC_BIN="quickemu-proc"
+    [ -z "${PROC_BIN}" ] && [ -x "${QE_LIBDIR}/../tools/quickemu-proc/quickemu-proc" ]         && PROC_BIN="${QE_LIBDIR}/../tools/quickemu-proc/quickemu-proc"
+    if [ -n "${PROC_BIN}" ]; then
+        local VERR
+        VERR=$("${PROC_BIN}" verify --pid "${pid}"                 ${rt_uid:+--uid "${rt_uid}"} ${rt_st:+--start-time "${rt_st}"}                 2>/dev/null | grep -o '"errors":\["[A-Z_]*"' | cut -d'"' -f6)
+        case "${VERR}" in
+        "") echo alive; return 0 ;;
+        PROCESS_DEAD) echo dead; return 1 ;;
+        UID_MISMATCH) echo uid-mismatch; return 1 ;;
+        STARTTIME_MISMATCH) echo pid-reused; return 1 ;;
+        esac
+        # fall through to legacy checks on helper parse issues
+    fi
     if [ -n "${rt_uid}" ] && [ "${rt_uid}" != "$(id -u)" ]; then
         echo uid-mismatch; return 1
     fi
