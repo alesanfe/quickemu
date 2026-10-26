@@ -1874,3 +1874,16 @@ function get_openkylin() {
     esac
     echo "https://cdimage.openkylin.top/3.0/${ISO}"
 }
+
+function get_altlinux() {
+    # ALT Linux (Russia) — official FTP mirror, per-edition filename prefix
+    local PREFIX="alt-${EDITION}"
+    [ "${EDITION}" = "simply" ] && PREFIX="slinux"
+    local BASE="https://ftp.altlinux.org/pub/distributions/ALTLinux/images/p${RELEASE}/${EDITION}/x86_64"
+    # latest verified point release on the mirror
+    local VER="11.2"
+    [ "${EDITION}" = "workstation" ] && VER="11.2"
+    [ "${EDITION}" = "simply" ] && VER="11.1"
+    [ "${EDITION}" = "server" ] && VER="11.1"
+    echo "${BASE}/${PREFIX}-${VER}-x86_64.iso"
+}

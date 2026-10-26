@@ -10,6 +10,7 @@ function os_info() {
     SIMPLE_NAME="${1}"
     case ${SIMPLE_NAME} in
         #name)            INFO="PrettyName|Credentials|Homepage|Info";;
+        altlinux)         INFO="ALT Linux|-|https://www.altlinux.org/|Veteran Russian national Linux distribution.";;
         alma)             INFO="AlmaLinux|-|https://almalinux.org/|Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL®.";;
         alpine)           INFO="Alpine Linux|-|https://alpinelinux.org/|Security-oriented, lightweight Linux distribution based on musl libc and busybox.";;
         android)          INFO="Android x86|-|https://www.android-x86.org/|Port Android Open Source Project to x86 platform.";;
@@ -194,6 +195,7 @@ function os_support() {
     biebian \
     caine \
     canaima \
+    altlinux \
     alpine \
     amogos \
     android \

@@ -1257,3 +1257,12 @@ function editions_openkylin() {
     echo desktop server
 }
 
+function releases_altlinux() {
+    echo 11
+}
+
+
+function editions_altlinux() {
+    echo workstation simply server kworkstation education
+}
+
