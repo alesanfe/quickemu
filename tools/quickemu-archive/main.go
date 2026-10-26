@@ -95,6 +95,9 @@ func main() {
 		if !safeMember(h.Name) {
 			die("TAR_SLIP", "unsafe member "+h.Name)
 		}
+		if !filepath.IsLocal(h.Name) {
+			die("TAR_SLIP", "non-local member "+h.Name)
+		}
 		switch h.Typeflag {
 		case tar.TypeReg:
 		case tar.TypeDir:
@@ -105,6 +108,9 @@ func main() {
 		body, err := io.ReadAll(tr)
 		if err != nil {
 			die("ARCHIVE_BAD", err.Error())
+		}
+		if int64(len(body)) != h.Size {
+			die("ARCHIVE_BAD", "short read on "+h.Name)
 		}
 		base := filepath.Base(h.Name)
 		if base == "quickvm-manifest.json" {
@@ -120,7 +126,8 @@ func main() {
 			continue
 		}
 		sum := sha256.Sum256(body)
-		files = append(files, h.Name+"="+hex.EncodeToString(sum[:]))
+		cname := filepath.ToSlash(filepath.Clean(h.Name))
+		files = append(files, cname+"="+hex.EncodeToString(sum[:]))
 		if sub == "extract" && dest != "" {
 			out := filepath.Join(dest, h.Name)
 			os.MkdirAll(filepath.Dir(out), 0o755)
@@ -130,11 +137,21 @@ func main() {
 	if !haveMan {
 		die("MANIFEST_MISSING", "quickvm-manifest.json absent")
 	}
-	// Verify every declared member checksum.
+	// Verify every declared member checksum by CANONICAL FULL PATH —
+	// basename matching lets disk1/data.qcow2 collide with
+	// disk2/data.qcow2. Reject duplicate/equivalent paths outright.
 	mismatch := 0
+	seen := map[string]bool{}
 	for _, fm := range files {
 		name, sum, _ := strings.Cut(fm, "=")
-		want, declared := sums[filepath.Base(name)]
+		if seen[name] {
+			die("MANIFEST_DUP", "duplicate member path "+name)
+		}
+		seen[name] = true
+		want, declared := sums[name]
+		if !declared { // tolerate manifests that key by basename
+			want, declared = sums[filepath.Base(name)]
+		}
 		if declared && want != sum {
 			mismatch++
 		}

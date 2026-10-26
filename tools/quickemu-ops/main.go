@@ -11,6 +11,8 @@ import (
 	"sort"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 const version = "0.1.0"
@@ -95,7 +97,7 @@ func main() {
 				vm = args[i+1]
 			}
 		}
-		id := fmt.Sprintf("%d-%d", time.Now().UnixNano()/1e6, os.Getpid())
+		id := uuid.NewString()
 		o := &Op{SchemaVersion: 1, OperationID: id, Type: typ, VM: vm,
 			State: "queued", Progress: 0, StartedAt: time.Now().UTC().Format(time.RFC3339),
 			Result: json.RawMessage("null"), Error: json.RawMessage("null")}
