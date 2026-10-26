@@ -130,6 +130,10 @@ else
             ACTIONS+=(backup_restore)
             shift 2
             ;;
+        -persist | --persist)
+            HOTPLUG_PERSIST=1
+            shift
+            ;;
         -hotplug-usb | --hotplug-usb)
             ACTIONS+=(vm_hotplug_usb "${2}")
             shift 2

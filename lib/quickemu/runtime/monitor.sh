@@ -125,6 +125,7 @@ vm_hotplug_disk() { # file
         || qmp_device_add "{\"driver\":\"virtio-blk-pci\",\"id\":\"${ID}\"}"
     qmp_query "{\"execute\":\"blockdev-add\",\"arguments\":{\"node-name\":\"${ID}node\",\"driver\":\"qcow2\",\"file\":{\"driver\":\"file\",\"filename\":\"$(json_escape "$(readlink -f "${F}")")\"}}}" >/dev/null 2>&1
     qe_event "vm.hotplug" "{\"device\":\"disk\",\"id\":\"${ID}\"}"
+    hotplug_persist "disk" "${F}"
     echo " - Hot-plugged disk ${F} as ${ID}."
 }
 
@@ -132,4 +133,23 @@ vm_hotplug_disk() { # file
 vm_hotunplug() { # devid
     qmp_device_del "${1}" && qe_event "vm.hotunplug" "{\"id\":\"$(json_escape "${1}")\"}" \
         && echo " - Hot-unplugged ${1}."
+}
+
+# ---- persistent hotplug ----
+# --hotplug-usb <dev> --persist also records the device in the conf so
+# it reattaches on next boot (desired state vs observed QMP state).
+hotplug_persist() { # kind value -> append to conf device list
+    local KIND="${1}" VAL="${2}"
+    [ -z "${HOTPLUG_PERSIST}" ] && return 0
+    case "${KIND}" in
+    disk)
+        grep -q "extra_disks" "${VM}"             && sed -i "s|extra_disks=(\(.*\))|extra_disks=( \"${VAL}\")|" "${VM}"             || printf 'extra_disks=("%s")
+' "${VAL}" >>"${VM}"
+        ;;
+    usb)
+        grep -q "usb_devices" "${VM}"             && sed -i "s|usb_devices=(\(.*\))|usb_devices=( \"${VAL}\")|" "${VM}"             || printf 'usb_devices=("%s")
+' "${VAL}" >>"${VM}"
+        ;;
+    esac
+    echo " - Persisted ${KIND} ${VAL} into ${VM} (applies next boot)."
 }
