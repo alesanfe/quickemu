@@ -1747,3 +1747,17 @@ function get_minino() {
     local URL="https://sourceforge.net/projects/archiveos/files/m/minino"
     echo "${URL}/${ISO}/download"
 }
+
+function get_subgraph() {
+    # Subgraph OS alpha — preserved on ArchiveOS SourceForge
+    local ISO="subgraph-os-alpha_2016-12-30_1.iso"
+    local URL="https://sourceforge.net/projects/archiveos/files/s/subgraph"
+    echo "${URL}/${ISO}/download"
+}
+
+function get_plan9() {
+    # Plan 9 from Bell Labs — all 4 editions preserved on archive.org
+    local ISO="plan9-${RELEASE}.iso"
+    [ "${RELEASE}" = "4e" ] && ISO="plan9-4e-latest.iso"
+    echo "https://archive.org/download/plan9isosUS/${ISO}"
+}

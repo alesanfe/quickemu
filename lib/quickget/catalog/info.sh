@@ -67,6 +67,7 @@ function os_info() {
         vitalinux)        INFO="Vitalinux|-|https://vitalinux.educa.aragon.es/|Education distribution by the Aragon government.";;
         biebian)          INFO="Biebian|-|https://biebian.sourceforge.net/|Justin Bieber Linux, 2011 meme distro.";;
         syllable)         INFO="Syllable|-|https://syllable.org/|Fast, lightweight non-Linux desktop OS (AtheOS descendant).";;
+        subgraph)         INFO="Subgraph OS|-|https://archiveos.org/subgraph/|Hardened Debian-based privacy OS (historic 2016 alpha).";;
         amogos)           INFO="AmogOS|-|https://github.com/Amog-OS/AmogOS|Meme Linux distribution based on Among Us theming.";;
         gnulinex)         INFO="gnuLinEx|-|https://github.com/CarlosGamer98YT/gnuLinEx|Community continuation of the Extremadura gnuLinEx distribution.";;
         backbox)          INFO="BackBox|-|https://linux.backbox.org/|Ubuntu-based pentesting and security assessment distribution.";;
@@ -79,6 +80,7 @@ function os_info() {
         nst)              INFO="Network Security Toolkit|-|https://www.networksecuritytoolkit.org/|Fedora-based distro for network analysis and monitoring.";;
         nyarch)           INFO="Nyarch Linux|-|https://nyarchlinux.moe/|Arch-based anime-themed distribution.";;
         pentoo)           INFO="Pentoo|-|https://www.pentoo.ch/|Gentoo-based pentesting live distribution.";;
+        plan9)            INFO="Plan 9|-|https://9p.io/plan9/|Bell Labs distributed OS (historic ISOs on archive.org).";;
         ponyos)           INFO="PonyOS|-|https://ponyos.org/|Hobby Unix-like OS with its own kernel — not Linux.";;
         securityonion)    INFO="Security Onion|-|https://securityonionsolutions.com/|SOC/NIDS hunting distro with Zeek, Suricata and PCAP tools.";;
         uwuntu)           INFO="UwUntu|-|https://uwuntuos.com/|Ubuntu-based meme distribution.";;
@@ -271,6 +273,7 @@ function os_support() {
     pclinuxos \
     pentoo \
     peppermint \
+    plan9 \
     ponyos \
     popos \
     porteus \
@@ -293,6 +296,7 @@ function os_support() {
     solus \
     sparkylinux \
     spirallinux \
+    subgraph \
     syllable \
     systemrescue \
     tails \

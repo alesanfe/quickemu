@@ -1168,3 +1168,11 @@ function editions_minino() {
     echo 64 32 minimal full
 }
 
+function releases_subgraph() {
+    echo alpha
+}
+
+function releases_plan9() {
+    echo 4e 3e 2e 1e
+}
+
