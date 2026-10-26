@@ -1,0 +1,37 @@
+name: shellspec-suite
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  specs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            qemu-utils qemu-system-x86 socat jq shellcheck shfmt \
+            netcat-openbsd psmisc
+      - name: ShellCheck
+        run: shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport $(find lib -name '*.sh')
+      - name: Run spec suite (per-spec timeouts, isolated process groups)
+        run: bash tools/run-specs.sh 240 spec
+      - name: Assert no residual processes
+        if: always()
+        run: |
+          pgrep -af 'socat|qemu-system|shellspec' && exit 1 || true
+      - name: Upload failing spec logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-artifacts
+          path: .spec-artifacts/
+          retention-days: 14
