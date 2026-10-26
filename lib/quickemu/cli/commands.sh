@@ -452,5 +452,3 @@ operation_cancel() {
 
 # --events [cursor]: JSONL events with seq > cursor for resumable tails.
 events_read() { qe_events_read "${EVENTS_CURSOR:-0}"; }
-
-qe_doctor_wrap() { qe_doctor "${DOCTOR_FIX:-}"; }

@@ -4,6 +4,7 @@
 # VM health report (config vs host capabilities).
 
 function doctor_vm() {
+    command -v qe_doctor >/dev/null 2>&1 && qe_doctor "${DOCTOR_FIX:-}"
     local ISSUES=0
     echo "Checking ${VMNAME} against host capabilities:"
     if [ "${OS_KERNEL}" == "Darwin" ]; then

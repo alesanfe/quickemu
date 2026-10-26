@@ -42,6 +42,7 @@ func safeMember(name string) bool {
 }
 
 func main() {
+	os.Args = normArgs(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-archive <verify|extract> --archive <tgz> [--dest <dir>]")
 		os.Exit(2)
@@ -160,4 +161,17 @@ func main() {
 		die("CHECKSUM_MISMATCH", fmt.Sprintf("%d members failed sha256", mismatch))
 	}
 	ok(fmt.Sprintf(`{"members":%d,"verified":%d}`, entries, len(files)))
+}
+// normArgs expands GNU-style --flag=value into --flag value so the
+// positional pair parsers stay uniform (pflag parity without the dep).
+func normArgs(a []string) []string {
+	out := a[:0]
+	for _, s := range a {
+		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
+			out = append(out, s[:i], s[i+1:])
+		} else {
+			out = append(out, s)
+		}
+	}
+	return out
 }

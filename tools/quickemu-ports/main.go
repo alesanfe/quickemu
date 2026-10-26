@@ -52,6 +52,7 @@ func lock(reg string) func() {
 }
 
 func main() {
+	os.Args = normArgs(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-ports <reserve|release|list|check|find> --registry <dir> [--port N] [--pid P] [--instance I] [--lo N --hi N]")
 		os.Exit(2)
@@ -197,4 +198,17 @@ func main() {
 func isNum(s string) bool {
 	_, err := strconv.Atoi(s)
 	return err == nil
+}
+// normArgs expands GNU-style --flag=value into --flag value so the
+// positional pair parsers stay uniform (pflag parity without the dep).
+func normArgs(a []string) []string {
+	out := a[:0]
+	for _, s := range a {
+		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
+			out = append(out, s[:i], s[i+1:])
+		} else {
+			out = append(out, s)
+		}
+	}
+	return out
 }

@@ -4,6 +4,7 @@
 package main
 
 import (
+	"strings"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -80,6 +81,7 @@ func writeOp(dir string, o *Op) {
 }
 
 func main() {
+	os.Args = normArgs(os.Args)
 	if len(os.Args) < 3 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-ops <new|set|done|fail|status|list|cancel|prune> --vmdir <dir> [args]")
 		os.Exit(2)
@@ -166,6 +168,8 @@ func main() {
 		writeOp(dir, o)
 	case "status":
 		fmt.Println(string(must(filepath.Join(dir, flag(args, "--id")+".json"))))
+	case "watch":
+		os.Exit(runWatch(dir))
 	case "list":
 		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 		sort.Strings(ents)
@@ -229,4 +233,17 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+// normArgs expands GNU-style --flag=value into --flag value so the
+// positional pair parsers stay uniform (pflag parity without the dep).
+func normArgs(a []string) []string {
+	out := a[:0]
+	for _, s := range a {
+		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
+			out = append(out, s[:i], s[i+1:])
+		} else {
+			out = append(out, s)
+		}
+	}
+	return out
 }

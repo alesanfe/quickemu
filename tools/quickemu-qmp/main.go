@@ -4,6 +4,7 @@
 package main
 
 import (
+	"strings"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -53,6 +54,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-qmp <execute|watch> --socket <path> [--command <json>] [--timeout 5]")
 		os.Exit(2)
 	}
+	os.Args = normArgs(os.Args)
 	switch os.Args[1] {
 	case "execute":
 		fs := flag.NewFlagSet("execute", flag.ExitOnError)
@@ -80,4 +82,17 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", os.Args[1])
 		os.Exit(2)
 	}
+}
+
+// normArgs: --flag=value parity (see sibling helpers).
+func normArgs(a []string) []string {
+	out := make([]string, 0, len(a))
+	for _, s := range a {
+		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
+			out = append(out, s[:i], s[i+1:])
+		} else {
+			out = append(out, s)
+		}
+	}
+	return out
 }

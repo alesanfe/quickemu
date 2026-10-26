@@ -42,6 +42,7 @@ func emit(ok bool, data any, err string) int {
 
 // verify --pid P [--start-time S] [--uid U] [--exe name]
 func main() {
+	os.Args = normArgs(os.Args)
 	if len(os.Args) < 2 || os.Args[1] != "verify" {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-proc verify --pid P [--start-time S] [--uid U] [--exe name]")
 		os.Exit(2)
@@ -136,4 +137,17 @@ func main() {
 		}
 	}
 	os.Exit(emit(true, data, ""))
+}
+// normArgs expands GNU-style --flag=value into --flag value so the
+// positional pair parsers stay uniform (pflag parity without the dep).
+func normArgs(a []string) []string {
+	out := a[:0]
+	for _, s := range a {
+		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
+			out = append(out, s[:i], s[i+1:])
+		} else {
+			out = append(out, s)
+		}
+	}
+	return out
 }

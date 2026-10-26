@@ -4,6 +4,7 @@
 package main
 
 import (
+	"strings"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -43,6 +44,7 @@ func flat(prefix string, m map[string]any, out map[string]any) {
 }
 
 func main() {
+	os.Args = normArgs(os.Args)
 	if len(os.Args) < 3 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-toml <parse|validate|get> --file <f.toml> [--key k]")
 		os.Exit(2)
@@ -93,4 +95,17 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", sub)
 		os.Exit(2)
 	}
+}
+// normArgs expands GNU-style --flag=value into --flag value so the
+// positional pair parsers stay uniform (pflag parity without the dep).
+func normArgs(a []string) []string {
+	out := a[:0]
+	for _, s := range a {
+		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
+			out = append(out, s[:i], s[i+1:])
+		} else {
+			out = append(out, s)
+		}
+	}
+	return out
 }
