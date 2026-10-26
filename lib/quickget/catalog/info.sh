@@ -57,6 +57,7 @@ function os_info() {
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
         guadalinex)       INFO="Guadalinex|-|https://www.guadalinex.org/|Historic education distro of Andalusia (preserved on ArchiveOS).";;
         guadalinexedu)    INFO="Guadalinex Edu|-|https://archive.org/details/guadalinexedu-version-archive|Guadalinex education spin, preserved on archive.org.";;
+        educaandos)       INFO="EducaAndOS|-|https://www.juntadeandalucia.es/educacion/|Successor of Guadalinex Edu by the Andalusian government.";;
         hannahmontana)    INFO="Hannah Montana Linux|-|https://sourceforge.net/projects/hannah-montana-linux-v26-lite/|Debian-based meme distro, 2026 revival.";;
         lliurex)          INFO="LliureX|-|https://lliurex.net/|Education distro of the Valencian regional government.";;
         linkat)           INFO="Linkat|-|https://projectes.xtec.cat/linkat/|Education distro of the Catalan Department of Education.";;
@@ -222,6 +223,7 @@ function os_support() {
     gobolinux \
     guadalinex \
     guadalinexedu \
+    educaandos \
     guix \
     haiku \
     hannahmontana \

@@ -1147,3 +1147,7 @@ function editions_gnulinex() {
     echo netinst classic
 }
 
+function releases_educaandos() {
+    echo 20.04 v2
+}
+

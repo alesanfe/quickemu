@@ -1722,3 +1722,11 @@ function get_linkat() {
     local URL="http://download-linkat.xtec.cat/d83/ISO"
     echo "${URL}/${ISO}"
 }
+
+function get_educaandos() {
+    # EducaAndOS — official cica.es mirror, verified filenames
+    local BASE="http://guadalinex-edu.cica.es/centros"
+    local ISO="educaandos-20.04-instalador-centros.iso"
+    [ "${RELEASE}" = "v2" ] && ISO="EducaAndosV2-offline.iso"
+    echo "${BASE}/${ISO}"
+}
