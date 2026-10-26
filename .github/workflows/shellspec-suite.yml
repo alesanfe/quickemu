@@ -35,3 +35,16 @@ jobs:
           name: spec-artifacts
           path: .spec-artifacts/
           retention-days: 14
+  specs-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: run bash-only specs on macOS
+        run: |
+          ./shellspec-0.28.1/shellspec spec/resilience/ spec/unit/cli/             spec/unit/planning/ spec/unit/config/
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: function->spec coverage report
+        run: bash tools/coverage.sh

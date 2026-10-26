@@ -1,0 +1,128 @@
+// quickemu-api: persistent HTTP daemon serving the v1 surface over
+// localhost — read-only introspection of the on-disk formats (no
+// shell-outs on the hot path). Auth: optional --token bearer.
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+var (
+	dataDir = env("XDG_DATA_HOME", os.Getenv("HOME")+"/.local/share") + "/quickemu"
+	token   string
+)
+
+func env(k, d string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return d
+}
+
+func write(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(v)
+}
+
+func auth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if token != "" && r.Header.Get("Authorization") != "Bearer "+token {
+			write(w, 401, map[string]any{"errors": []any{map[string]any{"code": "UNAUTHORIZED"}}})
+			return
+		}
+		next(w, r)
+	}
+}
+
+func main() {
+	var listen = "127.0.0.1:8490"
+	for i := 1; i < len(os.Args); i++ {
+		switch os.Args[i] {
+		case "--listen":
+			i++
+			listen = os.Args[i]
+		case "--unix":
+			i++
+			listen = os.Args[i]
+		case "--data-dir":
+			i++
+			dataDir = os.Args[i]
+		case "--token":
+			i++
+			token = os.Args[i]
+		}
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/vms", auth(func(w http.ResponseWriter, r *http.Request) {
+		b, err := os.ReadFile(filepath.Join(dataDir, "vms.json"))
+		if err != nil {
+			write(w, 200, map[string]any{"data": map[string]any{}})
+			return
+		}
+		var v any
+		json.Unmarshal(b, &v)
+		write(w, 200, map[string]any{"data": v})
+	}))
+	mux.HandleFunc("/v1/vm/", auth(func(w http.ResponseWriter, r *http.Request) {
+		rest := strings.TrimPrefix(r.URL.Path, "/v1/vm/")
+		parts := strings.SplitN(rest, "/", 2)
+		vm := parts[0]
+		sub := ""
+		if len(parts) == 2 {
+			sub = parts[1]
+		}
+		if strings.Contains(vm, "..") || strings.ContainsAny(vm, "/\\") {
+			write(w, 400, map[string]any{"errors": []any{map[string]any{"code": "INVALID_ARGUMENT"}}})
+			return
+		}
+		switch sub {
+		case "state":
+			b, err := os.ReadFile(filepath.Join(dataDir, "vms", vm, vm+".runtime.json"))
+			if err != nil {
+				write(w, 200, map[string]any{"data": map[string]any{"state": "stopped"}})
+				return
+			}
+			var v any
+			json.Unmarshal(b, &v)
+			write(w, 200, map[string]any{"data": map[string]any{"state": "running", "runtime": v}})
+		case "ops":
+			ents, _ := filepath.Glob(filepath.Join(dataDir, "vms", vm, "ops", "*.json"))
+			ops := make([]any, 0, len(ents))
+			for _, e := range ents {
+				var v any
+				if b, err := os.ReadFile(e); err == nil {
+					json.Unmarshal(b, &v)
+					ops = append(ops, v)
+				}
+			}
+			write(w, 200, map[string]any{"data": map[string]any{"operations": ops}})
+		default:
+			write(w, 404, map[string]any{"errors": []any{map[string]any{"code": "NOT_FOUND"}}})
+		}
+	}))
+	mux.HandleFunc("/v1/health", func(w http.ResponseWriter, _ *http.Request) {
+		write(w, 200, map[string]any{"data": map[string]any{"ok": true}})
+	})
+	var ln net.Listener
+	var err error
+	if strings.HasPrefix(listen, "/") {
+		os.Remove(listen)
+		ln, err = net.Listen("unix", listen)
+		os.Chmod(listen, 0600)
+	} else {
+		ln, err = net.Listen("tcp", listen)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "listen:", err)
+		os.Exit(1)
+	}
+	fmt.Println("quickemu-api listening on", listen)
+	http.Serve(ln, mux)
+}

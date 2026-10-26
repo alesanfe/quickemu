@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# quickemu-plugin-market: distributed template marketplace (2.0).
+# Fetches a JSON catalog of conf templates and installs them as
+# ready-to-run .conf files. Contract: MARKET_CATALOG points to a JSON
+# {"templates":[{"name":"ubuntu-24.04","conf":"<contents>"}]} served
+# anywhere (http(s) or file path).
+set -eu
+CATALOG="${MARKET_CATALOG:-catalog.json}"
+case "${1:-}" in
+list)
+    curl -fsSL "${CATALOG}" | jq -r '.templates[].name'
+    ;;
+show)
+    curl -fsSL "${CATALOG}" | jq --arg n "${2:?name}" '.templates[]|select(.name==$n)'
+    ;;
+install)
+    name="${2:?name}"
+    dir="${3:-.}"
+    curl -fsSL "${CATALOG}" | jq -r --arg n "${name}" \
+        '.templates[]|select(.name==$n)|.conf' >"${dir}/${name}.conf"
+    echo "installed ${dir}/${name}.conf"
+    ;;
+*) echo "usage: market {list|show NAME|install NAME [DIR]}" >&2; exit 2 ;;
+esac
