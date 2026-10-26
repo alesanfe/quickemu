@@ -1616,9 +1616,22 @@ function get_amogos() {
 
 
 function get_gnulinex() {
+    # gnuLinEx — netinst via GitHub, classic 2003 LiveCD via archive.org
+    if [ "${EDITION}" = "classic" ]; then
+        echo "https://archive.org/download/GNULINEX/GNULINEX.ISO"
+        return
+    fi
     local ISO="gnuLinEx-amd64-netinst.iso"
     local URL="https://github.com/CarlosGamer98YT/gnuLinEx/releases/download/${RELEASE}"
     echo "${URL}/${ISO} f649fbcd8f08788ff9015ba48471b932b9328433196f8f68461c8711cf671804"
+}
+
+
+function get_molinux() {
+    # MoLinux 6.0 Zoraida — preserved on ArchiveOS SourceForge
+    local ISO="Molinux_${RELEASE}_Zoraida.iso"
+    local URL="https://sourceforge.net/projects/archiveos/files/m/molinux"
+    echo "${URL}/${ISO}/download"
 }
 
 function get_syllable() {

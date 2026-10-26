@@ -1133,3 +1133,17 @@ function editions_hannahmontana() {
     echo lite classic
 }
 
+function releases_molinux() {
+    echo 6.0
+}
+
+
+function editions_molinux() {
+    echo zoraida
+}
+
+
+function editions_gnulinex() {
+    echo netinst classic
+}
+
