@@ -490,6 +490,13 @@ function import_vm() {
     fi
     # Self-verifying archives: check the manifest and every declared
     # checksum BEFORE installing anything into the working tree.
+    # ADR-0001 phase 6: the Go verifier does the whole pass when present.
+    local ARCH_BIN=""
+    command -v quickemu-archive >/dev/null 2>&1 && ARCH_BIN="quickemu-archive"
+    [ -z "${ARCH_BIN}" ] && [ -x "${QE_LIBDIR}/../tools/quickemu-archive/quickemu-archive" ]         && ARCH_BIN="${QE_LIBDIR}/../tools/quickemu-archive/quickemu-archive"
+    if [ -n "${ARCH_BIN}" ]; then
+        "${ARCH_BIN}" verify --archive "${IN}" || { rm -rf -- "${TMPDIR_IM}"; echo "ERROR! Archive failed verification."; exit 1; }
+    fi
     if [ -f "${TMPDIR_IM}/quickvm-manifest.json" ]; then
         local MFMT MVM
         MFMT=$(sed -n 's/.*"formatVersion":\([0-9][0-9]*\).*/\1/p' "${TMPDIR_IM}/quickvm-manifest.json")
