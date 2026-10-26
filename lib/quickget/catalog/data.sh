@@ -1099,12 +1099,14 @@ function releases_vitalinux() {
 }
 
 function releases_guadalinex() {
-    echo v9
+    echo v9 v8 v7 v6 2004 1.0 mini2004
 }
 
 
 function editions_guadalinex() {
-    echo standard lite
+    # v9 splits standard/lite; older releases are a single image
+    # exposed under the benign "standard" edition name
+    [ "${RELEASE}" = "v9" ] && echo standard lite || echo standard
 }
 
 
@@ -1174,5 +1176,29 @@ function releases_subgraph() {
 
 function releases_plan9() {
     echo 4e 3e 2e 1e
+}
+
+function releases_gecos() {
+    echo v2
+}
+
+
+function editions_gecos() {
+    echo standard lite
+}
+
+
+function releases_esfera() {
+    echo 1.1.0
+}
+
+
+function releases_recreomatic() {
+    echo latest
+}
+
+
+function releases_mangaka() {
+    echo chu
 }
 

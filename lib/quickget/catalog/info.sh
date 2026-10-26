@@ -58,6 +58,10 @@ function os_info() {
         guadalinex)       INFO="Guadalinex|-|https://www.guadalinex.org/|Historic education distro of Andalusia (preserved on ArchiveOS).";;
         guadalinexedu)    INFO="Guadalinex Edu|-|https://archive.org/details/guadalinexedu-version-archive|Guadalinex education spin, preserved on archive.org.";;
         educaandos)       INFO="EducaAndOS|-|https://www.juntadeandalucia.es/educacion/|Successor of Guadalinex Edu by the Andalusian government.";;
+        esfera)           INFO="Esfera|-|https://archive.org/details/guadalinex-v9-32B|Historic Guadalinex-derived live distro (archive.org).";;
+        gecos)            INFO="GECOS|-|https://archive.org/details/guadalinex-v9-32B|GECOS v2, Andalusian distro spin (archive.org).";;
+        mangaka)          INFO="Linux Mangaka|-|https://archive.org/details/linux-mangaka|Ubuntu-based anime-themed distro (archive.org).";;
+        recreomatic)      INFO="Recreomatic|-|https://archive.org/details/guadalinex-v9-32B|Guadalinex-related live distro (archive.org).";;
         hannahmontana)    INFO="Hannah Montana Linux|-|https://sourceforge.net/projects/hannah-montana-linux-v26-lite/|Debian-based meme distro, 2026 revival.";;
         lliurex)          INFO="LliureX|-|https://lliurex.net/|Education distro of the Valencian regional government.";;
         linkat)           INFO="Linkat|-|https://projectes.xtec.cat/linkat/|Education distro of the Catalan Department of Education.";;
@@ -215,10 +219,12 @@ function os_support() {
     elementary \
     endeavouros \
     endless \
+    esfera \
     fedora \
     freebsd \
     freedos \
     garuda \
+    gecos \
     gentoo \
     ghostbsd \
     gnomeos \
@@ -246,6 +252,7 @@ function os_support() {
     maboxlinux \
     macos \
     mageia \
+    mangaka \
     manjaro \
     maxlinux \
     molinux \
@@ -285,6 +292,7 @@ function os_support() {
     reactos \
     rebeccablackos \
     rebornos \
+    recreomatic \
     redoxos \
     rockylinux \
     securityonion \

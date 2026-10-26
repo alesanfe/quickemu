@@ -1675,14 +1675,52 @@ function get_vitalinux() {
 }
 
 function get_guadalinex() {
-    # Guadalinex v9 — preserved on the ArchiveOS SourceForge project
-    local ISO
+    # Guadalinex — v9 on ArchiveOS SF; older releases on archive.org
+    local ISO=""
+    case "${RELEASE}" in
+        v8)       ISO="guadalinex-v8-desktop-i386-final.iso";;
+        v7)       ISO="guadalinex-v7-desktop-i386-cd.iso";;
+        v6)       ISO="guadalinex-v6-desktop-cd.iso";;
+        2004)     ISO="guadalinex-2004.iso";;
+        1.0)      ISO="guadalinex-1.0.iso";;
+        mini2004) ISO="guadalinex-mini-2004_1.0.iso";;
+        v9) ;;
+    esac
+    if [ -n "${ISO}" ]; then
+        echo "https://archive.org/download/guadalinex-v9-32B/${ISO}"
+        return
+    fi
     case "${EDITION}" in
         lite) ISO="guadalinex-v9-lite-32B.iso";;
         *)    ISO="guadalinex-v9-32B.iso";;
     esac
     local URL="https://sourceforge.net/projects/archiveos/files/g/guadalinex"
     echo "${URL}/${ISO}/download"
+}
+
+
+function get_gecos() {
+    # GECOS v2 — preserved on archive.org (Guadalinex item)
+    local ISO="GECOS-v2-32B-latest.iso"
+    [ "${EDITION}" = "lite" ] && ISO="GECOS-v2-lite-32B-20141017.iso"
+    echo "https://archive.org/download/guadalinex-v9-32B/${ISO}"
+}
+
+
+function get_esfera() {
+    local ISO="esfera-live-${RELEASE}.iso"
+    echo "https://archive.org/download/guadalinex-v9-32B/${ISO}"
+}
+
+
+function get_recreomatic() {
+    echo "https://archive.org/download/guadalinex-v9-32B/recreomatic.iso"
+}
+
+
+function get_mangaka() {
+    local ISO="linux-mangaka-${RELEASE}-v2.iso"
+    echo "https://archive.org/download/linux-mangaka/${ISO}"
 }
 
 
