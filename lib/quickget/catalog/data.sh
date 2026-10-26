@@ -1007,7 +1007,7 @@ function releases_nyarch() {
 
 
 function editions_nyarch() {
-    echo gnome kde
+    echo gnome kde nv-gnome nv-kde
 }
 
 

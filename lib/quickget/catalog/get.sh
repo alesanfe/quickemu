@@ -1519,9 +1519,12 @@ function get_ponyos() {
 
 
 function get_nyarch() {
-    local EDITION_CAP
-    EDITION_CAP="$(echo "${EDITION}" | sed 's/./\u&/')"
-    local ISO="Nyarch-${EDITION_CAP}-${RELEASE}.iso"
+    # Editions: gnome, kde, nv-gnome, nv-kde — real filenames use
+    # "Gnome"/"KDE" and the NVIDIA variants carry an "Nv-" prefix
+    local PREFIX="" ED="${EDITION}"
+    case "${EDITION}" in nv-*) PREFIX="Nv-"; ED="${EDITION#nv-}";; esac
+    [ "${ED}" = "kde" ] && ED="KDE" || ED="Gnome"
+    local ISO="Nyarch-${PREFIX}${ED}-${RELEASE}.iso"
     local URL="https://sourceforge.net/projects/nyarchlinux/files"
     echo "${URL}/${ISO}/download"
 }
