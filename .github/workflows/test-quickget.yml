@@ -56,14 +56,17 @@ jobs:
           mkdir -p results
           ./bin/quickget --check-all-arch "${{ matrix.distro }}" | tee results/check.txt
 
-          # Count results (use wc -l to avoid grep exit code issues)
-          PASSED=$(grep '^PASS' results/check.txt | wc -l | tr -d ' ')
-          FAILED=$(grep '^FAIL' results/check.txt | wc -l | tr -d ' ')
-          SKIPPED=$(grep '^SKIP' results/check.txt | wc -l | tr -d ' ')
+          # Count results (the || true guards against grep -c's exit code
+          # when there are no matches)
+          PASSED=$(grep -c '^PASS' results/check.txt || true)
+          FAILED=$(grep -c '^FAIL' results/check.txt || true)
+          SKIPPED=$(grep -c '^SKIP' results/check.txt || true)
 
-          echo "passed=${PASSED}" >> "$GITHUB_OUTPUT"
-          echo "failed=${FAILED}" >> "$GITHUB_OUTPUT"
-          echo "skipped=${SKIPPED}" >> "$GITHUB_OUTPUT"
+          {
+            echo "passed=${PASSED}"
+            echo "failed=${FAILED}"
+            echo "skipped=${SKIPPED}"
+          } >> "$GITHUB_OUTPUT"
 
           # Extract failed URLs for reporting
           grep '^FAIL' results/check.txt > results/failed.txt || true
@@ -146,35 +149,35 @@ jobs:
             echo "| ${DISTRO} | ${PASSED} | ${FAILED} | ${SKIPPED} | ${STATUS} |" >> "$TEMP_ROWS"
           done
 
-          # Write summary header
-          echo "## Test Results 📊" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Metric | Count |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|-------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ✅ Passed | ${TOTAL_PASSED} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ❌ Failed | ${TOTAL_FAILED} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ⏭️ Skipped | ${TOTAL_SKIPPED} |" >> "$GITHUB_STEP_SUMMARY"
-
-          # Write per-distro breakdown
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### Per-distro breakdown" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Distro | Passed | Failed | Skipped | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|--------|--------|---------|--------|" >> "$GITHUB_STEP_SUMMARY"
-          sort "$TEMP_ROWS" >> "$GITHUB_STEP_SUMMARY"
+          # Write summary header and per-distro breakdown
+          {
+            echo "## Test Results 📊"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| ✅ Passed | ${TOTAL_PASSED} |"
+            echo "| ❌ Failed | ${TOTAL_FAILED} |"
+            echo "| ⏭️ Skipped | ${TOTAL_SKIPPED} |"
+            echo ""
+            echo "### Per-distro breakdown"
+            echo ""
+            echo "| Distro | Passed | Failed | Skipped | Status |"
+            echo "|--------|--------|--------|---------|--------|"
+            sort "$TEMP_ROWS"
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # Collect and display failed URLs if any
           if [ "$HAS_FAILURES" = true ]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "### ❌ Failed URLs" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
-
-            for failed_file in results/result-*/failed.txt; do
-              [ -f "$failed_file" ] && cat "$failed_file" >> "$GITHUB_STEP_SUMMARY"
-            done
-
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo ""
+              echo "### ❌ Failed URLs"
+              echo ""
+              echo '```'
+              for failed_file in results/result-*/failed.txt; do
+                [ -f "$failed_file" ] && cat "$failed_file"
+              done
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
           # Print summary to log as well

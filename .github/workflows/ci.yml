@@ -7,6 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install qemu-utils qemu-system-x86
       - name: Install shellspec
         run: |
           curl -sSfL https://github.com/shellspec/shellspec/archive/refs/tags/0.28.1.tar.gz | tar -xz

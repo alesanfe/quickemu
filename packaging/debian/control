@@ -11,7 +11,9 @@ Vcs-Git: https://github.com/quickemu-project/quickemu.git
 Rules-Requires-Root: no
 
 Package: quickemu
-Architecture: all
+# 'any' (not 'all'): the arch-qualified qemu-system-arm [arm64] dependency
+# below is only legal in architecture-specific binary packages.
+Architecture: any
 Depends:
  coreutils,
  curl,

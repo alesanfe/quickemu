@@ -14,5 +14,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v7
+      - name: Install ShellCheck
+        run: sudo apt-get -y update && sudo apt-get -y install shellcheck
       - name: Run ShellCheck
-        run: shellcheck -S warning --format=gcc bin/quickemu bin/quickget bin/quickgetc bin/quickreport $(find lib -name '*.sh')
+        run: |
+          mapfile -t scripts < <(find lib -name '*.sh')
+          shellcheck -S warning --format=gcc bin/quickemu bin/quickget bin/quickgetc bin/quickreport "${scripts[@]}"
