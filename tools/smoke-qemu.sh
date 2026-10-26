@@ -13,8 +13,11 @@ qemu-img create -f qcow2 disk.qcow2 64M >/dev/null
 # QEMU needs a bootable medium; a small ISO satisfies the check and
 # lets the VM reach 'running' so lifecycle+QMP can be exercised.
 dd if=/dev/zero of=smoke.iso bs=1M count=8 2>/dev/null
+# TCG keeps the smoke runnable on hosts without /dev/kvm.
+export QEMU_ACCEL=tcg
 cat >smoke.conf <<'CONF'
 guest_os="linux"
+cpu_model="qemu64"
 disk_img="disk.qcow2"
 iso="smoke.iso"
 ram="256M"

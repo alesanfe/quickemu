@@ -207,14 +207,10 @@ function configure_cpu() {
         CPU_KVM_UNHALT=",kvm_pv_unhalt"
         GUEST_TWEAKS+=" -global kvm-pit.lost_tick_policy=discard"
         QEMU_ACCEL="kvm"
-        # No usable /dev/kvm (WSL, containers, missing perms): fall back
-        # to TCG emulation instead of requesting an accel QEMU can't
-        # provide. CPU 'host' also requires KVM/HVF, so pick an
-        # emulable model unless the conf sets one explicitly.
-        if [ ! -w /dev/kvm ]; then
-            QEMU_ACCEL="tcg"
-            [ -z "${cpu_model}" ] && CPU_MODEL="qemu64"
-        fi
+        # Honour an explicit accel override (export QEMU_ACCEL=tcg or
+        # extra_args='-accel tcg') — the VT-x/SVM gate below already
+        # treats tcg as a non-hardware accel and lets it through.
+        QEMU_ACCEL="${QEMU_ACCEL:-kvm}"
     fi
 
     if [ "${ARCH_VM}" == "aarch64" ]; then
