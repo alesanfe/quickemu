@@ -55,6 +55,9 @@ function os_info() {
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
+        guadalinex)       INFO="Guadalinex|-|https://www.guadalinex.org/|Historic education distro of Andalusia (preserved on ArchiveOS).";;
+        hannahmontana)    INFO="Hannah Montana Linux|-|https://sourceforge.net/projects/hannah-montana-linux-v26-lite/|Debian-based meme distro, 2026 revival.";;
+        lliurex)          INFO="LliureX|-|https://lliurex.net/|Education distro of the Valencian regional government.";;
         maxlinux)         INFO="MAX|-|https://www.educa2.madrid.org/web/max|MAdrid_linuX — education distro by the Madrid regional government.";;
         vitalinux)        INFO="Vitalinux|-|https://vitalinux.educa.aragon.es/|Education distribution by the Aragon government.";;
         biebian)          INFO="Biebian|-|https://biebian.sourceforge.net/|Justin Bieber Linux, 2011 meme distro.";;
@@ -214,8 +217,10 @@ function os_support() {
     gnomeos \
     gnulinex \
     gobolinux \
+    guadalinex \
     guix \
     haiku \
+    hannahmontana \
     kali \
     kaos \
     kdelinux \
@@ -225,6 +230,7 @@ function os_support() {
     kubuntu \
     linuxlite \
     linuxmint \
+    lliurex \
     lmde \
     lubuntu \
     maboxlinux \

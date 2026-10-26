@@ -1653,3 +1653,34 @@ function get_vitalinux() {
     HASH="$(web_pipe "${URL}/${ISO}.md5" | cut -d' ' -f1)"
     echo "${URL}/${ISO:-vitalinux-3.5-2026.05.12-desktop-amd64.iso} ${HASH}"
 }
+
+function get_guadalinex() {
+    # Guadalinex v9 — preserved on the ArchiveOS SourceForge project
+    local ISO
+    case "${EDITION}" in
+        lite) ISO="guadalinex-v9-lite-32B.iso";;
+        *)    ISO="guadalinex-v9-32B.iso";;
+    esac
+    local URL="https://sourceforge.net/projects/archiveos/files/g/guadalinex"
+    echo "${URL}/${ISO}/download"
+}
+
+
+function get_lliurex() {
+    # LliureX — verified filename on the official index
+    local BASE="http://lliurex.net/isos/${RELEASE}"
+    local ISO="LliureX-home-desktop_${RELEASE}_latest.iso"
+    echo "${BASE}/${ISO}"
+}
+
+
+function get_hannahmontana() {
+    # Hannah Montana Linux 26 Lite — SourceForge
+    local V="${RELEASE//./-}"
+    local ISO="hannah-montana-linux-26-lite.iso"
+    case "${RELEASE}" in
+        26.1.1) ISO="hannah-montana-linux-26-1-1-lite.iso";;
+    esac
+    local URL="https://sourceforge.net/projects/hannah-montana-linux-v26-lite/files/v${RELEASE}"
+    echo "${URL}/${ISO}/download"
+}

@@ -1096,3 +1096,22 @@ function releases_vitalinux() {
     echo 3.5
 }
 
+function releases_guadalinex() {
+    echo v9
+}
+
+
+function editions_guadalinex() {
+    echo standard lite
+}
+
+
+function releases_lliurex() {
+    echo 25
+}
+
+
+function releases_hannahmontana() {
+    echo 26.1.1
+}
+
