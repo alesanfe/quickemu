@@ -583,32 +583,34 @@ _port_registry_lock() { # global lock for the whole select+register op
 
 _port_registry_unlock() { rm -rf "${QE_PORT_REGISTRY}.lock"; }
 
-# Is <port> already reserved by a live quickemu instance? Prunes stale rows.
+# Reservations are keyed BY PORT: ${REGISTRY}/<port> holds
+# "pid<sp>ts<sp>instance<sp>vm". Per-VM filenames let concurrent VMs
+# (or parallel picks in the same VM) overwrite each other — that was
+# the parallel-pick collision the race spec caught.
 _port_registry_taken() { # port -> 0 if reserved by a live vm
-    [ -d "${QE_PORT_REGISTRY}" ] || return 1
-    local row p vm pid
-    for f in "${QE_PORT_REGISTRY}"/*; do
-        [ -f "${f}" ] || continue
-        while IFS=$'\t' read -r p vm pid _; do
-            [ "${p}" = "${1}" ] || continue
-            if kill -0 "${pid}" 2>/dev/null; then return 0; fi
-            rm -f -- "${f}" 2>/dev/null || true   # stale reservation
-            break
-        done <"${f}"
-    done
+    local f="${QE_PORT_REGISTRY}/${1}"
+    [ -f "${f}" ] || return 1
+    local pid
+    pid=$(awk '{print $1}' "${f}" 2>/dev/null)
+    [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null && return 0
+    rm -f -- "${f}" 2>/dev/null || true # stale reservation
     return 1
 }
 
 _port_registry_reserve() { # port -> writes reservation for this VM
     mkdir -p "${QE_PORT_REGISTRY}" 2>/dev/null || return 1
-    printf '%s\t%s\t%s\t%s\n' "${1}" "${VMNAME:-unknown}" "$$" "$(date +%s)" \
-        >"${QE_PORT_REGISTRY}/${VMNAME:-unknown}.reserved"
+    printf '%s %s %s %s\n' "$$" "$(date +%s)" "${QE_INSTANCE_ID:-}" "${VMNAME:-unknown}" \
+        >"${QE_PORT_REGISTRY}/${1}"
 }
 
-# Drop this VM's reservations (called from vm_runtime_cleanup and on
-# failed boots so a dead VM never holds a port hostage).
+# Drop this VM's reservations: remove every port marker whose owner
+# pid is this process (a dead VM never holds a port hostage).
 _port_registry_release() {
-    rm -f -- "${QE_PORT_REGISTRY}/${VMNAME:-unknown}.reserved" 2>/dev/null || true
+    local f
+    for f in "${QE_PORT_REGISTRY}"/*; do
+        [ -f "${f}" ] || continue
+        [ "$(awk '{print $1}' "${f}" 2>/dev/null)" = "$$" ] && rm -f -- "${f}"
+    done
 }
 
 # ---- ports.sh ----
