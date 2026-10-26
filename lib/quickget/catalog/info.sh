@@ -63,6 +63,7 @@ function os_info() {
         linkat)           INFO="Linkat|-|https://projectes.xtec.cat/linkat/|Education distro of the Catalan Department of Education.";;
         maxlinux)         INFO="MAX|-|https://www.educa2.madrid.org/web/max|MAdrid_linuX — education distro by the Madrid regional government.";;
         molinux)          INFO="MoLinux|-|https://archiveos.org/molinux/|Historic Castilla-La Mancha education distro (preserved on ArchiveOS).";;
+        minino)           INFO="GALPon MiniNo|-|https://minino.galpon.org/|Lightweight Galician distro for old PCs (preserved on ArchiveOS).";;
         vitalinux)        INFO="Vitalinux|-|https://vitalinux.educa.aragon.es/|Education distribution by the Aragon government.";;
         biebian)          INFO="Biebian|-|https://biebian.sourceforge.net/|Justin Bieber Linux, 2011 meme distro.";;
         syllable)         INFO="Syllable|-|https://syllable.org/|Fast, lightweight non-Linux desktop OS (AtheOS descendant).";;
@@ -246,6 +247,7 @@ function os_support() {
     manjaro \
     maxlinux \
     molinux \
+    minino \
     midnightbsd \
     mxlinux \
     netboot \

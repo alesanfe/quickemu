@@ -1151,3 +1151,12 @@ function releases_educaandos() {
     echo 20.04 v2
 }
 
+function releases_minino() {
+    echo queiles artabros
+}
+
+
+function editions_minino() {
+    echo 64 32 minimal full
+}
+

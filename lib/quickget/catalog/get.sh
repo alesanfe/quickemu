@@ -1730,3 +1730,12 @@ function get_educaandos() {
     [ "${RELEASE}" = "v2" ] && ISO="EducaAndosV2-offline.iso"
     echo "${BASE}/${ISO}"
 }
+
+function get_minino() {
+    # GALPon MiniNo — preserved on ArchiveOS SourceForge
+    local ISO="minino-${RELEASE}-${EDITION}.iso"
+    [ "${RELEASE}" = "artabros" ] && [ "${EDITION}" = "64" ] && ISO="minino-artabros-full.iso"
+    [ "${RELEASE}" = "artabros" ] && [ "${EDITION}" = "32" ] && ISO="minino-artabros-minimal.iso"
+    local URL="https://sourceforge.net/projects/archiveos/files/m/minino"
+    echo "${URL}/${ISO}/download"
+}
