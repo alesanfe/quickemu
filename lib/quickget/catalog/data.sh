@@ -1293,3 +1293,22 @@ function releases_metamorphose() {
     echo 8.5.7
 }
 
+function releases_kurumin() {
+    echo 8.06 7.0
+}
+
+
+function editions_kurumin() {
+    [ "${RELEASE}" = "7.0" ] && echo standard light || echo standard
+}
+
+
+function releases_nova() {
+    echo 7.0
+}
+
+
+function editions_nova() {
+    echo escritorio ligero
+}
+

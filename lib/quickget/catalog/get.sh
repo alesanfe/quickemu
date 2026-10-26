@@ -1926,3 +1926,19 @@ function get_metamorphose() {
     local ISO="Metamorphose_8.5.7-Panther-x64.iso"
     echo "https://sourceforge.net/projects/metamorphose/files/MetamorphosePuma/${ISO}/download"
 }
+
+function get_kurumin() {
+    # Kurumin (historic Brazilian distro) — ArchiveOS preservation
+    local ISO="kurumin-ng_${RELEASE}.iso"
+    if [ "${RELEASE}" = "7.0" ]; then
+        [ "${EDITION}" = "light" ] && ISO="kurumin-light-7.0.iso" || ISO="kurumin-7.0.iso"
+    fi
+    echo "https://sourceforge.net/projects/archiveos/files/k/kurumin/${ISO}/download"
+}
+
+
+function get_nova() {
+    # Nova Escritorio (Cuba) — ArchiveOS mirror (isos.nova.cu unreachable from CI)
+    local ISO="nova-${EDITION}-${RELEASE}-amd64.iso"
+    echo "https://sourceforge.net/projects/archiveos/files/n/nova/${ISO}/download"
+}

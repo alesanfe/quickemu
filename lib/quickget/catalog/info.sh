@@ -58,6 +58,7 @@ function os_info() {
         kaos)             INFO="KaOS|-|https://kaosx.us/|Independent rolling Linux distribution focused on KDE and Qt.";;
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
+        kurumin)          INFO="Kurumin|-|https://archiveos.org/kurumin/|Historic Brazilian distribution (ArchiveOS preservation).";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
         guadalinex)       INFO="Guadalinex|-|https://www.guadalinex.org/|Historic education distro of Andalusia (preserved on ArchiveOS).";;
         guadalinexedu)    INFO="Guadalinex Edu|-|https://archive.org/details/guadalinexedu-version-archive|Guadalinex education spin, preserved on archive.org.";;
@@ -88,6 +89,7 @@ function os_info() {
         9front)           INFO="9front|-|https://9front.org/|Community fork of Plan 9 from Bell Labs.";;
         kicksecure)       INFO="Kicksecure|-|https://www.kicksecure.com/|Hardened Debian-based security-focused distribution.";;
         nst)              INFO="Network Security Toolkit|-|https://www.networksecuritytoolkit.org/|Fedora-based distro for network analysis and monitoring.";;
+        nova)             INFO="Nova|-|https://www.nova.cu/|Cuban national OS by UCI (ArchiveOS mirror).";;
         nyarch)           INFO="Nyarch Linux|-|https://nyarchlinux.moe/|Arch-based anime-themed distribution.";;
         pentoo)           INFO="Pentoo|-|https://www.pentoo.ch/|Gentoo-based pentesting live distribution.";;
         plan9)            INFO="Plan 9|-|https://9p.io/plan9/|Bell Labs distributed OS (historic ISOs on archive.org).";;
@@ -256,6 +258,7 @@ function os_support() {
     kdelinux \
     kdeneon \
     kicksecure \
+    kurumin \
     kolibrios \
     kubuntu \
     linuxlite \
@@ -282,6 +285,7 @@ function os_support() {
     nobara \
     nst \
     nwg-shell \
+    nova \
     nyarch \
     omarchy \
     openbsd \
