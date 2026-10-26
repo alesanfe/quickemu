@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/renameio/v2"
 	"github.com/google/uuid"
 )
 
@@ -51,11 +52,25 @@ func load(dir, id string) *Op {
 	return &o
 }
 
+// AtomicStore: durability requires fsync on the file AND its dir —
+// renameio handles staging on the same filesystem, atomic replace and
+// cleanup; Sync() gives the file-level durability guarantee.
 func (o *Op) save(dir string) {
 	b, _ := json.Marshal(o)
-	tmp := filepath.Join(dir, o.OperationID+".json.tmp")
-	os.WriteFile(tmp, append(b, '\n'), 0o644)
-	os.Rename(tmp, filepath.Join(dir, o.OperationID+".json"))
+	f, err := renameio.TempFile(dir, filepath.Join(dir, o.OperationID+".json"))
+	if err != nil {
+		die("OP_PERSIST", err.Error())
+	}
+	defer f.Cleanup()
+	if _, err := f.Write(append(b, '\n')); err != nil {
+		die("OP_PERSIST", err.Error())
+	}
+	if err := f.Sync(); err != nil {
+		die("OP_PERSIST", err.Error())
+	}
+	if err := f.CloseAtomicallyReplace(); err != nil {
+		die("OP_PERSIST", err.Error())
+	}
 }
 
 func writeOp(dir string, o *Op) {

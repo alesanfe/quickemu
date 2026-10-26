@@ -28,7 +28,7 @@ func qmpDial(socket string, timeout time.Duration) (*qmpConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &qmpConn{c: c, r: bufio.NewReader(c)}, nil
+	return &qmpConn{c: c, r: bufio.NewReaderSize(c, 1<<20)}, nil
 }
 
 // readMsg returns the next JSON object; async events are reported via
@@ -65,6 +65,10 @@ func runExecute(socket, command string, timeout time.Duration) int {
 		return emit("qmp.execute", nil, "QMP_BAD_COMMAND", "command is not valid QMP JSON: "+err.Error())
 	}
 	q, err := qmpDial(socket, timeout)
+	if err != nil { // one reconnect: a socket briefly not-ready isn't fatal
+		time.Sleep(200 * time.Millisecond)
+		q, err = qmpDial(socket, timeout)
+	}
 	if err != nil {
 		return emit("qmp.execute", nil, "QMP_UNAVAILABLE", err.Error())
 	}

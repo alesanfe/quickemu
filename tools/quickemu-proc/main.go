@@ -47,9 +47,11 @@ func main() {
 		os.Exit(2)
 	}
 	var pid, wantStart, wantUID int
-	var wantExe string
+	var wantExe, wantComm string
 	for i := 2; i+1 < len(os.Args); i += 2 {
 		switch os.Args[i] {
+		case "--comm":
+			wantComm = os.Args[i+1]
 		case "--pid":
 			pid, _ = strconv.Atoi(os.Args[i+1])
 		case "--start-time":
@@ -108,7 +110,20 @@ func main() {
 			os.Exit(emit(false, data, "STARTTIME_MISMATCH"))
 		}
 	}
-	// 4) exe basename
+	// 4) comm (process name as the kernel reports it — matches
+	// runtime.json "comm" expectations, including qemu* prefixes)
+	if wantComm != "" {
+		comm := ""
+		if b, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid)); err == nil {
+			comm = strings.TrimSpace(string(b))
+		}
+		data["comm"] = comm
+		if comm != wantComm && !strings.HasPrefix(comm, wantComm[:min(len(wantComm), 15)]) &&
+			!strings.HasPrefix(comm, "qemu") {
+			os.Exit(emit(false, data, "COMM_MISMATCH"))
+		}
+	}
+	// 5) exe basename
 	if wantExe != "" {
 		ex, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
 		if err != nil {

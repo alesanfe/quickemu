@@ -19,10 +19,16 @@ const version = "0.1.0"
 func die(c, m string) { fmt.Printf(`{"success":false,"errors":[{"code":"%s","message":"%s"}]}`+"\n", c, m); os.Exit(1) }
 func ok(d string)   { fmt.Printf(`{"success":true,"data":%s}`+"\n", d); os.Exit(0) }
 
-func stale(meta string) bool { // "pid ts instance" -> owner dead?
+func stale(meta string) bool { // "pid ts instance [lease]" -> owner dead or lease out
 	f := strings.Fields(meta)
 	if len(f) == 0 {
 		return true
+	}
+	if len(f) >= 4 { // lease expiry: field 4 = epoch deadline
+		if dl, err := strconv.ParseInt(f[3], 10, 64); err == nil &&
+			time.Now().Unix() > dl {
+			return true
+		}
 	}
 	p, _ := strconv.Atoi(f[0])
 	return p > 0 && syscall.Kill(p, 0) != nil
@@ -51,7 +57,7 @@ func main() {
 		os.Exit(2)
 	}
 	sub := os.Args[1]
-	var reg, port, pidS, inst, proto, bind string
+	var reg, port, pidS, inst, proto, bind, lease string
 	var lo, hi int
 	for i := 2; i+1 < len(os.Args); i += 2 {
 		switch os.Args[i] {
@@ -71,6 +77,8 @@ func main() {
 			proto = os.Args[i+1] // tcp|udp, default tcp
 		case "--bind":
 			bind = os.Args[i+1] // 127.0.0.1, 0.0.0.0, ::1, ::
+		case "--lease":
+			lease = os.Args[i+1] // seconds; reservation auto-expires
 		}
 	}
 	if reg == "" {
@@ -101,7 +109,13 @@ func main() {
 		if _, err := os.Stat(f); err == nil {
 			die("PORT_TAKEN", "port "+port+" reserved")
 		}
-		os.WriteFile(f, []byte(pidS+" "+strconv.FormatInt(time.Now().Unix(), 10)+" "+inst), 0o600)
+		rec := pidS + " " + strconv.FormatInt(time.Now().Unix(), 10) + " " + inst
+		if lease != "" {
+			if ls, err := strconv.ParseInt(lease, 10, 64); err == nil && ls > 0 {
+				rec += " " + strconv.FormatInt(time.Now().Unix()+ls, 10)
+			}
+		}
+		os.WriteFile(f, []byte(rec), 0o600)
 		ok(`{"port":` + port + `}`)
 	case "release":
 		os.Remove(filepath.Join(reg, port))
