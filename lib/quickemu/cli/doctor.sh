@@ -4,6 +4,7 @@
 # safe (never deletes VM disks or conf). Idempotent; typed findings.
 
 qe_doctor() { # [--fix] -> findings to stdout
+    command -v vm_verify_invariants >/dev/null 2>&1 &&     { vm_verify_invariants || echo " x invariant check failed (see above)"; }
     local FIX="${1:-}" FINDINGS=() N=0
     # stale runtime.json (schema version mismatch / unparseable)
     local RT="${VMDIR}/${VMNAME}.runtime.json"

@@ -390,8 +390,13 @@ function vm_runtime_cleanup() {
 # Canonical VM state: one word answering "what is this VM doing?".
 # Sources in priority order: instance identity (runtime.json) -> QMP
 # query-status -> process/markers -> filesystem.
-vm_state() { # -> starting|running|paused|stopping|stopped|stale|unknown
+vm_state() { # -> starting|running|paused|stopping|stopped|stale|archived|unknown
     local st qst
+    # Archived = trashed: the conf dir moved into QE_TRASH_DIR. Checked
+    # first: a trashed VM reports archived regardless of pid debris.
+    if [ -n "${QE_TRASH_DIR:-}" ] && [ -d "${QE_TRASH_DIR}/${VMNAME}" ]; then
+        echo archived; return
+    fi
     st=$(vm_instance_verify "${VMDIR}/${VMNAME}.pid" 2>/dev/null)
     case "${st}" in
     alive | alive-legacy)
@@ -419,6 +424,7 @@ vm_allowed_ops() { # state -> ops
     running) echo "pause resume shutdown reset kill status monitor-cmd screenshot send-keys type snapshot-clone export" ;;
     paused) echo "resume shutdown kill status monitor-cmd screenshot" ;;
     stopped | stale) echo "start delete clone rename export import snapshot apply create delete info list inspect-conf delete-plan" ;;
+    archived) echo "restore trash-list status inspect-conf delete" ;;
     unknown) echo "status inspect-conf" ;;
     *) echo "status" ;;
     esac
@@ -686,5 +692,33 @@ function ports_record() {
 # Skipped in plan mode (--dry-run).
 function spice_record() {
     [ -z "${DRY_RUN}" ] && echo "${1}" >"${VMDIR}/${VMNAME}.spice"
+    return 0
+}
+
+
+# Formal transition graph (domain layer, item 10): every op maps to a
+# state edge; only edges listed here may be dispatched — prevents the
+# procedural drift the txt warned about.
+vm_transition_ok() { # state op -> 0 allowed
+    case "${1} -> ${2}" in
+    "stopped -> start" | "stopped -> delete" | "stopped -> clone" |     "stopped -> rename" | "stopped -> export" | "stopped -> delete-plan" |     "stale -> start" | "stale -> delete" | "stale -> export" |     "running -> pause" | "running -> shutdown" | "running -> reset" |     "running -> kill" | "running -> export" | "running -> snapshot" |     "paused -> resume" | "paused -> shutdown" | "paused -> kill" |     "archived -> restore" | "archived -> delete" |     "unknown -> status") return 0 ;;
+    *" -> status" | *" -> inspect-conf") return 0 ;; # read-only always ok
+    *) return 1 ;;
+    esac
+}
+
+# Domain invariants (item 8): a state claims only what's true. The
+# doctor calls this; CI can assert it after ops.
+vm_verify_invariants() { # -> 0 ok / 1 violation
+    local st; st=$(vm_state)
+    case "${st}" in
+    running | paused)
+        [ -f "${VMDIR}/${VMNAME}.pid" ] || { echo "INVARIANT: ${st} without pidfile" >&2; return 1; }
+        [ -f "${VMDIR}/${VMNAME}.runtime.json" ] || { echo "INVARIANT: ${st} without runtime.json" >&2; return 1; }
+        ;;
+    stopped | archived)
+        [ -f "${VMDIR}/${VMNAME}.pid" ] && { echo "INVARIANT: ${st} with stale pidfile" >&2; return 1; }
+        ;;
+    esac
     return 0
 }
