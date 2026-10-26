@@ -1728,7 +1728,10 @@ function get_lliurex() {
     # LliureX — verified filenames on the official index
     local BASE="http://lliurex.net/isos/${RELEASE}"
     local ISO="LliureX-home-desktop_${RELEASE}_latest.iso"
-    [ "${RELEASE}" = "23" ] && ISO="LliureX-${EDITION}_64bits_${RELEASE}_latest.iso"
+    case "${RELEASE}" in
+        23)    ISO="LliureX-${EDITION}_64bits_23_latest.iso";;
+        21.07) ISO="LliureX-${EDITION}_64bits_21_20220406.iso"; BASE="http://lliurex.net/isos/21.07_64bits/20220406";;
+    esac
     echo "${BASE}/${ISO}"
 }
 
