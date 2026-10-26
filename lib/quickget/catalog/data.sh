@@ -1141,7 +1141,7 @@ function releases_guadalinexedu() {
 
 
 function editions_guadalinexedu() {
-    echo desktop sdi centros
+    echo desktop sdi centros nextslim
 }
 
 
@@ -1213,6 +1213,6 @@ function releases_wifislax() {
 }
 
 function releases_os2warp() {
-    echo 4
+    echo 4 3
 }
 

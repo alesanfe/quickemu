@@ -1760,7 +1760,8 @@ function get_guadalinexedu() {
     local ISO
     case "${EDITION}" in
         sdi)     ISO="guadalinexedu-2013-instalador-SDI.iso";;
-        centros) ISO="guadalinexedu-2013-instalador-centros-2016012601.iso";;
+        centros)  ISO="guadalinexedu-2013-instalador-centros-2016012601.iso";;
+        nextslim) ISO="guadalinexedu-nextslim-instalador.iso";;
         *)       ISO="guadalinexedu-${RELEASE}-desktop-amd64.iso";;
     esac
     [ "${RELEASE}" = "10.04" ] && ISO="guadalinexedu-10.04.01-desktop-amd64.iso"
@@ -1812,7 +1813,11 @@ function get_wifislax() {
 }
 
 function get_os2warp() {
-    # IBM OS/2 Warp 4 (1996) — preserved on archive.org; needs floppy+CD
-    # boot inside QEMU (historic, no networking support expected)
+    # IBM OS/2 Warp — preserved on archive.org; needs floppy+CD boot
+    # inside QEMU (historic, no networking support expected)
+    if [ "${RELEASE}" = "3" ]; then
+        echo "https://archive.org/download/ibm-os2-warp-3.0-connect-max-german/CDINST/OS2_Warp3_Connect_Max_de_CD_ROM.iso"
+        return
+    fi
     echo "https://archive.org/download/IBMOS2Warp4Collection/OS2WARP4-EN.iso"
 }
