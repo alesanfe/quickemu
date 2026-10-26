@@ -518,7 +518,12 @@ function get_kali() {
     local HASH=""
     local ISO=""
     local URL="https://cdimage.kali.org/${RELEASE}"
-    ISO=$(web_pipe "${URL}/?C=M;O=D" | grep -o ">kali-linux-.*-installer-amd64.iso" | head -n 1 | cut -c 2-)
+    local SUFFIX="amd64.iso"
+    case "${EDITION}" in
+        purple)  SUFFIX="purple-amd64.iso";; 
+        netinst) SUFFIX="netinst-amd64.iso";;
+    esac
+    ISO=$(web_pipe "${URL}/?C=M;O=D" | grep -o ">kali-linux-.*-installer-${SUFFIX}" | head -n 1 | cut -c 2-)
     HASH=$(web_pipe "${URL}/SHA256SUMS" | grep -v torrent | grep "${ISO}" | cut -d' ' -f1)
     echo "${URL}/${ISO} ${HASH}"
 }
@@ -1599,12 +1604,11 @@ function get_backbox() {
 
 
 function get_whonix() {
-    local BASE="https://download.whonix.org/kvm"
-    local VER
-    VER="$(web_pipe "${BASE}/" | grep -o 'href="17\\.[0-9.]*/' | cut -d'"' -f2 | tr -d '/' | sort -Vr | head -1)"
-    local EDITION_CAP
-    EDITION_CAP="$(echo "${EDITION}" | sed 's/./\u&/')"
-    local ISO="Whonix-${EDITION_CAP}-Xfce-${VER}.Intel_AMD64.qcow2"
+    # Whonix 18+ — official libvirt bundle (contains Gateway + Workstation
+    # qcow2 + XML) — extract and import both VMs from the single archive
+    local BASE="https://download.whonix.org/libvirt"
+    local VER="18.2.4.2"
+    local ISO="Whonix-LXQt-${VER}.Intel_AMD64.qcow2.libvirt.xz"
     echo "${BASE}/${VER}/${ISO}"
 }
 

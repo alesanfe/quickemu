@@ -347,6 +347,11 @@ function releases_kali() {
 }
 
 
+function editions_kali() {
+    echo standard purple netinst
+}
+
+
 function releases_kdeneon() {
     echo user testing unstable
 }
@@ -1065,9 +1070,6 @@ function releases_whonix() {
 }
 
 
-function editions_whonix() {
-    echo gateway workstation
-}
 
 function releases_amogos() {
     echo x64-1.5.0

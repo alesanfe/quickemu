@@ -73,7 +73,7 @@ function os_info() {
         caine)            INFO="CAINE|-|https://www.caine-live.net/|Digital forensics live distribution (Computer Aided INvestigative Environment).";;
         rebeccablackos)   INFO="RebeccaBlackOS|-|https://rebeccablackos.com/|Debian-based experimental Wayland lab (VT-less kernel).";;
         tsurugi)          INFO="Tsurugi Linux|-|https://tsurugi-linux.org/|DFIR analysis and live-response Linux distribution.";;
-        whonix)           INFO="Whonix|-|https://www.whonix.org/|Tor-routed privacy OS; Gateway+Workstation pair.";;
+        whonix)           INFO="Whonix|-|https://www.whonix.org/|Tor-routed privacy OS; single LXQt image used for both Gateway and Workstation VMs.";;
         9front)           INFO="9front|-|https://9front.org/|Community fork of Plan 9 from Bell Labs.";;
         kicksecure)       INFO="Kicksecure|-|https://www.kicksecure.com/|Hardened Debian-based security-focused distribution.";;
         nst)              INFO="Network Security Toolkit|-|https://www.networksecuritytoolkit.org/|Fedora-based distro for network analysis and monitoring.";;
