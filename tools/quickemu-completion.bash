@@ -9,7 +9,18 @@ _quickemu() {
     case "${prev}" in
     --vm) COMPREPLY=($(compgen -f -X '!*.@(conf|toml)' -- "${cur}")); return ;;
     --trash-restore|--backup-verify|--backup-restore|--op-status|--op-cancel|--move) COMPREPLY=($(compgen -f -- "${cur}")); return ;;
-    --snapshot) COMPREPLY=($(compgen -W 'apply create delete info list tree verify' -- "${cur}")); return ;;
+    --snapshot) COMPREPLY=($(compgen -W 'apply create delete info list tree verify consolidate' -- "${cur}")); return ;;
+    # Tag completion: word before prev was the snapshot action.
+    apply | delete | consolidate)
+        if [ "${COMP_WORDS[COMP_CWORD-2]:-}" == "--snapshot" ] || [ "${COMP_WORDS[COMP_CWORD-2]:-}" == "snapshot" ]; then
+            local _vmdir=""
+            for ((i = 1; i < COMP_CWORD - 2; i++)); do
+                [ "${COMP_WORDS[i]}" == "--vm" ] && _vmdir="${COMP_WORDS[i + 1]%.*}"
+            done
+            [ -f "${_vmdir}/snapshots.json" ] && COMPREPLY=($(compgen -W "$(grep -o '"tag":"[^"]*"' "${_vmdir}/snapshots.json" 2>/dev/null | cut -d'"' -f4)" -- "${cur}"))
+            return
+        fi
+        ;;
     esac
     case "${cur}" in
     -*) COMPREPLY=($(compgen -W '--vm --status --pause --resume --reset --shutdown --kill --restart --delete-vm --delete-plan --plan-id --clone --rename --move --backup --backup-list --backup-verify --backup-restore --backup-prune --trash --trash-list --trash-restore --trash-empty --op-list --op-status --op-cancel --snapshot --external --snapshot-tree --snapshot-verify --hotplug-usb --hotplug-disk --hotunplug --persist --vfio-scan --host-info --migrate-conf --inspect-conf --capabilities --events --format --dry-run' -- "${cur}")) ;;
