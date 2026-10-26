@@ -41,3 +41,4 @@ X-Test*/
 tools/quickemu-qmp/quickemu-qmp
 tools/quickemu-proc/quickemu-proc
 tools/quickemu-ops/quickemu-ops
+tools/quickemu-ports/quickemu-ports
