@@ -389,7 +389,16 @@ JSON
 host_info() {
     local KVM="false"
     [ -w /dev/kvm ] && KVM="true"
-    qe_ok "host.info" "$(printf '{"kernel":"%s","arch":"%s","cpuCores":%s,"memTotalKb":%s,"kvm":%s,"qemu":"%s","qemuImg":%s,"socat":%s,"jq":%s,"swtpm":%s}'         "$(json_escape "$(uname -sr)")" "$(uname -m)" "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"         "$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)" "${KVM}"         "$(json_escape "$(${QEMU:-qemu-system-x86_64} --version 2>/dev/null | head -1)")"         "$(command -v qemu-img >/dev/null && echo true || echo false)"         "$(command -v socat >/dev/null && echo true || echo false)"         "$(command -v jq >/dev/null && echo true || echo false)"         "$(command -v swtpm >/dev/null && echo true || echo false)")"
+    local IOMMU="false" GPUS="" FIRST=1 LINE
+    [ -d /sys/kernel/iommu_groups ] && [ -n "$(find /sys/kernel/iommu_groups -maxdepth 1 -type d -name '[0-9]*' -o -maxdepth 2 -name devices 2>/dev/null | head -1)" ] && IOMMU="true"
+    if command -v lspci >/dev/null 2>&1; then
+        while IFS= read -r LINE; do
+            [ ${FIRST} -eq 0 ] && GPUS+=","
+            FIRST=0
+            GPUS+="\"$(json_escape "${LINE}")\""
+        done < <(lspci -Dnn 2>/dev/null | grep -Ei "vga|3d|display" | cut -d' ' -f1,4- | head -8)
+    fi
+    qe_ok "host.info" "$(printf '{"kernel":"%s","arch":"%s","cpuCores":%s,"memTotalKb":%s,"kvm":%s,"iommu":%s,"qemu":"%s","qemuImg":%s,"socat":%s,"jq":%s,"swtpm":%s,"gpus":[%s]}'         "$(json_escape "$(uname -sr)")" "$(uname -m)" "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 0)"         "$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo 0)" "${KVM}" "${IOMMU}"         "$(json_escape "$(${QEMU:-qemu-system-x86_64} --version 2>/dev/null | head -1)")"         "$(command -v qemu-img >/dev/null && echo true || echo false)"         "$(command -v socat >/dev/null && echo true || echo false)"         "$(command -v jq >/dev/null && echo true || echo false)"         "$(command -v swtpm >/dev/null && echo true || echo false)" "${GPUS}")"
 }
 
 # --migrate-conf: write a TOML migration of the VM config next to the

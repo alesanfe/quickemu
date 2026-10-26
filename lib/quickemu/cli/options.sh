@@ -146,6 +146,15 @@ else
             ACTIONS+=(vm_hotunplug "${2}")
             shift 2
             ;;
+        -backup-prune | --backup-prune)
+            BACKUP_KEEP="${2:-5}"
+            ACTIONS+=(backup_prune)
+            shift 2
+            ;;
+        -trash-empty | --trash-empty)
+            ACTIONS+=(trash_empty)
+            shift
+            ;;
         -trash | --trash)
             TRASH=1
             shift

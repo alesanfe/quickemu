@@ -103,6 +103,17 @@ function backup_vm() {
     EXPORT_FILE="${OUT}" export_vm
 }
 
+# --backup-prune <N>: keep the newest N backups, remove older ones.
+function backup_prune() { # keep
+    local KEEP="${BACKUP_KEEP:-${1:-5}}" DIR
+    DIR=$(backup_dir)
+    [ -d "${DIR}" ] || return 0
+    # shellcheck disable=SC2012
+    ls -1t "${DIR}"/*.quickvm.tar.gz 2>/dev/null | tail -n +"$((KEEP + 1))" | while IFS= read -r F; do
+        rm -f "${F}" && echo " - Pruned $(basename "${F}")"
+    done
+}
+
 function backup_list() {
     local DIR F
     DIR=$(backup_dir)
@@ -171,6 +182,14 @@ function trash_list() {
             printf ' - %s%s\n' "$(basename "${SLOT}")" "${META:+ (${META})}"
         done
     fi
+}
+
+# --trash-empty: permanently delete every trash slot.
+function trash_empty() {
+    local ROOT
+    ROOT=$(trash_root)
+    [ -d "${ROOT}" ] || { echo " - Trash is empty."; return 0; }
+    rm -rf -- "${ROOT}" && echo " - Emptied trash (${ROOT})"
 }
 
 function trash_restore() {
