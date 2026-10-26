@@ -1088,12 +1088,12 @@ function releases_biebian() {
 }
 
 function releases_maxlinux() {
-    echo 12.5
+    echo 12.5 12 11.5.2
 }
 
 
 function releases_vitalinux() {
-    echo 3.5
+    echo 3.5 3.4 3.3 3.2 2.2
 }
 
 function releases_guadalinex() {
