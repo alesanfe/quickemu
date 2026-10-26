@@ -28,9 +28,10 @@ say() { printf '%s\n' "smoke: $*"; }
 # boot in background, wait for monitor socket
 "$OLDPWD/bin/quickemu" --vm smoke.conf --display none >/dev/null 2>&1 &
 BOOT_PID=$!
-for i in $(seq 1 20); do [ -S smoke/smoke.monitor ] && break; sleep 0.5; done
-[ -S smoke/smoke.monitor ] || { say "FAIL: monitor socket never appeared"; FAIL=1; }
-[ -S smoke/smoke.qmp ] || say "WARN: qmp socket absent"
+MON_SO="smoke-monitor.socket"; QMP_SO="smoke-qmp.socket"
+for i in $(seq 1 60); do [ -S "${MON_SO}" ] && break; sleep 0.5; done
+[ -S "${MON_SO}" ] || { say "FAIL: monitor socket never appeared"; FAIL=1; }
+[ -S "${QMP_SO}" ] || say "WARN: qmp socket absent"
 
 # state via QMP/status
 sleep 1
@@ -40,8 +41,8 @@ ST=$("$OLDPWD/bin/quickemu" --vm smoke.conf --status 2>/dev/null | awk '{print $
 # kill + cleanup
 "$OLDPWD/bin/quickemu" --vm smoke.conf --kill >/dev/null 2>&1
 wait ${BOOT_PID} 2>/dev/null
-[ -f smoke/smoke.pid ] && { say "FAIL: pidfile left after cleanup"; FAIL=1; }
-[ -S smoke/smoke.monitor ] && { say "FAIL: monitor socket left"; FAIL=1; }
+[ -f smoke.pid ] && { say "FAIL: pidfile left after cleanup"; FAIL=1; }
+[ -S "${MON_SO}" ] && { say "FAIL: monitor socket left"; FAIL=1; }
 pgrep -f "smoke.qcow2" >/dev/null && { say "FAIL: qemu still alive"; FAIL=1; }
 
 # artifact residue sweep
