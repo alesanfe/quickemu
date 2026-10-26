@@ -13,7 +13,7 @@ else
     # --vm x`. A leading bare word matching a known action is rewritten to
     # its flag form; everything else falls through untouched.
     case "${1:-}" in
-    status | vfio-scan | disk-compact | move | pause | resume | reset | shutdown | kill | restart | delete-vm | delete-plan | list-vms | capabilities | host-info | migrate-conf | inspect-conf | backup | backup-list | trash | trash-list | clone | rename | snapshot-apply | snapshot-create | snapshot-delete | snapshot-info | snapshot-list | monitor-cmd | send-keys | type | screenshot | viewer | fullscreen | status-quo | vnc | spice-console | publicdir | ignore-msrs | ignore-msrs-always | create-disk | disk-resize | disk-resize-commit | backup-verify | backup-restore | trash-restore | op-status | operation-status | operation-list | operation-cancel)
+    status | vfio-scan | disk-compact | move | pause | resume | reset | shutdown | kill | restart | delete-vm | delete-plan | list-vms | capabilities | host-info | migrate-conf | inspect-conf | backup | backup-list | trash | trash-list | clone | rename | snapshot-apply | snapshot-create | snapshot-delete | snapshot-info | snapshot-list | monitor-cmd | send-keys | type | screenshot | viewer | fullscreen | status-quo | vnc | spice-console | publicdir | ignore-msrs | ignore-msrs-always | create-disk | disk-resize | disk-resize-commit | backup-verify | backup-restore | trash-restore | op-status | operation-status | operation-list | operation-cancel | op-watch | operation-watch)
         set -- "--${1}" "${@:2}"
         ;;
     esac
@@ -200,6 +200,27 @@ else
             OP_ID="${2}"
             ACTIONS+=(operation_cancel)
             shift 2
+            ;;
+        -stats | --stats)
+            ACTIONS+=(vm_stats)
+            shift
+            ;;
+        -inventory | --inventory)
+            ACTIONS+=(inventory_show)
+            shift
+            ;;
+        -profile | --profile)
+            PROFILE="${2}"
+            shift 2
+            ;;
+        -linked-clone | --linked-clone)
+            ACTIONS+=(linked_clone_vm)
+            LINKED_DST="${2}"
+            shift 2
+            ;;
+        -op-watch | --op-watch | -operation-watch | --operation-watch)
+            ACTIONS+=(operation_watch)
+            shift
             ;;
         -op-status | --op-status)
             OP_ID="${2}"

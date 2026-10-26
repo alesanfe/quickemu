@@ -30,6 +30,11 @@ vm_config_load() { # conf-or-toml -> 0 ok / 1 invalid
         done < <(toml_parse "${file}")
         ;;
     *)
+        # Reusable profile presets applied first so the conf's own
+        # keys always win over the preset.
+        if [ -n "${PROFILE:-}" ]; then
+            eval "$(vm_profile_defaults "${PROFILE}")" ||             echo "WARNING! Unknown profile '${PROFILE}'." >&2
+        fi
         # shellcheck source=/dev/null
         source "${file}"
         ;;

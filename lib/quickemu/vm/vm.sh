@@ -1638,3 +1638,69 @@ function move_vm() {
     qe_event "vm.moved" "{\"dest\":\"$(json_escape "${DEST}")\"}"
     echo " - Moved ${VMNAME} to ${DEST}"
 }
+
+# ---- inventory.sh ----
+# Global VM inventory: ${QE_HOME}/vms.json keyed by instanceId — the
+# local DB the txt's "Inventario global" item requires. Upserted on
+# boot/cleanup so every quickemu instance self-registers.
+VMS_DB="${XDG_DATA_HOME:-$HOME/.local/share}/quickemu/vms.json"
+inventory_touch() { # state
+    command -v jq >/dev/null 2>&1 || return 0
+    mkdir -p "$(dirname "${VMS_DB}")" 2>/dev/null || return 0
+    [ -f "${VMS_DB}" ] || echo '{}' >"${VMS_DB}"
+    jq --arg id "${QE_INSTANCE_ID:-$$}" --arg vm "${VMNAME}" --arg st "${1}" \
+        --arg dir "${VMDIR}" --arg ts "$(date -u +%FT%TZ)" \
+        '.[$id]={vm:$vm,state:$st,dir:$dir,lastSeen:$ts}' "${VMS_DB}" \
+        >"${VMS_DB}.tmp" && mv "${VMS_DB}.tmp" "${VMS_DB}" || rm -f "${VMS_DB}.tmp"
+}
+
+# ---- metrics.sh ----
+# Per-VM runtime metrics via QMP (item 13): cpu/block/balloon in one
+# machine-readable envelope, no log parsing.
+vm_stats() {
+    local QMP_SOCK="${VMDIR}/${VMNAME}-qmp.socket" OUT="{}"
+    command -v jq >/dev/null 2>&1 || { echo "ERROR! jq required." >&2; return 1; }
+    qmp_query() { echo "{\"execute\":\"${1}\"}" | socat -t 2 - "unix-connect:${QMP_SOCK}" 2>/dev/null | tail -1; }
+    [ -S "${QMP_SOCK}" ] || { [ "${OUTPUT_FORMAT:-}" == "json" ] && qe_fail "vm.stats" VM_MUST_BE_RUNNING "no running QMP" ||             echo "ERROR! VM is not running (no QMP socket)." >&2; return 1; }
+    local CPU BLK BAL
+    CPU=$(qmp_query query-cpus-fast); BLK=$(qmp_query query-blockstats); BAL=$(qmp_query query-balloon)
+    OUT=$(jq -n --argjson cpu "${CPU:-null}" --argjson blk "${BLK:-null}" --argjson bal "${BAL:-null}" '{cpus:$cpu,block:$blk,memory:$bal}' 2>/dev/null)
+    [ "${OUTPUT_FORMAT:-}" == "json" ] && qe_ok "vm.stats" "${OUT}" ||         jq -r '"CPUs: \(.cpu.return // [] | length)  Balloon: \(.bal.return.actual // "n/a")"' <<<"${OUT}"
+}
+
+# ---- profiles.sh ----
+# Reusable profiles (item 14): preset conf defaults applied BEFORE the
+# user conf is sourced, so conf keys still win.
+vm_profile_defaults() { # name -> prints conf overrides
+    case "${1}" in
+    windows-gaming) printf 'guest_os="windows"\nram="8G"\ncpu_cores=6\nvideo="virtio-vga-gl"\n' ;;
+    linux-desktop) printf 'guest_os="linux"\nram="4G"\ncpu_cores=4\n' ;;
+    server) printf 'guest_os="linux"\nram="4G"\ndisplay="none"\nnetwork="user"\n' ;;
+    minimal) printf 'guest_os="linux"\nram="512M"\ncpu_cores=1\n' ;;
+    ci) printf 'guest_os="linux"\nram="2G"\ndisplay="none"\nnetwork="none"\n' ;;
+    *) return 1 ;;
+    esac
+}
+
+# ---- network presets ----
+# Preset networking (2.0 item): nat/bridge/hostonly/isolated mapped to
+# the netdev flags the launch path already understands.
+vm_network_preset() {
+    case "${1}" in
+    nat | user) echo 'network="user"' ;;
+    bridge) echo 'network="bridge"' ;;
+    hostonly) echo 'network="host"' ;;
+    isolated | none) echo 'network="none"' ;;
+    *) return 1 ;;
+    esac
+}
+
+# ---- linked clone ----
+# Cheap clone (2.0 item): qcow2 with backing-file — COW vs full copy.
+clone_vm_linked() { # src dst
+    local SRC="${1}" DST="${2}"
+    [ -f "${SRC}" ] || { echo "ERROR! source not found: ${SRC}" >&2; return 1; }
+    qemu-img create -f qcow2 -b "${SRC}" -F qcow2 "${DST}" 2>&1 || {
+        echo "ERROR! linked clone failed." >&2; return 1
+    }
+}

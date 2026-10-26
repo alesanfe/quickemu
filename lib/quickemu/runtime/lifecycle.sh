@@ -262,6 +262,7 @@ vm_instance_publish() { # pid -> 0 ok / 1 failed
         "$(json_escape "${VM}")" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >"${tmp}" || return 1
     chmod 600 "${tmp}" 2>/dev/null || true
     mv -f "${tmp}" "${VMDIR}/${VMNAME}.runtime.json"
+    command -v inventory_touch >/dev/null 2>&1 && inventory_touch running
 }
 
 # Reads <pidfile> (and its sibling .runtime.json when present) and prints a
@@ -380,6 +381,7 @@ function vm_runtime_cleanup() {
     # Drop the operation lock only when the VM is fully gone.
     rm -rf "${VMDIR}/${VMNAME}.lock" "${VMDIR}/${VMNAME}.lock.shared"
     _port_registry_release
+    command -v inventory_touch >/dev/null 2>&1 && inventory_touch stopped
     qe_event "vm.stopped"
     return 0
 }

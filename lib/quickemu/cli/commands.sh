@@ -452,3 +452,36 @@ operation_cancel() {
 
 # --events [cursor]: JSONL events with seq > cursor for resumable tails.
 events_read() { qe_events_read "${EVENTS_CURSOR:-0}"; }
+
+# --op-watch: stream op-state changes as JSONL (Go helper with fsnotify
+# when built; plain polling otherwise).
+operation_watch() {
+    local B; B=$(_ops_bin 2>/dev/null)
+    if [ -n "${B}" ]; then "${B}" watch --vmdir "${VMDIR}"; return; fi
+    local SEEN=""
+    while :; do
+        for F in "${VMDIR}/ops"/*.json; do
+            [ -f "${F}" ] || continue
+            H=$(cksum "${F}" | cut -d' ' -f1)
+            case "${SEEN}" in *"${F}:${H}"*) ;; *) SEEN+="${F}:${H} "; cat "${F}" ;; esac
+        done
+        sleep 0.5
+    done
+}
+_ops_bin() { command -v quickemu-ops >/dev/null 2>&1 && printf quickemu-ops || { [ -x "${QE_LIBDIR}/../tools/quickemu-ops/quickemu-ops" ] && printf '%s' "${QE_LIBDIR}/../tools/quickemu-ops/quickemu-ops"; }; }
+
+# --inventory: the global VM registry (id/state/dir/lastSeen).
+inventory_show() {
+    if [ "${OUTPUT_FORMAT:-}" == "json" ]; then
+        [ -f "${VMS_DB:-/nonexistent}" ] && cat "${VMS_DB}" || echo '{}'
+    else
+        [ -f "${VMS_DB:-/nonexistent}" ] || { echo "No VMs registered yet."; return 0; }
+        jq -r 'to_entries[] | " - \(.value.vm) [\(.value.state)] \(.value.dir) (seen \(.value.lastSeen))"' "${VMS_DB}"
+    fi
+}
+
+# --linked-clone DST: COW clone via qcow2 backing-file (cheap copy).
+linked_clone_vm() {
+    vm_lock_acquire || return 1
+    clone_vm_linked "${VMDIR}/${VMNAME}/disk.qcow2" "${LINKED_DST}"
+}
