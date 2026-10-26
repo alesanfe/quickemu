@@ -68,18 +68,19 @@ function disk_compact() {
 # --disk-compact: rewrite the qcow2 dropping zeroed/deallocated blocks
 # (qemu-img convert to self via a temp file + atomic swap).
 function disk_compact() {
-    if [ -z "${disk_img}" ] || [ ! -f "${disk_img}" ]; then
-        echo "ERROR! ${disk_img:-disk_img} not found." >&2
+    # Order matches disk_resize: refuse running VM first, then missing image.
+    if vm_running "${VMDIR}" "${VMNAME}"; then
+        echo "ERROR! Stop ${VMNAME} before compacting its disk."
         return 1
     fi
-    if vm_running "${VMDIR}" "${VMNAME}"; then
-        echo "ERROR! Stop ${VMNAME} before compacting its disk." >&2
+    if [ -z "${disk_img}" ] || [ ! -f "${disk_img}" ]; then
+        echo "ERROR! ${disk_img:-disk_img} not found."
         return 1
     fi
     require_qemu_img
     local OUT="${disk_img}.compact"
-    ${QEMU_IMG} convert -O "${disk_format:-qcow2}" "${disk_img}" "${OUT}" || { rm -f "${OUT}"; echo "ERROR! Compact failed." >&2; return 1; }
-    mv "${OUT}" "${disk_img}" || { rm -f "${OUT}"; echo "ERROR! Could not replace ${disk_img}." >&2; return 1; }
-    qe_event "vm.disk-compacted"
+    ${QEMU_IMG} convert -O "${disk_format:-qcow2}" "${disk_img}" "${OUT}" || { rm -f "${OUT}"; echo "ERROR! Failed to compact ${disk_img}."; return 1; }
+    mv "${OUT}" "${disk_img}" || { rm -f "${OUT}"; echo "ERROR! Failed to replace ${disk_img}."; return 1; }
+    command -v qe_event >/dev/null 2>&1 && qe_event "vm.disk-compacted"
     echo " - Compacted ${disk_img}"
 }

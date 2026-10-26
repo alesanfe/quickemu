@@ -1,6 +1,8 @@
 Describe 'VM runtime lifecycle'
 Include lib/quickemu/runtime/monitor.sh
+Include lib/quickemu/support/json.sh
 Include lib/quickemu/support/filesystem.sh
+Include lib/quickemu/support/events.sh
 Include lib/quickemu/runtime/lifecycle.sh
 
 setup() {

@@ -14,7 +14,7 @@ cleanup() { rm -rf -- "$TESTDIR"; }
 BeforeEach 'setup'
 AfterEach 'cleanup'
 
-in_subshell() { ( "$@" ); }
+in_subshell() { ( "$@" ) </dev/null; }
 
 # Host probes replaced with controllable doubles.
 host_free_mem_mb() { echo "${MEM_FREE_MB}"; }

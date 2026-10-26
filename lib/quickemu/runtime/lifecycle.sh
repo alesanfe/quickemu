@@ -538,6 +538,9 @@ fi
 QE_PORT_REGISTRY="${QE_PORT_REGISTRY:-$(qe_runtime_dir)/ports}"
 
 _port_registry_lock() { # global lock for the whole select+register op
+    # Ensure the registry's parent exists first: the lock dir is a sibling
+    # of the registry and with nested XDG paths the parent may be absent.
+    mkdir -p "${QE_PORT_REGISTRY}" 2>/dev/null || true
     local tries=0
     while ! mkdir "${QE_PORT_REGISTRY}.lock" 2>/dev/null; do
         # Reclaim if the owner died while holding it.
