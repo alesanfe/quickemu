@@ -1119,3 +1119,17 @@ function releases_linkat() {
     echo 22.04
 }
 
+function releases_guadalinexedu() {
+    echo 2013 10.04 9.04
+}
+
+
+function editions_guadalinexedu() {
+    echo desktop sdi centros
+}
+
+
+function editions_hannahmontana() {
+    echo lite classic
+}
+

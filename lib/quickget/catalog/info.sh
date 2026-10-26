@@ -56,6 +56,7 @@ function os_info() {
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
         guadalinex)       INFO="Guadalinex|-|https://www.guadalinex.org/|Historic education distro of Andalusia (preserved on ArchiveOS).";;
+        guadalinexedu)    INFO="Guadalinex Edu|-|https://archive.org/details/guadalinexedu-version-archive|Guadalinex education spin, preserved on archive.org.";;
         hannahmontana)    INFO="Hannah Montana Linux|-|https://sourceforge.net/projects/hannah-montana-linux-v26-lite/|Debian-based meme distro, 2026 revival.";;
         lliurex)          INFO="LliureX|-|https://lliurex.net/|Education distro of the Valencian regional government.";;
         linkat)           INFO="Linkat|-|https://projectes.xtec.cat/linkat/|Education distro of the Catalan Department of Education.";;
@@ -219,6 +220,7 @@ function os_support() {
     gnulinex \
     gobolinux \
     guadalinex \
+    guadalinexedu \
     guix \
     haiku \
     hannahmontana \

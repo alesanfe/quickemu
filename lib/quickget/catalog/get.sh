@@ -1675,14 +1675,32 @@ function get_lliurex() {
 
 
 function get_hannahmontana() {
-    # Hannah Montana Linux 26 Lite — SourceForge
-    local V="${RELEASE//./-}"
+    # Hannah Montana Linux — lite via SourceForge, classic 2009 via archive.org
+    if [ "${EDITION}" = "classic" ]; then
+        local ISO="hannah_montana_linux_x86_basic_edition.iso"
+        echo "https://archive.org/download/hannah_montana_linux_x86_basic_edition_202210/${ISO}"
+        return
+    fi
     local ISO="hannah-montana-linux-26-lite.iso"
     case "${RELEASE}" in
         26.1.1) ISO="hannah-montana-linux-26-1-1-lite.iso";;
     esac
     local URL="https://sourceforge.net/projects/hannah-montana-linux-v26-lite/files/v${RELEASE}"
     echo "${URL}/${ISO}/download"
+}
+
+
+function get_guadalinexedu() {
+    # Guadalinex Edu — preserved on archive.org
+    local URL="https://archive.org/download/guadalinexedu-version-archive"
+    local ISO
+    case "${EDITION}" in
+        sdi)     ISO="guadalinexedu-2013-instalador-SDI.iso";;
+        centros) ISO="guadalinexedu-2013-instalador-centros-2016012601.iso";;
+        *)       ISO="guadalinexedu-${RELEASE}-desktop-amd64.iso";;
+    esac
+    [ "${RELEASE}" = "10.04" ] && ISO="guadalinexedu-10.04.01-desktop-amd64.iso"
+    echo "${URL}/${ISO}"
 }
 
 function get_linkat() {
