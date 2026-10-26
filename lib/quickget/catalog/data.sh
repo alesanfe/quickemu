@@ -1202,3 +1202,7 @@ function releases_mangaka() {
     echo chu
 }
 
+function releases_wifislax() {
+    echo 4.10.1
+}
+

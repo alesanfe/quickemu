@@ -78,6 +78,7 @@ function os_info() {
         caine)            INFO="CAINE|-|https://www.caine-live.net/|Digital forensics live distribution (Computer Aided INvestigative Environment).";;
         rebeccablackos)   INFO="RebeccaBlackOS|-|https://rebeccablackos.com/|Debian-based experimental Wayland lab (VT-less kernel).";;
         tsurugi)          INFO="Tsurugi Linux|-|https://tsurugi-linux.org/|DFIR analysis and live-response Linux distribution.";;
+        wifislax)         INFO="WiFiSlax|-|https://www.wifislax.com/|Slackware-based wireless auditing distro (archive.org).";;
         whonix)           INFO="Whonix|-|https://www.whonix.org/|Tor-routed privacy OS; single LXQt image used for both Gateway and Workstation VMs.";;
         9front)           INFO="9front|-|https://9front.org/|Community fork of Plan 9 from Bell Labs.";;
         kicksecure)       INFO="Kicksecure|-|https://www.kicksecure.com/|Hardened Debian-based security-focused distribution.";;
@@ -328,6 +329,7 @@ function os_support() {
     void \
     vyos \
     whonix \
+    wifislax \
     windows \
     windows-server \
     xubuntu \

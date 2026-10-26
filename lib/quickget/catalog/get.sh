@@ -1799,3 +1799,9 @@ function get_plan9() {
     [ "${RELEASE}" = "4e" ] && ISO="plan9-4e-latest.iso"
     echo "https://archive.org/download/plan9isosUS/${ISO}"
 }
+
+function get_wifislax() {
+    # WiFiSlax 4.10.1 — preserved on archive.org (official site uses JS hosts)
+    local ISO="wifislax-4-10-1-final.iso"
+    echo "https://archive.org/download/wifislax-4-10-1-final_202406/${ISO} d9010acaa7bfa2a16594f3ee0670dc85"
+}
