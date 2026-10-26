@@ -47,7 +47,10 @@ op_status() { # id -> prints state file
     local B; B=$(_ops_bin)
     [ -n "${B}" ] && { "${B}" status --vmdir "${VMDIR}" --id "${1}"; return; }
     local f; f="$(op_dir)/${1}.json"
-    [ -f "${f}" ] || { echo "ERROR! Unknown operation '${1}'." >&2; return 1; }
+    [ -f "${f}" ] || {
+        [ "${OUTPUT_FORMAT:-}" == "json" ] && qe_fail "vm.op-status" OPERATION_NOT_FOUND "unknown operation '${1}'" ||             echo "ERROR! Unknown operation '${1}'." >&2
+        return 1
+    }
     cat "${f}"
 }
 
@@ -72,7 +75,10 @@ op_cancel() { # id -> 0/1
     [ -n "${B}" ] && { "${B}" cancel --vmdir "${VMDIR}" --id "${1}"; return; }
     local F PID
     F="$(op_dir)/${1}.json"
-    [ -f "${f:-$F}" ] || { echo "ERROR! Unknown operation '${1}'." >&2; return 1; }
+    [ -f "${f:-$F}" ] || {
+        [ "${OUTPUT_FORMAT:-}" == "json" ] && qe_fail "vm.op-cancel" OPERATION_NOT_FOUND "unknown operation '${1}'" ||             echo "ERROR! Unknown operation '${1}'." >&2
+        return 1
+    }
     case "$(sed -n 's/.*"state":"\([^"]*\)".*/\1/p' "${F}")" in
     completed | failed | cancelled)
         echo "ERROR! Operation ${1} already finished." >&2; return 1 ;;

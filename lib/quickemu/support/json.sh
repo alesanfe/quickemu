@@ -37,9 +37,13 @@ json_escape() {
 #   {schemaVersion, command, success, data, warnings[], errors[], meta}
 # data/warnings/errors are pre-built JSON fragments (escaped by callers).
 qe_emit() { # command success data warnings errors
-    printf '{"schemaVersion":%s,"command":"%s","success":%s,"data":%s,"warnings":%s,"errors":%s,"meta":{"quickemuVersion":"%s","timestamp":"%s"}}\n' \
+    # meta.operationId is part of the v1 contract whenever an async op
+    # is in flight (OPID) or queried (OP_ID) — QuickGUI reconciles on it.
+    local _op="${OPID:-${OP_ID:-}}" _opmeta=""
+    [ -n "${_op}" ] && _opmeta=',"operationId":"'$(json_escape "${_op}")'"'
+    printf '{"schemaVersion":%s,"command":"%s","success":%s,"data":%s,"warnings":%s,"errors":%s,"meta":{"quickemuVersion":"%s","timestamp":"%s"%s}}\n' \
         "${QE_SCHEMA_VERSION}" "$(json_escape "${1}")" "${2}" "${3:-null}" "${4:-[]}" "${5:-[]}" \
-        "${VERSION:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)"
+        "${VERSION:-unknown}" "$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)" "${_opmeta}"
 }
 
 qe_ok() { qe_emit "${1}" true "${2:-null}" "${3:-[]}" '[]'; }
