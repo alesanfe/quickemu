@@ -7,6 +7,13 @@
 
 QE_OPS_DIR_SUFFIX="/ops"
 
+# ADR-0001 phase 3: prefer the Go ops registry when the binary exists.
+_ops_bin() {
+    command -v quickemu-ops >/dev/null 2>&1 && { printf quickemu-ops; return; }
+    [ -x "${QE_LIBDIR}/../tools/quickemu-ops/quickemu-ops" ]         && { printf '%s' "${QE_LIBDIR}/../tools/quickemu-ops/quickemu-ops"; return; }
+    printf ''
+}
+
 op_dir() { printf '%s%s' "${VMDIR}" "${QE_OPS_DIR_SUFFIX}"; }
 
 op_new() { # type -> prints operationId, creates state file
@@ -37,12 +44,16 @@ op_fail() { # id code message -> mark failed
 }
 
 op_status() { # id -> prints state file
+    local B; B=$(_ops_bin)
+    [ -n "${B}" ] && { "${B}" status --vmdir "${VMDIR}" --id "${1}"; return; }
     local f; f="$(op_dir)/${1}.json"
     [ -f "${f}" ] || { echo "ERROR! Unknown operation '${1}'." >&2; return 1; }
     cat "${f}"
 }
 
 op_list() { # -> JSON array of all operation states for this VM
+    local B; B=$(_ops_bin)
+    [ -n "${B}" ] && { "${B}" list --vmdir "${VMDIR}"; return; }
     local DIR F JSON="" FIRST=1
     DIR=$(op_dir)
     for F in "${DIR}"/*.json; do
@@ -57,6 +68,8 @@ op_list() { # -> JSON array of all operation states for this VM
 # Cancel: marks the op cancelled. If the op recorded a workerPid that is
 # still alive it is signalled first — a stale record never kills anyone.
 op_cancel() { # id -> 0/1
+    local B; B=$(_ops_bin)
+    [ -n "${B}" ] && { "${B}" cancel --vmdir "${VMDIR}" --id "${1}"; return; }
     local F PID
     F="$(op_dir)/${1}.json"
     [ -f "${f:-$F}" ] || { echo "ERROR! Unknown operation '${1}'." >&2; return 1; }
