@@ -1920,3 +1920,9 @@ function get_rosalinux() {
     local ISO="ROSA.FRESH.${ED}.13.2.x86_64.iso"
     echo "https://mirror.rosa.ru/rosa/rosa13/iso/ROSA.FRESH.13/${EDITION}/${ISO}"
 }
+
+function get_metamorphose() {
+    # Metamorphose (Brazilian educational distro) — SourceForge
+    local ISO="Metamorphose_8.5.7-Panther-x64.iso"
+    echo "https://sourceforge.net/projects/metamorphose/files/MetamorphosePuma/${ISO}/download"
+}

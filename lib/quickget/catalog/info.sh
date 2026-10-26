@@ -70,6 +70,7 @@ function os_info() {
         lliurex)          INFO="LliureX|-|https://lliurex.net/|Education distro of the Valencian regional government.";;
         linkat)           INFO="Linkat|-|https://projectes.xtec.cat/linkat/|Education distro of the Catalan Department of Education.";;
         maxlinux)         INFO="MAX|-|https://www.educa2.madrid.org/web/max|MAdrid_linuX — education distro by the Madrid regional government.";;
+        metamorphose)     INFO="Metamorphose|-|https://metamorphose.miraheze.org/|Brazilian educational Linux distribution.";;
         molinux)          INFO="MoLinux|-|https://archiveos.org/molinux/|Historic Castilla-La Mancha education distro (preserved on ArchiveOS).";;
         minino)           INFO="GALPon MiniNo|-|https://minino.galpon.org/|Lightweight Galician distro for old PCs (preserved on ArchiveOS).";;
         vitalinux)        INFO="Vitalinux|-|https://vitalinux.educa.aragon.es/|Education distribution by the Aragon government.";;
@@ -269,6 +270,7 @@ function os_support() {
     mangaka \
     manjaro \
     maxlinux \
+    metamorphose \
     molinux \
     minino \
     midnightbsd \

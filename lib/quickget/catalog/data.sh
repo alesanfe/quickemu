@@ -1289,3 +1289,7 @@ function editions_rosalinux() {
     echo plasma6 plasma5 gnome lxqt server
 }
 
+function releases_metamorphose() {
+    echo 8.5.7
+}
+
