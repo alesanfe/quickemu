@@ -530,6 +530,11 @@ vm_lock_release() { # [shared|exclusive] -> releases our own hold only
 #   port <TAB> vmname <TAB> pid <TAB> epoch
 # The dir itself is created atomically; writers take a global mkdir lock.
 
+# Sourced partial consumers may not load filesystem.sh; fall back to the
+# pre-XDG TMPDIR path rather than aborting at source time.
+if ! command -v qe_runtime_dir >/dev/null 2>&1; then
+    qe_runtime_dir() { printf '%s/quickemu-%s' "${TMPDIR:-/tmp}" "${UID}"; }
+fi
 QE_PORT_REGISTRY="${QE_PORT_REGISTRY:-$(qe_runtime_dir)/ports}"
 
 _port_registry_lock() { # global lock for the whole select+register op
