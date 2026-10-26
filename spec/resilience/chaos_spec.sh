@@ -18,13 +18,16 @@ It 'lock owned by a kill -9 victim is reclaimed, not wedged'
     bash -c 'sleep 0.1' & DEAD=$!
     wait $DEAD 2>/dev/null
     echo "${DEAD}" >"${VMDIR}/ch.lock/pid"
-    VM_LOCK_TRIES=5 vm_lock_acquire
+    VM_LOCK_TRIES=5
+    When call vm_lock_acquire
     The status should be success
 End
 
-It 'runtime.json for a dead pid reports stale, not running'
+It 'runtime files for a dead pid report stale, not running'
+    # A real crashed VM leaves BOTH: pidfile + runtime.json.
     bash -c 'sleep 0.1' & DEAD=$!
     wait $DEAD 2>/dev/null
+    echo "${DEAD}" >"${VMDIR}/ch.pid"
     printf '{"instanceId":"x","vmId":"ch","pid":%s,"processStartTime":1,"uid":0,"commandFingerprint":"sha256:x","configPath":"c","createdAt":"t"}\n' "${DEAD}" >"${VMDIR}/ch.runtime.json"
     When call vm_state
     The output should eq stale
