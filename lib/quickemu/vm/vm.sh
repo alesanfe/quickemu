@@ -396,6 +396,7 @@ function export_vm() {
         echo "ERROR! Stop ${VMNAME} before exporting."
         exit 1
     fi
+    op_set "${OPID:-none}" running 40 2>/dev/null
     PARENT="$(dirname "${VMDIR}")"
     if [ -d "${PARENT}/${VMNAME}" ]; then
         MEMBERS+=("${VMNAME}")
@@ -481,6 +482,7 @@ function import_vm() {
     trap 'op_fail "${OPID:-none}" IMPORT_ABORTED "import did not complete" 2>/dev/null' RETURN
     # Extract to a private staging dir first; move into place only on success.
     TMPDIR_IM=$(mktemp -d "${TMPDIR:-/tmp}/quickemu-import.XXXXXX") || exit 1
+    op_set "${OPID:-none}" running 30 2>/dev/null
     if ! tar -xzf "${IN}" -C "${TMPDIR_IM}" 2>/dev/null; then
         rm -rf -- "${TMPDIR_IM}"
         echo "ERROR! Failed to extract ${IN}."

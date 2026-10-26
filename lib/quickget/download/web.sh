@@ -106,13 +106,14 @@ function check_hash() {
 
 # Download a file from the web and pipe it to stdout
 function web_pipe() {
-    curl --disable --silent --location "${1}"
+    # https only + bounded: these feed parsers, never file:// or LAN hosts.
+    curl --disable --silent --location --fail --proto '=https' --connect-timeout 15 --max-time 60 -- "${1}"
 }
 
 
 # Download a JSON file from the web and pipe it to stdout
 function web_pipe_json() {
-     curl --disable --silent --location --header "Accept: application/json" "${1}"
+     curl --disable --silent --location --fail --proto '=https' --connect-timeout 15 --max-time 60 --header "Accept: application/json" -- "${1}"
 }
 
 
@@ -190,7 +191,10 @@ function web_get() {
             return 0
         fi
     fi
-    if ! curl --disable --progress-bar "${PIPE_OPTS[@]}" --location --output "${DIR}/${FILE}" --continue-at - --user-agent "${USER_AGENT}" "${HEADERS[@]}" "${INSECURE[@]}" -- "${URL}"; then
+    # Bounded download: http(s) only (no file:// or exotic schemes),
+    # retry transient failures, abort on a 60s stall below 1KB/s, and
+    # keep resume support across attempts.
+    if ! curl --disable --progress-bar "${PIPE_OPTS[@]}" --location         --proto '=http,https' --proto-redir '=http,https'         --connect-timeout 30 --retry 3 --retry-delay 2 --retry-connrefused         --speed-limit 1024 --speed-time 60         --output "${DIR}/${FILE}" --continue-at -         --user-agent "${USER_AGENT}" "${HEADERS[@]}" "${INSECURE[@]}" -- "${URL}"; then
         echo "ERROR! Failed to download ${URL} with curl."
         rm -f "${DIR}/${FILE}"
         exit 1
@@ -204,7 +208,7 @@ function web_redirect() {
     local URL="${1}"
     # Check for URL redirections
     # Output to nonexistent directory so the download fails fast
-    REDIRECT_URL=$(curl --disable --silent --location --fail --write-out '%{url_effective}' --output /var/cache/${RANDOM}/${RANDOM} "${URL}" )
+    REDIRECT_URL=$(curl --disable --silent --location --fail --proto '=http,https' --connect-timeout 15 --max-time 60 --write-out '%{url_effective}' --output /var/cache/${RANDOM}/${RANDOM} "${URL}" )
     if [ "${REDIRECT_URL}" != "${URL}" ]; then
         echo "${REDIRECT_URL}"
     else

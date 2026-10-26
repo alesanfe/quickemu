@@ -92,3 +92,11 @@ snapshot_verify() {
     [ "${RC}" -eq 0 ] && echo " - Snapshot chain verified."
     return ${RC}
 }
+
+# Remove a node by tag from the external snapshot metadata (atomic).
+snap_meta_remove() { # tag
+    local ARR TAG="${1}"
+    ARR=$(snap_meta_read)
+    ARR=$(printf '%s' "${ARR}" | sed "s/{[^}]*\"tag\":\"$(printf '%s' "${TAG}" | sed 's/[][&*.^$/|\]/\&/g')\"[^}]*}//" | sed 's/,,/,/g; s/\[,/[/; s/,]/]/')
+    snap_meta_write "${ARR:-[]}"
+}

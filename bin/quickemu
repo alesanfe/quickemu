@@ -150,6 +150,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/vm/display.sh"
     # shellcheck source=lib/quickemu/vm/snapshots.sh
     source "${QE_LIBDIR}/vm/snapshots.sh"
+    # shellcheck source=lib/quickemu/vm/snapshots_consolidate.sh
+    source "${QE_LIBDIR}/vm/snapshots_consolidate.sh"
     # planning: gates before execution
     # shellcheck source=lib/quickemu/planning/execution_plan.sh
     source "${QE_LIBDIR}/planning/execution_plan.sh"
@@ -317,6 +319,11 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
             ;;
         verify)
             snapshot_verify
+            exit
+            ;;
+        consolidate)
+            snapshot_consolidate "${SNAPSHOT_TAG}"
+            snapshot_tree
             exit
             ;;
         delete)

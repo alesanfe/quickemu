@@ -138,18 +138,31 @@ vm_hotunplug() { # devid
 # ---- persistent hotplug ----
 # --hotplug-usb <dev> --persist also records the device in the conf so
 # it reattaches on next boot (desired state vs observed QMP state).
-hotplug_persist() { # kind value -> append to conf device list
+hotplug_persist() { # kind value -> append to conf OR toml device list
     local KIND="${1}" VAL="${2}"
     [ -z "${HOTPLUG_PERSIST}" ] && return 0
-    case "${KIND}" in
-    disk)
-        grep -q "extra_disks" "${VM}"             && sed -i "s|extra_disks=(\(.*\))|extra_disks=( \"${VAL}\")|" "${VM}"             || printf 'extra_disks=("%s")
+    if [[ "${VM}" == *.toml ]]; then
+        case "${KIND}" in
+        disk)
+            grep -q '^extra_disks' "${VM}"                 && sed -i "s|^extra_disks = \[\(.*\)\]|extra_disks = [\1, \"${VAL}\"]|" "${VM}"                 || printf 'extra_disks = ["%s"]
 ' "${VAL}" >>"${VM}"
-        ;;
-    usb)
-        grep -q "usb_devices" "${VM}"             && sed -i "s|usb_devices=(\(.*\))|usb_devices=( \"${VAL}\")|" "${VM}"             || printf 'usb_devices=("%s")
+            ;;
+        usb)
+            grep -q '^usb_devices' "${VM}"                 && sed -i "s|^usb_devices = \[\(.*\)\]|usb_devices = [\1, \"${VAL}\"]|" "${VM}"                 || printf 'usb_devices = ["%s"]
 ' "${VAL}" >>"${VM}"
-        ;;
-    esac
+            ;;
+        esac
+    else
+        case "${KIND}" in
+        disk)
+            grep -q "extra_disks" "${VM}"                 && sed -i "s|extra_disks=(\(.*\))|extra_disks=(\1 \"${VAL}\")|" "${VM}"                 || printf 'extra_disks=("%s")
+' "${VAL}" >>"${VM}"
+            ;;
+        usb)
+            grep -q "usb_devices" "${VM}"                 && sed -i "s|usb_devices=(\(.*\))|usb_devices=(\1 \"${VAL}\")|" "${VM}"                 || printf 'usb_devices=("%s")
+' "${VAL}" >>"${VM}"
+            ;;
+        esac
+    fi
     echo " - Persisted ${KIND} ${VAL} into ${VM} (applies next boot)."
 }
