@@ -115,6 +115,8 @@ function os_info() {
         openmandriva)     INFO="OpenMandriva Lx|-|https://www.openmandriva.org/|Community-driven Linux distribution with KDE Plasma.";;
         opnsense)         INFO="OPNsense|-|https://opnsense.org/|FreeBSD-based open source firewall and routing platform.";;
         opensuse)         INFO="openSUSE|-|https://www.opensuse.org/|The makers choice for sysadmins, developers and desktop users.";;
+        openkylin)        INFO="openKylin|-|https://www.openkylin.top/|Chinese national OS, open community of Kylin.";;
+        pardus)           INFO="Pardus|-|https://www.pardus.org.tr/|Turkish national OS for education and public administration.";;
         oraclelinux)      INFO="Oracle Linux|-|https://www.oracle.com/linux/|Linux with everything required to deploy, optimize, and manage applications on-premises, in the cloud, and at the edge.";;
         parrotsec)        INFO="Parrot Security|parrot:parrot|https://www.parrotsec.org/|Provides a huge arsenal of tools, utilities and libraries that IT and security professionals can use to test and assess the security of their assets in a reliable, compliant and reproducible way.";;
         pclinuxos)        INFO="PCLinuxOS|-|https://www.pclinuxos.com/|PCLinuxOS is a free easy to use Linux-based Operating System for x86_64 desktops or laptops.";;
@@ -276,12 +278,14 @@ function os_support() {
     openbsd \
     openfyde \
     openindiana \
+    openkylin \
     openmandriva \
     openmediavault \
     opensuse \
     opnsense \
     oraclelinux \
     os2warp \
+    pardus \
     parrotsec \
     pclinuxos \
     pentoo \

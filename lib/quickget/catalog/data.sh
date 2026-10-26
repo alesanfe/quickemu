@@ -1234,3 +1234,26 @@ function releases_emmabuntus() {
     echo 13.7
 }
 
+function releases_pardus() {
+    echo 23.2 21.5 19.5
+}
+
+
+function editions_pardus() {
+    case "${RELEASE}" in
+        23.2) echo gnome xfce server;;
+        21.5) echo gnome xfce edu;;
+        *)    echo gnome xfce;;
+    esac
+}
+
+
+function releases_openkylin() {
+    echo 3.0
+}
+
+
+function editions_openkylin() {
+    echo desktop server
+}
+

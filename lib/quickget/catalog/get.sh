@@ -1853,3 +1853,24 @@ function get_emmabuntus() {
     local URL="https://sourceforge.net/projects/emmabuntus/files/Emmabuntus_DE6/Images/1.03"
     echo "${URL}/${ISO}/download 48655233f33a5a71301cfc4935c6b77622b2a4d043485c48061397e1111465c3"
 }
+
+function get_pardus() {
+    # Pardus (Turkiye, national OS) — official mirror "Parduslatest" dir;
+    # edition names are all-caps in the real ISO filenames
+    local ED_UPPER
+    ED_UPPER="$(echo "${EDITION}" | tr '[:lower:]' '[:upper:]')"
+    local ISO="Pardus-${RELEASE}-${ED_UPPER}-latest-amd64.iso"
+    echo "https://indir.pardus.org.tr/ISO/Parduslatest/${ISO}"
+}
+
+
+function get_openkylin() {
+    # openKylin 3.0 (China, national OS) — official cdimage,
+    # latest dated x86_64 desktop/server ISO verified on the index
+    local ISO
+    case "${EDITION}" in
+        server)  ISO="openKylin-Server-V3.0-20260916-x86_64.iso";;
+        *)       ISO="openKylin-Desktop-V3.0-20260918.1-x86_64.iso";;
+    esac
+    echo "https://cdimage.openkylin.top/3.0/${ISO}"
+}
