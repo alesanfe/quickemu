@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/prometheus/procfs"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 const version = "0.1.0"
@@ -82,23 +85,27 @@ func main() {
 			os.Exit(emit(false, data, "UID_MISMATCH"))
 		}
 	}
-	// 3) starttime from /proc/<pid>/stat (field 22, after last ')' for comm)
+	// 3) starttime: procfs parses /proc/<pid>/stat correctly even when
+	// comm contains ')' or spaces (the manual-offset path was fragile);
+	// gopsutil gives a portable fallback for non-Linux.
 	if wantStart > 0 {
-		raw, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
-		if err != nil {
-			os.Exit(emit(false, data, "PROC_UNREADABLE"))
-		}
-		rest := string(raw)
-		if i := strings.LastIndex(rest, ")"); i >= 0 {
-			rest = rest[i+2:]
-		}
-		f := strings.Fields(rest)
-		if len(f) >= 20 {
-			st, _ := strconv.ParseInt(f[19], 10, 64) // field22 minus 3 consumed by 'pid comm state'
-			data["startTime"] = st
-			if st != int64(wantStart) {
-				os.Exit(emit(false, data, "STARTTIME_MISMATCH"))
+		var st int64
+		if p, err := procfs.NewProc(pid); err == nil {
+			if stat, err := p.Stat(); err == nil {
+				st = int64(stat.Starttime)
 			}
+		}
+		if st == 0 {
+			if pr, err := process.NewProcess(int32(pid)); err == nil {
+				if ms, err := pr.CreateTime(); err == nil {
+					st = ms / 1000 // portable path: seconds-resolution epoch
+					data["startTimeSource"] = "gopsutil"
+				}
+			}
+		}
+		data["startTime"] = st
+		if st != 0 && st != int64(wantStart) {
+			os.Exit(emit(false, data, "STARTTIME_MISMATCH"))
 		}
 	}
 	// 4) exe basename
