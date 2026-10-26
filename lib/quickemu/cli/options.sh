@@ -163,6 +163,18 @@ else
             # consume the optional cursor arg when present
             if [ $# -gt 0 ] && [[ "${1}" =~ ^[0-9]+$ ]]; then shift; fi
             ;;
+        -external | --external)
+            EXTERNAL=1
+            shift
+            ;;
+        -snapshot-tree | --snapshot-tree)
+            ACTIONS+=(snapshot_tree)
+            shift
+            ;;
+        -snapshot-verify | --snapshot-verify)
+            ACTIONS+=(snapshot_verify)
+            shift
+            ;;
         -op-list | --op-list)
             ACTIONS+=(operation_list)
             shift
@@ -277,12 +289,12 @@ else
                 exit 1
             fi
             SNAPSHOT_ACTION="${2}"
-            if [ -z "${3}" ] && [ "${SNAPSHOT_ACTION}" != "info" ] && [ "${SNAPSHOT_ACTION}" != "list" ]; then
+            if [ -z "${3}" ] && [ "${SNAPSHOT_ACTION}" != "info" ] && [ "${SNAPSHOT_ACTION}" != "list" ] && [ "${SNAPSHOT_ACTION}" != "tree" ] && [ "${SNAPSHOT_ACTION}" != "verify" ]; then
                 echo "ERROR! '--snapshot ${SNAPSHOT_ACTION}' needs a tag."
                 exit 1
             fi
             SNAPSHOT_TAG="${3}"
-            if [ "${SNAPSHOT_ACTION}" == "info" ] || [ "${SNAPSHOT_ACTION}" == "list" ]; then
+            if [ "${SNAPSHOT_ACTION}" == "info" ] || [ "${SNAPSHOT_ACTION}" == "list" ] || [ "${SNAPSHOT_ACTION}" == "tree" ] || [ "${SNAPSHOT_ACTION}" == "verify" ]; then
                 shift 2
             else
                 shift 3

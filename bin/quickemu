@@ -148,6 +148,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/vm/network.sh"
     # shellcheck source=lib/quickemu/vm/display.sh
     source "${QE_LIBDIR}/vm/display.sh"
+    # shellcheck source=lib/quickemu/vm/snapshots.sh
+    source "${QE_LIBDIR}/vm/snapshots.sh"
     # planning: gates before execution
     # shellcheck source=lib/quickemu/planning/execution_plan.sh
     source "${QE_LIBDIR}/planning/execution_plan.sh"
@@ -302,8 +304,17 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
             exit
             ;;
         create)
-            snapshot_create "${SNAPSHOT_TAG}"
+            if [ -n "${EXTERNAL}" ]; then snapshot_create_external "${SNAPSHOT_TAG}"
+            else snapshot_create "${SNAPSHOT_TAG}"; fi
             snapshot_info
+            exit
+            ;;
+        tree)
+            snapshot_tree
+            exit
+            ;;
+        verify)
+            snapshot_verify
             exit
             ;;
         delete)
