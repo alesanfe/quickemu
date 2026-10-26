@@ -6,7 +6,8 @@ Include lib/quickemu/config/loader.sh
 
 setup() { TESTDIR=$(mktemp -d); }
 cleanup() { rm -rf -- "$TESTDIR"; }
-BeforeEach 'setup'; AfterEach 'cleanup'
+BeforeEach 'setup'
+AfterEach 'cleanup'
 
 gen_conf() { # seed -> random conf into $TESTDIR/c.conf
     local k v
@@ -30,7 +31,9 @@ It 'any generated conf either parses or fails cleanly — never hangs/crashes'
         fi
         i=$((i+1))
     done
-    The variable bad should satisfy "num >= 0" # deterministic: count as long as nothing hung
-    The variable ok should satisfy "num >= 0"
+    # The property under test: every generated input produced a
+    # verdict (parse ok or clean fail). Reaching 40 means nothing hung.
+    n=$((ok + bad))
+    The variable n should eq 40
 End
 End
