@@ -206,10 +206,10 @@ function configure_cpu() {
         fi
         CPU_KVM_UNHALT=",kvm_pv_unhalt"
         GUEST_TWEAKS+=" -global kvm-pit.lost_tick_policy=discard"
-        QEMU_ACCEL="kvm"
         # Honour an explicit accel override (export QEMU_ACCEL=tcg or
         # extra_args='-accel tcg') — the VT-x/SVM gate below already
-        # treats tcg as a non-hardware accel and lets it through.
+        # treats tcg as a non-hardware accel and lets it through. Must
+        # not clobber a pre-set value with kvm before checking.
         QEMU_ACCEL="${QEMU_ACCEL:-kvm}"
     fi
 
