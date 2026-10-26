@@ -1039,3 +1039,33 @@ function releases_kicksecure() {
 function releases_uwuntu() {
     echo 22.10
 }
+
+function releases_caine() {
+    echo 14.0
+}
+
+
+function releases_rebeccablackos() {
+    echo 2026-02-22
+}
+
+
+function releases_tsurugi() {
+    echo 26.03
+}
+
+
+function releases_backbox() {
+    echo 9
+}
+
+
+function releases_whonix() {
+    echo latest
+}
+
+
+function editions_whonix() {
+    echo gateway workstation
+}
+

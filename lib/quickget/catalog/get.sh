@@ -1569,3 +1569,42 @@ function get_uwuntu() {
     echo "https://uwuntuos.com/releases/${RELEASE}/${ISO:-uwuntu-22.10-leo-dango-amd64.iso}"
 }
 
+function get_caine() {
+    local ISO="caine${RELEASE}.iso"
+    local URL="https://www.caine-live.net/Downloads"
+    echo "${URL}/${ISO}"
+}
+
+
+function get_rebeccablackos() {
+    local ISO="RebeccaBlackOS_amd64.iso"
+    local URL="https://sourceforge.net/projects/rebeccablackos/files/${RELEASE}"
+    echo "${URL}/${ISO}/download"
+}
+
+
+function get_tsurugi() {
+    local URL="https://ftp.nluug.nl/pub/security/DigitalForensics/tsurugi"
+    local ISO
+    ISO="$(web_pipe "${URL}/" | grep -o 'tsurugi_linux_[0-9.]*\\.iso' | sort -Vr | head -1)"
+    echo "${URL}/${ISO:-tsurugi_linux_${RELEASE}.iso}"
+}
+
+
+function get_backbox() {
+    local ISO
+    ISO="$(web_pipe "https://linux.backbox.org/download/" | grep -o 'href="[^"]*\\.iso' | cut -d'"' -f2 | head -1)"
+    echo "${ISO:-https://backbox.mirror.garr.it/backbox-${RELEASE}-desktop-amd64.iso}"
+}
+
+
+function get_whonix() {
+    local BASE="https://download.whonix.org/kvm"
+    local VER
+    VER="$(web_pipe "${BASE}/" | grep -o 'href="17\\.[0-9.]*/' | cut -d'"' -f2 | tr -d '/' | sort -Vr | head -1)"
+    local EDITION_CAP
+    EDITION_CAP="$(echo "${EDITION}" | sed 's/./\u&/')"
+    local ISO="Whonix-${EDITION_CAP}-Xfce-${VER}.Intel_AMD64.qcow2"
+    echo "${BASE}/${VER}/${ISO}"
+}
+

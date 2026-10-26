@@ -55,6 +55,11 @@ function os_info() {
         kdeneon)          INFO="KDE Neon|-|https://neon.kde.org/|Latest and greatest of KDE community software packaged on a rock-solid base.";;
         kdelinux)         INFO="KDE Linux|-|https://kde.org/linux/|A free Linux-based operating system built by KDE.";;
         kolibrios)        INFO="KolibriOS|-|https://kolibrios.org/en/|Tiny yet incredibly powerful and fast operating system.";;
+        backbox)          INFO="BackBox|-|https://linux.backbox.org/|Ubuntu-based pentesting and security assessment distribution.";;
+        caine)            INFO="CAINE|-|https://www.caine-live.net/|Digital forensics live distribution (Computer Aided INvestigative Environment).";;
+        rebeccablackos)   INFO="RebeccaBlackOS|-|https://rebeccablackos.com/|Debian-based experimental Wayland lab (VT-less kernel).";;
+        tsurugi)          INFO="Tsurugi Linux|-|https://tsurugi-linux.org/|DFIR analysis and live-response Linux distribution.";;
+        whonix)           INFO="Whonix|-|https://www.whonix.org/|Tor-routed privacy OS; Gateway+Workstation pair.";;
         9front)           INFO="9front|-|https://9front.org/|Community fork of Plan 9 from Bell Labs.";;
         kicksecure)       INFO="Kicksecure|-|https://www.kicksecure.com/|Hardened Debian-based security-focused distribution.";;
         nst)              INFO="Network Security Toolkit|-|https://www.networksecuritytoolkit.org/|Fedora-based distro for network analysis and monitoring.";;
@@ -161,6 +166,8 @@ function os_homepage() {
 function os_support() {
     echo 9front \
     alma \
+    backbox \
+    caine \
     alpine \
     android \
     antix \
@@ -247,6 +254,7 @@ function os_support() {
     q4os \
     qubes \
     reactos \
+    rebeccablackos \
     rebornos \
     redoxos \
     rockylinux \
@@ -265,6 +273,7 @@ function os_support() {
     tinycore \
     trisquel \
     truenas-scale \
+    tsurugi \
     tuxedo-os \
     ubuntu \
     ubuntu-budgie \
@@ -278,6 +287,7 @@ function os_support() {
     vanillaos \
     void \
     vyos \
+    whonix \
     windows \
     windows-server \
     xubuntu \
