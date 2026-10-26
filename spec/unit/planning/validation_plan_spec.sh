@@ -1,5 +1,6 @@
 # shellcheck disable=SC2034
 Describe 'quickemu doctor_vm validation plan'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/planning/validation_plan.sh
 
 setup() {

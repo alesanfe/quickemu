@@ -1,5 +1,6 @@
 # shellcheck disable=SC2034
 Describe 'quickemu monitor command channel'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/runtime/monitor.sh
 
 setup() {

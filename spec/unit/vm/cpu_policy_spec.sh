@@ -1,4 +1,5 @@
 Describe 'CPU policy with controlled host probes'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/runtime/launch.sh
 
 setup() {

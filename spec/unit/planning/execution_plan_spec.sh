@@ -1,6 +1,8 @@
 # shellcheck disable=SC2034
 Describe 'execution plan gates'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/planning/execution_plan.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/support/validation.sh
 
 setup() {

@@ -1,5 +1,7 @@
 Describe 'QEMU command builder policies'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/runtime/launch.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/vm/network.sh
 
 setup() {

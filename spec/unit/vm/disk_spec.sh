@@ -1,4 +1,5 @@
 Describe 'disk operations with an isolated image tool'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/vm/disk.sh
 
 setup() {

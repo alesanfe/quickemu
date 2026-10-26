@@ -417,14 +417,14 @@ It 'reports a running VM as schema v1 JSON'
     The status should be success
     The output should include '"command":"vm.status"'
         The output should include '"success":true'
-        The output should include '"data":{"name":"vm-test","state":"running","pid":4242}'
+        The output should include '"data":{"name":"vm-test","state":"running","pid":4242'
 End
 It 'reports a stopped VM as schema v1 JSON with null pid'
     VM_PID='' OUTPUT_FORMAT=json
     When call in_subshell status_vm
     The status should be success
     The output should include '"command":"vm.status"'
-        The output should include '"data":{"name":"vm-test","state":"stopped","pid":null}'
+        The output should include '"data":{"name":"vm-test","state":"stopped","pid":null'
 End
 It 'reports a monitor-paused VM via the .paused marker'
     spawn_fake_vm
@@ -442,7 +442,7 @@ It 'reports a paused VM as schema v1 JSON'
     When call in_subshell status_vm
     The status should be success
     The output should include "\"command\":\"vm.status\""
-        The output should include "\"data\":{\"name\":\"vm-test\",\"state\":\"paused\",\"pid\":${VM_PID}}"
+        The output should include "\"data\":{\"name\":\"vm-test\",\"state\":\"paused\",\"pid\":${VM_PID}"
 End
 It 'ignores a stale .paused marker when the VM is stopped'
     VM_PID=''

@@ -1,4 +1,5 @@
 Describe 'display and audio configuration'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/vm/display.sh
 
 setup() {

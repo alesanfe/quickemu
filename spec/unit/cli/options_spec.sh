@@ -1,4 +1,5 @@
 Describe 'command line option parsing'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/cli/options.sh
 
 setup() {

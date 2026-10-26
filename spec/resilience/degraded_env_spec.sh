@@ -3,10 +3,15 @@
 # state must degrade to clean errors, never to silent corruption.
 Describe 'resilience to degraded inputs'
 Include spec/spec_helper.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/config/parser.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/config/loader.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/support/validation.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/support/json.sh
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/runtime/monitor.sh
 
 setup() {

@@ -1,5 +1,6 @@
 # shellcheck shell=bash
 Describe 'vm network helpers'
+Include lib/quickemu/support/filesystem.sh
 Include lib/quickemu/vm/network.sh
 
 Describe 'vm_net_mode'
