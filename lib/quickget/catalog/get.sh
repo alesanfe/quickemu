@@ -1732,6 +1732,7 @@ function get_lliurex() {
         23)    ISO="LliureX-${EDITION}_64bits_23_latest.iso";;
         21.07) ISO="LliureX-${EDITION}_64bits_21_20220406.iso"; BASE="http://lliurex.net/isos/21.07_64bits/20220406";;
         19.07) ISO="lliurex-${EDITION}_64bits_19_latest.iso"; BASE="http://lliurex.net/isos/19.07_64bits";;
+        16.06) ISO="lliurex-${EDITION}_64bits_16_latest.iso"; BASE="http://lliurex.net/isos/16.06_64bits";;
     esac
     echo "${BASE}/${ISO}"
 }

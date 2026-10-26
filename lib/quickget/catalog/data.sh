@@ -1111,7 +1111,7 @@ function editions_guadalinex() {
 
 
 function releases_lliurex() {
-    echo 25 23 21.07 19.07
+    echo 25 23 21.07 19.07 16.06
 }
 
 
@@ -1121,7 +1121,7 @@ function editions_lliurex() {
     case "${RELEASE}" in
         23)    echo desktop server client;;
         21.07) echo desktop client server infantil multimedia;;
-        19.07) echo escriptori client servidor infantil musica pime;;
+        19.07|16.06) echo escriptori client servidor infantil musica pime;;
         *)     echo desktop;;
     esac
 }
