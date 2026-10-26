@@ -393,8 +393,19 @@ host_info() {
 }
 
 # --migrate-conf: write a TOML migration of the VM config next to the
-# original (the .conf is never modified or executed).
+# original (the .conf is never modified or executed). With --dry-run
+# print the TOML to stdout and a diff against an existing .toml.
 migrate_conf() {
+    if [ -n "${DRY_RUN}" ]; then
+        local OUT="${VM%.conf}.toml"
+        if [ -f "${OUT}" ]; then
+            echo "Diff (existing ${OUT} vs regenerated):"
+            diff -u "${OUT}" <(toml_from_conf "${VM}") || true
+        else
+            toml_from_conf "${VM}"
+        fi
+        return 0
+    fi
     conf_migrate "${VM}" "${VM%.conf}.toml"
 }
 
@@ -407,3 +418,19 @@ operation_status() {
     fi
     op_status "${OP_ID}"
 }
+
+# --op-list: all recorded operations for the VM as one JSON object.
+operation_list() { op_list; }
+
+# --op-cancel <id>: mark an operation cancelled and kill its worker if
+# a live workerPid was recorded.
+operation_cancel() {
+    if [ -z "${OP_ID}" ]; then
+        echo "ERROR! '--op-cancel' needs an operationId." >&2
+        return 1
+    fi
+    op_cancel "${OP_ID}"
+}
+
+# --events [cursor]: JSONL events with seq > cursor for resumable tails.
+events_read() { qe_events_read "${EVENTS_CURSOR:-0}"; }

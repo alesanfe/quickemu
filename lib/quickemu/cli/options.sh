@@ -155,6 +155,23 @@ else
             ACTIONS+=(trash_restore)
             shift 2
             ;;
+        -events | --events)
+            EVENTS_CURSOR="${2:-0}"
+            case "${EVENTS_CURSOR}" in ''|*[!0-9]*) EVENTS_CURSOR=0 ;; esac
+            ACTIONS+=(events_read)
+            shift
+            # consume the optional cursor arg when present
+            if [ $# -gt 0 ] && [[ "${1}" =~ ^[0-9]+$ ]]; then shift; fi
+            ;;
+        -op-list | --op-list)
+            ACTIONS+=(operation_list)
+            shift
+            ;;
+        -op-cancel | --op-cancel)
+            OP_ID="${2}"
+            ACTIONS+=(operation_cancel)
+            shift 2
+            ;;
         -op-status | --op-status)
             OP_ID="${2}"
             ACTIONS+=(operation_status)

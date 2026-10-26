@@ -41,3 +41,42 @@ op_status() { # id -> prints state file
     [ -f "${f}" ] || { echo "ERROR! Unknown operation '${1}'." >&2; return 1; }
     cat "${f}"
 }
+
+op_list() { # -> JSON array of all operation states for this VM
+    local DIR F JSON="" FIRST=1
+    DIR=$(op_dir)
+    for F in "${DIR}"/*.json; do
+        [ -f "${F}" ] || continue
+        [ ${FIRST} -eq 0 ] && JSON+=","
+        FIRST=0
+        JSON+="$(cat "${F}")"
+    done
+    printf '{"operations":[%s]}' "${JSON}"
+}
+
+# Cancel: marks the op cancelled. If the op recorded a workerPid that is
+# still alive it is signalled first — a stale record never kills anyone.
+op_cancel() { # id -> 0/1
+    local F PID
+    F="$(op_dir)/${1}.json"
+    [ -f "${f:-$F}" ] || { echo "ERROR! Unknown operation '${1}'." >&2; return 1; }
+    case "$(sed -n 's/.*"state":"\([^"]*\)".*/\1/p' "${F}")" in
+    completed | failed | cancelled)
+        echo "ERROR! Operation ${1} already finished." >&2; return 1 ;;
+    esac
+    PID=$(sed -n 's/.*"workerPid":\([0-9]*\).*/\1/p' "${F}")
+    if [ -n "${PID}" ] && kill -0 "${PID}" 2>/dev/null; then
+        kill "${PID}" 2>/dev/null || true
+    fi
+    op_set "${1}" cancelled 0 2>/dev/null || sed -i 's/"state":"[^"]*"/"state":"cancelled"/' "${F}"
+    echo " - Operation ${1} cancelled."
+}
+
+# Retention: keep only the newest N op files per VM.
+op_prune() { # keep=N
+    local KEEP="${1:-10}" DIR
+    DIR=$(op_dir)
+    [ -d "${DIR}" ] || return 0
+    # shellcheck disable=SC2012
+    ls -1t "${DIR}"/*.json 2>/dev/null | tail -n +"$((KEEP + 1))" | while IFS= read -r F; do rm -f "${F}"; done
+}
