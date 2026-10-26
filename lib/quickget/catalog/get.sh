@@ -1821,3 +1821,12 @@ function get_os2warp() {
     fi
     echo "https://archive.org/download/IBMOS2Warp4Collection/OS2WARP4-EN.iso"
 }
+
+function get_fedoracore() {
+    # Fedora Core 1-6 (2003-2006) — official Fedora archive, disc 1 of the set
+    local BASE="https://archives.fedoraproject.org/pub/archive/fedora/linux/core/${RELEASE}/i386/iso"
+    local ISO="FC${RELEASE}-i386-disc1.iso"
+    [ "${RELEASE}" = "1" ] && ISO="yarrow-i386-disc1.iso"
+    [ "${RELEASE}" = "2" ] && ISO="FC2-i386-disc1.iso"
+    echo "${BASE}/${ISO}"
+}

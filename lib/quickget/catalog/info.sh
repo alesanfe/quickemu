@@ -41,6 +41,7 @@ function os_info() {
         endeavouros)      INFO="EndeavourOS|-|https://endeavouros.com/|Provides an Arch experience without the hassle of installing it manually for both x86_64 and ARM systems.";;
         endless)          INFO="Endless OS|-|https://www.endlessos.org/os|Completely Free, User-Friendly Operating System Packed with Educational Tools, Games, and More.";;
         fedora)           INFO="Fedora|-|https://www.fedoraproject.org/|Innovative platform for hardware, clouds, and containers, built with love by you.";;
+        fedoracore)       INFO="Fedora Core|-|https://archives.fedoraproject.org/|Historic Fedora Core 1-6 (pre-Fedora 7), official archive.";;
         freebsd)          INFO="FreeBSD|-|https://www.freebsd.org/|Operating system used to power modern servers, desktops, and embedded platforms.";;
         freedos)          INFO="FreeDOS|-|https://freedos.org/|DOS-compatible operating system that you can use to play classic DOS games, run legacy business software, or develop embedded systems.";;
         garuda)           INFO="Garuda Linux|-|https://garudalinux.org/|Feature rich and easy to use Linux distribution.";;
@@ -222,6 +223,7 @@ function os_support() {
     endless \
     esfera \
     fedora \
+    fedoracore \
     freebsd \
     freedos \
     garuda \

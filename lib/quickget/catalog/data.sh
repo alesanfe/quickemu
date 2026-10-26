@@ -1216,3 +1216,7 @@ function releases_os2warp() {
     echo 4 3
 }
 
+function releases_fedoracore() {
+    echo 6 5 4 3 2 1
+}
+
