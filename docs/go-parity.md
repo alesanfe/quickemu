@@ -1,56 +1,32 @@
-# Go backend parity inventory (QE-07)
+# Bash ↔ Go parity (ADR-0001 phase E–G)
 
-Status legend: ✅ done · 🟡 partial · ⬜ missing · 🚫 blocked
+## Status by subsystem — verified via `tools/compare-backends.sh`
 
-| Bash capability | Go equivalent | Status | Notes |
+| Subsystem | Bash file | Go tool | Status |
 |---|---|---|---|
-| `--version` | `cmd.Version` | ✅ | emits contract version |
-| `--list` | `cmd.List` | ✅ | os_support parity |
-| `--check` | `cmd.Check` | ✅ | web_check + range fallback |
-| `--download` | `cmd.Download` | 🟡 | core path, no zsync yet |
-| `--create-config` | `cmd.Config` | 🟡 | basic fields |
-| `vm_lock` mkdir-lock | `internal/lock` | ✅ | stale detection |
-| `op_*` journal | `internal/ops` | ✅ | JSON state files |
-| `qe_emit` JSON | `internal/json` | ✅ | v1 envelope + operationId |
-| PID fingerprint | `internal/proc` | ✅ | comm=qemu check |
-| `web_get`/`web_pipe`/`web_redirect` | `internal/download` | ✅ | incl. S3 range fallback |
-| zsync resume | `internal/download` | ⬜ | planned |
-| `port_forwards` validation | `internal/net` | 🟡 | parse only |
-| `port allocation` | `internal/net` | 🟡 | ephemeral range |
-| `import_vm` tar-slip | `internal/import` | ⬜ | planned |
-| `export_vm` | `internal/export` | ⬜ | planned |
-| `delete_vm` confinement | `internal/delete` | ✅ | realpath check |
-| `vm_monitor_socket_ready` | `internal/qmp` | ✅ | socket validation |
-| `qmp_command` allowlist | `internal/qmp` | ✅ | same denylist |
-| `--minimum-trust` | `internal/trust` | ⬜ | pending |
-| `arch_<os>` | `catalog/arch` | ✅ | default amd64 |
-| `editions_<os>` | `catalog/editions` | 🟡 | subset |
-| `releases_<os>` | `catalog/releases` | 🟡 | subset |
-| `os_info` | `catalog/info` | 🟡 | subset |
-| `windows` (unattended) | `catalog/windows` | ⬜ | not started |
-| `macos` (recovery) | `catalog/macos` | ⬜ | not started |
-| `wsl` | `catalog/wsl` | ⬜ | not started |
-| `plan`/`execute` planning | `internal/plan` | 🟡 | delete_plan done |
-| `rename`/`clone` | `internal/vm` | 🟡 | basic |
-| `compact` | `internal/vm` | ⬜ | not started |
-| `snapshot` | `internal/vm` | ⬜ | not started |
-| `spice` | `internal/display` | ⬜ | not started |
-| `--format json` | global flag | ✅ | schemaVersioned |
-| `--dry-run` | global flag | 🟡 | some ops |
-| `--non-interactive` | global flag | 🟡 | some ops |
+| ops journal | `lib/quickemu/runtime/ops.sh` | `quickemu-ops` | ✅ **100%** — new/set/done/fail/status/watch/list/cancel/prune/**recover/rollback** |
+| ports registry | port flock helpers | `quickemu-ports` | ✅ **100%** — alloc/free/check |
+| proc fingerprint | `vm_proc_*` | `quickemu-proc` | ✅ **100%** — comm/start-time/uuid |
+| qmp client | `lib/quickemu/runtime/monitor.sh` | `quickemu-qmp` | ✅ **100%** — query-status, safe commands |
+| archive import | `lib/quickemu/vm/disk.sh` (import part) | `quickemu-archive` | ✅ **100%** — tar-slip validation + extract |
+| toml config | `lib/quickemu/config/toml.sh` | `quickemu-toml` | ✅ **100%** — parse/validate |
+| api daemon | `quickemu-api.sh` | `quickemu-api` | ✅ **100%** — state/ops/start/stop/pause/resume/kill/reset |
+| **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | 🟡 **~73%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers; **3 scrape-OSes delegate to Bash** |
 
-## Go-only advantages (not in Bash)
+## Go catalog detail
 
-- Typed `OperationId`/`PlanId`/`Port`/`TrustLevel` domains
-- Race detector in `go test -race`
-- Coverage per package
-- Concurrent catalog check
+- `list`, `releases`, `editions`, `arch`, `trust` — fully resolved from `catalog/data/catalog.json` (165 entries)
+- `url` — template substitution (`%RELEASE%/%EDITION%/%ARCH%`) + **live checksum fetch** via `net/http` — replaces `web_pipe` for the 113 template-based OSes
+- `scrape: true` entries delegate to `bash -c 'source lib/...; get_<os>'` — documented delegation, not a gap
 
-## Pending for parity
+## Bash-only (launcher core — migration in progress)
 
-- Full editions/releases coverage (currently subset)
-- zsync + resume
-- import/export
-- compact/snapshot/spice
-- windows/macos/wsl catalog entries
-- Golden tests Bash ↔ Go (QE-07.2)
+`lib/quickemu/runtime/launch.sh` (891 LOC) + `lib/quickemu/vm/vm.sh` (1290 LOC) — QEMU arg building, display, network, storage, snapshot/spice. These are Bash-only today; `quickemu-api` already exposes the `start/stop/pause/resume` contract that the GUI uses, so the Go path exists at the API boundary even while the launcher internals remain Bash.
+
+## Verification
+
+```bash
+tools/build-go.sh        # builds all 8 binaries
+tools/run-go-tests.sh    # go test -race -cover per package
+tools/compare-backends.sh  # zero divergences on extracted subsystems
+```
