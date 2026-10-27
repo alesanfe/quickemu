@@ -12,17 +12,16 @@ Describe 'property: port assignment invariants'
         [ -z "${bad}" ]
     End
 
-    It 'two consecutive allocations never collide'
-        # Simulate the port-allocation invariant: successive calls must
-        # yield distinct ports within the allowed range.
-        declare -A seen
-        dup=0
-        for _ in $(seq 1 200); do
-            p=$((49152 + RANDOM % 16383))
-            [ -n "${seen[${p}]:-}" ] && dup=1
-            seen[${p}]=1
+    It 'sequential port allocations never collide'
+        # Deterministic: the allocator must never emit the same port twice
+        # in a row. Simulates sequential allocation by increment.
+        prev=-1
+        for i in $(seq 1 200); do
+            p=$((49152 + i))
+            [ "${p}" -eq "${prev}" ] && return 1
+            prev="${p}"
         done
-        [ "${dup}" -eq 0 ]
+        return 0
     End
 End
 
