@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -87,28 +88,50 @@ func biosArgs(c Conf, osName, arch string) []string {
 }
 
 func networkArgs(c Conf, t OsTuning) []string {
-	net := c.get("network", "user")
-	ssh := c.get("ssh_port", "")
+	// vm.sh network emit parity:
+	//   network=""      -> user: -device D,netdev=nic[M] -netdev user,hostname=VM[fwd],id=nic
+	//   network=none    -> -nic none
+	//   network=restrict-> -device D,netdev=nic[M] -netdev user,hostname=VM,restrict=y,id=nic
+	//   network=passt   -> -device D,netdev=nic[M] -netdev passt,id=nic
+	//   network=<X>     -> bridge: -nic bridge,br=X,helper=<h>,model=D[M]
+	// 'bridge' conf key overrides network (vm.sh line ~961).
+	net := c.get("network", "")
+	if b := c.get("bridge", ""); b != "" {
+		net = b
+	}
+	vm := c["_vmname"]
+	mac := ""
+	if m := c.get("macaddr", c.get("mac_addr", "")); m != "" && net != "none" {
+		mac = ",mac=" + m
+	}
 	var a []string
 	switch net {
-	case "user", "":
-		fwd := ""
-		if ssh != "" {
-			fwd = ",hostfwd=tcp::" + ssh + "-:22"
-		}
-		a = append(a, "-netdev", "user,id=net0"+fwd, "-device", t.NetDevice+",netdev=net0")
-	case "bridge":
-		br := c.get("bridge", "br0")
-		mac := c.get("mac_addr", "")
-		nd := "-netdev"
-		args := "bridge,id=net0,br=" + br
-		dev := t.NetDevice + ",netdev=net0"
-		if mac != "" {
-			dev += ",mac=" + mac
-		}
-		a = append(a, nd, args, "-device", dev)
 	case "none":
-		// no net device
+		return []string{"-nic", "none"}
+	case "restrict":
+		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
+			"-netdev", "user,hostname=" + vm + ",restrict=y,id=nic"}
+	case "passt":
+		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
+			"-netdev", "passt,id=nic"}
+	case "":
+		// user mode: hostfwd appended to the user netdev
+		fwd := ""
+		if p := c.get("ssh_port", ""); p != "" {
+			fwd = ",hostfwd=tcp:127.0.0.1:" + p + "-:22"
+		}
+		for _, pf := range strings.Fields(c.get("port_forwards", "")) {
+			kv := strings.SplitN(pf, ":", 2)
+			if len(kv) == 2 {
+				fwd += ",hostfwd=tcp::" + kv[0] + "-:" + kv[1] + ",hostfwd=udp::" + kv[0] + "-:" + kv[1]
+			}
+		}
+		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
+			"-netdev", "user,hostname=" + vm + fwd + ",id=nic"}
+	default:
+		// bridge mode: network value IS the interface name
+		helper, _ := exec.LookPath("qemu-bridge-helper")
+		return []string{"-nic", "bridge,br=" + net + ",helper=" + helper + ",model=" + t.NetDevice + mac}
 	}
 	return a
 }

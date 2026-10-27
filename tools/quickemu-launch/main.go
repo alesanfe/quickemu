@@ -52,6 +52,7 @@ func main() {
 	}
 	conf := applyPresets(parseConf(os.Args[1]))
 	conf["_vmdir"] = filepath.Dir(os.Args[1])
+	conf["_vmname"] = strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	if len(os.Args) > 2 && os.Args[2] == "--validate" {
 		if errs := validateConf(conf, os.Args[1]); len(errs) > 0 {
 			for _, e := range errs {

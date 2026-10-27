@@ -3,6 +3,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -65,27 +68,49 @@ func audioArgs(c Conf, osName string, t OsTuning) []string {
 	if t.SoundCard != "" {
 		sc = t.SoundCard
 	}
-	duplex := "hda-duplex"
-	switch osName {
-	case "windows":
-		sc = "ich9-intel-hda"
-	case "macos":
-		sc = "virtio-sound-pci"
-	case "linux":
-		sc = "intel-hda"
-	}
-	switch sc {
-	case "none":
+	if sc == "none" {
 		return nil
-	case "ich9-intel-hda", "intel-hda":
-		return []string{"-device", sc + " -device " + duplex + ",audiodev=audio0", "-audiodev", "pa,id=audio0,server=unix:/tmp/pulse-socket"}
-	case "usb-audio":
-		return []string{"-device", "usb-audio,audiodev=audio0", "-audiodev", "pa,id=audio0,server=unix:/tmp/pulse-socket"}
-	case "virtio-sound-pci":
-		return []string{"-device", "virtio-sound-pci,audiodev=audio0", "-audiodev", "pa,id=audio0,server=unix:/tmp/pulse-socket"}
-	default:
-		return []string{"-device", sc}
 	}
+	// AUDIO_DEV by display mode (display.sh): spice for headless/spice,
+	// coreaudio for cocoa, else host driver (pipewire>pa>alsa by socket).
+	display := c.get("display", "none")
+	var backend string
+	switch display {
+	case "cocoa":
+		backend = "coreaudio,id=audio0"
+	case "none", "spice", "spice-app":
+		backend = "spice,id=audio0"
+	default:
+		backend = audioDriver() + ",id=audio0"
+	}
+	duplex := c.get("sound_duplex", "hda-micro")
+	var a []string
+	switch sc {
+	case "ich9-intel-hda", "intel-hda":
+		a = append(a, "-audiodev", backend, "-device", sc, "-device", duplex+",audiodev=audio0")
+	case "usb-audio", "virtio-sound-pci", "ac97", "es1370", "sb16":
+		a = append(a, "-audiodev", backend, "-device", sc+",audiodev=audio0")
+	default:
+		a = append(a, "-audiodev", backend, "-device", sc)
+	}
+	return a
+}
+
+// audioDriver: pipewire > pa > alsa, selected by host socket presence —
+// same precedence as configure_display (QEMU -audio-help check skipped:
+// driver availability varies by build, sockets are the stable signal).
+func audioDriver() string {
+	rt := os.Getenv("XDG_RUNTIME_DIR")
+	if rt == "" {
+		rt = "/run/user/1000"
+	}
+	if _, err := os.Stat(filepath.Join(rt, "pipewire-0")); err == nil {
+		return "pipewire"
+	}
+	if _, err := os.Stat(filepath.Join(rt, "pulse/native")); err == nil {
+		return "pa"
+	}
+	return "alsa"
 }
 
 func storageArgs(c Conf, dir string, t OsTuning) []string {
@@ -113,4 +138,41 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		a = append(a, "-device", "nvme,drive=nvme0,serial=nvme0")
 	}
 	return a
+}
+
+// fileshareArgs: fileshare_param_check + configure_file_sharing parity —
+// 9p fsdev for the public share dir. public_dir conf key, "none"
+// disables; auto-detects xdg-user-dir PUBLICSHARE else ~/Public.
+func fileshareArgs(c Conf, dir string) []string {
+	pub := c.get("public_dir", "")
+	if pub == "none" {
+		return nil
+	}
+	if pub == "" {
+		if out, err := exec.Command("xdg-user-dir", "PUBLICSHARE").Output(); err == nil {
+			pub = strings.TrimSpace(string(out))
+		}
+		if pub == "" {
+			if h := os.Getenv("HOME"); h != "" {
+				if _, err := os.Stat(filepath.Join(h, "Public")); err == nil {
+					pub = filepath.Join(h, "Public")
+				}
+			}
+		}
+	}
+	if pub == "" {
+		return nil
+	}
+	if st, err := os.Stat(pub); err != nil || !st.IsDir() {
+		fmt.Fprintf(os.Stderr, " - WARNING! Public directory does not exist: %s\n", pub)
+		return nil
+	}
+	tag := "Public-" + strings.ToLower(os.Getenv("USER"))
+	if len(tag) > 31 {
+		tag = tag[:31]
+	}
+	return []string{
+		"-fsdev", "local,id=fsdev0,path=" + pub + ",security_model=mapped-xattr",
+		"-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=" + tag,
+	}
 }

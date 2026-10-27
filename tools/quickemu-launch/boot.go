@@ -27,15 +27,6 @@ func bootMediaArgs(c Conf, dir string) []string {
 	return a
 }
 
-func fileshareArgs(c Conf, dir string) []string {
-	var a []string
-	if c.get("fileshare", "") != "" {
-		a = append(a, "-fsdev", "local,id=fsdev0,path="+c["fileshare"]+",security_model=mapped-xattr")
-		a = append(a, "-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=hostshare")
-	}
-	return a
-}
-
 func passthruArgs(c Conf) []string {
 	var a []string
 	for _, d := range strings.Fields(c.get("usb_devices", "")) {
