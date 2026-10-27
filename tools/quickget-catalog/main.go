@@ -28,6 +28,9 @@ type Entry struct {
 	// Scrape marks OSes whose URL must be re-resolved live — handled
 	// natively by scrape() (mirrors the Bash get_<os> logic 1:1).
 	Scrape bool `json:"scrape,omitempty"`
+	// QArch marks templates dumped from get_ bodies that used
+	// ${QEMU_ARCH} (x86_64/aarch64) instead of ${ARCH} (amd64/arm64).
+	QArch bool `json:"qarch,omitempty"`
 }
 
 type Catalog struct {
@@ -66,10 +69,17 @@ func catalogPath() string {
 	return filepath.Join(base, "catalog", "data", "catalog.json")
 }
 
+func infoPath() string {
+	if p := os.Getenv("QUICKEMU_INFO"); p != "" {
+		return p
+	}
+	return filepath.Join(filepath.Dir(catalogPath()), "info.json")
+}
+
 func main() {
 	args := os.Args[1:]
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "usage: quickget-catalog <list|releases|editions|arch|url|trust> <os> [release] [edition]")
+		fmt.Fprintln(os.Stderr, "usage: quickget-catalog <list|releases|editions|arch|url|check|info|info-json|trust> <os> [release] [edition] [arch]")
 		os.Exit(2)
 	}
 	cat, err := loadCatalog(catalogPath())
@@ -109,17 +119,20 @@ func main() {
 		if e == nil {
 			os.Exit(1)
 		}
-		release, edition := "", ""
+		release, edition, arch := "", "", "amd64"
 		if len(args) > 2 {
 			release = args[2]
 		}
 		if len(args) > 3 {
 			edition = args[3]
 		}
+		if len(args) > 4 {
+			arch = args[4]
+		}
 		if e.Scrape {
 			// Live resolution is native Go (scrape.go) — the scraper
 			// mirrors the Bash get_<os> logic 1:1. No Bash delegation.
-			full, hash, err := scrape(e.OS, release, edition, "amd64")
+			full, hash, err := scrape(e.OS, release, edition, arch)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "scrape:%s %v\n", e.OS, err)
 				os.Exit(3)
@@ -131,12 +144,74 @@ func main() {
 			fmt.Println(out)
 			return
 		}
-		full, hash := resolveURL(e, release, edition, "amd64")
+		full, hash := resolveURL(e, release, edition, arch)
 		out := full
 		if hash != "" {
 			out = full + " " + hash
 		}
 		fmt.Println(out)
+	case "check":
+		// check <os> <release> [edition] [arch] — resolve the URL then
+		// validate reachability like web_check: HEAD first, ranged GET
+		// fallback (presigned URLs reject HEAD).
+		e := find(cat, args[1])
+		if e == nil {
+			os.Exit(1)
+		}
+		release, edition, arch := "", "", "amd64"
+		if len(args) > 2 {
+			release = args[2]
+		}
+		if len(args) > 3 {
+			edition = args[3]
+		}
+		if len(args) > 4 {
+			arch = args[4]
+		}
+		label := e.OS + "-" + release
+		if edition != "" {
+			label += "-" + edition
+		}
+		if !archSupported(e, arch) {
+			fmt.Printf("%s: %-35s (not available for %s)\n", "SKIP", label, arch)
+			return
+		}
+		full := ""
+		if e.Scrape {
+			f, _, err := scrape(e.OS, release, edition, arch)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "scrape:%s %v\n", e.OS, err)
+				os.Exit(3)
+			}
+			full = f
+		} else {
+			full, _ = resolveURL(e, release, edition, arch)
+		}
+		res := "FAIL"
+		if webCheck(full) {
+			res = "PASS"
+		}
+		fmt.Printf("%s: %-35s %s\n", res, label, full)
+	case "info":
+		// info <os> — PrettyName|Credentials|Homepage|Info (os_info parity)
+		info, err := loadInfo(infoPath())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "info: %v\n", err)
+			os.Exit(1)
+		}
+		inf, ok := info[args[1]]
+		if !ok {
+			os.Exit(1)
+		}
+		fmt.Printf("%s|%s|%s|%s\n", inf.Name, inf.Credentials, inf.Homepage, inf.Info)
+	case "info-json":
+		info, err := loadInfo(infoPath())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "info: %v\n", err)
+			os.Exit(1)
+		}
+		b, _ := json.Marshal(info[args[1]])
+		fmt.Println(string(b))
 	case "trust":
 		e := find(cat, args[1])
 		if e == nil {

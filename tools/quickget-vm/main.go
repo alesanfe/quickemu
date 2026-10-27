@@ -259,6 +259,9 @@ func main() {
 				case "--cloud-init":
 					cloudInitFlag = true
 					i--
+				case "--no-conf":
+					noConf = true
+					i--
 				}
 				i++
 			} else {
@@ -396,7 +399,7 @@ func fetch(url, dest, wantSHA string) int {
 // tool, fetch the checksum file, fetch+verify the image, then mkconf.
 // quickget-catalog is our own Go binary; zsync delegates to the
 // external zsync binary only for .zsync sources (Bash zsync_get).
-var cloudInitFlag bool
+var cloudInitFlag, noConf bool
 
 func getOS(osName, release, edition, dir, arch string) int {
 	cat, err := exec.LookPath("quickget-catalog")
@@ -410,6 +413,13 @@ func getOS(osName, release, edition, dir, arch string) int {
 	}
 	if edition != "" {
 		args = append(args, edition)
+	}
+	if arch != "" {
+		// url takes [arch] as the 4th positional arg.
+		for len(args) < 4 {
+			args = append(args, "")
+		}
+		args = append(args, arch)
 	}
 	out, err := exec.Command(cat, args...).Output()
 	if err != nil {
@@ -470,6 +480,9 @@ func getOS(osName, release, edition, dir, arch string) int {
 		}
 	} else if fetch(url, image, sha) != 0 {
 		return 1
+	}
+	if noConf {
+		return 0
 	}
 	return mkconf(osName, release, edition, filepath.Base(image), "", dir, arch, cloudInitFlag)
 }
