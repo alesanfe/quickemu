@@ -4,12 +4,12 @@
 package main
 
 import (
-	"os/exec"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -136,7 +136,7 @@ func main() {
 			write(w, 403, map[string]any{"errors": []any{map[string]any{"code": "WRITE_DISABLED"}}})
 			return
 		}
-		out, err := runCmd("quickemu", "--vm", filepath.Join(dataDir, "vms", req.VM, req.VM+".conf"), "--"+req.Cmd)
+		out, err := vmCmd(req.VM, req.Cmd)
 		write(w, 200, map[string]any{"data": map[string]any{"output": out, "error": fmt.Sprint(err)}})
 	}))
 	mux.HandleFunc("/v1/health", func(w http.ResponseWriter, _ *http.Request) {
@@ -157,4 +157,40 @@ func main() {
 	}
 	fmt.Println("quickemu-api listening on", listen)
 	http.Serve(ln, mux)
+}
+
+// vmCmd dispatches whitelisted VM ops to the Go backend tools —
+// quickemu-launch for start, quickemu-qmp for monitor commands. No
+// Bash delegation: the .paused marker mirrors pause_vm/resume_vm.
+func vmCmd(vm, cmd string) (string, error) {
+	dir := filepath.Join(dataDir, "vms", vm)
+	conf := filepath.Join(dir, vm+".conf")
+	sock := filepath.Join(dir, vm+"-qmp.socket")
+	qmp := func(c string) (string, error) {
+		return runCmd("quickemu-qmp", "execute", "--socket", sock,
+			"--command", `{"execute":"`+c+`"}`)
+	}
+	switch cmd {
+	case "start":
+		return runCmd("quickemu-launch", conf, "--run")
+	case "shutdown":
+		return qmp("system_powerdown")
+	case "pause":
+		out, err := qmp("stop")
+		if err == nil {
+			os.WriteFile(filepath.Join(dir, vm+".paused"), nil, 0644)
+		}
+		return out, err
+	case "resume":
+		out, err := qmp("cont")
+		if err == nil {
+			os.Remove(filepath.Join(dir, vm+".paused"))
+		}
+		return out, err
+	case "reset":
+		return qmp("system_reset")
+	case "stop", "kill":
+		return qmp("quit")
+	}
+	return "", fmt.Errorf("unsupported cmd %q", cmd)
 }

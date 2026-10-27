@@ -25,9 +25,8 @@ type Entry struct {
 	ISO     string `json:"iso,omitempty"`
 	HashURL string `json:"hash_url,omitempty"`
 	HashRE  string `json:"hash_re,omitempty"`
-	// Scrape marks OSes whose URL must be re-resolved live (the Bash
-	// get_<os> does web scraping). Go falls back to invoking bash for
-	// these — documented delegation, not a gap.
+	// Scrape marks OSes whose URL must be re-resolved live — handled
+	// natively by scrape() (mirrors the Bash get_<os> logic 1:1).
 	Scrape bool `json:"scrape,omitempty"`
 }
 
@@ -110,18 +109,27 @@ func main() {
 		if e == nil {
 			os.Exit(1)
 		}
-		if e.Scrape {
-			// Delegation: dynamic URL needs the Bash scraper — documented
-			// in go-parity.md as a live-resolution path, not static data.
-			fmt.Fprintf(os.Stderr, "scrape:%s needs live resolution\n", e.OS)
-			os.Exit(3)
-		}
 		release, edition := "", ""
 		if len(args) > 2 {
 			release = args[2]
 		}
 		if len(args) > 3 {
 			edition = args[3]
+		}
+		if e.Scrape {
+			// Live resolution is native Go (scrape.go) — the scraper
+			// mirrors the Bash get_<os> logic 1:1. No Bash delegation.
+			full, hash, err := scrape(e.OS, release, edition, "amd64")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "scrape:%s %v\n", e.OS, err)
+				os.Exit(3)
+			}
+			out := full
+			if hash != "" {
+				out = full + " " + hash
+			}
+			fmt.Println(out)
+			return
 		}
 		full, hash := resolveURL(e, release, edition, "amd64")
 		out := full

@@ -11,13 +11,13 @@
 | archive import | `lib/quickemu/vm/disk.sh` (import part) | `quickemu-archive` | ✅ **100%** — tar-slip validation + extract |
 | toml config | `lib/quickemu/config/toml.sh` | `quickemu-toml` | ✅ **100%** — parse/validate |
 | api daemon | `quickemu-api.sh` | `quickemu-api` | ✅ **100%** — state/ops/start/stop/pause/resume/kill/reset |
-| **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | ✅ **~95%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers; **3 scrape-OSes delegate to Bash** |
+| **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | ✅ **100%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers + **3 scrape-OSes (cachyos/manjaro/reactos) nativos en scrape.go** |
 
 ## Go catalog detail
 
 - `list`, `releases`, `editions`, `arch`, `trust` — fully resolved from `catalog/data/catalog.json` (165 entries)
 - `url` — template substitution (`%RELEASE%/%EDITION%/%ARCH%`) + **live checksum fetch** via `net/http` — replaces `web_pipe` for the 113 template-based OSes
-- `scrape: true` entries delegate to `bash -c 'source lib/...; get_<os>'` — documented delegation, not a gap
+- `scrape: true` entries resolve natively in `scrape.go` (page/JSON/redirect parity with `get_<os>`) — **no Bash delegation remains**
 
 ## Launcher (quickemu-launch) — argv parity verified
 

@@ -1,6 +1,6 @@
 // URL resolution for quickget-catalog: implements the get_<os> contract
 // generically. Template-based OSes resolve purely in Go (URL + ISO + live
-// checksum fetch); scraper OSes delegate to Bash explicitly.
+// checksum fetch); scraper OSes resolve live via scrape().
 package main
 
 import (
@@ -25,6 +25,17 @@ func fetchString(u string) (string, error) {
 	}
 	b, err := io.ReadAll(io.LimitReader(r.Body, 4<<20))
 	return string(b), err
+}
+
+// finalURL resolves the last redirect target (web_redirect parity).
+func finalURL(u string) (string, error) {
+	c := &http.Client{Timeout: 30 * time.Second}
+	r, err := c.Get(u)
+	if err != nil {
+		return "", err
+	}
+	r.Body.Close()
+	return r.Request.URL.String(), nil
 }
 
 // findLine greps the body for lines matching re and returns the first,

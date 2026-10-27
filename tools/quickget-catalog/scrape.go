@@ -64,6 +64,92 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u + "/" + iso, sha, nil
+	case "cachyos":
+		// get_cachyos: download page, token after & containing
+		// ISO/<edition>, cut ; field2; hash from <url>.sha256
+		body, err := fetchString("https://cachyos.org/download/")
+		if err != nil {
+			return "", "", err
+		}
+		url := ""
+		for _, tok := range strings.Split(strings.ReplaceAll(body, "&", "\n"), "\n") {
+			if strings.Contains(tok, "ISO/"+edition) && !strings.Contains(tok, "iso.sha") && !strings.Contains(tok, "iso.sig") {
+				if f := strings.SplitN(tok, ";", 3); len(f) >= 2 {
+					url = f[1]
+					break
+				}
+			}
+		}
+		if url == "" {
+			return "", "", fmt.Errorf("cachyos: no ISO/%s link", edition)
+		}
+		sha := ""
+		if b, err := fetchString(url + ".sha256"); err == nil {
+			if f := strings.Fields(b); len(f) > 0 {
+				sha = f[0]
+			}
+		}
+		return url, sha, nil
+	case "manjaro":
+		// get_manjaro: file-info.json manifest; sway uses its own feed;
+		// cinnamon|i3 are community. minimal edition is a .-suffix.
+		typ := "official"
+		manifest := "https://gitlab.manjaro.org/web/iso-info/-/raw/master/file-info.json"
+		if release == "sway" {
+			manifest = "https://mirror.manjaro-sway.download/manjaro-sway/release.json"
+			typ = "sway"
+		} else if release == "cinnamon" || release == "i3" {
+			typ = "community"
+		}
+		body, err := fetchString(manifest)
+		if err != nil {
+			return "", "", err
+		}
+		url := ""
+		if release == "sway" {
+			var arr []struct {
+				Name string `json:"name"`
+				URL  string `json:"url"`
+			}
+			if json.Unmarshal([]byte(body), &arr) == nil {
+				for _, it := range arr {
+					if strings.HasPrefix(it.Name, "manjaro-sway-") && strings.HasSuffix(it.Name, ".iso") {
+						url = it.URL
+						break
+					}
+				}
+			}
+		} else {
+			suffix := ""
+			if edition == "minimal" {
+				suffix = ".minimal"
+			}
+			var doc map[string]any
+			if json.Unmarshal([]byte(body), &doc) == nil {
+				if sec, ok := doc[typ].(map[string]any); ok {
+					if rel, ok := sec[release+suffix].(map[string]any); ok {
+						url, _ = rel["image"].(string)
+					}
+				}
+			}
+		}
+		if url == "" {
+			return "", "", fmt.Errorf("manjaro: no image for %s/%s", release, edition)
+		}
+		sha := ""
+		if b, err := fetchString(url + ".sha512"); err == nil {
+			if f := strings.Fields(b); len(f) > 0 {
+				sha = f[0]
+			}
+		}
+		return url, sha, nil
+	case "reactos":
+		// get_reactos: sourceforge latest-download redirect, no hash.
+		u, err := finalURL("https://sourceforge.net/projects/reactos/files/latest/download")
+		if err != nil {
+			return "", "", err
+		}
+		return u, "", nil
 	default:
 		return "", "", fmt.Errorf("scrape not implemented for %s", osName)
 	}
