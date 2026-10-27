@@ -1810,18 +1810,26 @@ function get_plan9() {
 }
 
 function get_wifislax() {
-    # WiFiSlax 4.10.1 — preserved on archive.org (official site uses JS hosts)
-    local ISO="wifislax-4-10-1-final.iso"
-    echo "https://archive.org/download/wifislax-4-10-1-final_202406/${ISO} d9010acaa7bfa2a16594f3ee0670dc85"
+    # WiFiSlax — preserved on archive.org (official site uses JS hosts)
+    local ISO="wifislax-4-10-1-final.iso" ITEM="wifislax-4-10-1-final_202406"
+    case "${RELEASE}" in
+        4.12)   ISO="wifislax-4-12-final%20%5BPIXIESCRIPT%5D.iso"; ITEM="wifislax-4-9-final";;
+        4.11.1) ISO="Wifislax-4.11.1.iso"; ITEM="Wifislax4.11.1";;
+        4.9)    ISO="wifislax-4-9-final.iso"; ITEM="wifislax-4-9-final";;
+        4.7.2)  ISO="Wifislax-4-7-2-final.iso"; ITEM="wifislax-4-9-final";;
+        4.3)    ISO="wifislax-4-3-fin.iso"; ITEM="wifislax-4-3-fin";;
+    esac
+    echo "https://archive.org/download/${ITEM}/${ISO}"
 }
 
 function get_os2warp() {
-    # IBM OS/2 Warp — preserved on archive.org; needs floppy+CD boot
-    # inside QEMU (historic, no networking support expected)
-    if [ "${RELEASE}" = "3" ]; then
-        echo "https://archive.org/download/ibm-os2-warp-3.0-connect-max-german/CDINST/OS2_Warp3_Connect_Max_de_CD_ROM.iso"
-        return
-    fi
+    # IBM OS/2 — preserved on archive.org; needs floppy+CD boot inside
+    # QEMU (historic, no networking support expected)
+    case "${RELEASE}" in
+        3)   echo "https://archive.org/download/ibm-os2-warp-3.0-connect-max-german/CDINST/OS2_Warp3_Connect_Max_de_CD_ROM.iso"; return;;
+        2.1) echo "https://archive.org/download/ibm-os2-2.1-german/CD-Inst/OS2_CD_ROM.iso"; return;;
+        2.0) echo "https://archive.org/download/ibm-os2-2.0-max-cd-german/OS2Reg20Max/CDINST/OS2_CD_ROM_20_Max.iso"; return;;
+    esac
     echo "https://archive.org/download/IBMOS2Warp4Collection/OS2WARP4-EN.iso"
 }
 

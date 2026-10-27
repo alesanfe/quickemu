@@ -1209,11 +1209,11 @@ function releases_mangaka() {
 }
 
 function releases_wifislax() {
-    echo 4.10.1
+    echo 4.12 4.11.1 4.10.1 4.9 4.7.2 4.3
 }
 
 function releases_os2warp() {
-    echo 4 3
+    echo 4 3 2.1 2.0
 }
 
 function releases_fedoracore() {
