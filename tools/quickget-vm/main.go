@@ -1,0 +1,355 @@
+// quickget-vm: make_vm_config parity — generates the VM .conf next to
+// a downloaded image, with the same guest_os/image-type mapping, disk
+// overrides and per-OS tweaks as lib/quickget/vm/config.sh.
+//
+// usage: quickget-vm mkconf --os <os> --release <r> --edition <e>
+//
+//	--image <file> [--iso <file>] [--dir <vmdir>]
+//	[--arch arm64|x86_64] [--unattended] [--cloud-init]
+package main
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+// guestFor: the OS -> guest_os/IMAGE_TYPE case table.
+func guestFor(osName, release string) (guest, imgType string) {
+	switch {
+	case osName == "batocera":
+		return "batocera", "img"
+	case osName == "custom":
+		return osName, "iso"
+	case osName == "dragonflybsd":
+		return "dragonflybsd", "iso"
+	case osName == "easyos" || osName == "openfyde":
+		return "linux", "img"
+	case osName == "freebsd" || osName == "ghostbsd":
+		return "freebsd", "iso"
+	case osName == "haiku" || osName == "freedos" || osName == "kolibrios" ||
+		osName == "netbsd" || osName == "openbsd" || osName == "reactos" ||
+		osName == "templeos":
+		return osName, "iso"
+	case osName == "macos":
+		return "macos", "img"
+	case osName == "openindiana":
+		return "solaris", "iso"
+	case strings.HasPrefix(osName, "ubuntu"):
+		if !strings.Contains(release, "daily") {
+			num := strings.ReplaceAll(release, ".", "")
+			n := 0
+			fmt.Sscanf(num, "%d", &n)
+			if n > 0 && n < 1604 {
+				return "linux_old", "iso"
+			}
+		}
+		return "linux", "iso"
+	case osName == "windows":
+		return "windows", "iso"
+	case osName == "windows-server":
+		return "windows-server", "iso"
+	default:
+		return "linux", "iso"
+	}
+}
+
+// osTweaks: the per-OS conf append block (config.sh case ${OS}).
+func osTweaks(osName, release, edition string) []string {
+	var t []string
+	switch osName {
+	case "alma", "centos-stream", "endless", "garuda", "gentoo", "kali", "nixos", "omarchy", "oraclelinux", "popos", "rockylinux":
+		t = append(t, `disk_size="32G"`)
+	case "archlinux":
+		t = append(t, `secureboot="on"`, `tpm="on"`, `disk_size="32G"`)
+	case "openindiana":
+		t = append(t, `boot="legacy"`, `disk_size="32G"`)
+	case "batocera":
+		t = append(t, `disk_size="8G"`)
+	case "bazzite":
+		t = append(t, `disk_size="64G"`)
+	case "qubes":
+		t = append(t, `disk_size="128G"`)
+	case "dragonflybsd", "haiku", "openbsd", "netbsd", "slackware", "slax", "tinycore":
+		t = append(t, `boot="legacy"`)
+	case "debian":
+		if strings.Contains(release, "12") || strings.Contains(release, "13") {
+			t = append(t, `tpm="on"`)
+		}
+		t = append(t, `secureboot="on"`)
+	case "deepin":
+		t = append(t, `disk_size="64G"`, `ram="4G"`)
+	case "freedos":
+		t = append(t, `boot="legacy"`, `disk_size="4G"`, `ram="256M"`)
+	case "kolibrios":
+		t = append(t, `boot="legacy"`, `disk_size="2G"`, `ram="128M"`)
+	case "templeos":
+		t = append(t, `boot="legacy"`, `disk_size="2G"`, `ram="512M"`)
+	case "slint":
+		t = append(t, `disk_size="50G"`)
+	case "slitaz":
+		t = append(t, `boot="legacy"`, `disk_size="4G"`, `ram="512M"`)
+	case "ubuntu-server":
+		t = append(t, `disk_size="10G"`, `ram="4G"`)
+		if strings.Contains(release, "22.04") {
+			t = append(t, `tpm="on"`)
+		}
+	case "vanillaos":
+		t = append(t, `disk_size="64G"`)
+	case "zorin":
+		if edition == "education64" || edition == "edulite64" {
+			t = append(t, `disk_size="32G"`)
+		}
+	case "reactos":
+		t = append(t, `boot="legacy"`, `disk_size="12G"`, `ram="2048M"`)
+	case "macos":
+		t = append(t, `disk_size="128G"`, `macos_release="`+release+`"`)
+		if release == "monterey" {
+			t = append(t, "cpu_cores=2")
+		}
+	case "elementary":
+		if release == "8.1" {
+			t = append(t, `display="spice"`)
+		}
+	case "proxmox-ve":
+		t = append(t, `disk_size="20G"`, `ram="4G"`)
+	}
+	if osName == "ubuntu" && strings.Contains(release, "daily") {
+		t = append(t, `disk_size="32G"`)
+	}
+	if strings.HasPrefix(osName, "windows") {
+		t = append(t, `disk_size="64G"`)
+	}
+	if osName == "windows" && release == "11" || osName == "windows-server" && release == "2022" {
+		t = append(t, `tpm="on"`, `secureboot="off"`)
+	}
+	return t
+}
+
+func hostArch() string {
+	if runtime.GOARCH == "arm64" {
+		return "arm64"
+	}
+	return "x86_64"
+}
+
+func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string) int {
+	if dir == "" {
+		dir = osName + "-" + release
+		if edition != "" {
+			dir += "-" + edition
+		}
+	}
+	guest, imgType := guestFor(osName, release)
+
+	// Disk-image downloads override the media type: the file becomes the
+	// VM disk itself rather than installer media.
+	diskLine := `disk_img="` + dir + `/disk.qcow2"`
+	typeLine := imgType + `="` + dir + `/` + imageFile + `"`
+	diskFormat := "qcow2"
+	switch strings.ToLower(imageFile) {
+	case "":
+		typeLine = ""
+	default:
+		switch {
+		case strings.HasSuffix(strings.ToLower(imageFile), ".qcow2"):
+			diskFormat = "qcow2"
+			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
+			typeLine = ""
+		case strings.HasSuffix(strings.ToLower(imageFile), ".vmdk"):
+			diskFormat = "vmdk"
+			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
+			typeLine = ""
+		case strings.HasSuffix(strings.ToLower(imageFile), ".raw"), strings.HasSuffix(strings.ToLower(imageFile), ".img"):
+			diskFormat = "raw"
+			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
+			typeLine = ""
+		}
+	}
+
+	confFile := dir + ".conf"
+	if _, err := os.Stat(confFile); err == nil {
+		fmt.Println(confFile + " already exists")
+		return 0
+	}
+	var b strings.Builder
+	qe, _ := exec.LookPath("quickemu")
+	if qe == "" {
+		qe = "quickemu"
+	}
+	b.WriteString("#!" + qe + " --vm\n")
+	b.WriteString("guest_os=\"" + guest + "\"\n")
+	if arch != "" && arch != hostArch() {
+		if arch == "arm64" {
+			b.WriteString("arch=\"aarch64\"\n")
+		} else {
+			b.WriteString("arch=\"x86_64\"\n")
+		}
+	}
+	b.WriteString(diskLine + "\n")
+	if typeLine == "" {
+		b.WriteString("disk_format=\"" + diskFormat + "\"\n")
+	} else {
+		b.WriteString(typeLine + "\n")
+	}
+	for _, l := range osTweaks(osName, release, edition) {
+		b.WriteString(l + "\n")
+	}
+	if isoFile != "" {
+		b.WriteString("fixed_iso=\"" + dir + "/" + isoFile + "\"\n")
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if err := os.WriteFile(confFile, []byte(b.String()), 0755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Println("Making " + confFile)
+	fmt.Println("\nTo start your " + osName + " virtual machine run:")
+	fmt.Println("    quickemu --vm " + confFile)
+	return 0
+}
+
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: quickget-vm <mkconf|fetch> ...")
+		os.Exit(2)
+	}
+	if os.Args[1] == "fetch" {
+		var url, dest, sha string
+		for i := 2; i < len(os.Args); i++ {
+			v := ""
+			if i+1 < len(os.Args) {
+				v = os.Args[i+1]
+			}
+			switch os.Args[i] {
+			case "--url":
+				url = v
+			case "--dest":
+				dest = v
+			case "--sha256":
+				sha = v
+			}
+			i++
+		}
+		if url == "" || dest == "" {
+			fmt.Fprintln(os.Stderr, "fetch: --url and --dest are required")
+			os.Exit(2)
+		}
+		os.Exit(fetch(url, dest, sha))
+	}
+	if os.Args[1] != "mkconf" {
+		fmt.Fprintln(os.Stderr, "usage: quickget-vm <mkconf|fetch> ...")
+		os.Exit(2)
+	}
+	var osName, release, edition, image, iso, dir, arch string
+	for i := 2; i < len(os.Args); i++ {
+		v := ""
+		if i+1 < len(os.Args) {
+			v = os.Args[i+1]
+		}
+		switch os.Args[i] {
+		case "--os":
+			osName = v
+		case "--release":
+			release = v
+		case "--edition":
+			edition = v
+		case "--image":
+			image = v
+		case "--iso":
+			iso = v
+		case "--dir":
+			dir = v
+		case "--arch":
+			arch = v
+		default:
+			continue
+		}
+		i++
+	}
+	if osName == "" || image == "" {
+		fmt.Fprintln(os.Stderr, "mkconf: --os and --image are required")
+		os.Exit(2)
+	}
+	_ = filepath.Separator
+	os.Exit(mkconf(osName, release, edition, image, iso, dir, arch))
+}
+
+// fetch: web_get/check_hash parity — download url -> dest via a .part
+// staging file (atomic rename), resume a partial download with the
+// Range header, and verify sha256 when provided. Uses net/http so no
+// curl/zsync dependency is required.
+func fetch(url, dest, wantSHA string) int {
+	part := dest + ".part"
+	var have int64
+	if st, err := os.Stat(part); err == nil {
+		have = st.Size()
+	}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if have > 0 {
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", have))
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		fmt.Fprintf(os.Stderr, "download failed: HTTP %d\n", resp.StatusCode)
+		return 1
+	}
+	// Server ignored Range -> restart the staging file.
+	if have > 0 && resp.StatusCode != http.StatusPartialContent {
+		have = 0
+	}
+	flag := os.O_CREATE | os.O_WRONLY
+	if have > 0 {
+		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
+	}
+	f, err := os.OpenFile(part, flag, 0644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		f.Close()
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	f.Close()
+	if wantSHA != "" {
+		b, err := os.ReadFile(part)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		sum := fmt.Sprintf("%x", sha256.Sum256(b))
+		if !strings.EqualFold(sum, wantSHA) {
+			os.Remove(part)
+			fmt.Fprintf(os.Stderr, "checksum mismatch: got %s want %s\n", sum, wantSHA)
+			return 1
+		}
+	}
+	if err := os.Rename(part, dest); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	fmt.Println(" - Downloaded " + dest)
+	return 0
+}
