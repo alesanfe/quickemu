@@ -46,6 +46,7 @@ func main() {
 		os.Exit(2)
 	}
 	conf := parseConf(os.Args[1])
+	conf["_vmdir"] = filepath.Dir(os.Args[1])
 	dir := filepath.Dir(os.Args[1])
 	osName := conf.get("guest_os", "linux")
 	arch := conf.get("arch", "x86_64")
@@ -138,6 +139,9 @@ func main() {
 	args = append(args, "-qmp", "unix:"+filepath.Join(dir, "qmp.sock")+",server,nowait")
 	args = append(args, "-serial", "unix:"+filepath.Join(dir, "serial.sock")+",server,nowait")
 
+	args = append(args, displayArgs(conf, dir, osName, arch)...)
+	args = append(args, audioArgs(conf, osName)...)
+	args = append(args, osQuirks(conf, osName, arch)...)
 	// usb passthrough
 	if devs := conf.get("usb_devices", ""); devs != "" {
 		for _, d := range strings.Fields(devs) {
