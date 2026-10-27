@@ -1512,9 +1512,15 @@ function get_truenas-scale() {
 }
 
 function get_ponyos() {
-    local ISO="image.iso"
+    # Asset name varies by release (image.iso / ponyos.iso / ponyos-grub.iso)
+    local ISO="image.iso" HASH=""
+    case "${RELEASE}" in
+        9.0) HASH="1ce72ca37b038e81874d090d5544ccccc453be7f188b5ee96656b754c6881385";;
+        8.0|5.0) ISO="ponyos.iso";;
+        6.0)     ISO="ponyos-grub.iso";;
+    esac
     local URL="https://github.com/klange/ponyos/releases/download/v${RELEASE}"
-    echo "${URL}/${ISO} 1ce72ca37b038e81874d090d5544ccccc453be7f188b5ee96656b754c6881385"
+    echo "${URL}/${ISO} ${HASH}"
 }
 
 
@@ -1616,7 +1622,7 @@ function get_whonix() {
 }
 
 function get_amogos() {
-    local ISO="AmogOS-1.5.0-x86_64.iso"
+    local ISO="AmogOS-${RELEASE#x64-}-x86_64.iso"
     local URL="https://github.com/Amog-OS/AmogOS/releases/download/${RELEASE}"
     echo "${URL}/${ISO}"
 }

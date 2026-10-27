@@ -997,7 +997,7 @@ function editions_openmandriva() { echo plasma plasma-wayland gnome lxqt; }
 function editions_q4os() { echo kde trinity; }
 
 function releases_ponyos() {
-    echo 9.0
+    echo 9.0 8.0 7.0 6.0 5.0
 }
 
 
@@ -1072,7 +1072,7 @@ function releases_whonix() {
 
 
 function releases_amogos() {
-    echo x64-1.5.0
+    echo x64-1.5.0 x64-1.4.1 x64-1.4.0 x64-1.3.0 x64-1.2.0
 }
 
 
