@@ -6,7 +6,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@08c8c92ee2c4c71f70f4824f1b2b3c4d5e6f7a8b  # v7
       - name: Install dependencies
         run: |
           sudo apt-get -y update
@@ -18,3 +18,21 @@ jobs:
           echo "$PWD/shellspec-0.28.1" >> "$GITHUB_PATH"
       - name: Run unit + contract tests
         run: shellspec
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - uses: actions/checkout@08c8c92ee2c4c71f70f4824f1b2b3c4d5e6f7a8b  # v7
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install qemu-utils qemu-system-x86 socat
+      - name: Install shellspec
+        run: |
+          curl -sSfL https://github.com/shellspec/shellspec/archive/refs/tags/0.28.1.tar.gz | tar -xz
+          chmod +x shellspec-0.28.1/shellspec
+          echo "$PWD/shellspec-0.28.1" >> "$GITHUB_PATH"
+      - name: Run e2e (TCG, real QEMU)
+        run: shellspec spec/e2e/
+        timeout-minutes: 15
