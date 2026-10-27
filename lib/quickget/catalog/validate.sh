@@ -82,7 +82,8 @@ function catalog_check_os_arch() {
 function catalog_resolve_edition() {
     local OS="${1}"
     validate_release "releases_${OS}"
-    EDITIONS=("$(editions_"${OS}")")
+    # editions_* may emit one-per-line (jq output); normalize to a space-separated list
+    EDITIONS=("$(editions_"${OS}" | tr -d '\r\n' | tr -s ' ')")
     if [ -n "${2}" ]; then
         EDITION="${2}"
         if [[ ! " ${EDITIONS[*]} " =~ \ "${EDITION}"\  ]]; then
