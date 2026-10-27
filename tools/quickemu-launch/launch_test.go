@@ -49,7 +49,7 @@ func TestSpiceVariants(t *testing.T) {
 		if access != "" {
 			c["access"] = access
 		}
-		a := spiceArgs(c, "/vms/x", "x", "linux")
+		a := spiceArgs(c, "/vms/x", "x", "linux", OsTuning{})
 		for i, tok := range a {
 			if tok == "-spice" && i+1 < len(a) {
 				return a[i+1]

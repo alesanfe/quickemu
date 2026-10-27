@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"strings"
+)
 
 // spiceArgs: configure_display SPICE stack parity — emitted when
 // display is none/spice/spice-app (Bash always sets up the SPICE
@@ -13,7 +17,7 @@ import "fmt"
 //	none           -> disable-ticketing=on,port=<p>,addr=127.0.0.1|<ip|"">
 //
 // `access` in the conf stands in for the Bash --access CLI option.
-func spiceArgs(c Conf, dir, vmname, osName string) []string {
+func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 	d := c.get("display", "none")
 	var a []string
 	// -spice + agent/vdagent/webdav channels only in the spice gate;
@@ -55,8 +59,13 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 		a = append(a, "-chardev", "spiceport,id=webdav0,name=org.spice-space.webdav.0")
 		a = append(a, "-device", "virtserialport,chardev=webdav0,name=org.spice-space.webdav.0")
 	}
-	// usb redirection (3 channels) + smartcard passthrough
-	a = append(a, "-device", "qemu-xhci,id=spicepass")
+	// usb redirection (3 channels) + smartcard passthrough — the
+	// spicepass controller follows USB_HOST_PASSTHROUGH_CONTROLLER.
+	spctl := t.UsbPassthrough
+	if spctl == "" {
+		spctl = "qemu-xhci"
+	}
+	a = append(a, "-device", spctl+",id=spicepass")
 	for i := 1; i <= 3; i++ {
 		a = append(a, "-chardev", fmt.Sprintf("spicevmc,id=usbredirchardev%d,name=usbredir", i))
 		a = append(a, "-device", fmt.Sprintf("usb-redir,chardev=usbredirchardev%d,id=usbredirdev%d", i, i))
@@ -68,14 +77,77 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 	return a
 }
 
-// inputArgs: usb input stack + keyboard layout — usb-ehci bus with
-// usb-kbd + usb-tablet, and the -k keymap arg.
-func inputArgs(c Conf) []string {
-	k := c.get("keyboard", "en-us")
-	return []string{
-		"-device", "usb-ehci,id=input",
-		"-device", "usb-kbd,bus=input.0",
-		"-k", k,
-		"-device", "usb-tablet,bus=input.0",
+// inputArgs: usb-controller + keyboard + mouse stack (vm.sh). Quirk
+// values (t.*) beat conf keys, conf keys beat the ehci/usb/tablet
+// defaults. ps2/none emit nothing; -k only when keyboard_layout set.
+func inputArgs(c Conf, t OsTuning) []string {
+	var a []string
+	ctl := t.UsbController
+	if ctl == "" {
+		ctl = c.get("usb_controller", "ehci")
 	}
+	switch ctl {
+	case "ehci":
+		a = append(a, "-device", "usb-ehci,id=input")
+	case "xhci":
+		a = append(a, "-device", "qemu-xhci,id=input")
+	case "none":
+	default:
+		fmt.Fprintf(os.Stderr, " - WARNING!  Unknown usb-controller value: '%s'\n", ctl)
+	}
+	kbd := t.Keyboard
+	if kbd == "" {
+		kbd = c.get("keyboard", "usb")
+	}
+	switch kbd {
+	case "usb":
+		a = append(a, "-device", "usb-kbd,bus=input.0")
+	case "virtio":
+		a = append(a, "-device", "virtio-keyboard")
+	case "ps2":
+	default:
+		fmt.Fprintf(os.Stderr, " - WARNING!  Unknown keyboard value: '%s'; Fallback to ps2\n", kbd)
+	}
+	if l := c.get("keyboard_layout", ""); l != "" {
+		a = append(a, "-k", l)
+	}
+	mouse := t.Mouse
+	if mouse == "" {
+		mouse = c.get("mouse", "tablet")
+	}
+	switch mouse {
+	case "usb":
+		a = append(a, "-device", "usb-mouse,bus=input.0")
+	case "tablet":
+		a = append(a, "-device", "usb-tablet,bus=input.0")
+	case "virtio":
+		a = append(a, "-device", "virtio-mouse")
+	case "ps2":
+	default:
+		fmt.Fprintf(os.Stderr, " - WARNING!  Unknown mouse value: '%s'; Falling back to ps2\n", mouse)
+	}
+	return a
+}
+
+// usbArgs: usb_devices passthrough (vm_boot_passthru) — the hostpass
+// controller + one usb-host device per declared vid:pid. The lsusb
+// reachability/permission gate is checked at --run time.
+func usbArgs(c Conf, t OsTuning) []string {
+	devs := confList(c, "usb_devices")
+	if len(devs) == 0 {
+		return nil
+	}
+	ctl := t.UsbPassthrough
+	if ctl == "" {
+		ctl = "qemu-xhci"
+	}
+	a := []string{"-device", ctl + ",id=hostpass"}
+	for _, d := range devs {
+		vp := strings.SplitN(d, ":", 2)
+		if len(vp) != 2 {
+			continue
+		}
+		a = append(a, "-device", "usb-host,bus=hostpass.0,vendorid=0x"+vp[0]+",productid=0x"+vp[1])
+	}
+	return a
 }

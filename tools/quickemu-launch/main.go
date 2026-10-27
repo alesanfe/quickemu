@@ -132,25 +132,15 @@ func main() {
 	if t.Balloon != "" {
 		args = append(args, strings.Fields(t.Balloon)...)
 	}
-	if t.Keyboard == "ps2" {
-		args = append(args, "-device", "ps2-kbd")
-	}
-	if t.Mouse == "ps2" {
-		args = append(args, "-device", "ps2-mouse")
-	} else if t.Mouse == "usb" {
-		args = append(args, "-device", "usb-mouse")
-	}
-	if t.UsbPassthrough != "" {
-		args = append(args, "-device", t.UsbPassthrough)
-	}
+	args = append(args, inputArgs(conf, t)...)
+	args = append(args, usbArgs(conf, t)...)
 	args = append(args, storageArgs(conf, dir, t)...)
 	args = append(args, displayArgs(conf, dir, osName, arch)...)
 	args = append(args, audioArgs(conf, osName, t)...)
 	args = append(args, networkArgs(conf, t)...)
 	args = append(args, portArgs(conf, dir)...)
-	args = append(args, spiceArgs(conf, dir, vmname, osName)...)
+	args = append(args, spiceArgs(conf, dir, vmname, osName, t)...)
 	args = append(args, fileshareArgs(conf, dir)...)
-	args = append(args, inputArgs(conf)...)
 	args = append(args, passthruArgs(conf)...)
 	args = append(args, bootMediaArgs(conf, dir)...)
 	args = append(args, channelArgs(conf, dir)...)

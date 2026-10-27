@@ -3,7 +3,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,13 +37,8 @@ func bootMediaArgs(c Conf, dir string) []string {
 }
 
 func passthruArgs(c Conf) []string {
+	// usb_devices passthrough is emitted by usbArgs (hostpass stack).
 	var a []string
-	for _, d := range strings.Fields(c.get("usb_devices", "")) {
-		parts := strings.Split(d, ":")
-		if len(parts) == 2 {
-			a = append(a, "-device", fmt.Sprintf("usb-host,vendorid=0x%s,productid=0x%s", parts[0], parts[1]))
-		}
-	}
 	if confOn(c, "vfio") {
 		for _, dev := range strings.Fields(c.get("vfio_devices", "")) {
 			a = append(a, "-device", "vfio-pci,host="+dev)
