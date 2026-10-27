@@ -7,6 +7,10 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -202,4 +206,53 @@ func SendCmd(path, cmd string) (string, error) {
 	conn.(*net.UnixConn).CloseWrite()
 	b, err := io.ReadAll(conn)
 	return string(b), err
+}
+
+// HotplugUSB mirrors vm_hotplug_usb: QMP device_add usb-host with hex
+// vendor:product parsing. Returns the device id on success.
+func HotplugUSB(sock, vidpid string) (string, error) {
+	parts := strings.SplitN(vidpid, ":", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("need vendor:product hex (e.g. 05ac:12a8)")
+	}
+	v, err1 := strconv.ParseUint(parts[0], 16, 32)
+	p, err2 := strconv.ParseUint(parts[1], 16, 32)
+	if err1 != nil || err2 != nil || v == 0 || p == 0 {
+		return "", fmt.Errorf("bad vendor:product %q", vidpid)
+	}
+	id := "hotusb" + parts[0] + parts[1]
+	cmd := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","hostvendor":%d,"hostport":%d}}`, id, v, p)
+	if rc := runExecute(sock, cmd, 5*time.Second); rc != 0 {
+		return "", fmt.Errorf("device_add failed (rc=%d)", rc)
+	}
+	return id, nil
+}
+
+// HotplugDisk mirrors vm_hotplug_disk: blockdev-add the file then
+// device_add virtio-blk-pci with the node name.
+func HotplugDisk(sock, file string) (string, error) {
+	if _, err := os.Stat(file); err != nil {
+		return "", err
+	}
+	id := "hotdisk" + regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(filepath.Base(file), "")
+	abs, _ := filepath.Abs(file)
+	node := id + "node"
+	// blockdev-add first (registers the file), then device_add references it
+	q := fmt.Sprintf(`{"execute":"blockdev-add","arguments":{"node-name":"%s","driver":"qcow2","file":{"driver":"file","filename":%q}}}`, node, abs)
+	if rc := runExecute(sock, q, 5*time.Second); rc != 0 {
+		return "", fmt.Errorf("blockdev-add failed (rc=%d)", rc)
+	}
+	dev := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"virtio-blk-pci","id":"%s","drive":"%s"}}`, id, node)
+	if rc := runExecute(sock, dev, 5*time.Second); rc != 0 {
+		return "", fmt.Errorf("device_add failed (rc=%d)", rc)
+	}
+	return id, nil
+}
+
+// Hotunplug mirrors vm_hotunplug: device_del by id.
+func Hotunplug(sock, devid string) error {
+	if rc := runExecute(sock, fmt.Sprintf(`{"execute":"device_del","arguments":{"id":%q}}`, devid), 5*time.Second); rc != 0 {
+		return fmt.Errorf("device_del failed (rc=%d)", rc)
+	}
+	return nil
 }
