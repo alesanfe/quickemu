@@ -1552,10 +1552,11 @@ function get_9front() {
 
 
 function get_securityonion() {
-    local URL="https://download.securityonion.net/file/securityonion"
-    local ISO
-    ISO="$(web_pipe "${URL}/" | grep -o 'securityonion-[0-9.]*-[0-9]*\\.iso' | sort -Vr | head -1)"
-    echo "${URL}/${ISO}"
+    # Security Onion — download host is now a JS app; version comes from
+    # GitHub releases API and the ISO is fetched by direct filename
+    local VER
+    VER="$(web_pipe "https://api.github.com/repos/Security-Onion-Solutions/securityonion/releases/latest" | grep -o '"tag_name": "[^"]*"' | cut -d'"' -f4)"
+    echo "https://download.securityonion.net/file/securityonion/securityonion-${VER}.iso"
 }
 
 
