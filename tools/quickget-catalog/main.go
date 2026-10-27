@@ -99,11 +99,23 @@ func main() {
 		}
 		fmt.Println(strings.Join(e.Releases, " "))
 	case "editions":
+		// editions <os> [release] — static list, or live scrape for
+		// OSes whose editions_<os>() depends on the release (blackarch).
 		e := find(cat, args[1])
 		if e == nil {
 			os.Exit(1)
 		}
-		fmt.Println(strings.Join(e.Editions, " "))
+		if len(e.Editions) > 0 {
+			fmt.Println(strings.Join(e.Editions, " "))
+			return
+		}
+		release := ""
+		if len(args) > 2 {
+			release = args[2]
+		}
+		if eds := scrapeEditions(e.OS, release); len(eds) > 0 {
+			fmt.Println(strings.Join(eds, " "))
+		}
 	case "arch":
 		e := find(cat, args[1])
 		if e == nil {

@@ -860,6 +860,34 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 	}
 }
 
+// scrapeEditions resolves editions for OSes whose editions_<os>() is a
+// live scrape keyed on ${RELEASE} — the static catalog lists them as
+// empty. Mirrors the Bash function output (page order, deduplicated).
+func scrapeEditions(osName, release string) []string {
+	if release == "" {
+		return nil
+	}
+	switch osName {
+	case "blackarch":
+		// editions_blackarch: mirror listing → blackarch-linux-<ed>-<rel>-x86_64
+		body, err := fetchString("https://ftp.halifax.rwth-aachen.de/blackarch/iso/")
+		if err != nil {
+			return nil
+		}
+		re := regexp.MustCompile(`blackarch-linux-([a-z]+)-` + regexp.QuoteMeta(release) + `-x86_64`)
+		var eds []string
+		seen := map[string]bool{}
+		for _, m := range re.FindAllStringSubmatch(body, -1) {
+			if !seen[m[1]] {
+				seen[m[1]] = true
+				eds = append(eds, m[1])
+			}
+		}
+		return eds
+	}
+	return nil
+}
+
 // getUbuntuFlavour mirrors get_ubuntu/get_ubuntu-server: pick the
 // release dir (daily codename via launchpad when daily*/dvd), then
 // grep SHA256SUMS (or MD5SUMS) for the desktop|dvd|install arch iso.
