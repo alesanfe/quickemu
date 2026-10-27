@@ -145,6 +145,15 @@ Describe 'coverage2: monitor commands'
         When call qe_fn_exists vm_hotplug_usb
         The status should be success
     End
+    It 'vm_hotplug_usb uses QEMU vendorid/productid properties'
+        # QEMU device_add usb-host only accepts vendorid/productid;
+        # the historical hostvendor/hostport names are rejected.
+        When run grep -o 'hostvendor\|hostport\|vendorid\|productid' "${SHELLSPEC_PROJECT_ROOT}/lib/quickemu/runtime/monitor.sh"
+        The output should include vendorid
+        The output should include productid
+        The output should not include hostvendor
+        The output should not include hostport
+    End
     It 'vm_hotunplug exists'
         When call qe_fn_exists vm_hotunplug
         The status should be success

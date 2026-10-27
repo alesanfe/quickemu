@@ -144,7 +144,7 @@ vm_hotplug_usb() { # vid:pid
     local VIDPID="${1}"
     [[ "${VIDPID}" =~ ^[0-9a-fA-F]{4}:[0-9a-fA-F]{4}$ ]] || { echo "ERROR! --hotplug-usb needs vendor:product hex (e.g. 05ac:12a8)." >&2; return 1; }
     local ID="hotusb${VIDPID//:/}"
-    qmp_device_add "{\"driver\":\"usb-host\",\"id\":\"${ID}\",\"hostvendor\":$((16#${VIDPID%:*})),\"hostport\":$((16#${VIDPID#*:}))}" \
+    qmp_device_add "{\"driver\":\"usb-host\",\"id\":\"${ID}\",\"vendorid\":$((16#${VIDPID%:*})),\"productid\":$((16#${VIDPID#*:}))}" \
         && qe_event "vm.hotplug" "{\"device\":\"usb\",\"id\":\"${ID}\"}" \
         && echo " - Hot-plugged USB ${VIDPID} as ${ID}."
 }

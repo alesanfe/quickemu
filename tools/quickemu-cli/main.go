@@ -530,6 +530,9 @@ func startViewer(get func(string) string) {
 	if get("fullscreen") == "true" || get("fullscreen") == "on" {
 		args = append(args, "--full-screen")
 	}
+	if vea := get("viewer_extra_args"); vea != "" {
+		args = append(args, strings.Fields(vea)...)
+	}
 	cmd := exec.Command(bin, args...)
 	cmd.Start() // detached — viewer outlives the CLI process
 }
@@ -1415,7 +1418,7 @@ func actHotplugUSB() int {
 	var vid, pid uint64
 	fmt.Sscanf(vp, "%x:%x", &vid, &pid)
 	id := "hotusb" + strings.ReplaceAll(vp, ":", "")
-	payload := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","hostvendor":%d,"hostport":%d}}`, id, vid, pid)
+	payload := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","vendorid":%d,"productid":%d}}`, id, vid, pid)
 	out, err := qmpRaw(payload)
 	fmt.Print(out)
 	if err == nil {

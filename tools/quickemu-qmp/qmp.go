@@ -242,7 +242,7 @@ func HotplugUSB(sock, vidpid string) (string, error) {
 		return "", fmt.Errorf("bad vendor:product %q", vidpid)
 	}
 	id := "hotusb" + parts[0] + parts[1]
-	cmd := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","hostvendor":%d,"hostport":%d}}`, id, v, p)
+	cmd := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","vendorid":%d,"productid":%d}}`, id, v, p)
 	if rc := runExecute(sock, cmd, 5*time.Second); rc != 0 {
 		return "", fmt.Errorf("device_add failed (rc=%d)", rc)
 	}
