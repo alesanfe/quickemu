@@ -5,8 +5,12 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/binary"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"os/exec"
@@ -197,13 +201,12 @@ func getMacos(release, dir, arch string) int {
 		if macFetch(clLink, cl, clSession) != 0 {
 			return 1
 		}
-		// chunkcheck verification via the bundled python helper.
-		if cc, err := exec.LookPath("chunkcheck"); err == nil {
-			if exec.Command(cc, dir).Run() == nil {
-				fmt.Println(" - Verification passed")
-			} else {
-				fmt.Println(" - WARNING! Verification failed, continuing anyway")
-			}
+		// Chunklist verification — pure-Go port of chunkcheck.py; the
+		// script remains under libexec/ for the Bash backend.
+		if err := checkChunklist(dmg, cl); err == nil {
+			fmt.Println(" - Verification passed")
+		} else {
+			fmt.Println(" - WARNING! Verification failed, continuing anyway")
 		}
 		if qimg, err := exec.LookPath("qemu-img"); err == nil {
 			fmt.Println(" - Converting RecoveryImage.dmg")
@@ -229,4 +232,107 @@ func getMacos(release, dir, arch string) int {
 		return 0
 	}
 	return mkconf("macos", release, "", "RecoveryImage.img", "", dir, arch, cloudInitFlag)
+}
+
+// checkChunklist verifies a dmg against a CNKL chunklist — pure-Go
+// equivalent of libexec/quickemu/chunkcheck.py.
+const chunklistPubkeyV1Hex = "C3E748CAD9CD384329E10E25A91E43E1A762FF529ADE578C935BDDF9B13F2179D4855E6FC89E9E29CA12517D17DFA1EDCE0BEBF0EA7B461FFE61D94E2BDF72C196F89ACD3536B644064014DAE25A15DB6BB0852ECBD120916318D1CCDEA3C84C92ED743FC176D0BACA920D3FCF3158AFF731F88CE0623182A8ED67E650515F75745909F07D415F55FC15A35654D118C55A462D37A3ACDA08612F3F3F6571761EFCCBCC299AEE99B3A4FD6212CCFFF5EF37A2C334E871191F7E1C31960E010A54E86FA3F62E6D6905E1CD57732410A3EB0C6B4DEFDABE9F59BF1618758C751CD56CEF851D1C0EAA1C558E37AC108DA9089863D20E2E7E4BF475EC66FE6B3EFDCF"
+
+func checkChunklist(dmgPath, clPath string) error {
+	cl, err := os.Open(clPath)
+	if err != nil {
+		return err
+	}
+	defer cl.Close()
+	h := sha256.New()
+	hdr := make([]byte, 36)
+	if _, err := io.ReadFull(cl, hdr); err != nil {
+		return err
+	}
+	h.Write(hdr)
+	if string(hdr[:4]) != "CNKL" || binary.LittleEndian.Uint32(hdr[4:8]) != 36 ||
+		hdr[8] != 1 || hdr[9] != 1 || (hdr[10] != 1 && hdr[10] != 2) {
+		return fmt.Errorf("invalid chunklist header")
+	}
+	chunkCount := binary.LittleEndian.Uint64(hdr[12:20])
+	chunkOffset := binary.LittleEndian.Uint64(hdr[20:28])
+	sigOffset := binary.LittleEndian.Uint64(hdr[28:36])
+	if chunkCount == 0 || chunkOffset != 36 || sigOffset != 36+36*chunkCount {
+		return fmt.Errorf("invalid chunklist geometry")
+	}
+	type chunk struct {
+		size   uint32
+		digest [32]byte
+	}
+	chunks := make([]chunk, 0, chunkCount)
+	for i := uint64(0); i < chunkCount; i++ {
+		var rec [36]byte
+		if _, err := io.ReadFull(cl, rec[:]); err != nil {
+			return err
+		}
+		h.Write(rec[:])
+		var c chunk
+		c.size = binary.LittleEndian.Uint32(rec[:4])
+		copy(c.digest[:], rec[4:36])
+		chunks = append(chunks, c)
+	}
+	digest := h.Sum(nil)
+	sigMethod := hdr[10]
+	if sigMethod == 1 {
+		sig := make([]byte, 256)
+		if _, err := io.ReadFull(cl, sig); err != nil {
+			return err
+		}
+		for i, j := 0, len(sig)-1; i < j; i, j = i+1, j-1 {
+			sig[i], sig[j] = sig[j], sig[i] // little-endian → big.Int
+		}
+		pubkey, _ := new(big.Int).SetString(chunklistPubkeyV1Hex, 16)
+		got := new(big.Int).Exp(new(big.Int).SetBytes(sig), big.NewInt(0x10001), pubkey)
+		// PKCS#1 v1.5: 0x01 FF...FF 00 <SHA-256 DigestInfo prefix> 00*8 <digest>
+		prefix := make([]byte, 0, 256)
+		prefix = append(prefix, 0x01)
+		for i := 0; i < 202; i++ {
+			prefix = append(prefix, 0xFF)
+		}
+		prefix = append(prefix, 0x00, 0x30, 0x31, 0x30, 0x0D, 0x06, 0x09, 0x60,
+			0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20)
+		for i := 0; i < 32; i++ {
+			prefix = append(prefix, 0x00)
+		}
+		want := new(big.Int).Or(new(big.Int).SetBytes(prefix), new(big.Int).SetBytes(digest))
+		if got.Cmp(want) != 0 {
+			return fmt.Errorf("chunklist RSA signature mismatch")
+		}
+	} else {
+		sig := make([]byte, 32)
+		if _, err := io.ReadFull(cl, sig); err != nil {
+			return err
+		}
+		if subtle.ConstantTimeCompare(sig, digest) != 1 {
+			return fmt.Errorf("chunklist digest mismatch")
+		}
+	}
+	if n, _ := cl.Read(make([]byte, 1)); n != 0 {
+		return fmt.Errorf("trailing bytes after chunklist signature")
+	}
+
+	dmg, err := os.Open(dmgPath)
+	if err != nil {
+		return err
+	}
+	defer dmg.Close()
+	for i, c := range chunks {
+		buf := make([]byte, c.size)
+		if _, err := io.ReadFull(dmg, buf); err != nil {
+			return fmt.Errorf("chunk %d short: %w", i, err)
+		}
+		sum := sha256.Sum256(buf)
+		if sum != c.digest {
+			return fmt.Errorf("chunk %d sha256 mismatch", i)
+		}
+	}
+	if n, _ := dmg.Read(make([]byte, 1)); n != 0 {
+		return fmt.Errorf("trailing bytes after last chunk")
+	}
+	return nil
 }

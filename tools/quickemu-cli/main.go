@@ -891,16 +891,8 @@ func actTelnet(kind string) int {
 			port = "6660"
 		}
 	}
-	bin, err := exec.LookPath("telnet")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! telnet client not installed — connect manually:")
-		fmt.Fprintln(os.Stderr, "       telnet "+host+" "+port)
-		return 1
-	}
 	fmt.Println(" - " + strings.ToUpper(kind[:1]) + kind[1:] + ":   telnet " + host + " " + port)
-	cmd := exec.Command(bin, host, port)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	return rc(cmd.Run())
+	return telnetAttach(host, port)
 }
 
 func actDryRun() int {
@@ -1352,20 +1344,13 @@ func actHostInfo() int {
 		}
 	}
 	var gpus []string
-	if lspci, err := exec.LookPath("lspci"); err == nil {
-		if out, err := exec.Command(lspci, "-Dnn").Output(); err == nil {
-			for _, l := range strings.Split(string(out), "\n") {
-				ll := strings.ToLower(l)
-				if strings.Contains(ll, "vga") || strings.Contains(ll, "3d") || strings.Contains(ll, "display") {
-					f := strings.Fields(l)
-					if len(f) > 1 {
-						gpus = append(gpus, strings.Join(f[1:], " "))
-					}
-					if len(gpus) == 8 {
-						break
-					}
-				}
-			}
+	for i, l := range pciGPUs() {
+		if i == 8 {
+			break
+		}
+		f := strings.Fields(l)
+		if len(f) > 1 {
+			gpus = append(gpus, strings.Join(f[1:], " "))
 		}
 	}
 	qemuVer := ""

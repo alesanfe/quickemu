@@ -162,13 +162,18 @@ available; each substitution was verified output-identical:
 | regex scrape of alpine `latest-releases.yaml` | `gopkg.in/yaml.v3` real parse (flavor+arch+iso+sha256 fields) |
 | hand-built `fmt.Sprintf` JSON payloads | `encoding/json` marshalling everywhere (envelopes, QMP commands, journal JSONL, trash-meta, op store) |
 | TOML | `BurntSushi/toml` (already in place) |
+| `libexec/quickemu/chunkcheck.py` (python3) | `checkChunklist` in `quickget-vm` — CNKL parse + per-chunk SHA-256 + RSA `sig^e mod n` via `math/big` (`crypto/subtle` compare, unit-tested) |
+| `lspci -Dnn` (host-info, vfio scan, quickreport) | `/sys/bus/pci/devices` walk + `jaypipes/pcidb` (embedded pci.ids) — `lspci`-shaped lines incl. class hex, rev, bound driver |
+| `lscpu` (quickreport dump) | `/proc/cpuinfo` direct read (lscpu itself formats cpuinfo) |
+| `telnet` binary (monitor/serial attach) | `telnetAttach` — pure-Go RFC-854 client, inbound IAC/SB…SE filter + outbound 0xFF doubling (verified vs live QEMU monitor) |
 
 Remaining external commands are the ones that ARE the runtime
 interfaces: `qemu-system-*`, `qemu-img`, `swtpm`, `virtiofsd`, host
-probes (`lspci`, `systemctl`, `sudo`), viewers (`spicy`,
-`remote-viewer`, `vncviewer`, `xdg-open`), interactive attach
-(`telnet`, `socat`), and optional `zsync`/`curl` for downloads (with
-fallbacks).
+integration (`systemctl`, `sudo`, `tee`, `update-initramfs`,
+`mkinitcpio`, `qemu-bridge-helper`), viewers (`spicy`,
+`remote-viewer`, `vncviewer`, `xdg-open`), `socat`-class interactive
+attach on non-Linux, and optional `zsync`/`curl` for downloads (with
+fallbacks; `bsdtar`/`7z`/`isoinfo` remain only for UDF-format ISOs).
 
 Fixed while converting: `actHotplugDisk` sent `device_add` before
 `blockdev-add` and referenced a nonexistent `drive` name — now does
@@ -180,7 +185,9 @@ output; re-launching a live VM attaches the viewer instead of spawning
 a second QEMU; the detached reaper verifies pidfile ownership before
 cleaning so a stale reaper can't wipe a relaunched VM's state; the
 exclusive `vm_lock` (mkdir + pid + stale reclaim) guards boot and
-mutating ops; `quickemu-vm` emits the v1 envelope only under
+mutating ops; the `.zsync` fallback now fetches the underlying image
+URL (`.zsync` stripped) instead of saving the control file as the
+image; `quickemu-vm` emits the v1 envelope only under
 `--format json`/`OUTPUT_FORMAT=json` (human lines are gated like
 `qe_info`); `--export` archives the real `--vm` conf path, not
 `<dir>.conf`.

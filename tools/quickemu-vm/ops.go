@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"syscall"
@@ -673,30 +672,7 @@ func vfioScan(gpuPassthrough string) int {
 		groups = len(g)
 		iommu = "present"
 	}
-	type dev struct {
-		PCI, Name, Driver string
-	}
-	var devs []dev
-	if lspci, err := exec.LookPath("lspci"); err == nil {
-		out, _ := exec.Command(lspci, "-Dnn").Output()
-		rx := regexp.MustCompile(`(?i)vga|3d controller|display controller`)
-		for _, l := range strings.Split(string(out), "\n") {
-			if !rx.MatchString(l) || l == "" {
-				continue
-			}
-			parts := strings.SplitN(l, " ", 2)
-			drv := ""
-			link := "/sys/bus/pci/devices/0000:" + parts[0] + "/driver"
-			if t, err := os.Readlink(link); err == nil {
-				drv = filepath.Base(t)
-			}
-			d := dev{PCI: parts[0], Driver: drv}
-			if len(parts) > 1 {
-				d.Name = parts[1]
-			}
-			devs = append(devs, d)
-		}
-	}
+	devs := pciGPUDevices()
 	if outputJSON {
 		var dj []map[string]any
 		for _, d := range devs {

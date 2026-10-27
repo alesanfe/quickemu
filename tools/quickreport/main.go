@@ -90,15 +90,7 @@ func probeGPUs() []string {
 		}
 		return gpus
 	}
-	for _, l := range strings.Split(cmdOut("lspci"), "\n") {
-		if strings.Contains(strings.ToLower(l), "vga") {
-			parts := strings.SplitN(l, ":", 3)
-			if len(parts) == 3 {
-				gpus = append(gpus, strings.TrimSpace(parts[2]))
-			}
-		}
-	}
-	return gpus
+	return pciGPUNames()
 }
 
 // probeQemuArch: arm64 → aarch64, else uname -m.
@@ -109,12 +101,16 @@ func probeQemuArch() string {
 	return runtime.GOARCH
 }
 
-// probeCPUInfo: lscpu output / machdep brand string.
+// probeCPUInfo: /proc/cpuinfo content / machdep brand string. lscpu
+// itself formats cpuinfo — reading the source avoids the subprocess.
 func probeCPUInfo() string {
 	if runtime.GOOS == "darwin" {
 		return cmdOut("sysctl", "-n", "machdep.cpu.brand_string")
 	}
-	return cmdOut("lscpu")
+	if b, err := os.ReadFile("/proc/cpuinfo"); err == nil {
+		return strings.TrimSpace(string(b))
+	}
+	return ""
 }
 
 // uname: `uname -s -r -m` fields without spawning uname — the kernel

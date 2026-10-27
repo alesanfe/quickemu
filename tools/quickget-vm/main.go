@@ -509,7 +509,8 @@ func getOS(osName, release, edition, dir, arch string) int {
 		}
 	}
 	// zsync sources prefer the external zsync binary (delta download);
-	// otherwise plain fetch handles .zsync URLs as a normal download.
+	// the fallback fetches the underlying image URL (.zsync stripped),
+	// never the control file itself.
 	if strings.HasSuffix(url, ".zsync") {
 		if z, err := exec.LookPath("zsync"); err == nil {
 			cmd := exec.Command(z, "-o", image, url)
@@ -517,8 +518,12 @@ func getOS(osName, release, edition, dir, arch string) int {
 			if cmd.Run() != nil {
 				return 1
 			}
-		} else if fetch(url, image, sha) != 0 {
-			return 1
+		} else {
+			base := strings.TrimSuffix(url, ".zsync")
+			image = filepath.Join(dir, filepath.Base(base))
+			if fetch(base, image, sha) != 0 {
+				return 1
+			}
 		}
 	} else if fetch(url, image, sha) != 0 {
 		return 1
