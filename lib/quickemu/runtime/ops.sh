@@ -17,6 +17,9 @@ _ops_bin() {
 op_dir() { printf '%s%s' "${VMDIR}" "${QE_OPS_DIR_SUFFIX}"; }
 
 op_new() { # type -> prints operationId, creates state file
+    # Lazily reap interrupted operations before creating a new one —
+    # VMDIR is resolved by now so op_dir points at the real location.
+    [ -z "${_OP_RECOVERED:-}" ] && { _OP_RECOVERED=1; op_recover; }
     local id dir
     id=$(vm_instance_uuid)
     dir=$(op_dir); mkdir -p "${dir}"
@@ -98,4 +101,25 @@ op_prune() { # keep=N
     [ -d "${DIR}" ] || return 0
     # shellcheck disable=SC2012
     ls -1t "${DIR}"/*.json 2>/dev/null | tail -n +"$((KEEP + 1))" | while IFS= read -r F; do rm -f "${F}"; done
+}
+
+# op_recover: scan .ops/ for ops stuck in queued/running whose owner is dead.
+# Marks them "failed" with OPERATION_INTERRUPTED. Called once at startup.
+op_recover() {
+    local d f id state owner
+    d=$(op_dir)
+    [ -d "${d}" ] || return 0
+    for f in "${d}"/*.json; do
+        [ -f "${f}" ] || continue
+        state=$(grep -o '"state":"[^"]*"' "${f}" | cut -d'"' -f4)
+        case "${state}" in queued|running) ;; *) continue;; esac
+        id=$(grep -o '"operationId":"[^"]*"' "${f}" | cut -d'"' -f4)
+        owner=""
+        [ -f "${d}/${id}.owner" ] && owner=$(cat "${d}/${id}.owner")
+        # If the recorded owner PID is dead (or missing), the op is orphaned.
+        if [ -z "${owner}" ] || ! kill -0 "${owner}" 2>/dev/null; then
+            op_fail "${id}" "OPERATION_INTERRUPTED" "operation orphaned (owner ${owner:-unknown} dead)"
+            qe_verbose "op_recover: marked ${id} interrupted (owner=${owner:-none})"
+        fi
+    done
 }

@@ -1,0 +1,27 @@
+name: Go backend
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c8c92ee2c4c71f70f4824f1b2b3c4d5e6f7a8b  # v7
+      - uses: actions/setup-go@f111f3307dcda0d477a3e1be9e75dc0b8a06be3c  # v6
+        with:
+          go-version: '1.22'
+      - name: Test with race detector + coverage
+        run: |
+          for d in tools/*/; do
+            [ -f "${d}go.mod" ] || continue
+            echo "== $d"
+            (cd "$d" && go test -race -coverprofile=coverage.out ./... 2>&1 || true)
+            [ -f "${d}coverage.out" ] && \
+              (cd "$d" && go tool cover -func=coverage.out | tail -3)
+          done
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@65c4c4a1d0e59e5ff0e57e8b3e0f8f0f2e9e9c1e  # v4
+        if: always()
+        with:
+          name: go-coverage
+          path: 'tools/*/coverage.out'
