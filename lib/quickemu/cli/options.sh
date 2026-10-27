@@ -203,6 +203,7 @@ else
             ;;
         -plugin | --plugin)
             plugin_dispatch "${2}" "${@:3}"
+            exit $?
             ;;
         -plugins | --plugins)
             ACTIONS+=(plugin_list)

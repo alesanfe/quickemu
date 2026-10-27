@@ -23,19 +23,19 @@ import (
 )
 
 var (
-	vmConf      string
-	outFmt      = "text"
-	actions     []string
-	confOpts    = map[string]string{} // CLI overrides merged into the conf
-	extra       = map[string]string{} // action args (--monitor-cmd value etc.)
-	trashFlag   bool                 // --trash: delete_vm stages to XDG trash
-	externalFlag bool                // --external: external qcow2 snapshot
-	doctorFix   bool                 // --fix: doctor attempts repairs
-	persistFlag bool                 // --persist: record hotplug in the conf
-	shortcutOpts []string            // SHORTCUT_OPTIONS accumulated for --shortcut
-	snapshotAct string               // --snapshot <action>
-	snapshotTag string               // --snapshot <action> <tag>
-	dryRunFlag  bool                 // --dry-run/--echo
+	vmConf       string
+	outFmt       = "text"
+	actions      []string
+	confOpts     = map[string]string{} // CLI overrides merged into the conf
+	extra        = map[string]string{} // action args (--monitor-cmd value etc.)
+	trashFlag    bool                  // --trash: delete_vm stages to XDG trash
+	externalFlag bool                  // --external: external qcow2 snapshot
+	doctorFix    bool                  // --fix: doctor attempts repairs
+	persistFlag  bool                  // --persist: record hotplug in the conf
+	shortcutOpts []string              // SHORTCUT_OPTIONS accumulated for --shortcut
+	snapshotAct  string                // --snapshot <action>
+	snapshotTag  string                // --snapshot <action> <tag>
+	dryRunFlag   bool                  // --dry-run/--echo
 )
 
 // unameArch maps Go runtime.GOARCH to uname -m spellings.
@@ -1083,11 +1083,11 @@ func dispatch(act string) func() int {
 	case "vm_hotunplug":
 		return actHotunplug
 	case "operation_status":
-		return opsOp("status")
+		return opsOp("status", "--id", extra["op-status"])
 	case "operation_list":
 		return opsOp("list")
 	case "operation_cancel":
-		return opsOp("cancel", extra["op-cancel"])
+		return opsOp("cancel", "--id", extra["op-cancel"])
 	case "operation_watch":
 		return opsOp("watch", extra["op-watch"])
 	case "doctor_vm":
@@ -1410,7 +1410,7 @@ func actHostInfo() int {
 		"memTotalKb": memTotal, "kvm": kvm, "iommu": iommu, "qemu": qemuVer,
 		"qemuAarch64": has("qemu-system-aarch64"), "qemuImg": has("qemu-img"),
 		"socat": has("socat"), "jq": has("jq"), "swtpm": has("swtpm"),
-		"ovmf": globAny("/usr/share/OVMF*/OVMF_CODE.fd", "/usr/share/edk2/ovmf/OVMF_CODE.fd"),
+		"ovmf":  globAny("/usr/share/OVMF*/OVMF_CODE.fd", "/usr/share/edk2/ovmf/OVMF_CODE.fd"),
 		"aavmf": globAny("/usr/share/AAVMF*", "/usr/share/edk2/aarch64/QEMU_EFI.fd"),
 		"passt": has("passt"), "virtiofsd": has("virtiofsd"), "spicy": has("spicy"),
 		"remoteViewer": has("remote-viewer"), "freeKb": freeKb,
@@ -2068,6 +2068,7 @@ func main() {
 			extra["disk-resize"] = val()
 			actions = append(actions, "disk_resize")
 		case "--op-status", "--operation-status":
+			extra["op-status"] = val()
 			actions = append(actions, "operation_status")
 		case "--op-list", "--operation-list":
 			actions = append(actions, "operation_list")

@@ -173,6 +173,8 @@ if [ -d "${QE_LIBDIR}" ]; then
     source "${QE_LIBDIR}/cli/commands.sh"
     # shellcheck source=lib/quickemu/cli/doctor.sh
     source "${QE_LIBDIR}/cli/doctor.sh"
+    # shellcheck source=lib/quickemu/cli/plugins.sh
+    source "${QE_LIBDIR}/cli/plugins.sh"
     # shellcheck source=lib/quickemu/cli/options.sh
     source "${QE_LIBDIR}/cli/options.sh"
     # shellcheck source=lib/quickemu/cli/output.sh
