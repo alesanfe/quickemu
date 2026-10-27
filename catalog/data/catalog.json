@@ -9,7 +9,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://9front.org/iso",
+   "iso": "$(web_pipe ",
+   "hash_url": "${URL}/"
   },
   {
    "os": "alma",
@@ -25,7 +28,10 @@
    "arch": [
     "amd64",
     "arm64"
-   ]
+   ],
+   "url": "https://repo.almalinux.org/almalinux/%RELEASE%/isos/%ARCH%",
+   "iso": "AlmaLinux-%RELEASE%-latest-%ARCH%-%EDITION%.iso",
+   "hash_url": "${URL}/CHECKSUM"
   },
   {
    "os": "backbox",
@@ -35,7 +41,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "$(web_pipe ",
+   "hash_url": "https://linux.backbox.org/download/"
   },
   {
    "os": "biebian",
@@ -45,7 +53,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/biebian/files",
+   "iso": "JBL_%RELEASE%.iso"
   },
   {
    "os": "bosslinux",
@@ -55,7 +65,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "boss-8.0-amd64-DVD-301019.iso"
   },
   {
    "os": "blankon",
@@ -65,7 +76,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "blankon-sinambung-26.09-verbeek-amd64.iso"
   },
   {
    "os": "caine",
@@ -75,7 +87,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://www.caine-live.net/Downloads",
+   "iso": "caine%RELEASE%.iso"
   },
   {
    "os": "canaima",
@@ -88,7 +102,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "canaima-9.0-%EDITION%-beta_amd64.iso"
   },
   {
    "os": "altlinux",
@@ -104,7 +119,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "alt-workstation-11.2-x86_64.iso"
   },
   {
    "os": "alpine",
@@ -113,7 +129,10 @@
    "arch": [
     "amd64",
     "arm64"
-   ]
+   ],
+   "url": "https://dl-cdn.alpinelinux.org/alpine/%RELEASE%/releases/%ARCH%",
+   "iso": "alpine-virt-%VERSION%-%ARCH%.iso",
+   "hash_url": "${URL}/latest-releases.yaml"
   },
   {
    "os": "amogos",
@@ -127,7 +146,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://github.com/Amog-OS/AmogOS/releases/download/%RELEASE%",
+   "iso": "AmogOS-${RELEASE#x64-}-x86_64.iso"
   },
   {
    "os": "android",
@@ -142,7 +163,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.gigenet.com/OSDN/android-x86",
+   "hash_url": "https://www.fosshub.com/Android-x86-old.html"
   },
   {
    "os": "antix",
@@ -164,7 +187,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/antix-linux/files/Final/antiX-%RELEASE%",
+   "iso": "antiX-%RELEASE%",
+   "hash_url": "${URL}/${README}.txt"
   },
   {
    "os": "archcraft",
@@ -174,7 +200,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/archcraft/files/%RELEASE%/download",
+   "iso": "$(basename ",
+   "hash_url": "https://sourceforge.net/projects/archcraft/files/${VERSION_FOLDER}/%ISO%.sha256sum"
   },
   {
    "os": "archlinux",
@@ -184,7 +213,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://geo.mirror.pkgbuild.com/",
+   "hash_url": "https://archlinux.org/releng/releases/json/"
   },
   {
    "os": "artixlinux",
@@ -192,7 +223,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://iso.artixlinux.org/iso",
+   "iso": "artix-%EDITION%-%RELEASE%-x86_64.iso",
+   "hash_url": "${URL}/sha256sums"
   },
   {
    "os": "azurelinux",
@@ -203,7 +237,9 @@
    "arch": [
     "amd64",
     "arm64"
-   ]
+   ],
+   "url": "https://aka.ms/azurelinux-%RELEASE%-%ARCH%.iso",
+   "iso": "$(web_redirect "
   },
   {
    "os": "batocera",
@@ -211,7 +247,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.o2switch.fr/batocera/x86_64/stable/%RELEASE%",
+   "iso": "$(web_pipe ",
+   "hash_url": "${URL}/"
   },
   {
    "os": "bazzite",
@@ -226,7 +265,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://download.bazzite.gg",
+   "iso": "bazzite-gnome-stable-amd64.iso",
+   "hash_url": "${URL}/%ISO%-CHECKSUM"
   },
   {
    "os": "biglinux",
@@ -234,7 +276,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://iso.biglinux.com.br",
+   "iso": "biglinux_%RELEASE%_%EDITION%.iso",
+   "hash_url": "${URL}/%ISO%.md5"
   },
   {
    "os": "blackarch",
@@ -242,7 +287,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://ftp.halifax.rwth-aachen.de/blackarch/iso",
+   "iso": "blackarch-linux-%EDITION%-%RELEASE%-x86_64.iso"
   },
   {
    "os": "blendos",
@@ -252,7 +299,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://git.blendos.co/api/v4/projects/32/jobs/artifacts/main/raw/blendOS.iso?job=build-job",
+   "iso": "blendOS.iso",
+   "hash_url": "https://git.blendos.co/api/v4/projects/32/jobs/artifacts/main/raw/checksum?job=build-job"
   },
   {
    "os": "blissos",
@@ -260,7 +310,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/blissos-x86/rss?path=/",
+   "hash_url": "${URL}"
   },
   {
    "os": "bodhi",
@@ -274,7 +326,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/bodhilinux/files/%RELEASE%",
+   "iso": "bodhi-%RELEASE%-64.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "bunsenlabs",
@@ -284,7 +339,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://ddl.bunsenlabs.org/ddl",
+   "iso": "boron-1-240123-amd64.hybrid.iso"
   },
   {
    "os": "cachyos",
@@ -297,7 +354,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "scrape": true,
+   "hash_url": "${URL}.sha256"
   },
   {
    "os": "centos-stream",
@@ -308,7 +367,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://linuxsoft.cern.ch/centos-stream/%RELEASE%-stream/BaseOS/x86_64/iso",
+   "iso": "CentOS-Stream-%RELEASE%-latest-x86_64-%EDITION%.iso",
+   "hash_url": "${URL}/%ISO%.SHA256SUM"
   },
   {
    "os": "chimeralinux",
@@ -321,7 +383,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://repo.chimera-linux.org/live/%RELEASE%",
+   "iso": "chimera-linux-x86_64-LIVE-%DATE%-%EDITION%.iso",
+   "hash_url": "${URL}/sha256sums.txt"
   },
   {
    "os": "crunchbang++",
@@ -329,7 +394,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "hash_url": "https://api.github.com/repos/CBPP/cbpp/releases"
   },
   {
    "os": "debian",
@@ -347,7 +413,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://cdimage.debian.org/cdimage/archive/%RELEASE%-live/${DEBIAN_ARCH}/iso-hybrid",
+   "iso": "debian-live-%RELEASE%-${DEBIAN_ARCH}-%EDITION%.iso",
+   "hash_url": "https://cdimage.debian.org/debian-cd/"
   },
   {
    "os": "deepin",
@@ -355,7 +424,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://cdimage.deepin.com/releases/",
+   "iso": "deepin-desktop-community-${REV}-amd64.iso",
+   "hash_url": "${URL}/SHA256SUMS"
   },
   {
    "os": "devuan",
@@ -366,7 +438,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://files.devuan.org/devuan_%RELEASE%/desktop-live",
+   "iso": "devuan_%RELEASE%_${VER}_amd64_desktop-live.iso",
+   "hash_url": "${URL}/SHASUMS.txt"
   },
   {
    "os": "dragonflybsd",
@@ -374,7 +449,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "http://mirror-master.dragonflybsd.org/iso-images",
+   "iso": "dfly-x86_64-%RELEASE%_REL.iso.bz2",
+   "hash_url": "${URL}/md5.txt"
   },
   {
    "os": "dragonos",
@@ -382,7 +460,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://downloads.sourceforge.net/project/dragonos-focal",
+   "iso": "DragonOS_%RELEASE%.iso"
   },
   {
    "os": "easyos",
@@ -390,7 +470,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://distro.ibiblio.org/easyos/amd64/releases/kirkstone/${YEAR}/%RELEASE%",
+   "iso": "easy-%RELEASE%-amd64.img",
+   "hash_url": "${URL}/md5.sum.txt"
   },
   {
    "os": "edubuntu",
@@ -411,7 +494,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://dl.elementaryos.org",
+   "iso": "elementaryos-%RELEASE%-stable${STAMP}.iso"
   },
   {
    "os": "endeavouros",
@@ -419,7 +504,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirror.alpix.eu/endeavouros/iso",
+   "iso": "$(echo ",
+   "hash_url": "${URL}/"
   },
   {
    "os": "endless",
@@ -435,7 +523,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://images-dl.endlessm.com/release/%RELEASE%/eos-amd64-amd64/%EDITION%",
+   "iso": "eos-eos${RELEASE:0:3}-amd64-amd64.${FILE_TS}.%EDITION%.iso"
   },
   {
    "os": "esfera",
@@ -445,7 +535,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "esfera-live-%RELEASE%.iso"
   },
   {
    "os": "fedora",
@@ -454,7 +545,8 @@
    "arch": [
     "amd64",
     "arm64"
-   ]
+   ],
+   "hash_url": "https://getfedora.org/releases.json"
   },
   {
    "os": "fedoracore",
@@ -469,7 +561,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "FC%RELEASE%-i386-disc1.iso"
   },
   {
    "os": "freebsd",
@@ -480,7 +573,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://download.freebsd.org/ftp/releases/amd64/amd64/ISO-IMAGES/%RELEASE%",
+   "iso": "FreeBSD-%RELEASE%-RELEASE-amd64-%EDITION%.iso",
+   "hash_url": "${URL}/CHECKSUM.SHA256-FreeBSD-%RELEASE%-RELEASE-amd64"
   },
   {
    "os": "freedos",
@@ -492,7 +588,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/%RELEASE%",
+   "iso": "FD12CD.iso",
+   "hash_url": "${URL}/FD12.sha"
   },
   {
    "os": "garuda",
@@ -513,7 +612,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://iso.builds.garudalinux.org/iso/latest/garuda",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "gecos",
@@ -526,7 +627,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "GECOS-v2-32B-latest.iso"
   },
   {
    "os": "gentoo",
@@ -539,7 +641,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.kernel.org/gentoo/releases/amd64/autobuilds",
+   "hash_url": "${URL}/%RELEASE%-iso.txt"
   },
   {
    "os": "ghostbsd",
@@ -550,7 +654,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://download.ghostbsd.org/releases/amd64/%RELEASE%",
+   "iso": "GhostBSD-%RELEASE%.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "gnomeos",
@@ -560,7 +667,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://download.gnome.org/gnomeos/%RELEASE%",
+   "iso": "gnome_os_installer_%RELEASE%.iso"
   },
   {
    "os": "gnulinex",
@@ -573,7 +682,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://github.com/CarlosGamer98YT/gnuLinEx/releases/download/%RELEASE%",
+   "iso": "gnuLinEx-amd64-netinst.iso"
   },
   {
    "os": "gobolinux",
@@ -583,7 +694,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://gobolinux.neonsys.org/%RELEASE%-ISO",
+   "iso": "GoboLinux-%RELEASE%-x86_64.iso"
   },
   {
    "os": "guadalinex",
@@ -601,7 +714,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/archiveos/files/g/guadalinex",
+   "iso": "guadalinex-v8-desktop-i386-final.iso"
   },
   {
    "os": "guadalinexedu",
@@ -618,7 +733,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://archive.org/download/guadalinexedu-version-archive",
+   "iso": "guadalinexedu-2013-instalador-SDI.iso"
   },
   {
    "os": "educaandos",
@@ -634,7 +751,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "educaandos-20.04-instalador-centros.iso"
   },
   {
    "os": "emmabuntus",
@@ -644,7 +762,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/emmabuntus/files/Emmabuntus_DE6/Images/1.03",
+   "iso": "emmabuntus-de6-core-amd64-13.7-1.03.iso"
   },
   {
    "os": "guix",
@@ -655,7 +775,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://ftpmirror.gnu.org/gnu/guix/",
+   "iso": "guix-system-install-%RELEASE%.x86_64-linux.iso"
   },
   {
    "os": "hamonikr",
@@ -669,7 +791,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "hamonikr-kumkang-%RELEASE%${SUFFIX}-amd64.iso"
   },
   {
    "os": "haiku",
@@ -684,7 +807,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "http://mirror.rit.edu/haiku/%RELEASE%",
+   "iso": "haiku-%RELEASE%-%EDITION%-anyboot.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "hannahmontana",
@@ -697,7 +823,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/hannah-montana-linux-v26-lite/files/v%RELEASE%",
+   "iso": "hannah_montana_linux_x86_basic_edition.iso"
   },
   {
    "os": "kali",
@@ -712,7 +840,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://cdimage.kali.org/%RELEASE%",
+   "hash_url": "${URL}/?C=M;O=D"
   },
   {
    "os": "kaos",
@@ -720,7 +850,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://downloads.sourceforge.net/project/kaosx/ISO",
+   "iso": "KaOS-%RELEASE%-x86_64.iso"
   },
   {
    "os": "kdelinux",
@@ -730,7 +862,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://files.kde.org/kde-linux",
+   "hash_url": "${URL}/SHA256SUMS"
   },
   {
    "os": "kdeneon",
@@ -748,7 +882,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://files.kde.org/neon/images/%EDITION%/%RELEASE%/current"
   },
   {
    "os": "kicksecure",
@@ -758,7 +893,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "$(web_pipe ",
+   "hash_url": "${BASE}/"
   },
   {
    "os": "kurumin",
@@ -771,7 +908,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "kurumin-ng_%RELEASE%.iso"
   },
   {
    "os": "kolibrios",
@@ -785,7 +923,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "http://builds.kolibrios.org/%EDITION%",
+   "iso": "latest-iso.7z",
+   "hash_url": "${URL}/sha256sums.txt"
   },
   {
    "os": "kubuntu",
@@ -806,7 +947,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/linux-lite/files/%RELEASE%",
+   "iso": "linux-lite-%RELEASE%-64bit.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "linuxmint",
@@ -827,7 +971,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.kernel.org/linuxmint/stable/%RELEASE%",
+   "iso": "linuxmint-%RELEASE%-%EDITION%-64bit.iso",
+   "hash_url": "${URL}/sha256sum.txt"
   },
   {
    "os": "lliurex",
@@ -843,7 +990,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "LliureX-home-desktop_%RELEASE%_latest.iso"
   },
   {
    "os": "lernstick",
@@ -857,7 +1005,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "lernstick_debian%RELEASE%_%EDITION%_latest.iso"
   },
   {
    "os": "life",
@@ -868,7 +1017,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "Life-%RELEASE%.amd64.iso"
   },
   {
    "os": "linkat",
@@ -878,7 +1028,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "http://download-linkat.xtec.cat/d83/ISO",
+   "iso": "linkat-22.04.3-amd64.iso"
   },
   {
    "os": "lmde",
@@ -890,7 +1042,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.kernel.org/linuxmint/debian",
+   "iso": "lmde-%RELEASE%-%EDITION%-64bit.iso",
+   "hash_url": "${URL}/sha256sum.txt"
   },
   {
    "os": "lubuntu",
@@ -908,7 +1063,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/mabox-linux/files/%RELEASE%/download",
+   "iso": "$(basename ",
+   "hash_url": "https://repo.maboxlinux.org/iso/%ISO%.md5"
   },
   {
    "os": "macos",
@@ -939,7 +1097,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "hash_url": "%ISO%.sha512"
   },
   {
    "os": "mangaka",
@@ -949,7 +1108,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "linux-mangaka-%RELEASE%-v2.iso"
   },
   {
    "os": "manjaro",
@@ -967,7 +1127,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "scrape": true,
+   "hash_url": "${URL}.sha512"
   },
   {
    "os": "maxlinux",
@@ -979,7 +1141,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "$(web_pipe ",
+   "hash_url": "${BASE}/MAX-%RELEASE%/"
   },
   {
    "os": "metamorphose",
@@ -989,7 +1153,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "Metamorphose_8.5.7-Panther-x64.iso"
   },
   {
    "os": "molinux",
@@ -1001,7 +1166,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/archiveos/files/m/molinux",
+   "iso": "Molinux_%RELEASE%_Zoraida.iso"
   },
   {
    "os": "minino",
@@ -1017,7 +1184,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/archiveos/files/m/minino",
+   "iso": "minino-%RELEASE%-%EDITION%.iso"
   },
   {
    "os": "midnightbsd",
@@ -1025,7 +1194,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://discovery.midnightbsd.org/ftp/releases/amd64/ISO-IMAGES/%RELEASE%",
+   "iso": "MidnightBSD-%RELEASE%--amd64-disc1.iso",
+   "hash_url": "${URL}/CHECKSUM.SHA256"
   },
   {
    "os": "mxlinux",
@@ -1039,7 +1211,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/mx-linux/files/Final/%EDITION%",
+   "iso": "MX-%RELEASE%_Xfce_x64.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "netboot",
@@ -1049,7 +1224,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://boot.netboot.xyz/ipxe",
+   "iso": "netboot.xyz.iso",
+   "hash_url": "${URL}/netboot.xyz-sha256-checksums.txt"
   },
   {
    "os": "netbsd",
@@ -1057,7 +1235,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://cdn.netbsd.org/pub/NetBSD/NetBSD-%RELEASE%/images",
+   "iso": "NetBSD-%RELEASE%-amd64.iso",
+   "hash_url": "${URL}/MD5"
   },
   {
    "os": "nitrux",
@@ -1067,7 +1248,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "${URLBASE}/ISO",
+   "hash_url": "${URLBASE}/MD5/${ISONAME}.md5sum"
   },
   {
    "os": "nixos",
@@ -1080,7 +1263,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://channels.nixos.org/nixos-%RELEASE%",
+   "iso": "latest-nixos-%EDITION%-x86_64-linux.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "nobara",
@@ -1094,7 +1280,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://nobaraproject.org/download-nobara/",
+   "hash_url": "${URL}"
   },
   {
    "os": "nst",
@@ -1104,7 +1292,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/nst/files/NST/NST%20%RELEASE%",
+   "iso": "nst-%RELEASE%.x86_64.iso"
   },
   {
    "os": "nwg-shell",
@@ -1112,7 +1302,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/nwg-iso/files",
+   "iso": "nwg-live-%RELEASE%-x86_64.iso",
+   "hash_url": "https://sourceforge.net/projects/nwg-iso/rss?path=/"
   },
   {
    "os": "nova",
@@ -1124,7 +1317,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "nova-%EDITION%-%RELEASE%-amd64.iso"
   },
   {
    "os": "nyarch",
@@ -1139,7 +1333,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/nyarchlinux/files",
+   "iso": "Nyarch-${PREFIX}${ED}-%RELEASE%.iso"
   },
   {
    "os": "omarchy",
@@ -1149,7 +1345,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://iso.omarchy.org",
+   "iso": "omarchy-%RELEASE%.iso"
   },
   {
    "os": "openbsd",
@@ -1157,7 +1355,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirror.leaseweb.com/pub/OpenBSD/%RELEASE%/amd64",
+   "iso": "install${RELEASE//\\./}.iso",
+   "hash_url": "${URL}/SHA256"
   },
   {
    "os": "openfyde",
@@ -1165,7 +1366,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://github.com/openfyde/overlay-amd64-openfyde/releases/download/%RELEASE%",
+   "iso": "amd64-openfyde-%RELEASE%.bin.xz"
   },
   {
    "os": "openindiana",
@@ -1177,7 +1380,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://dlc.openindiana.org/isos/hipster/%RELEASE%",
+   "iso": "OI-hipster-%EDITION%-%RELEASE%.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "openkylin",
@@ -1190,7 +1396,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "openKylin-Server-V3.0-20260916-x86_64.iso"
   },
   {
    "os": "openmandriva",
@@ -1205,7 +1412,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/openmandriva/rss?path=/release/ROME",
+   "iso": "${ISO//%28/(}",
+   "hash_url": "${URL}"
   },
   {
    "os": "openmediavault",
@@ -1213,7 +1423,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://downloads.sourceforge.net/project/openmediavault/iso/%RELEASE%",
+   "iso": "openmediavault_%RELEASE%-amd64.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "opensuse",
@@ -1224,7 +1437,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://download.opensuse.org/tumbleweed/iso",
+   "iso": "openSUSE-Tumbleweed-DVD-x86_64-Current.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "opnsense",
@@ -1232,7 +1448,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirror.fra10.de.leaseweb.net/opnsense/releases/%RELEASE%",
+   "iso": "OPNsense-%RELEASE%-dvd-amd64.iso.bz2",
+   "hash_url": "${URL}/OPNsense-%RELEASE%-checksums-amd64.sha256"
   },
   {
    "os": "oraclelinux",
@@ -1254,7 +1473,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://yum.oracle.com/ISOS/OracleLinux/OL${VER_MAJ}/u${VER_MIN}/x86_64",
+   "iso": "OracleLinux-R${VER_MAJ}-U${VER_MIN}-Server-x86_64-dvd.iso",
+   "hash_url": "https://linux.oracle.com/security/gpg/checksum/OracleLinux-R${VER_MAJ}-U${VER_MIN}-Server-x86_64.checksum"
   },
   {
    "os": "os2warp",
@@ -1282,7 +1504,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "Pardus-%RELEASE%-${ED_UPPER}-latest-amd64.iso"
   },
   {
    "os": "parrotsec",
@@ -1293,7 +1516,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://download.parrot.sh/parrot/iso/%RELEASE%",
+   "iso": "Parrot-%EDITION%-%RELEASE%_amd64.iso",
+   "hash_url": "${URL}/signed-hashes.txt"
   },
   {
    "os": "pclinuxos",
@@ -1308,7 +1534,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://ftp.fau.de/pclinuxos/pclinuxos/iso",
+   "hash_url": "${URL}/"
   },
   {
    "os": "pentoo",
@@ -1321,7 +1549,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://www.pentoo.ch/isos",
+   "iso": "$(web_pipe ",
+   "hash_url": "${URL}/"
   },
   {
    "os": "peppermint",
@@ -1336,7 +1567,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/peppermintos/files/isos",
+   "iso": "PeppermintOS-devuan_64_xfce.iso",
+   "hash_url": "${URL}/%ISO%-sha512.checksum"
   },
   {
    "os": "plan9",
@@ -1349,7 +1583,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "plan9-%RELEASE%.iso"
   },
   {
    "os": "ponyos",
@@ -1363,7 +1598,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://github.com/klange/ponyos/releases/download/v%RELEASE%",
+   "iso": "image.iso"
   },
   {
    "os": "popos",
@@ -1378,7 +1615,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "hash_url": "https://api.pop-os.org/builds/%RELEASE%/%EDITION%"
   },
   {
    "os": "porteus",
@@ -1397,7 +1635,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.dotsrc.org/porteus/x86_64/Porteus-v%RELEASE%",
+   "iso": "Porteus-${edition}-v%RELEASE%-x86_64.iso",
+   "hash_url": "${URL}/sha256sums.txt"
   },
   {
    "os": "primtux",
@@ -1409,7 +1650,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/primtux/files/Distribution",
+   "iso": "PrimTux%RELEASE%-amd64-%EDITION%.iso",
+   "hash_url": "${URL}/%ISO%.md5"
   },
   {
    "os": "proxmox-ve",
@@ -1417,7 +1661,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://enterprise.proxmox.com/iso",
+   "iso": "proxmox-ve_%RELEASE%.iso",
+   "hash_url": "${URL}/SHA256SUMS"
   },
   {
    "os": "pureos",
@@ -1428,7 +1675,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://downloads.puri.sm/${PureName}/${edition}/${PureDate}",
+   "iso": "pureos-%RELEASE%-${edition}-live-${PureDateSquashed}_amd64.iso",
+   "hash_url": "https://www.pureos.net/download/"
   },
   {
    "os": "q4os",
@@ -1439,7 +1689,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/q4os/rss?path=/stable",
+   "hash_url": "${URL}"
   },
   {
    "os": "qubes",
@@ -1447,7 +1699,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://ftp.qubes-os.org/iso",
+   "iso": "Qubes-R%RELEASE%-x86_64.iso",
+   "hash_url": "${URL}/%ISO%.DIGESTS"
   },
   {
    "os": "reactos",
@@ -1457,7 +1712,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "scrape": true
   },
   {
    "os": "rebeccablackos",
@@ -1467,7 +1723,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/rebeccablackos/files/%RELEASE%",
+   "iso": "RebeccaBlackOS_amd64.iso"
   },
   {
    "os": "rosalinux",
@@ -1483,7 +1741,8 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "ROSA.FRESH.${ED}.13.3.x86_64.iso"
   },
   {
    "os": "rebornos",
@@ -1493,7 +1752,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "hash_url": "https://meta.cdn.soulharsh007.dev/RebornOS-ISO?format=json"
   },
   {
    "os": "recreomatic",
@@ -1515,7 +1775,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://static.redox-os.org/releases/%RELEASE%/x86_64",
+   "hash_url": "${URL}/SHA256SUM"
   },
   {
    "os": "rockylinux",
@@ -1527,7 +1789,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://dl.rockylinux.org/vault/rocky/%RELEASE%/isos/x86_64",
+   "iso": "Rocky-%RELEASE%-x86_64-%EDITION%.iso",
+   "hash_url": "${URL}/CHECKSUM"
   },
   {
    "os": "securityonion",
@@ -1537,7 +1802,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "hash_url": "https://api.github.com/repos/Security-Onion-Solutions/securityonion/releases/latest"
   },
   {
    "os": "siduction",
@@ -1547,7 +1813,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.dotsrc.org/siduction/iso/${NAME}/%EDITION%",
+   "iso": "siduction-%VERSION%-${NAME}-%EDITION%-amd64-%DATE%.iso",
+   "hash_url": "https://mirror.math.princeton.edu/pub/siduction/iso/"
   },
   {
    "os": "slackware",
@@ -1555,7 +1824,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://slackware.nl/slackware/slackware-iso/slackware64-%RELEASE%-iso",
+   "iso": "slackware64-%RELEASE%-install-dvd.iso",
+   "hash_url": "${URL}/%ISO%.md5"
   },
   {
    "os": "slax",
@@ -1568,7 +1840,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://ftp.fi.muni.cz/pub/linux/slax/Slax-12.x",
+   "hash_url": "${URL}/md5.txt"
   },
   {
    "os": "slint",
@@ -1578,7 +1852,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://slackware.uk/slint/x86_64/slint-${MAJ_VER}/iso",
+   "iso": "slint64-%RELEASE%.iso",
+   "hash_url": "${URL}/%ISO%.sha256"
   },
   {
    "os": "slitaz",
@@ -1586,7 +1863,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "http://mirror.slitaz.org/iso/rolling",
+   "iso": "slitaz-rolling-%RELEASE%",
+   "hash_url": "${URL}/%ISO%.md5"
   },
   {
    "os": "solus",
@@ -1594,7 +1874,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://downloads.getsol.us/isos/%RELEASE%",
+   "iso": "Solus-%EDITION%-Release-%RELEASE%.iso",
+   "hash_url": "${URL}/%ISO%.sha256sum"
   },
   {
    "os": "sparkylinux",
@@ -1602,7 +1885,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/sparkylinux/files/cli",
+   "iso": "sparkylinux-%RELEASE%-x86_64-%EDITION%.iso"
   },
   {
    "os": "spirallinux",
@@ -1621,7 +1906,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/spirallinux/files/12.231005",
+   "iso": "SpiralLinux_%EDITION%_12.231005_x86-64.iso"
   },
   {
    "os": "subgraph",
@@ -1631,7 +1918,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/archiveos/files/s/subgraph",
+   "iso": "subgraph-os-alpha_2016-12-30_1.iso"
   },
   {
    "os": "syllable",
@@ -1641,7 +1930,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://sourceforge.net/projects/syllable/files/Syllable/%RELEASE%",
+   "iso": "SyllableDesktop-%RELEASE%-1.i586.iso.7z"
   },
   {
    "os": "systemrescue",
@@ -1649,7 +1940,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://downloads.sourceforge.net/project/systemrescuecd/sysresccd-x86/%RELEASE%",
+   "iso": "systemrescue-%RELEASE%-amd64.iso"
   },
   {
    "os": "tails",
@@ -1659,7 +1952,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "hash_url": "https://tails.boum.org/install/v2/Tails/amd64/%RELEASE%/latest.json"
   },
   {
    "os": "templeos",
@@ -1669,7 +1963,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://templeos.org/Downloads",
+   "iso": "TempleOS.ISO"
   },
   {
    "os": "tinycore",
@@ -1686,7 +1982,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "http://www.tinycorelinux.net/%RELEASE%.x/%ARCH%/release",
+   "iso": "%EDITION%-%RELEASE%.0.iso",
+   "hash_url": "${URL}/%ISO%.md5.txt"
   },
   {
    "os": "trisquel",
@@ -1702,7 +2001,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirrors.ocf.berkeley.edu/trisquel-images",
+   "iso": "trisquel_%RELEASE%_amd64.iso",
+   "hash_url": "${URL}/%ISO%.sha1"
   },
   {
    "os": "truenas-scale",
@@ -1710,7 +2012,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "hash_url": "${BASE}/${DIR}/"
   },
   {
    "os": "tsurugi",
@@ -1720,7 +2023,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://ftp.nluug.nl/pub/security/DigitalForensics/tsurugi",
+   "iso": "$(web_pipe ",
+   "hash_url": "${URL}/"
   },
   {
    "os": "tuxedo-os",
@@ -1730,7 +2036,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://os.tuxedocomputers.com",
+   "iso": "$(web_pipe ",
+   "hash_url": "https://os.tuxedocomputers.com/"
   },
   {
    "os": "ubuntu",
@@ -1739,7 +2048,9 @@
    "arch": [
     "amd64",
     "arm64"
-   ]
+   ],
+   "url": "https://cdimage.ubuntu.com/${OS}/${DAILY_CODENAME}/daily-live/current",
+   "hash_url": "${URL}/SHA256SUMS"
   },
   {
    "os": "ubuntu-budgie",
@@ -1766,7 +2077,9 @@
    "arch": [
     "amd64",
     "arm64"
-   ]
+   ],
+   "url": "https://cdimage.ubuntu.com/${OS}/${DAILY_CODENAME}/daily-live/current",
+   "hash_url": "${URL}/SHA256SUMS"
   },
   {
    "os": "ubuntu-unity",
@@ -1808,7 +2121,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "UwUntu-22.10-desktop-amd64.iso"
   },
   {
    "os": "vanillaos",
@@ -1816,7 +2130,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "${ISO//.iso/.sha256.txt}",
+   "hash_url": "https://api.github.com/repos/Vanilla-OS/live-iso/releases"
   },
   {
    "os": "vitalinux",
@@ -1830,7 +2146,10 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://mirror.vitalinux.educa.aragon.es/isos",
+   "iso": "$(web_pipe ",
+   "hash_url": "${URL}/"
   },
   {
    "os": "void",
@@ -1843,7 +2162,10 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://repo-default.voidlinux.org/live",
+   "iso": "void-live-x86_64-%RELEASE%-base.iso",
+   "hash_url": "${URL}/sha256sum.txt"
   },
   {
    "os": "vyos",
@@ -1851,7 +2173,9 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://github.com/vyos/vyos-nightly-build/releases/download/%RELEASE%",
+   "iso": "vyos-%RELEASE%-generic-amd64.iso"
   },
   {
    "os": "whonix",
@@ -1861,7 +2185,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "Whonix-LXQt-${VER}.Intel_AMD64.qcow2.libvirt.xz"
   },
   {
    "os": "wifislax",
@@ -1876,7 +2201,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "iso": "wifislax-4-10-1-final.iso"
   },
   {
    "os": "windows",
@@ -1923,7 +2249,9 @@
    ],
    "arch": [
     "amd64"
-   ]
+   ],
+   "url": "https://plug-mirror.rcac.purdue.edu/zorin-iso/%RELEASE%",
+   "hash_url": "${URL}/"
   }
  ]
 }

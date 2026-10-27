@@ -21,7 +21,10 @@ type Entry struct {
 	Arch     []string `json:"arch"`
 	// URL is the get_<os> result template with %s placeholders for
 	// release/edition where the Bash function interpolates them.
-	URL string `json:"url,omitempty"`
+	URL     string `json:"url,omitempty"`
+	ISO     string `json:"iso,omitempty"`
+	HashURL string `json:"hash_url,omitempty"`
+	HashRE  string `json:"hash_re,omitempty"`
 	// Scrape marks OSes whose URL must be re-resolved live (the Bash
 	// get_<os> does web scraping). Go falls back to invoking bash for
 	// these — documented delegation, not a gap.
@@ -113,14 +116,19 @@ func main() {
 			fmt.Fprintf(os.Stderr, "scrape:%s needs live resolution\n", e.OS)
 			os.Exit(3)
 		}
-		u := e.URL
+		release, edition := "", ""
 		if len(args) > 2 {
-			u = strings.Replace(u, "%RELEASE%", args[2], 1)
+			release = args[2]
 		}
 		if len(args) > 3 {
-			u = strings.Replace(u, "%EDITION%", args[3], 1)
+			edition = args[3]
 		}
-		fmt.Println(u)
+		full, hash := resolveURL(e, release, edition, "amd64")
+		out := full
+		if hash != "" {
+			out = full + " " + hash
+		}
+		fmt.Println(out)
 	case "trust":
 		e := find(cat, args[1])
 		if e == nil {
