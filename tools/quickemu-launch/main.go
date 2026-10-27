@@ -4,8 +4,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -13,6 +15,9 @@ import (
 type Conf map[string]string
 
 func parseConf(path string) Conf {
+	if strings.HasSuffix(path, ".toml") {
+		return parseTomlConf(path)
+	}
 	c := Conf{}
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -107,4 +112,38 @@ func main() {
 		return
 	}
 	fmt.Println(strings.Join(args, " "))
+}
+
+// parseTomlConf loads a .toml VM config via the quickemu-toml binary —
+// same parser as Bash toml.sh + loader.sh. It emits a JSON envelope;
+// the `data` field is the flattened key=value config.
+func parseTomlConf(path string) Conf {
+	c := Conf{}
+	out, err := exec.Command("quickemu-toml", "parse", "--file", path).Output()
+	if err != nil {
+		return c
+	}
+	var env struct {
+		Data map[string]any `json:"data"`
+	}
+	if json.Unmarshal(out, &env) != nil {
+		return c
+	}
+	for k, v := range env.Data {
+		if strings.Contains(k, ".") {
+			fmt.Fprintf(os.Stderr, "WARNING! Ignoring nested TOML key %q (flat config model).\n", k)
+			continue
+		}
+		switch x := v.(type) {
+		case string:
+			c[k] = x
+		case bool:
+			if x {
+				c[k] = "true"
+			}
+		case float64:
+			c[k] = fmt.Sprintf("%v", x)
+		}
+	}
+	return c
 }
