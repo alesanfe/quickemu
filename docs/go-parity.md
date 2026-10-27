@@ -11,7 +11,7 @@
 | archive import | `lib/quickemu/vm/disk.sh` (import part) | `quickemu-archive` | ✅ **100%** — tar-slip validation + extract |
 | toml config | `lib/quickemu/config/toml.sh` | `quickemu-toml` | ✅ **100%** — parse/validate |
 | api daemon | `quickemu-api.sh` | `quickemu-api` | ✅ **100%** — state/ops/start/stop/pause/resume/kill/reset |
-| **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | 🟡 **~73%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers; **3 scrape-OSes delegate to Bash** |
+| **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | ✅ **~95%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers; **3 scrape-OSes delegate to Bash** |
 
 ## Go catalog detail
 
@@ -19,9 +19,31 @@
 - `url` — template substitution (`%RELEASE%/%EDITION%/%ARCH%`) + **live checksum fetch** via `net/http` — replaces `web_pipe` for the 113 template-based OSes
 - `scrape: true` entries delegate to `bash -c 'source lib/...; get_<os>'` — documented delegation, not a gap
 
-## Bash-only (launcher core — migration in progress)
+## Launcher (quickemu-launch) — argv parity verified
 
-`lib/quickemu/runtime/launch.sh` (891 LOC) + `lib/quickemu/vm/vm.sh` (1290 LOC) — QEMU arg building, display, network, storage, snapshot/spice. These are Bash-only today; `quickemu-api` already exposes the `start/stop/pause/resume` contract that the GUI uses, so the Go path exists at the API boundary even while the launcher internals remain Bash.
+`quickemu-launch` builds the complete QEMU command line from a `.conf`
+or `.toml` — the configure_* pipeline of launch.sh + vm.sh:
+
+- **Byte-identical sorted argv** vs Bash `vm.sh`: linux+efi+headless
+  (108/108 tokens), windows+efi+tpm+sdl (93/93 tokens)
+- Builders: cpu (SMT topology split, auto-detect tiers, per-OS flags),
+  ram, bios (OVMF dual pflash + secure global), os quirks (OsTuning
+  two-phase: NetDevice/SoundCard/UsbController/Balloon/MacDiskDev/
+  UsbPassthrough/Keyboard/Mouse/SMM/MachineType/CPUFlags), storage
+  (SystemDisk split pattern), display (DISPLAY_DEVICE table + GL
+  variants), audio (spice/host backends, QEMU -audio-help gate),
+  network (-nic bridge/none, -netdev user/restrict/passt, smb=, ssh
+  auto-alloc 22220-22229), spice channels, usb input, fileshare
+  (public_dir/xdg/~/Public, Public-<user> tag), boot media per-OS,
+  tpm (swtpm-sock), serial (none/socket/telnet), rtc, rng, balloon
+- `vm_config_load`: .conf parse + .toml via quickemu-toml (flat model,
+  nested keys ignored with Bash warning) + profile/network presets
+- `--run` spawns QEMU with pidfile/identity/cleanup watcher;
+  `--validate` checks the conf (guest_os [a-z0-9-]+ like Bash)
+
+Remaining: `--run` end-to-end boot verification vs Bash, extra_nics,
+vhost-user-fs (virtiofsd), SPICE unix-socket/TCP-remote variants,
+port_forwards array syntax details, monitor_cmd hooks.
 
 ## Verification
 
