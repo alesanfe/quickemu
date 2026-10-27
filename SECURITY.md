@@ -2,17 +2,63 @@
 
 ## Supported Versions
 
-Here are the versions of Quickemu currently being supported with security updates.
+| Version | Supported |
+|---|---|
+| master (rolling) | yes |
+| Tagged releases | yes (latest only) |
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 4.9.x   | :white_check_mark: |
-| < 4.8   | :x:                |
+Quickemu follows a rolling-release model. Only the current `master` and the
+latest tagged release receive security fixes.
 
 ## Reporting a Vulnerability
 
-If you discover a vulnerability in Quickemu then [file an issue](https://github.com/quickemu-project/quickemu/issues/new) and click *Report a vulnerability*.
+**Do not open a public issue for security vulnerabilities.**
 
-- Quickemu is a spare-time hobby project.
-- We do not have SLAs for responding to security issues.
-- It is a best-efforts basis.
+Report privately via GitHub Security Advisories:
+`https://github.com/alesanfe/quickemu/security/advisories/new`
+
+Include:
+
+- quickemu version / commit hash
+- OS and QEMU version
+- minimal reproduction steps
+- impact assessment (what an attacker could achieve)
+- suggested fix if you have one
+
+## Response Commitments
+
+| Stage | Target |
+|---|---|
+| Acknowledgement | 72 hours |
+| Severity triage | 7 days |
+| Fix or mitigation | 30 days (critical), 90 days (other) |
+| Public disclosure | after fix release or 90 days, whichever first |
+
+## Scope
+
+**In scope:**
+
+- Path traversal / escape outside the VM workspace
+- Command injection via OS names, releases, editions, or config values
+- QMP socket hijacking / PID reuse attacks
+- Malicious archives (tar-slip) on import
+- Download integrity bypass (tampered checksums, signed-URL abuse)
+- Lock/operation-state manipulation
+
+**Out of scope:**
+
+- Bugs in QEMU itself (report to qemu-devel)
+- Malicious guest content inside a VM (VMs are untrusted by design)
+- Vulnerabilities in third-party OS images (report to the vendor)
+
+## Third-Party Images
+
+The `quickget` catalog links to upstream ISO providers. Trust levels are
+documented in `docs/adapter-contract.md` — a download succeeding is not proof
+of authenticity unless the source offers signature verification (level A/B).
+
+## Upstream
+
+This repository is a hardening fork of `quickemu-project/quickemu`. Issues
+that affect upstream will be coordinated with the upstream maintainers before
+disclosure where feasible.

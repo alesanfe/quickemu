@@ -1,0 +1,30 @@
+name: OS catalog request
+description: Add a new OS to quickget
+title: "os: "
+labels: [catalog]
+body:
+  - type: input
+    id: os
+    attributes:
+      label: OS name + homepage
+      placeholder: e.g. ExampleOS — https://example.org
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Direct ISO URL or official mirror
+      placeholder: must be HTTPS, direct .iso, no JS-wrapper
+    validations:
+      required: true
+  - type: checkboxes
+    id: verified
+    attributes:
+      label: I verified
+      options:
+        - label: The URL downloads a real ISO (not HTML)
+          required: true
+        - label: I ran quickget --check against it on Linux
+          required: true
+        - label: No torrent-only / appliance-only artifact
+          required: true

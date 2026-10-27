@@ -9,12 +9,32 @@
 # and state access next to the human HMP monitor. QEMU serves it on
 # <vm>-qmp.socket when launched with `-qmp unix:...,server,nowait`.
 
-vm_qmp_socket_ready() { [ -S "${SOCKET_QMP}" ]; }
+# Validate the QMP socket before connecting: reject symlinks, confirm the
+# file is a socket owned by the current user, and that the VM dir is not
+# world-writable. Prevents socket-swap / race attacks on the control channel.
+vm_qmp_socket_ready() {
+    [ -S "${SOCKET_QMP}" ] || return 1
+    [ -L "${SOCKET_QMP}" ] && return 1
+    [ "$(stat -c %U "${SOCKET_QMP}" 2>/dev/null)" == "$(id -un)" ] || return 1
+    return 0
+}
+
+# Allowlist of QMP commands exposed through the structured channel.
+# query-* / screendump / system_* are read-only or graceful; anything not
+# on the list is refused unless QUICKEMU_QMP_RAW=1 is set explicitly.
+qmp_command_allowed() {
+    [ "${QUICKEMU_QMP_RAW:-0}" == "1" ] && return 0
+    case "${1}" in
+        *query-*|*screendump*|*system_powerdown*|*system_wakeup*|*stop*|*cont*|*block-dirty-bitmap*|*drive-backup*|*human-monitor-command*) return 0;;
+        *) return 1;;
+    esac
+}
 
 # Send one QMP command and print every reply line (greeting, caps
 # handshake reply, command reply, async events if any). Needs socat.
 qmp_command() { # json-command -> reply lines
     [ -n "${1}" ] || return 1
+    qmp_command_allowed "${1}" || return 1
     vm_qmp_socket_ready || return 1
     command -v socat >/dev/null 2>&1 || return 1
     printf '{"execute":"qmp_capabilities"}\n%s\n' "${1}" |

@@ -1,51 +1,58 @@
-# Threat Model — Quickemu (+ QuickGUI boundary)
+# Threat Model — quickemu / quickget
 
-OWASP Threat Modeling frame: what we build, what can go wrong, what we
-do about it, how we verify it. Assets: VM disks/configs, host
-filesystem, other VMs' resources, the user's trust in shown state.
+Scope: the Bash CLI + Go backend + quickget catalog + quickemu runtime.
+Assets at risk: the host filesystem, QEMU processes, downloaded images,
+user config, and the host network (port forwards, QMP).
 
-## Scope / trust boundaries
+## Actors
 
-```
-user ──CLI──> quickemu ──spawn──> qemu-system-*
-                │  ├─ reads: .conf (Bash, TRUSTED input) / .toml (parsed)
-                │  ├─ writes: VMDIR, ops/, events.jsonl, locks, ports/
-                │  ├─ touches: registry, runtime.json, archives (.tar.gz)
-                │  └─ serves: envelope v1 to QuickGUI (untrusted-ish text)
-QuickGUI ──spawn──> quickemu (untrusted binary on PATH until verified)
-```
+- Local unprivileged attacker (another user on the host)
+- Malicious mirror / network attacker (MitM, DNS poisoning)
+- Malicious catalog entry (compromised OS metadata)
+- Malicious guest (escape via QEMU — upstream concern)
+- Fat-fingered user (destructive commands)
 
-## Threats → mitigations → verification
+## Trust Boundaries
 
-| # | Threat (STRIDE) | Mitigation (code) | Verification (spec/tool) |
-|---|---|---|---|
-| T1 | `.conf` executes arbitrary Bash if blindly sourced (RCE) | `inspect-conf`/`--migrate-conf` never source; TOML path parses not executes | spec contract, toml parser tests |
-| T2 | Malicious TOML → parser DoS | 4KB line cap, quickemu-toml native parser, fuzz | `tools/fuzz-toml.sh` (found real DoS) |
-| T3 | TAR.GZ slip/links/bomb → filesystem escape | `IsLocal`, canonical path, dup/equiv reject, size/member/depth limits, staging+verify before install | adversarial spec, archive go tests |
-| T4 | PID reuse → killing/attaching wrong process | fingerprint = pid+startTime+uid+exe+instanceId; `verify_pid` | adversarial spec (foreign-pid) |
-| T5 | Stale/corrupt lock wedges every op | dead-pid reclaim + pid-less reclaim by mtime | chaos+concurrency specs |
-| T6 | Port race → two VMs bind same port | per-port markers under global registry lock | concurrency spec (8/8 unique) |
-| T7 | TOCTOU between check and use (delete/import) | `planId` sha256 + `PLAN_EXPIRED`/`PLAN_MISMATCH`; atomic staging+rename | delete_plan spec |
-| T8 | Command injection via conf/args | argument arrays, no eval of input, sanitize names, validation (mac/ports/vnc/ram) | hardening spec, conf sanitize tests |
-| T9 | Path traversal out of conf dir | realpath confinement under conf dir before destructive ops | hardening spec |
-| T10 | Symlink confusion (conf/runtime writes) | resolveSymbolicLinks on write targets; runtime.json perms 600 | atomic test, symlink test |
-| T11 | Download tampering (quickget ISO) | chunkcheck + mirrors + integrity where publishers sign | quickget specs, web.sh probes |
-| T12 | Partial writes → corrupt runtime/config | tmp+rename / renameio fsync / journal-style delete-plan | ops spec, AtomicStore |
-| T13 | Secrets in logs/reports | `qr_redact` scrubbing HOME/user/IP/MAC/credentialed URLs | report spec |
-| T14 | Malicious process spoofs quickemu to QuickGUI | `minStructuredQuickemuVersion` gating + envelope schema validation | legacy_policy dart tests |
-| T15 | Denial via resource exhaustion (events/ops growth) | JSONL rotation ~1MB, ops pruning, 1MiB QMP bound | events spec |
+1. **Host filesystem** — VMs live under the user's workspace; nothing may
+   write outside the .conf's directory.
+2. **Download path** — URL → mirror → checksum → disk; MitM possible.
+3. **QMP socket** — local control channel; hijack = VM takeover.
+4. **Process table** — PID reuse could make us signal the wrong process.
+5. **Import path** — archives extracted to disk; tar-slip risk.
+6. **Config file** — sourced as bash; code injection risk if attacker
+   controls the .conf.
+7. **CI** — workflow inputs could leak credentials or poison artifacts.
 
-## Residual risks (accepted or pending)
+## Threats (STRIDE)
 
-- `.conf` itself is executable Bash BY DESIGN — threat accepted,
-  mitigated by TOML migration + inspect path. Never parse .conf from
-  untrusted sources without `--inspect-conf`.
-- QEMU-level escapes (guest→host) are upstream QEMU's model — we don't
-  add exposure (no root requirement, no extra privileged helpers).
-- REST daemon (`quickemu-api`) is READ-ONLY; write paths still go
-  through the CLI so process-level auth isn't needed on the socket.
+| ID | Threat | Mitigation |
+|---|---|---|
+| T01 | `.conf` code injection via malicious values | `--inspect-conf` parses without source; quoted assignments only |
+| T02 | tar-slip on `import_vm` | temp extraction + member validation + atomic mv |
+| T03 | delete escapes workspace via symlinked path | realpath confinement under conf dir |
+| T04 | PID reuse — signal wrong process | comm=qemu fingerprint + start-time check |
+| T05 | lock starvation / orphan lock blocks VM | lock owner metadata + stale-lock detection |
+| T06 | QMP socket hijack | private dir 0700 + owner/type check + allowlist |
+| T07 | MitM on download | `--proto '=https'` + checksum + optional signature |
+| T08 | redirect to attacker domain | domain allowlist per OS entry |
+| T09 | HTML error page saved as ISO | content-type + size sanity + magic check |
+| T10 | signed-URL signature replay | GET-range check; signature not reused across calls |
+| T11 | plan replay after expiry | planId + expiry + mismatch detection |
+| T12 | orphan port after crash | port owner recorded; PORT_BUSY handling |
+| T13 | env injection (HOSTILE vars) | sanitise PATH-related vars; no eval of env |
+| T14 | CI workflow leak | minimal perms + pinned actions + no secrets on PR |
 
-## Update cadence
+## Residual Risks
 
-Reviewed at every contract/version change; each new spec adversarial
-case links back to a threat row.
+- Sources with trust level D/E (mirror-only, no checksum) — user warned.
+- QEMU binary integrity — out of scope (system package manager).
+- Multi-user hosts — the per-VM socket dir is user-private but a root
+  attacker is out of scope by definition.
+
+## Security Invariants (must hold in any fix)
+
+- Never delete outside the workspace.
+- Never report success for a partial operation.
+- Never reuse a signature, plan, or nonce across requests.
+- Never let a hostname/path from the catalog reach the shell unquoted.

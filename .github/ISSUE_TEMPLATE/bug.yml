@@ -1,0 +1,31 @@
+name: Bug report
+description: Something in quickemu or quickget is broken
+title: "bug: "
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: quickemu commit / version
+      placeholder: e.g. f88badf or 4.9.9
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Host environment
+      placeholder: e.g. Ubuntu 24.04, QEMU 9.0, bash 5.2, WSL2
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      placeholder: exact commands + expected vs actual
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      render: shell

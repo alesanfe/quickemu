@@ -31,6 +31,20 @@ function parse_arch_flag() {
     return 1  # Flag was not found
 }
 
+# Parse --minimum-trust LEVEL (A-E). Mirrors parse_arch_flag's contract:
+# consumes 2 args and returns 0 when the flag is present.
+function parse_trust_flag() {
+    if [ "${1}" == "--minimum-trust" ] || [ "${1}" == "-minimum-trust" ]; then
+        MINIMUM_TRUST="${2^^}"
+        case "${MINIMUM_TRUST}" in
+            A|B|C|D|E) ;;
+            *) echo "ERROR! invalid trust level '${2}' (A-E)" >&2; exit 1;;
+        esac
+        return 0
+    fi
+    return 1
+}
+
 trap cleanup EXIT
 
 if ((BASH_VERSINFO[0] < 4)); then
@@ -64,8 +78,11 @@ case "${1}" in
     --download|-download)
         OPERATION="download"
         shift
-        # Handle --arch after --download
+        # Handle --arch and --minimum-trust after --download
         if parse_arch_flag "${1}" "${2}"; then
+            shift 2
+        fi
+        if parse_trust_flag "${1}" "${2}"; then
             shift 2
         fi
         ;;
@@ -191,6 +208,15 @@ catalog_check_os_arch "${OS}" "${2:-}" "${3:-}"
 if [ -n "${2}" ]; then
     RELEASE="${2}"
     VM_PATH="${OS}-${RELEASE}$(arch_suffix)"
+    # QE-03: enforce --minimum-trust and warn on unverifiable sources
+    if [[ $(type -t trust_os) == function ]]; then
+        LEVEL=$(trust_os "${OS}")
+        trust_meets_minimum "${LEVEL}" || {
+            echo "ERROR! ${OS} source trust level ${LEVEL} is below --minimum-trust ${MINIMUM_TRUST}" >&2
+            exit 1
+        }
+        trust_warn "${OS}"
+    fi
     # If the OS has an editions_() function, use it.
     if [[ $(type -t "editions_${OS}") == function ]]; then
         catalog_resolve_edition "${OS}" "${3:-}"

@@ -49,6 +49,8 @@ source "${QG_LIBDIR}/catalog/arch.sh"
 source "${QG_LIBDIR}/catalog/data.sh"
 # shellcheck source=lib/quickget/catalog/get.sh
 source "${QG_LIBDIR}/catalog/get.sh"
+# shellcheck source=lib/quickget/catalog/trust.sh
+source "${QG_LIBDIR}/catalog/trust.sh"
 # shellcheck source=lib/quickget/catalog/list.sh
 source "${QG_LIBDIR}/catalog/list.sh"
 # shellcheck source=lib/quickget/catalog/check.sh
