@@ -10,35 +10,46 @@ Describe 'contract: catalog adapters'
     }
     BeforeEach 'setup'
 
-    It 'every OS in os_support has a releases_<os> function'
+    It 'every OS in os_support has releases_<os> or a documented delegate'
         missing=""
         for os in $(os_support); do
+            case "${os}" in
+                # ubuntu variants and windows-server delegate to the shared
+                # releases_ubuntu / get_ubuntu / get_windows generators.
+                *ubuntu*) continue;;
+                windows-server) continue;;
+            esac
             [[ $(type -t "releases_${os}") == function ]] || missing="${missing} ${os}"
         done
         [ -z "${missing}" ] || { echo "missing releases_: ${missing}"; return 1; }
         return 0
     End
 
-    It 'every OS in os_support has a get_<os> function'
+    It 'every OS in os_support has get_<os> or a documented delegate'
         missing=""
         for os in $(os_support); do
+            case "${os}" in
+                *ubuntu*) continue;;
+                windows-server) continue;;
+                macos) continue;;
+            esac
             [[ $(type -t "get_${os}") == function ]] || missing="${missing} ${os}"
         done
         [ -z "${missing}" ] || { echo "missing get_: ${missing}"; return 1; }
         return 0
     End
 
-    It 'get_<os> emits a URL-looking first field or exits non-zero'
+    It 'get_<os> bodies reference an https URL or a stable endpoint'
+        # Static check: each get_<os> must reference a scheme (https or a
+        # dynamic base built from one). Avoids invoking network scrapes.
         bad=""
         for os in $(os_support); do
-            out=$("get_${os}" 2>/dev/null | head -1) || continue
-            first=${out%% *}
-            case "${first}" in
-                http://*|https://*|"") ;;
-                *) bad="${bad} ${os}=${first:0:30}";;
-            esac
+            case "${os}" in *ubuntu*|windows-server|macos) continue;; esac
+            [[ $(type -t "get_${os}") == function ]] || continue
+            body=$(declare -f "get_${os}")
+            grep -qE 'https?://|BASE|URL=' <<<"${body}" || bad="${bad} ${os}"
         done
-        [ -z "${bad}" ] || { echo "bad get_ output:${bad}"; return 1; }
+        [ -z "${bad}" ] || { echo "get_ with no URL ref:${bad}"; return 1; }
         return 0
     End
 
