@@ -21,7 +21,6 @@ Describe 'platform: environment detection'
     End
 
     It 'QEMU binary is discoverable when present'
-        skip_if "no qemu" [ -z "$(command -v qemu-system-x86_64 2>/dev/null)" ]
         When run bash -c 'command -v qemu-system-x86_64'
         The status should be success
         The stdout should include 'qemu-system-x86_64'

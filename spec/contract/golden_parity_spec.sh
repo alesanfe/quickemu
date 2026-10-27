@@ -2,7 +2,6 @@
 # structured output for the same input. Skip-gated on a compiled Go tool.
 # Run with GO_BIN=<path-to-quickemu-ops> to compare real outputs.
 Describe 'parity: bash vs go structured output'
-    Skip if "no go binary" [ -z "${GO_BIN:-}" ] || [ ! -x "${GO_BIN}" ]
 
     It 'op-status JSON shape matches between bash and go'
         # Bash emits the v1 envelope via qe_emit; Go must emit the same

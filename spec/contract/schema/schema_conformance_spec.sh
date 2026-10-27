@@ -89,7 +89,6 @@ It 'conforms to execution-plan.schema.json'
     mkdir -p "${d}/v"
     touch "${d}/v/d.qcow2" "${d}/v/i.iso"
     printf 'guest_os="linux"\ndisk_img="v/d.qcow2"\niso="v/i.iso"\n' >"${d}/vm1.conf"
-    Skip if "qemu-system-x86_64 is not installed" qemu_missing
     When call conforms "${d}" execution-plan.schema.json --vm vm1.conf --dry-run --format json
     The status should be success
 End

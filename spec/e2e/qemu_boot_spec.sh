@@ -2,8 +2,6 @@
 # socket, queries status, shuts down cleanly, verifies no orphans.
 # Skips when qemu-system-x86_64/socat are absent (CI without KVM/QEMU).
 Describe 'e2e: real QEMU boot (TCG)'
-    Skip if "qemu-system-x86_64 not available" [ -z "$(command -v qemu-system-x86_64)" ]
-    Skip if "socat not available" [ -z "$(command -v socat)" ]
 
     setup() {
         E2E_DIR=$(mktemp -d)
