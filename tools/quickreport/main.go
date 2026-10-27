@@ -43,12 +43,15 @@ func probeOSName() string {
 	return "Unknown OS"
 }
 
-// probeQuickemu: resolved quickemu path (sibling of argv[0], else PATH).
+// probeQuickemu: resolved quickemu path (sibling of argv[0], the dev-tree
+// bin/ next to the tools dir, else PATH).
 func probeQuickemu() string {
 	if exe, err := os.Executable(); err == nil {
-		sib := exe[:strings.LastIndex(exe, string(os.PathSeparator))+1] + "quickemu"
-		if st, err := os.Stat(sib); err == nil && st.Mode()&0111 != 0 {
-			return sib
+		dir := exe[:strings.LastIndex(exe, string(os.PathSeparator))+1]
+		for _, sib := range []string{dir + "quickemu", dir + "../../bin/quickemu"} {
+			if st, err := os.Stat(sib); err == nil && st.Mode()&0111 != 0 {
+				return sib
+			}
 		}
 	}
 	if p, err := exec.LookPath("quickemu"); err == nil {

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# quickreport — entry point.
+#
+# The Go implementation (tools/quickreport plus its sibling tools) is the
+# canonical backend. bin/quickreport.bash preserves the original Bash
+# implementation and is used when the Go binaries have not been built
+# (fresh checkout) or when QUICKEMU_BACKEND=bash is set.
+export LC_ALL=C
+
+if ((BASH_VERSINFO[0] < 4)); then
+  echo "Sorry, you need bash 4.0 or newer to run this script."
+  exit 1
+fi
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${HERE}/.." && pwd)"
+
+if [ "${QUICKEMU_BACKEND:-go}" != "bash" ]; then
+  GO_CLI="${ROOT}/tools/quickreport/quickreport"
+  if [ -x "${GO_CLI}" ]; then
+    # Helper tools live beside their modules in the dev tree; expose
+    # every built one on PATH so the CLI's tool() lookup finds them.
+    for d in "${ROOT}/tools/"*/; do
+      [ -n "${d}" ] || continue
+      n="$(basename "${d}")"
+      if [ -x "${d}${n}" ]; then
+        PATH="${d}:${PATH}"
+      fi
+    done
+    export PATH
+    exec "${GO_CLI}" "$@"
+  fi
+  if [ -x "${HERE}/quickreport.bash" ]; then
+    exec "${HERE}/quickreport.bash" "$@"
+  fi
+  echo "quickreport: no backend found (build the Go tools with tools/build-go.sh)" >&2
+  exit 127
+fi
+
+exec "${HERE}/quickreport.bash" "$@"

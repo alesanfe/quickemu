@@ -64,10 +64,16 @@ mkShell {
       -e 's,\$(command -v smbd),${pkgs.samba}/bin/smbd,' \
       bin/quickemu.bash > $PWD/.direnv/bin/quickemu.bash
     chmod +x $PWD/.direnv/bin/quickemu.bash
-    # Keep the Go-first wrapper available under .direnv/bin too.
-    cp bin/quickemu $PWD/.direnv/bin/quickemu
-    chmod +x $PWD/.direnv/bin/quickemu
+    # Keep the Go-first wrappers available under .direnv/bin too,
+    # plus the unpatched .bash fallbacks for the other entry points.
+    for f in quickemu quickget quickgetc quickreport; do
+      cp bin/$f $PWD/.direnv/bin/$f
+      chmod +x $PWD/.direnv/bin/$f
+      [ "$f" = quickemu ] || cp bin/$f.bash $PWD/.direnv/bin/$f.bash
+    done
     # The patched entry resolves ../lib/quickemu next to itself.
     ln -sfn "$PWD/lib" "$PWD/.direnv/lib"
+    # Wrappers resolve ../tools/<t>/<t> from their own dir.
+    ln -sfn "$PWD/tools" "$PWD/.direnv/tools"
   '';
 }

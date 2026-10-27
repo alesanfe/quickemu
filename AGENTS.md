@@ -5,10 +5,17 @@ Quickemu is a Bash wrapper around QEMU that automates VM creation for ~1000 oper
 ## Project structure
 
 ```
-bin/quickemu      # Main VM launcher (canonical entry)
-bin/quickget      # OS downloader and config generator
-bin/quickgetc     # Data-driven downloader (JSON catalog variant, dev tool)
-bin/quickreport   # System diagnostics tool
+bin/quickemu      # VM launcher entrypoint — Go-first wrapper
+                  #   (tools/quickemu-cli; falls back to bin/quickemu.bash)
+bin/quickget      # OS downloader entrypoint — Go-first wrapper
+                  #   (tools/quickget-cli; falls back to bin/quickget.bash)
+bin/quickgetc     # Data-driven downloader — Go-first wrapper
+                  #   (tools/quickgetc; falls back to bin/quickgetc.bash)
+bin/quickreport   # Diagnostics entrypoint — Go-first wrapper
+                  #   (tools/quickreport; falls back to bin/quickreport.bash)
+bin/*.bash        # Original Bash implementations (QUICKEMU_BACKEND=bash
+                  #   or Go binaries not built → fallback backend)
+tools/            # Go modules (one dir per tool; tools/build-go.sh builds all)
 lib/quickemu/     # Modules sourced by the entries (cli, config, catalog,
                   # host, planning, runtime, vm, support)
 lib/quickget/     # quickget layers (cli, catalog, download, image, vm, support)
@@ -40,7 +47,8 @@ The devshell patches `quickemu` to use Nix store paths for OVMF and Samba, writi
 
 ## Build and test commands
 
-- Lint scripts: `shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport $(find lib -name '*.sh')`
+- Lint scripts: `shellcheck -S warning bin/quickemu bin/quickemu.bash bin/quickget bin/quickget.bash bin/quickgetc bin/quickgetc.bash bin/quickreport bin/quickreport.bash $(find lib -name '*.sh')`
+- Build Go tools: `bash tools/build-go.sh` (or `bash tools/go-check.sh` for the full vet+test+race+coverage gate)
 - Run tests (ShellSpec 0.28.1 is vendored): `./shellspec-0.28.1/shellspec [spec/file.sh]` — needs `jq`, `qemu-img`, `qemu-system-*`, `socat` and `python3` for full coverage; on hosts without them expect env-dependent failures in contract/quickget/quickgetc specs.
 - Test quickget URLs: `./bin/quickget --check <os> [release] [edition]`
 - Test ARM64 downloads: `./bin/quickget --arch arm64 --check <os> [release] [edition]`

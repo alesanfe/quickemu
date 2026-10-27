@@ -14,7 +14,7 @@ setup() {
     printf '#!/bin/sh\nexit 0\n' > "$FAKEBIN/xdg-open"
     chmod +x "$FAKEBIN"/*
     export PATH="$FAKEBIN:$PATH" FIXTURES="${QE_ROOT}/spec/fixtures"
-    qg() { ( cd "$TESTDIR" && . "${QE_ROOT}/bin/quickget" ); }
+    qg() { ( cd "$TESTDIR" && . "${QE_ROOT}/bin/quickget.bash" ); }
 }
 cleanup() { rm -rf -- "$TESTDIR"; }
 BeforeEach 'setup'

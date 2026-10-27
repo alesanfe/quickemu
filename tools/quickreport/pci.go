@@ -23,12 +23,13 @@ func pciGPUNames() []string {
 		if len(cls) < 4 || cls[:4] != "0x03" {
 			continue // display family only
 		}
-		vendor, product := pciHex(e.Name(), "vendor"), pciHex(e.Name(), "device")
+		vhex, dhex := pciHex(e.Name(), "vendor"), pciHex(e.Name(), "device")
+		vendor, product := vhex, dhex
 		if derr == nil {
-			if v := db.Vendors[vendor]; v != nil {
+			if v := db.Vendors[vhex]; v != nil {
 				vendor = v.Name
 			}
-			if p := db.Products[vendor+product]; p != nil {
+			if p := db.Products[vhex+dhex]; p != nil {
 				product = p.Name
 			}
 		}

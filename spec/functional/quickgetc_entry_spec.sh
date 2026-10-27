@@ -39,7 +39,7 @@ JSON
 
     # Source the real entry inside a subshell: args are the function's
     # positional params, exit() is contained, coverage is still traced.
-    qgc() { ( cd "$TESTDIR" && . "${QE_ROOT}/bin/quickgetc" ); }
+    qgc() { ( cd "$TESTDIR" && . "${QE_ROOT}/bin/quickgetc.bash" ); }
 }
 cleanup() { rm -rf -- "$TESTDIR"; }
 BeforeEach 'setup'

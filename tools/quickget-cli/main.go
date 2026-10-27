@@ -84,19 +84,39 @@ func findEntry(cat []Entry, name string) *Entry {
 	return nil
 }
 
+// findTool resolves a sibling Go tool: PATH first, then next to this
+// executable, then the dev-tree layout ../<name>/<name>.
+func findTool(name string) (string, error) {
+	if bin, err := exec.LookPath(name); err == nil {
+		return bin, nil
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		for _, p := range []string{
+			filepath.Join(dir, name),
+			filepath.Join(dir, "..", name, name),
+		} {
+			if st, err := os.Stat(p); err == nil && st.Mode()&0111 != 0 {
+				return p, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("%s: not on PATH", name)
+}
+
 func tool(name string, args ...string) (string, error) {
-	bin, err := exec.LookPath(name)
+	bin, err := findTool(name)
 	if err != nil {
-		return "", fmt.Errorf("%s: not on PATH", name)
+		return "", err
 	}
 	out, err := exec.Command(bin, args...).CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }
 
 func runPassthru(name string, args ...string) int {
-	bin, err := exec.LookPath(name)
+	bin, err := findTool(name)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: not on PATH\n", name)
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
 	cmd := exec.Command(bin, args...)
@@ -209,7 +229,7 @@ func actShow(osName string) int {
 	info := loadInfo()
 	inf, ok := info[osName]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "ERROR! You must specify a valid OS.\n")
+		fmt.Fprintf(os.Stdout, "ERROR! You must specify a valid OS.\n")
 		return 1
 	}
 	fmt.Println()
@@ -220,11 +240,44 @@ func actShow(osName string) int {
 	return 0
 }
 
+// actUpdate: catalog_update_check parity — newest upstream release vs
+// local <os>-* VM directories in the cwd.
+func actUpdate(osName string) int {
+	out, err := tool("quickget-catalog", "releases", osName)
+	if err != nil || strings.TrimSpace(out) == "" {
+		fmt.Fprintf(os.Stdout, "ERROR! You must specify a valid OS.\n")
+		return 1
+	}
+	latest := strings.Fields(out)[0]
+	fmt.Println("Latest " + osName + " release upstream: " + latest)
+	dirs, _ := filepath.Glob(osName + "-*")
+	var local []string
+	for _, d := range dirs {
+		if st, err := os.Stat(d); err == nil && st.IsDir() {
+			local = append(local, d)
+		}
+	}
+	sort.Strings(local)
+	if len(local) == 0 {
+		fmt.Println("No local " + osName + " VM directories found.")
+		return 0
+	}
+	fmt.Println("Local VM dirs:")
+	for _, d := range local {
+		if d == osName+"-"+latest {
+			fmt.Println("  " + d + "  (up to date)")
+		} else {
+			fmt.Println("  " + d + "  (older release available)")
+		}
+	}
+	return 0
+}
+
 func actOpenHomepage(osName string) int {
 	info := loadInfo()
 	inf, ok := info[osName]
 	if !ok || inf.Homepage == "" {
-		fmt.Fprintf(os.Stderr, "ERROR! You must specify a valid OS.\n")
+		fmt.Fprintf(os.Stdout, "ERROR! You must specify a valid OS.\n")
 		return 1
 	}
 	for _, opener := range []string{"xdg-open", "sensible-browser", "x-www-browser", "gnome-open"} {
@@ -245,22 +298,30 @@ func combinations(e *Entry, release, edition string) [][2]string {
 	if release != "" {
 		rels = []string{release}
 	}
-	var eds []string
-	switch {
-	case edition != "":
-		eds = []string{edition}
-	case len(e.Editions) > 0:
-		eds = e.Editions
-	case e.OS == "windows":
-		eds = winLangs
-	case e.OS == "windows-server":
-		eds = winSrvLangs
-	default:
-		eds = []string{""}
+	editionsFor := func(rel string) []string {
+		switch {
+		case edition != "":
+			return []string{edition}
+		case len(e.Editions) > 0:
+			return e.Editions
+		}
+		// Editions that depend on the release (editions_<os>() uses
+		// ${RELEASE}, e.g. blackarch) come from a live catalog scrape.
+		if out, err := tool("quickget-catalog", "editions", e.OS, rel); err == nil && strings.TrimSpace(out) != "" {
+			return strings.Fields(out)
+		}
+		switch e.OS {
+		case "windows":
+			return winLangs
+		case "windows-server":
+			return winSrvLangs
+		default:
+			return []string{""}
+		}
 	}
 	var out [][2]string
 	for _, r := range rels {
-		for _, ed := range eds {
+		for _, ed := range editionsFor(r) {
 			out = append(out, [2]string{r, ed})
 		}
 	}
@@ -271,7 +332,7 @@ func actURL(osName, release, edition, arch string) int {
 	cat := loadCatalog()
 	e := findEntry(cat, osName)
 	if e == nil {
-		fmt.Fprintf(os.Stderr, "ERROR! You must specify a valid OS.\n")
+		fmt.Fprintf(os.Stdout, "ERROR! You must specify a valid OS.\n")
 		return 1
 	}
 	rc := 0
@@ -295,7 +356,7 @@ func actCheck(osName, release, edition, arch string) int {
 	cat := loadCatalog()
 	e := findEntry(cat, osName)
 	if e == nil {
-		fmt.Fprintf(os.Stderr, "ERROR! You must specify a valid OS.\n")
+		fmt.Fprintf(os.Stdout, "ERROR! You must specify a valid OS.\n")
 		return 1
 	}
 	rc := 0
@@ -327,13 +388,164 @@ func trustOK(level, min string) bool {
 
 // actGet is the default/download pipeline: quickget-vm get (or --no-conf
 // for --download). VirtIO/unattended/seed extras run inside quickget-vm.
-func actGet(osName, release, edition string, noConf bool) int {
-	if minTrust != "" {
-		lvl := trustLevel(osName)
-		if !trustOK(lvl, minTrust) {
-			fmt.Fprintf(os.Stderr, "ERROR! %s source trust level %s is below --minimum-trust %s\n", osName, lvl, minTrust)
-			return 1
+// validateOS: os_supported parity — exits the error contract
+// ("ERROR! <os> is not a supported OS." + wrapped list) and returns
+// false for unknown OS names.
+func validateOS(osName string) bool {
+	if findEntry(loadCatalog(), osName) != nil {
+		return true
+	}
+	fmt.Fprintf(os.Stdout, "ERROR! %s is not a supported OS.\n\n", osName)
+	var names []string
+	for _, e := range loadCatalog() {
+		names = append(names, e.OS)
+	}
+	fmt.Fprintln(os.Stdout, wrapLines(names, 80))
+	return false
+}
+
+// specifyRelease: error_specify_release parity — OS info + releases +
+// editions/archs then "ERROR! You must specify a release."
+func specifyRelease(osName string) int {
+	info := loadInfo()
+	if inf, ok := info[osName]; ok {
+		fmt.Println()
+		fmt.Println(inf.Name)
+		fmt.Println(" - Credentials:\t" + inf.Credentials)
+		fmt.Println(" - Website:\t" + inf.Homepage)
+		fmt.Println(" - Description:\t" + inf.Info)
+	}
+	if out, err := tool("quickget-catalog", "releases", osName); err == nil {
+		fmt.Println(" - Releases:\t" + out)
+	}
+	if out, err := tool("quickget-catalog", "editions", osName); err == nil && strings.TrimSpace(out) != "" {
+		fmt.Println(" - Editions:\t" + out)
+	}
+	if out, err := tool("quickget-catalog", "arch", osName); err == nil && strings.TrimSpace(out) != "" {
+		fmt.Println(" - Archs:\t" + out)
+	}
+	fmt.Fprintln(os.Stdout, "\nERROR! You must specify a release.")
+	return 1
+}
+
+// validateRelease: validate_release parity — the chosen release must
+// appear in the catalog releases list.
+func validateRelease(osName, release string) bool {
+	out, err := tool("quickget-catalog", "releases", osName)
+	if err != nil {
+		return true // catalog can't answer — let the download path decide
+	}
+	for _, r := range strings.Fields(out) {
+		if r == release {
+			return true
 		}
+	}
+	name := osName
+	if inf, ok := loadInfo()[osName]; ok {
+		name = inf.Name
+	}
+	fmt.Fprintf(os.Stdout, "ERROR! %s %s is not a supported release.\n\n - Supported releases: %s\n", name, release, out)
+	return false
+}
+
+// resolveEdition: catalog_resolve_edition parity — OSes with an
+// editions list require a valid edition argument.
+func resolveEdition(osName, edition string) bool {
+	out, err := tool("quickget-catalog", "editions", osName)
+	if err != nil || strings.TrimSpace(out) == "" {
+		return true // no editions for this OS
+	}
+	eds := strings.Fields(out)
+	name := osName
+	if inf, ok := loadInfo()[osName]; ok {
+		name = inf.Name
+	}
+	if edition == "" {
+		specifyReleaseInfo(osName)
+		fmt.Println(" - Editions:\t" + out)
+		fmt.Fprintln(os.Stdout, "\nERROR! You must specify an edition.")
+		return false
+	}
+	for _, e := range eds {
+		if e == edition {
+			return true
+		}
+	}
+	fmt.Fprintf(os.Stdout, "ERROR! %s is not a supported %s edition\n\n - Supported editions: %s\n", edition, name, out)
+	return false
+}
+
+func specifyReleaseInfo(osName string) {
+	info := loadInfo()
+	if inf, ok := info[osName]; ok {
+		fmt.Println()
+		fmt.Println(inf.Name)
+		fmt.Println(" - Credentials:\t" + inf.Credentials)
+		fmt.Println(" - Website:\t" + inf.Homepage)
+		fmt.Println(" - Description:\t" + inf.Info)
+	}
+}
+
+// wrapLines: `fmt -w 80` approximation — space-separated words wrapped
+// at width.
+func wrapLines(words []string, width int) string {
+	var b strings.Builder
+	col := 0
+	for _, w := range words {
+		if col > 0 && col+1+len(w) > width {
+			b.WriteByte('\n')
+			col = 0
+		}
+		if col > 0 {
+			b.WriteByte(' ')
+			col++
+		}
+		b.WriteString(w)
+		col += len(w)
+	}
+	return b.String()
+}
+
+func actGet(osName, release, edition string, noConf bool) int {
+	// Bash order: os_supported → release required → validate_release →
+	// resolve edition → trust gate → download.
+	if !validateOS(osName) {
+		return 1
+	}
+	if release == "" {
+		return specifyRelease(osName)
+	}
+	lvl := trustLevel(osName)
+	if !trustOK(lvl, minTrust) {
+		fmt.Fprintf(os.Stderr, "ERROR! %s source trust level %s is below --minimum-trust %s\n", osName, lvl, minTrust)
+		return 1
+	}
+	// trust_warn parity: unverifiable sources warn on every download
+	// (before release/edition validation, like main.sh). Bash runs the
+	// per-OS get_* resolver live: a checksummed source (A-C) whose hash
+	// cannot be resolved right now — e.g. an invalid release — also
+	// warns as unverifiable; the catalog check reproduces that probe.
+	switch lvl {
+	case "D":
+		fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
+	case "E":
+		fmt.Fprintf(os.Stderr, "warning: %s source unverifiable (trust E: community mirror)\n", osName)
+	default:
+		if e := findEntry(loadCatalog(), osName); e != nil {
+			for _, c := range combinations(e, release, edition) {
+				out, err := tool("quickget-catalog", "check", osName, c[0], c[1], arch)
+				if err != nil || strings.HasPrefix(out, "FAIL") {
+					fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
+					break
+				}
+			}
+		}
+	}
+	if !validateRelease(osName, release) {
+		return 1
+	}
+	if !resolveEdition(osName, edition) {
+		return 1
 	}
 	args := []string{"get", osName}
 	if release != "" {
@@ -427,7 +639,7 @@ func main() {
 			case "amd64", "x86_64":
 				arch = "amd64"
 			default:
-				fmt.Fprintln(os.Stderr, "ERROR! Unsupported architecture")
+				fmt.Fprintln(os.Stdout, "ERROR! Unsupported architecture")
 				os.Exit(1)
 			}
 		case "--minimum-trust", "-minimum-trust":
@@ -477,7 +689,7 @@ func main() {
 			return
 		default:
 			if strings.HasPrefix(a, "-") {
-				fmt.Fprintf(os.Stderr, "ERROR! Not supported argument '%s'\n", a)
+				fmt.Fprintf(os.Stdout, "ERROR! Not supported argument '%s'\n", a)
 				os.Exit(1)
 			}
 			pos = append(pos, a)
@@ -498,6 +710,12 @@ func main() {
 	if len(pos) > 2 {
 		edition = strings.Join(pos[2:], " ")
 	}
+	// os_supported gate (main.sh:194): any positional OS is validated
+	// before dispatch. --create-config positionals are vm-path+input,
+	// not an OS, so that op is exempt.
+	if osName != "" && op != "config" && !validateOS(osName) {
+		os.Exit(1)
+	}
 	rc := 0
 	switch op {
 	case "show":
@@ -510,7 +728,7 @@ func main() {
 		rc = actShow(osName)
 	case "homepage":
 		if osName == "" {
-			fmt.Fprintln(os.Stderr, "ERROR! You must specify a valid OS.")
+			fmt.Fprintln(os.Stdout, "ERROR! You must specify a valid OS.")
 			os.Exit(1)
 		}
 		rc = actOpenHomepage(osName)
@@ -542,7 +760,7 @@ func main() {
 		}
 	case "download":
 		if osName == "" || release == "" {
-			fmt.Fprintln(os.Stderr, "ERROR! You must specify an OS and release.")
+			fmt.Fprintln(os.Stdout, "ERROR! You must specify an OS and release.")
 			os.Exit(1)
 		}
 		rc = actGet(osName, release, edition, true)
@@ -550,32 +768,17 @@ func main() {
 		// create_config <vm-path> <input>: positional args are the VM
 		// dir name and the image path/URL.
 		if osName == "" || release == "" {
-			fmt.Fprintln(os.Stderr, "ERROR! --create-config needs <vm-path> <input>.")
+			fmt.Fprintln(os.Stdout, "ERROR! --create-config needs <vm-path> <input>.")
 			os.Exit(1)
 		}
 		rc = actCreateConfig(osName, release)
 	case "update":
-		fmt.Fprintln(os.Stderr, "ERROR! --update (catalog update check) is not yet migrated to Go")
-		rc = 1
+		rc = actUpdate(osName)
 	default:
 		// Positional default: download + create config (create_vm parity).
 		if osName == "" {
-			fmt.Fprintln(os.Stderr, "ERROR! You must specify an OS.")
+			fmt.Fprintln(os.Stdout, "ERROR! You must specify an OS.")
 			usage()
-			os.Exit(1)
-		}
-		if release == "" {
-			fmt.Fprintln(os.Stderr, "ERROR! You must specify a release.")
-			if out, err := tool("quickget-catalog", "releases", osName); err == nil {
-				fmt.Fprintln(os.Stderr, " - Releases: "+out)
-			}
-			if out, err := tool("quickget-catalog", "editions", osName); err == nil && out != "" {
-				fmt.Fprintln(os.Stderr, " - Editions:  "+out)
-			}
-			os.Exit(1)
-		}
-		if findEntry(loadCatalog(), osName) == nil {
-			fmt.Fprintf(os.Stderr, "ERROR! %s is not a supported OS.\n\n", osName)
 			os.Exit(1)
 		}
 		rc = actGet(osName, release, edition, false)

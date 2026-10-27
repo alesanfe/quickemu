@@ -142,9 +142,31 @@ dispatches every action to a Go backend tool:
   country map); virtio-win.iso + `unattendedWindows` (37-locale XML
   template, qxldod w10-only, mkisofs unattended.iso)
 - `getMacos` — Apple osrecovery session → InstallationPayload →
-  RecoveryImage.dmg+chunklist (AssetToken headers) → chunkcheck →
-  dmg→raw convert → pinned OSX-KVM OpenCore/OVMF fetch → mkconf
+  RecoveryImage.dmg+chunklist (AssetToken headers) → pure-Go
+  chunkcheck → dmg→raw convert → pinned OSX-KVM OpenCore/OVMF fetch
+  → mkconf
 - `quickreport` — host probes + redaction + output file
+
+## Entry points (all four are Go-first wrappers)
+
+`bin/quickemu`, `bin/quickget`, `bin/quickgetc`, `bin/quickreport`
+are thin wrappers that exec the Go tool (`tools/<name>/<name>`),
+inject every built `tools/*/` dir onto PATH, and fall back to the
+preserved `bin/*.bash` implementation when the Go binary is absent
+or `QUICKEMU_BACKEND=bash` is set. Specs that source entrypoints
+in-process exercise `bin/*.bash` directly (they fake PATH binaries
+like `curl`, which the Go `net/http` pipeline intentionally does
+not honor).
+
+Selection-validation parity in `quickget-cli` (the uat/contract
+specs pin this): `os_supported` gate on any positional OS;
+`error_specify_release` (OS info + releases + editions/archs);
+`validate_release`/`resolveEdition` against the catalog; trust gate
++ dynamic `trust_warn` (static D/E levels warn unconditionally; a
+checksummed source whose URL probe FAILs also warns — mirrors
+`trust_os` running `get_<os>` live). All user-facing validation
+errors print to **stdout** like Bash `echo`; only trust/`>&2`
+errors go to stderr.
 
 ## External-binary reductions (pure-Go libraries)
 

@@ -56,7 +56,7 @@ Describe 'basic invocations'
         The output should include 'quickget'
     End
     It 'quickgetc --version prints a version'
-        v() { ( cd "$TMPDIRP" 2>/dev/null || cd /tmp; export XDG_CACHE_HOME="$TESTCACHE"; export PATH="$TESTBIN:$PATH"; . "$QE_ROOT/bin/quickgetc" --version ); }
+        v() { ( cd "$TMPDIRP" 2>/dev/null || cd /tmp; export XDG_CACHE_HOME="$TESTCACHE"; export PATH="$TESTBIN:$PATH"; . "$QE_ROOT/bin/quickgetc.bash" --version ); }
         TESTCACHE=$(mktemp -d); TESTBIN=$(mktemp -d)
         printf '[]' > "$TESTCACHE/quickget_data.json.zst"
         printf '#!/bin/sh\nwhile [ $# -gt 1 ]; do shift; done\nexec cat "$1"\n' > "$TESTBIN/zstd"
