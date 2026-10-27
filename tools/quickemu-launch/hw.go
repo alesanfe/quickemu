@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -40,8 +39,7 @@ func hostNCores() int {
 	return 2
 }
 
-func cpuArgs(c Conf, osName, arch string) []string {
-	// cpu_cores unset -> tier by host logical cpus (configure_cpu).
+func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
 	cores := c.get("cpu_cores", "")
 	if cores == "" {
 		n := hostNCores()
@@ -59,18 +57,13 @@ func cpuArgs(c Conf, osName, arch string) []string {
 		}
 	}
 	cpu := "host"
-
-	var a []string
-	switch osName {
-	case "macos":
-		a = append(a, "-cpu", cpu+",-pdpe1gb,+hypervisor,vmware-cpuid-freq=on,vendor=GenuineIntel")
-	case "windows":
-		a = append(a, "-cpu", cpu+",+hypervisor,+invtsc,l3-cache=on")
-	default:
-		a = append(a, "-cpu", cpu)
+	if strings.HasPrefix(t.CPUFlags, "@") {
+		cpu = strings.TrimPrefix(t.CPUFlags, "@") // qemu32 etc: model replaces
+	} else {
+		cpu += t.CPUFlags
 	}
-	// Bash configure_cpu: cpu_cores is LOGICAL cpus — split into
-	// cores x threads when host SMT is on (cores>=2).
+	var a []string
+	a = append(a, "-cpu", cpu)
 	n := 2
 	fmt.Sscanf(cores, "%d", &n)
 	threads := 1
@@ -96,7 +89,7 @@ func biosArgs(c Conf, osName, arch string) []string {
 		a = append(a, "-bios", "/usr/share/AAVMF/AAVMF_CODE.fd")
 		return a
 	}
-	efi := c.get("efi", "") == "true" || osName == "windows" || osName == "macos"
+	efi := confOn(c, "efi") || strings.Contains(c.get("boot", ""), "efi") || osName == "windows" || osName == "macos"
 	if !efi {
 		return a
 	}
@@ -105,17 +98,23 @@ func biosArgs(c Conf, osName, arch string) []string {
 	// pflash global. The vars file is copied into the vmdir at launch.
 	vars := dotdir(c["_vmdir"]) + "OVMF_VARS.fd"
 	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
-	if c.get("secureboot", "") == "true" {
+	if confOn(c, "secureboot") {
 		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.secboot.fd,readonly=on")
 	} else {
 		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE_4M.fd,readonly=on")
 	}
 	a = append(a, "-drive", "if=pflash,format=raw,unit=1,file="+vars)
-	if c.get("tpm", "") == "true" {
-		a = append(a,
-			"-chardev", "socket,id=chrtpm,path="+filepath.Join(c["_vmdir"], "tpm.sock"),
-			"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
-			"-device", "tpm-tis,tpmdev=tpm0")
+	if confOn(c, "tpm") {
+		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".swtpm-sock"
+		if arch == "aarch64" {
+			a = append(a, "-chardev", "socket,id=chrtpm,path="+sock,
+				"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
+				"-device", "tpm-tis-device,tpmdev=tpm0")
+		} else {
+			a = append(a, "-chardev", "socket,id=chrtpm,path="+sock,
+				"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
+				"-device", "tpm-tis,tpmdev=tpm0")
+		}
 	}
 	return a
 }

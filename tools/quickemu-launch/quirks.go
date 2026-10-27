@@ -15,17 +15,19 @@ type OsTuning struct {
 	Keyboard       string
 	Mouse          string
 	ExtraArgs      []string
+	Machine        string // extra -machine opts e.g. ",hpet=off"
+	SMM            string // on|off — "" = unset (defaults off)
+	CPUFlags       string // appended to -cpu model
+	MachineType    string // q35|pc — "" = q35
 }
 
-// osQuirks: configure_os_quirks parity — resolves per-guest-OS device
-// defaults. Case order matches Bash (first match wins).
+// osQuirks: configure_os_quirks + the OS branches of configure_cpu/
+// configure_bios — resolves per-guest-OS device defaults. Case order
+// matches Bash (first match wins).
 func osQuirks(c Conf, osName, arch string) OsTuning {
-	t := OsTuning{NetDevice: "rtl8139"} // catch-all default
+	t := OsTuning{NetDevice: "rtl8139", SMM: "off", MachineType: "q35"}
 
 	// pre-case overrides
-	if osName == "batocera" || osName == "haiku" || osName == "kolibrios" {
-		t.NetDevice = "rtl8139"
-	}
 	if osName == "freebsd" || osName == "ghostbsd" {
 		t.Mouse = "usb"
 	}
@@ -80,15 +82,76 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 		}
 	}
 
-	// global flags / extras (emitted as args, not variables)
+	// machine type: pc for the legacy guests, q35 otherwise
+	switch osName {
+	case "batocera", "freedos", "haiku", "solaris":
+		t.MachineType = "pc"
+	}
+
+	// SMM on for freedos/windows/windows-server (Linux host) and
+	// linux+secureboot — configure_cpu.
+	switch osName {
+	case "freedos", "windows", "windows-server":
+		t.SMM = "on"
+	case "linux":
+		if confOn(c, "secureboot") {
+			t.SMM = "on"
+		}
+	}
+
+	// CPU model/flags: windows x86_64 gets Hyper-V enlightenments;
+	// kolibrios/reactos run qemu32; macos hides the hypervisor.
+	switch osName {
+	case "windows", "windows-server":
+		if arch == "x86_64" {
+			t.CPUFlags = ",+hypervisor,+invtsc,l3-cache=on"
+		}
+	case "kolibrios", "reactos":
+		t.CPUFlags = "@qemu32"
+	case "macos":
+		if arch == "x86_64" {
+			t.CPUFlags = ",-pdpe1gb,+hypervisor,vmware-cpuid-freq=on,vendor=GenuineIntel"
+		}
+	}
+
+	// machine opts: hpet=off for macos+windows on x86_64 (QEMU>=70)
+	if arch == "x86_64" && (osName == "macos" || osName == "windows" || osName == "windows-server") {
+		t.Machine = ",hpet=off"
+	}
+
+	// GUEST_TWEAKS emitted as args
 	if osName == "windows" || osName == "windows-server" {
-		t.ExtraArgs = append(t.ExtraArgs, "-global", "kvm-pit.lost_tick_policy=discard")
+		t.ExtraArgs = append(t.ExtraArgs, "-global", "ICH9-LPC.disable_s3=1")
 	}
 	if osName == "macos" {
-		t.ExtraArgs = append(t.ExtraArgs, "-global", "ICH9-LPC.disable_s3=1", "-global", "ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off")
+		t.ExtraArgs = append(t.ExtraArgs, "-global", "ICH9-LPC.disable_s3=1", "-global", "ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off", "-device", "isa-applesmc,osk="+rot13("bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap"))
 	}
-	if osName == "linux" && c.get("snapshot", "") == "true" {
+	if osName == "linux" && confOn(c, "snapshot") {
 		t.ExtraArgs = append(t.ExtraArgs, "-snapshot")
 	}
 	return t
+}
+
+// rtcArgs: windows/freedos/reactos keep localtime+driftfix; the rest utc.
+func rtcArgs(osName string) []string {
+	switch osName {
+	case "windows", "windows-server", "reactos", "freedos":
+		return []string{"-rtc", "base=localtime,clock=host,driftfix=slew"}
+	default:
+		return []string{"-rtc", "base=utc,clock=host"}
+	}
+}
+
+// rot13: decodes the Apple SMC OSK key the same way Bash does with tr.
+func rot13(s string) string {
+	b := []byte(s)
+	for i, r := range b {
+		switch {
+		case r >= 'a' && r <= 'm', r >= 'A' && r <= 'M':
+			b[i] = r + 13
+		case r >= 'n' && r <= 'z', r >= 'N' && r <= 'Z':
+			b[i] = r - 13
+		}
+	}
+	return string(b)
 }

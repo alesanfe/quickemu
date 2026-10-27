@@ -4,19 +4,29 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
 func bootMediaArgs(c Conf, dir string) []string {
 	var a []string
-	switch c.get("boot", "") {
-	case "efi":
-		a = append(a, "-boot", "order=d,once=d")
-	case "legacy":
-		a = append(a, "-boot", "order=c,once=c")
-	case "network":
-		a = append(a, "-boot", "order=n,once=n")
+	iso := c.get("iso", "")
+	osn := c.get("guest_os", "")
+	// vm_boot_media: boot-order tweaks are per-guest, not per-boot-mode.
+	switch {
+	case iso != "" && osn == "freedos":
+		a = append(a, "-boot", "order=dc")
+	case iso != "" && osn == "kolibrios":
+		// cdrom index=2 avoids the phantom-iso bug
+		a = append(a, "-drive", "media=cdrom,index=2,file="+filepath.Join(dir, iso))
+	case iso != "" && osn == "reactos":
+		a = append(a, "-boot", "order=d",
+			"-drive", "if=ide,index=2,media=cdrom,file="+filepath.Join(dir, iso))
+	case iso != "" && strings.HasPrefix(osn, "windows"):
+		if _, err := os.Stat(filepath.Join(dir, "unattended.iso")); err == nil {
+			a = append(a, "-drive", "media=cdrom,index=2,file="+filepath.Join(dir, "unattended.iso"))
+		}
 	}
 	if c.get("floppy", "") != "" {
 		a = append(a, "-drive", "file="+filepath.Join(dir, c["floppy"])+",if=floppy")
@@ -35,7 +45,7 @@ func passthruArgs(c Conf) []string {
 			a = append(a, "-device", fmt.Sprintf("usb-host,vendorid=0x%s,productid=0x%s", parts[0], parts[1]))
 		}
 	}
-	if c.get("vfio", "") == "true" {
+	if confOn(c, "vfio") {
 		for _, dev := range strings.Fields(c.get("vfio_devices", "")) {
 			a = append(a, "-device", "vfio-pci,host="+dev)
 		}

@@ -13,18 +13,22 @@ import (
 func displayArgs(c Conf, dir, osName, arch string) []string {
 	var a []string
 	display := c.get("display", "none")
-	if display != "none" && display != "spice" {
+	gl := c.get("gl", "on")
+	switch display {
+	case "sdl", "spice-app":
+		a = append(a, "-display", display+",gl="+gl)
+	case "cocoa", "gtk":
+		a = append(a, "-display", display+",grab-on-hover=on,zoom-to-fit=off,gl="+gl)
+	case "vnc":
+		a = append(a, "-vnc", ":0", "-display", "none")
+	case "none":
+		a = append(a, "-display", "none")
+	case "spice":
+		a = append(a, "-display", "none") // egl-headless when gl=on; none is safe default
+	default:
 		a = append(a, "-display", display)
 	}
 	if c.get("viewer", "") == "none" {
-		a = append(a, "-display", "none")
-	}
-	switch display {
-	case "sdl", "gtk", "cocoa":
-		a = append(a, "-display", display+",gl=on")
-	case "vnc":
-		a = append(a, "-vnc", ":0")
-	case "none":
 		a = append(a, "-display", "none")
 	}
 	// DISPLAY_DEVICE resolution (display.sh): per guest_os + mode.
@@ -41,26 +45,43 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	return a
 }
 
-// displayDevice: the DISPLAY_DEVICE table from display.sh.
+// displayDevice: the DISPLAY_DEVICE table from display.sh — includes
+// the GL variant swap when the display backend supports it and gl!=off.
 func displayDevice(c Conf, osName, arch, display string) string {
 	if v := c.get("video", ""); v != "" {
 		return v
 	}
+	var dev string
 	switch {
 	case osName == "linux_old" || strings.HasSuffix(osName, "solaris"):
-		return "vmware-svga"
+		dev = "vmware-svga"
 	case arch == "aarch64":
-		return "virtio-gpu-pci"
+		dev = "virtio-gpu-pci"
 	case osName == "macos":
 		if display == "none" || display == "spice" {
-			return "qxl-vga"
+			dev = "qxl-vga"
+		} else {
+			dev = "virtio-vga"
 		}
-		return "virtio-vga"
 	case display == "none" || display == "spice" || display == "spice-app":
-		return "virtio-gpu"
+		dev = "virtio-gpu"
 	default:
-		return "virtio-vga"
+		dev = "virtio-vga"
 	}
+	// GL swap: sdl/gtk/cocoa displays with gl!=off use the -gl variant
+	// (display.sh: virtio-vga->virtio-vga-gl, gpu->gpu-gl, gpu-pci->gpu-gl-pci).
+	gl := c.get("gl", "on")
+	if gl != "off" && (display == "sdl" || display == "gtk" || display == "cocoa" || display == "spice-app") {
+		switch dev {
+		case "virtio-vga":
+			dev = "virtio-vga-gl"
+		case "virtio-gpu":
+			dev = "virtio-gpu-gl"
+		case "virtio-gpu-pci":
+			dev = "virtio-gpu-gl-pci"
+		}
+	}
+	return dev
 }
 
 func audioArgs(c Conf, osName string, t OsTuning) []string {
@@ -104,10 +125,16 @@ func audioDriver() string {
 	if rt == "" {
 		rt = "/run/user/1000"
 	}
-	if _, err := os.Stat(filepath.Join(rt, "pipewire-0")); err == nil {
+	// Bash also gates on the QEMU build supporting the driver
+	// (-audio-help lists driver=pa/pipewire when compiled in).
+	drvs, _ := exec.Command("qemu-system-x86_64", "-audio-help").Output()
+	supported := string(drvs)
+	if _, err := os.Stat(filepath.Join(rt, "pipewire-0")); err == nil &&
+		strings.Contains(supported, "driver=pipewire") {
 		return "pipewire"
 	}
-	if _, err := os.Stat(filepath.Join(rt, "pulse/native")); err == nil {
+	if _, err := os.Stat(filepath.Join(rt, "pulse/native")); err == nil &&
+		strings.Contains(supported, "driver=pa") {
 		return "pa"
 	}
 	return "alsa"
@@ -170,6 +197,11 @@ func resolvePublic(c Conf) {
 }
 
 func fileshareArgs(c Conf, dir string) []string {
+	// configure_file_sharing: no 9p for windows (Samba via netdev
+	// instead); windows-server keeps 9p.
+	if c.get("guest_os", "") == "windows" {
+		return nil
+	}
 	pub := c["_public"]
 	if pub == "" {
 		return nil

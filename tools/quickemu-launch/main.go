@@ -68,27 +68,32 @@ func main() {
 	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	osName := conf.get("guest_os", "linux")
 	arch := conf.get("arch", "x86_64")
-	machine := "q35"
+	t := osQuirks(conf, osName, arch)
+	machine := t.MachineType
 	if arch == "aarch64" {
 		machine = "virt"
 	}
 
 	args := []string{"qemu-system-" + arch}
 
-	// machine + accel
+	// accel + machine: tcg is a separate -accel arg; kvm goes inside
+	// -machine (the two args+= paths in vm.sh).
 	accel := "tcg"
 	if arch == "x86_64" && hostHasKVM() {
 		accel = "kvm"
 	}
-	args = append(args, "-accel", accel+",tb-size=256,thread=multi")
-	args = append(args, "-machine", machine+",smm=off,vmport=off")
+	if accel == "tcg" {
+		args = append(args, "-accel", "tcg,tb-size=256,thread=multi")
+		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off")
+	} else {
+		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off,accel="+accel)
+	}
 
 	// vm_boot order: cpu->ram->bios->os_quirks->storage->display->audio
 	// ->ports->fileshare->usb->tpm->boot_media->channels->spawn
-	args = append(args, cpuArgs(conf, osName, arch)...)
+	args = append(args, cpuArgs(conf, osName, arch, t)...)
 	args = append(args, ramArgs(conf)...)
 	args = append(args, biosArgs(conf, osName, arch)...)
-	t := osQuirks(conf, osName, arch)
 	args = append(args, "-global", "kvm-pit.lost_tick_policy=discard")
 	args = append(args, t.ExtraArgs...)
 	if t.Balloon != "" {
@@ -119,12 +124,29 @@ func main() {
 	// monitor + serial sockets
 	args = append(args, "-monitor", "unix:"+dotdir(dir)+vmname+"-monitor.socket"+",server,nowait")
 	args = append(args, "-qmp", "unix:"+dotdir(dir)+vmname+"-qmp.socket"+",server,nowait")
-	args = append(args, "-serial", "unix:"+dotdir(dir)+vmname+"-serial.socket"+",server,nowait")
+	// serial: none for macos/windows default; socket otherwise; telnet conf
+	ser := conf.get("serial", "")
+	if ser == "" {
+		switch osName {
+		case "macos", "windows", "windows-server":
+			ser = "none"
+		default:
+			ser = "socket"
+		}
+	}
+	switch ser {
+	case "none":
+		args = append(args, "-serial", "none")
+	case "telnet":
+		args = append(args, "-serial", "telnet:"+conf.get("serial_telnet_host", "127.0.0.1")+":"+conf.get("serial_telnet_port", "6660")+",server,nowait")
+	default:
+		args = append(args, "-serial", "unix:"+dotdir(dir)+vmname+"-serial.socket"+",server,nowait")
+	}
 
 	// pidfile + daemonize
 	args = append(args, "-name", vmname+",process="+vmname+",debug-threads=on")
 	args = append(args, "-pidfile", dotdir(dir)+vmname+".pid")
-	args = append(args, "-rtc", "base=utc,clock=host")
+	args = append(args, rtcArgs(osName)...)
 	args = append(args, "-device", "virtio-balloon")
 	args = append(args, "-object", "rng-random,id=rng0,filename=/dev/urandom", "-device", "virtio-rng-pci,rng=rng0")
 
@@ -179,4 +201,10 @@ func dotdir(dir string) string {
 		return "./"
 	}
 	return dir + "/"
+}
+
+// confOn: quickemu conf booleans are "on" (with "true"/"yes" tolerated).
+func confOn(c Conf, key string) bool {
+	v := c.get(key, "")
+	return v == "on" || v == "true" || v == "yes"
 }

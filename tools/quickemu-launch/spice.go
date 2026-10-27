@@ -7,20 +7,20 @@ import "fmt"
 // channels for agent, vdagent, webdav, usbredir and smartcard).
 func spiceArgs(c Conf, dir, vmname, osName string) []string {
 	d := c.get("display", "none")
-	if d != "none" && d != "spice" && d != "spice-app" {
-		return nil
-	}
 	var a []string
-	port := c.get("spice_port", "5930")
-	a = append(a, "-spice", "disable-ticketing=on,port="+port+",addr=127.0.0.1")
-	// virtio-serial + guest agent + vdagent + webdav channels
-	a = append(a, "-device", "virtio-serial-pci")
-	a = append(a, "-chardev", fmt.Sprintf("socket,id=agent0,path=%s%s-agent.sock,server=on,wait=off", dotdir(dir), vmname))
-	a = append(a, "-device", "virtserialport,chardev=agent0,name=org.qemu.guest_agent.0")
-	a = append(a, "-chardev", "spicevmc,id=vdagent0,name=vdagent")
-	a = append(a, "-device", "virtserialport,chardev=vdagent0,name=com.redhat.spice.0")
-	a = append(a, "-chardev", "spiceport,id=webdav0,name=org.spice-space.webdav.0")
-	a = append(a, "-device", "virtserialport,chardev=webdav0,name=org.spice-space.webdav.0")
+	// -spice + agent/vdagent/webdav channels only in the spice gate;
+	// usbredir/smartcard below are emitted for every display mode.
+	if d == "none" || d == "spice" || d == "spice-app" {
+		port := c.get("spice_port", "5930")
+		a = append(a, "-spice", "disable-ticketing=on,port="+port+",addr=127.0.0.1")
+		a = append(a, "-device", "virtio-serial-pci")
+		a = append(a, "-chardev", fmt.Sprintf("socket,id=agent0,path=%s%s-agent.sock,server=on,wait=off", dotdir(dir), vmname))
+		a = append(a, "-device", "virtserialport,chardev=agent0,name=org.qemu.guest_agent.0")
+		a = append(a, "-chardev", "spicevmc,id=vdagent0,name=vdagent")
+		a = append(a, "-device", "virtserialport,chardev=vdagent0,name=com.redhat.spice.0")
+		a = append(a, "-chardev", "spiceport,id=webdav0,name=org.spice-space.webdav.0")
+		a = append(a, "-device", "virtserialport,chardev=webdav0,name=org.spice-space.webdav.0")
+	}
 	// usb redirection (3 channels) + smartcard passthrough
 	a = append(a, "-device", "qemu-xhci,id=spicepass")
 	for i := 1; i <= 3; i++ {
