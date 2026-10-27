@@ -1568,11 +1568,12 @@ function get_pentoo() {
 
 
 function get_kicksecure() {
-    local BASE="https://download.kicksecure.com/kicksecure"
+    # Kicksecure 18 ships a single libvirt bundle (same model as Whonix)
+    local BASE="https://download.kicksecure.com/libvirt"
     local VER
-    VER="$(web_pipe "${BASE}/" | grep -o 'href="17\\.[0-9.]*/' | cut -d'"' -f2 | tr -d '/' | sort -Vr | head -1)"
+    VER="$(web_pipe "${BASE}/" | grep -o 'href="[0-9.]*/"' | cut -d'"' -f2 | tr -d '/' | sort -Vr | head -1)"
     local ISO
-    ISO="$(web_pipe "${BASE}/${VER}/" | grep -o 'Kicksecure[^" ]*Intel_AMD64\\.iso' | head -1)"
+    ISO="$(web_pipe "${BASE}/${VER}/" | grep -o 'Kicksecure-CLI-[^" ]*Intel_AMD64\.qcow2\.libvirt\.xz' | head -1)"
     echo "${BASE}/${VER}/${ISO}"
 }
 
