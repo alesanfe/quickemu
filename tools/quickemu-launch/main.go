@@ -76,92 +76,24 @@ func main() {
 	}
 	args = append(args, "-machine", machine+",accel="+accel)
 
-	// cpu
-	cores := conf.get("cpu_cores", "2")
-	cpu := "host"
-	if accel == "tcg" {
-		cpu = "max"
-	}
-	args = append(args, "-cpu", cpu, "-smp", "cores="+cores+",threads=1,sockets=1")
-
-	// ram
-	ram := conf.get("ram", "4G")
-	args = append(args, "-m", ram)
-
-	// display
-	display := conf.get("display", "none")
-	if display != "none" {
-		args = append(args, "-display", display)
-	}
-	spice := conf.get("spice_port", "")
-	if spice != "" {
-		args = append(args, "-spice", "port="+spice+",disable-ticketing=on")
-	}
-
-	// firmware
-	if conf.get("efi", "") == "true" || osName == "windows" || osName == "macos" {
-		if conf.get("secureboot", "") == "true" {
-			args = append(args, "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.secboot.fd")
-		} else {
-			args = append(args, "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd")
-		}
-		if conf.get("tpm", "") == "true" {
-			args = append(args, "-chardev", "socket,id=chrtpm,path="+filepath.Join(dir, "tpm.sock"), "-tpmdev", "emulator,id=tpm0,chardev=chrtpm", "-device", "tpm-tis,tpmdev=tpm0")
-		}
-	}
-
-	// disk
-	disk := conf.get("disk_img", "")
-	if disk != "" {
-		args = append(args, "-drive", "file="+filepath.Join(dir, disk)+",format=qcow2,if=virtio,cache=writeback,discard=unmap")
-	}
-	iso := conf.get("iso", "")
-	if iso != "" {
-		args = append(args, "-drive", "file="+filepath.Join(dir, iso)+",media=cdrom,if=none,id=cdrom", "-device", "virtio-cdrom,drive=cdrom")
-	}
-	img := conf.get("img", "")
-	if img != "" {
-		args = append(args, "-drive", "file="+filepath.Join(dir, img)+",format=raw,if=virtio")
-	}
-	fixed := conf.get("fixed_iso", "")
-	if fixed != "" {
-		args = append(args, "-drive", "file="+filepath.Join(dir, fixed)+",media=cdrom")
-	}
-
-	// network
-	net := conf.get("network", "user")
-	switch net {
-	case "user", "":
-		ssh := conf.get("ssh_port", "")
-		if ssh != "" {
-			args = append(args, "-netdev", "user,id=net0,hostfwd=tcp::"+ssh+"-:22", "-device", "virtio-net,netdev=net0")
-		} else {
-			args = append(args, "-netdev", "user,id=net0", "-device", "virtio-net,netdev=net0")
-		}
-	case "bridge":
-		br := conf.get("bridge", "br0")
-		mac := conf.get("mac_addr", "")
-		args = append(args, "-netdev", "bridge,id=net0,br="+br, "-device", "virtio-net,netdev=net0,mac="+mac)
-	}
-
+	// vm_boot order: cpu->ram->bios->os_quirks->storage->display->audio
+	// ->ports->fileshare->usb->tpm->boot_media->channels->spawn
+	args = append(args, cpuArgs(conf, osName, arch)...)
+	args = append(args, ramArgs(conf)...)
+	args = append(args, biosArgs(conf, osName, arch)...)
+	args = append(args, osQuirks(conf, osName, arch)...)
+	args = append(args, storageArgs(conf, dir)...)
+	args = append(args, displayArgs(conf, dir, osName, arch)...)
+	args = append(args, audioArgs(conf, osName)...)
+	args = append(args, portArgs(conf, dir)...)
+	args = append(args, fileshareArgs(conf, dir)...)
+	args = append(args, passthruArgs(conf)...)
+	args = append(args, bootMediaArgs(conf, dir)...)
+	args = append(args, channelArgs(conf, dir)...)
 	// monitor + serial sockets
 	args = append(args, "-monitor", "unix:"+filepath.Join(dir, "monitor.sock")+",server,nowait")
 	args = append(args, "-qmp", "unix:"+filepath.Join(dir, "qmp.sock")+",server,nowait")
 	args = append(args, "-serial", "unix:"+filepath.Join(dir, "serial.sock")+",server,nowait")
-
-	args = append(args, displayArgs(conf, dir, osName, arch)...)
-	args = append(args, audioArgs(conf, osName)...)
-	args = append(args, osQuirks(conf, osName, arch)...)
-	args = append(args, bootMediaArgs(conf, dir)...)
-	args = append(args, fileshareArgs(conf, dir)...)
-	args = append(args, channelArgs(conf, dir)...)
-	args = append(args, passthruArgs(conf)...)
-	// usb passthrough
-	if devs := conf.get("usb_devices", ""); devs != "" {
-		for _, d := range strings.Fields(devs) {
-			args = append(args, "-device", "usb-host,vendorid=0x"+strings.Split(d, ":")[0]+",productid=0x"+strings.Split(d, ":")[1])
-		}
-	}
 
 	// pidfile + daemonize
 	args = append(args, "-pidfile", filepath.Join(dir, "vm.pid"))

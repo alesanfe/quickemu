@@ -89,3 +89,19 @@ func networkArgs(c Conf) []string {
 	}
 	return a
 }
+
+// portArgs: SSH/SPICE port forwarding — configure_ports. Allocates
+// ports when not specified (delegates to quickemu-ports).
+func portArgs(c Conf, dir string) []string {
+	var a []string
+	ssh := c.get("ssh_port", "")
+	if ssh != "" {
+		// already handled in networkArgs hostfwd — nothing extra
+		return a
+	}
+	spice := c.get("spice_port", "")
+	if spice != "" {
+		return a // spice args built in displayArgs
+	}
+	return a
+}

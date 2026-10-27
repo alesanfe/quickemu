@@ -90,9 +90,6 @@ func osQuirks(c Conf, osName, arch string) []string {
 	switch osName {
 	case "windows":
 		a = append(a, "-global", "kvm-pit.lost_tick_policy=discard")
-		if c.get("tpm", "") == "true" {
-			a = append(a, "-chardev", "socket,id=chrtpm,path="+filepath.Join(c["_vmdir"], "tpm.sock"), "-tpmdev", "emulator,id=tpm0,chardev=chrtpm", "-device", "tpm-tis,tpmdev=tpm0")
-		}
 	case "macos":
 		a = append(a, "-global", "ICH9-LPC.disable_s3=1", "-global", "ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off")
 	case "linux":
