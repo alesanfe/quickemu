@@ -319,3 +319,40 @@ func Screenshot(sock, out string) error {
 	}
 	return nil
 }
+
+// HotplugPersist: hotplug_persist parity — appends a hotplugged device
+// to the VM config so it survives reboots. .conf gets bash-array
+// syntax, .toml gets TOML arrays; creates the key if absent.
+func HotplugPersist(confPath, kind, val string) error {
+	key := "extra_disks"
+	if kind == "usb" {
+		key = "usb_devices"
+	}
+	b, err := os.ReadFile(confPath)
+	if err != nil {
+		return err
+	}
+	s := string(b)
+	if strings.HasSuffix(confPath, ".toml") {
+		re := regexp.MustCompile(`(?m)^` + key + `\s*=\s*\[(.*)\]`)
+		if m := re.FindStringSubmatch(s); m != nil {
+			inner := strings.TrimSpace(m[1])
+			rep := `, "` + val + `"]`
+			if inner == "" {
+				rep = `"` + val + `"]`
+			}
+			s = re.ReplaceAllString(s, key+` = [`+inner+rep)
+		} else {
+			s += key + ` = ["` + val + `"]` + "\n"
+		}
+	} else {
+		re := regexp.MustCompile(key + `=\((.*)\)`)
+		if m := re.FindStringSubmatch(s); m != nil {
+			inner := m[1]
+			s = re.ReplaceAllString(s, key+`=(`+inner+` "`+val+`")`)
+		} else {
+			s += key + `=("` + val + `")` + "\n"
+		}
+	}
+	return os.WriteFile(confPath, []byte(s), 0o644)
+}
