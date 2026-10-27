@@ -4,9 +4,11 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -114,6 +116,22 @@ func main() {
 			die("MOVE_FAILED", err.Error())
 		}
 		ok(fmt.Sprintf("{\"moved\":%q}", dst))
+	case "snapshot-create", "snapshot-apply", "snapshot-delete":
+		// qemu-img snapshot -c/-a/-d <tag> <disk> — same as vm.sh.
+		if len(args) < 3 {
+			die("INVALID_ARGS", "snapshot op needs a tag")
+		}
+		tag := args[2]
+		disk := confDisk(dir)
+		if disk == "" {
+			die("NO_DISK", "no disk_img in "+dir)
+		}
+		flag := map[string]string{"snapshot-create": "-c", "snapshot-apply": "-a", "snapshot-delete": "-d"}[op]
+		cmd := execCommand("qemu-img", "snapshot", "-q", flag, tag, disk)
+		if err := cmd.Run(); err != nil {
+			die("SNAPSHOT_FAILED", err.Error())
+		}
+		ok(fmt.Sprintf("{\"snapshot\":%q,\"op\":%q}", tag, op))
 	case "snapshot-list":
 		sdir := filepath.Join(dir, ".snapshots")
 		ents, _ := filepath.Glob(filepath.Join(sdir, "*.json"))
@@ -137,4 +155,30 @@ func xdgData() string {
 		return v
 	}
 	return filepath.Join(os.Getenv("HOME"), ".local", "share")
+}
+
+func confDisk(dir string) string {
+	conf := vmConfPath(dir)
+	if conf == "" {
+		return ""
+	}
+	f, err := os.Open(conf)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if strings.HasPrefix(line, "disk_img=") {
+			v := strings.SplitN(line, "=", 2)[1]
+			v = strings.Trim(v, `\"'`)
+			return filepath.Join(dir, v)
+		}
+	}
+	return ""
+}
+
+func execCommand(name string, args ...string) *exec.Cmd {
+	return exec.Command(name, args...)
 }
