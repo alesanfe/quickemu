@@ -63,6 +63,7 @@ func main() {
 		return
 	}
 	dir := filepath.Dir(os.Args[1])
+	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	osName := conf.get("guest_os", "linux")
 	arch := conf.get("arch", "x86_64")
 	machine := "q35"
@@ -79,7 +80,8 @@ func main() {
 			accel = "kvm"
 		}
 	}
-	args = append(args, "-machine", machine+",accel="+accel)
+	args = append(args, "-accel", accel+",tb-size=256,thread=multi")
+	args = append(args, "-machine", machine+",smm=off,vmport=off")
 
 	// vm_boot order: cpu->ram->bios->os_quirks->storage->display->audio
 	// ->ports->fileshare->usb->tpm->boot_media->channels->spawn
@@ -87,6 +89,7 @@ func main() {
 	args = append(args, ramArgs(conf)...)
 	args = append(args, biosArgs(conf, osName, arch)...)
 	t := osQuirks(conf, osName, arch)
+	args = append(args, "-global", "kvm-pit.lost_tick_policy=discard")
 	args = append(args, t.ExtraArgs...)
 	if t.Balloon != "" {
 		args = append(args, strings.Fields(t.Balloon)...)
@@ -112,13 +115,16 @@ func main() {
 	args = append(args, bootMediaArgs(conf, dir)...)
 	args = append(args, channelArgs(conf, dir)...)
 	// monitor + serial sockets
-	args = append(args, "-monitor", "unix:"+filepath.Join(dir, "monitor.sock")+",server,nowait")
-	args = append(args, "-qmp", "unix:"+filepath.Join(dir, "qmp.sock")+",server,nowait")
-	args = append(args, "-serial", "unix:"+filepath.Join(dir, "serial.sock")+",server,nowait")
+	args = append(args, "-monitor", "unix:"+filepath.Join(dir, vmname+"-monitor.socket")+",server,nowait")
+	args = append(args, "-qmp", "unix:"+filepath.Join(dir, vmname+"-qmp.socket")+",server,nowait")
+	args = append(args, "-serial", "unix:"+filepath.Join(dir, vmname+"-serial.socket")+",server,nowait")
 
 	// pidfile + daemonize
-	args = append(args, "-pidfile", filepath.Join(dir, "vm.pid"))
-	args = append(args, "-name", filepath.Base(dir))
+	args = append(args, "-name", vmname+",process="+vmname+",debug-threads=on")
+	args = append(args, "-pidfile", filepath.Join(dir, vmname+".pid"))
+	args = append(args, "-rtc", "base=utc,clock=host")
+	args = append(args, "-device", "virtio-balloon")
+	args = append(args, "-object", "rng-random,id=rng0,filename=/dev/urandom", "-device", "virtio-rng-pci,rng=rng0")
 
 	if len(os.Args) > 2 && os.Args[2] == "--run" {
 		if err := runQEMU(os.Args[1], args); err != nil {

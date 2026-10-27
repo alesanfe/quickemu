@@ -4,8 +4,17 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 )
+
+// hostSMT reports whether the host has SMT/hyperthreading on —
+// Bash reads /sys/devices/system/cpu/smt/control.
+func hostSMT() bool {
+	b, err := os.ReadFile("/sys/devices/system/cpu/smt/control")
+	return err == nil && strings.TrimSpace(string(b)) == "on"
+}
 
 func cpuArgs(c Conf, osName, arch string) []string {
 	cores := c.get("cpu_cores", "2")
@@ -26,7 +35,15 @@ func cpuArgs(c Conf, osName, arch string) []string {
 	default:
 		a = append(a, "-cpu", cpu)
 	}
-	a = append(a, "-smp", fmt.Sprintf("cores=%s,threads=1,sockets=1", cores))
+	// Bash configure_cpu: cpu_cores is LOGICAL cpus — split into
+	// cores x threads when host SMT is on (cores>=2).
+	n := 2
+	fmt.Sscanf(cores, "%d", &n)
+	threads := 1
+	if n >= 2 && hostSMT() {
+		threads = 2
+	}
+	a = append(a, "-smp", fmt.Sprintf("cores=%d,threads=%d,sockets=1", n/threads, threads))
 	return a
 }
 
@@ -49,11 +66,17 @@ func biosArgs(c Conf, osName, arch string) []string {
 	if !efi {
 		return a
 	}
+	// Bash configure_bios: OVMF uses TWO pflash drives — CODE (unit=0,
+	// readonly) + VARS (unit=1, writable per-VM copy) — plus the secure
+	// pflash global. The vars file is copied into the vmdir at launch.
+	vars := filepath.Join(c["_vmdir"], "OVMF_VARS.fd")
+	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
 	if c.get("secureboot", "") == "true" {
-		a = append(a, "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.secboot.fd")
+		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.secboot.fd,readonly=on")
 	} else {
-		a = append(a, "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd")
+		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE_4M.fd,readonly=on")
 	}
+	a = append(a, "-drive", "if=pflash,format=raw,unit=1,file="+vars)
 	if c.get("tpm", "") == "true" {
 		a = append(a,
 			"-chardev", "socket,id=chrtpm,path="+filepath.Join(c["_vmdir"], "tpm.sock"),

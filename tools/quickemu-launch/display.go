@@ -71,14 +71,17 @@ func audioArgs(c Conf, osName string, t OsTuning) []string {
 func storageArgs(c Conf, dir string, t OsTuning) []string {
 	var a []string
 	if d := c.get("disk_img", ""); d != "" {
+		dev := "virtio-blk-pci"
 		if t.MacDiskDev != "" {
-			a = append(a, "-drive", "file="+filepath.Join(dir, d)+",format=qcow2,if=none,id=disk,cache=writeback,discard=unmap", "-device", t.MacDiskDev+",drive=disk")
-		} else {
-			a = append(a, "-drive", "file="+filepath.Join(dir, d)+",format=qcow2,if=virtio,cache=writeback,discard=unmap")
+			dev = t.MacDiskDev
 		}
+		// Bash: split -drive (if=none,id=SystemDisk) + -device pattern.
+		a = append(a, "-device", dev+",drive=SystemDisk",
+			"-drive", "id=SystemDisk,if=none,format=qcow2,file="+filepath.Join(dir, d)+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
 	}
 	if d := c.get("iso", ""); d != "" {
-		a = append(a, "-drive", "file="+filepath.Join(dir, d)+",media=cdrom,if=none,id=cdrom", "-device", "virtio-cdrom,drive=cdrom")
+		// Bash: plain cdrom drive (IDE), indexed.
+		a = append(a, "-drive", "media=cdrom,index=0,file="+filepath.Join(dir, d))
 	}
 	if d := c.get("img", ""); d != "" {
 		a = append(a, "-drive", "file="+filepath.Join(dir, d)+",format=raw,if=virtio")
