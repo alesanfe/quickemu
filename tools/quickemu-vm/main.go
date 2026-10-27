@@ -15,9 +15,16 @@ import (
 	"time"
 )
 
+// die: qe_die parity — JSON mode emits the error envelope on stdout;
+// human mode writes "ERROR! <msg>" to stderr. Always exits 1.
 func die(code, msg string) {
-	emit(map[string]any{"success": false,
-		"errors": []map[string]string{{"code": code, "message": msg}}})
+	if !outputJSON {
+		fmt.Fprintln(os.Stderr, "ERROR! "+msg)
+		os.Exit(1)
+	}
+	emit(map[string]any{"success": false, "data": nil,
+		"errors": []map[string]any{{"code": code, "message": msg,
+			"severity": "error", "retryable": false}}})
 	os.Exit(1)
 }
 
@@ -31,10 +38,40 @@ func okMap(data map[string]any) {
 	emit(map[string]any{"success": true, "errors": []any{}, "data": data})
 }
 
-// emit: single envelope writer — field order fixed by the v1 schema
-// (schemaVersion, success, data/errors).
+// info/infof: qe_info parity — human progress lines print only in
+// text mode; under --format json the envelope is the sole output.
+func info(s string) {
+	if !outputJSON {
+		fmt.Println(s)
+	}
+}
+func infof(f string, a ...any) {
+	if !outputJSON {
+		fmt.Printf(f, a...)
+	}
+}
+
+// opCmd: the v1 "command" name for the running op (qe_emit parity —
+// e.g. vm.delete-plan, vm.trash.list). Set in main() per dispatch.
+var opCmd = ""
+
+// emit: single envelope writer — the full v1 contract
+// {schemaVersion, command, success, data, warnings, errors, meta}.
+// qe_emit parity: only emits when OUTPUT_FORMAT=json; in text mode
+// ops already printed their human lines.
 func emit(m map[string]any) {
-	out := map[string]any{"schemaVersion": 1}
+	if !outputJSON {
+		return
+	}
+	out := map[string]any{
+		"schemaVersion": 1,
+		"command":       opCmd,
+		"warnings":      []any{},
+		"meta": map[string]any{
+			"quickemuVersion": "5.0.0",
+			"timestamp":       time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		},
+	}
 	for k, v := range m {
 		out[k] = v
 	}
@@ -69,10 +106,19 @@ func deletePlanItems(dir string) []string {
 		".pid": true, ".sock": true, ".socket": true, ".ports": true,
 		".paused": true, ".spice": true, ".monitor": true,
 	}
+	// Bash lists ${VM} and `find ${VMDIR}` output — paths relative to
+	// its post-pushd cwd. Emit cwd-relative spellings for parity.
+	cwd, _ := os.Getwd()
+	rel := func(p string) string {
+		if r, err := filepath.Rel(cwd, p); err == nil && !strings.HasPrefix(r, "..") {
+			return r
+		}
+		return p
+	}
 	var items []string
 	conf := vmConfPath(dir)
 	if conf != "" {
-		items = append(items, conf)
+		items = append(items, rel(conf))
 	}
 	filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
 		if err != nil || p == dir {
@@ -81,7 +127,7 @@ func deletePlanItems(dir string) []string {
 		if excl[filepath.Ext(p)] || excl[filepath.Base(p)] {
 			return nil
 		}
-		items = append(items, p)
+		items = append(items, rel(p))
 		return nil
 	})
 	// LC_ALL=C sort: bytewise; the conf first then sorted rest (Bash
@@ -158,6 +204,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-vm <op> <vmdir> [args]")
 		os.Exit(2)
 	}
+	// Bash reads OUTPUT_FORMAT from the environment; --format=json is
+	// the CLI-flag equivalent. Env wins only when the flag is absent.
+	if os.Getenv("OUTPUT_FORMAT") == "json" {
+		outputJSON = true
+	}
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--format" && i+1 < len(args) && args[i+1] == "json" {
 			outputJSON = true
@@ -174,6 +225,16 @@ func main() {
 		os.Exit(2)
 	}
 	op, dir := args[0], args[1]
+	// v1 envelope command name per op (qe_emit's command arg parity).
+	opCmd = map[string]string{
+		"delete-plan": "vm.delete-plan", "backup-list": "vm.backup.list",
+		"trash-list": "vm.trash.list", "snapshot-list": "vm.snapshot.list",
+		"snapshot-tree": "vm.snapshot.tree", "vfio-scan": "vm.vfio.scan",
+		"stats": "vm.stats", "doctor": "vm.doctor", "plan": "vm.plan",
+	}[op]
+	if opCmd == "" {
+		opCmd = "vm." + op
+	}
 	switch op {
 	case "delete-plan":
 		// delete_plan: enumerate what --delete-vm would remove (runtime
@@ -189,9 +250,13 @@ func main() {
 		dependents := deletePlanDependents(dir)
 		if outputJSON {
 			arr, _ := json.Marshal(items)
-			dep, _ := json.Marshal(dependents)
-			okMap(map[string]any{"vm": name, "planId": planID,
-				"delete": json.RawMessage(arr), "dependents": json.RawMessage(dep)})
+			d := map[string]any{"vm": name, "planId": planID,
+				"delete": json.RawMessage(arr)}
+			if len(dependents) > 0 {
+				dep, _ := json.Marshal(dependents)
+				d["dependents"] = json.RawMessage(dep)
+			}
+			okMap(d)
 			return
 		}
 		fmt.Println("Delete plan for " + name + ":")
@@ -234,7 +299,7 @@ func main() {
 		}
 		os.Exit(backupPrune(dir, keep))
 	case "export":
-		out := filepath.Base(dir) + ".quickvm.tar.gz"
+		out := ""
 		if len(args) > 2 {
 			out = args[2]
 		}
@@ -267,7 +332,7 @@ func main() {
 			name = strings.TrimSuffix(filepath.Base(conf), ".conf")
 		}
 		shortcutDelete(name)
-		fmt.Println(" - Shortcut removed for " + name)
+		info(" - Shortcut removed for " + name)
 		okMap(map[string]any{"shortcutDeleted": name})
 	case "trash-list":
 		os.Exit(trashList())
@@ -306,8 +371,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, "ERROR! Failed to resize "+disk+".")
 			os.Exit(1)
 		}
-		fmt.Println(" - Resized " + disk + " to " + args[2] + ".")
-		fmt.Println("             Remember to grow the partition and filesystem inside the guest.")
+		info(" - Resized " + disk + " to " + args[2] + ".")
+		info("             Remember to grow the partition and filesystem inside the guest.")
 		okMap(map[string]any{"resized": disk, "size": args[2]})
 	case "compact":
 		// disk_compact: qemu-img convert to .compact then atomic swap.
@@ -331,7 +396,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "ERROR! Failed to replace "+disk+".")
 			os.Exit(1)
 		}
-		fmt.Println(" - Compacted " + disk)
+		info(" - Compacted " + disk)
 		okMap(map[string]any{"compacted": disk})
 	case "clone":
 		// clone_vm parity: sibling conf rewrite + linked backing disk
@@ -367,6 +432,11 @@ func main() {
 			conf = c
 			name = strings.TrimSuffix(filepath.Base(c), ".conf")
 		}
+		// vm_running guard: refuse while the pidfile's process is alive
+		// and owned by this VM (delete_vm parity).
+		if vmRunningDir(dir, name) {
+			die("VM_MUST_BE_STOPPED", "Stop "+name+" before deleting it.")
+		}
 		// Confinement: only delete the canonical sibling of the conf.
 		if st, err := os.Stat(dir); err == nil && st.IsDir() {
 			expected, _ := filepath.EvalSymlinks(filepath.Join(filepath.Dir(conf), name))
@@ -385,7 +455,7 @@ func main() {
 				die(code, fmt.Sprintf("delete plan is stale (expected %s, got %s); regenerate with --delete-plan", planID, actual))
 			}
 		}
-		fmt.Println("Deleting " + name + " completely")
+		info("Deleting " + name + " completely")
 		if st, err := os.Stat(dir); err == nil && st.IsDir() {
 			if useTrash {
 				slot := filepath.Join(trashRoot(), time.Now().UTC().Format("20060102T150405Z")+"-"+name)
@@ -398,18 +468,19 @@ func main() {
 				if err := os.Rename(conf, filepath.Join(slot, "vm", filepath.Base(conf))); err != nil {
 					die("DELETE_FAILED", "Could not move "+conf+" to trash.")
 				}
-				meta := fmt.Sprintf("{\"vm\":%q,\"trashedAt\":%q,\"originConfDir\":%q}",
-					name, time.Now().UTC().Format("2006-01-02T15:04:05Z"), filepath.Dir(conf))
-				os.WriteFile(filepath.Join(slot, "trash-meta.json"), []byte(meta), 0644)
-				fmt.Println(" - Moved " + name + " to trash (" + slot + "); restore with --trash-restore " + name)
+				mb, _ := json.Marshal(map[string]any{
+					"vm": name, "trashedAt": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+					"originConfDir": filepath.Dir(conf)})
+				os.WriteFile(filepath.Join(slot, "trash-meta.json"), mb, 0644)
+				info(" - Moved " + name + " to trash (" + slot + "); restore with --trash-restore " + name)
 			} else {
 				os.RemoveAll(dir)
 				os.Remove(conf)
-				fmt.Println(" - Deleted " + conf + " and " + dir + "/")
+				info(" - Deleted " + conf + " and " + dir + "/")
 			}
 			shortcutDelete(name)
 		} else {
-			fmt.Println(" - " + dir + " not found. Doing nothing.")
+			info(" - " + dir + " not found. Doing nothing.")
 		}
 		okMap(map[string]any{"deleted": name})
 	case "rename":

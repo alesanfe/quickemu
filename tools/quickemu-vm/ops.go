@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -33,19 +34,34 @@ func isRuntimeArtifact(name string) bool {
 
 // exportVm: tar.gz of <name>.conf + <name>/ (runtime artifacts
 // excluded) + quickvm-manifest.json + quickvm-checksums.sha256 —
-// byte-layout parity with export_vm.
+// byte-layout parity with export_vm. The conf is the real file the
+// user passed (QE_VMCONF), not <dir>.conf: a conf may live inside or
+// beside the VM dir (Bash resolves it after its pushd into VMPATH).
 func exportVm(dir, out string) int {
 	name := filepath.Base(dir)
-	conf := dir + ".conf"
 	parent := filepath.Dir(dir)
+	conf := filepath.Join(parent, name+".conf")
+	if qc := os.Getenv("QE_VMCONF"); qc != "" {
+		if abs, err := filepath.Abs(qc); err == nil {
+			qc = abs
+		}
+		if _, err := os.Stat(qc); err == nil {
+			conf = qc
+			parent = filepath.Dir(conf)
+			name = strings.TrimSuffix(filepath.Base(conf), filepath.Ext(conf))
+		}
+	}
 	if _, err := os.Stat(conf); err != nil {
 		die("NO_CONF", "no "+conf)
 	}
-	// Member list: conf + every non-runtime file under the VM dir.
+	// Member list: conf + every non-runtime file under the VM dir
+	// (<parent>/<name>/ — Bash only archives the convention dir named
+	// after the VM, present or not).
 	var members []string
 	members = append(members, name+".conf")
-	if st, err := os.Stat(dir); err == nil && st.IsDir() {
-		filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
+	vdir := filepath.Join(parent, name)
+	if st, err := os.Stat(vdir); err == nil && st.IsDir() {
+		filepath.Walk(vdir, func(p string, fi os.FileInfo, err error) error {
 			if err != nil || fi.IsDir() {
 				return nil
 			}
@@ -57,6 +73,9 @@ func exportVm(dir, out string) int {
 		})
 	}
 	sort.Strings(members[1:])
+	if out == "" {
+		out = name + ".quickvm.tar.gz"
+	}
 	f, err := os.Create(out)
 	if err != nil {
 		die("EXPORT_FAILED", err.Error())
@@ -84,14 +103,17 @@ func exportVm(dir, out string) int {
 			die("EXPORT_FAILED", err.Error())
 		}
 	}
-	manifest := fmt.Sprintf("{\"formatVersion\":1,\"quickemuVersion\":%q,\"createdAt\":%q,\"vm\":%q,\"checksums\":\"quickvm-checksums.sha256\"}\n",
-		vmVersion(), time.Now().UTC().Format("2006-01-02T15:04:05Z"), name)
+	mb, _ := json.Marshal(map[string]any{
+		"formatVersion": 1, "quickemuVersion": vmVersion(),
+		"createdAt": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"vm": name, "checksums": "quickvm-checksums.sha256"})
+	manifest := string(mb) + "\n"
 	tw.WriteHeader(&tar.Header{Name: "quickvm-manifest.json", Mode: 0644, Size: int64(len(manifest))})
 	tw.Write([]byte(manifest))
 	sumb := sums.String()
 	tw.WriteHeader(&tar.Header{Name: "quickvm-checksums.sha256", Mode: 0644, Size: int64(len(sumb))})
 	tw.Write([]byte(sumb))
-	fmt.Printf(" - Exported %s to %s\n", name, out)
+	infof(" - Exported %s to %s\n", name, out)
 	okMap(map[string]any{"export": out})
 	return 0
 }
@@ -230,7 +252,7 @@ func importVm(in, destDir string) int {
 			return 1
 		}
 	}
-	fmt.Printf(" - Imported %s from %s\n", base, in)
+	infof(" - Imported %s from %s\n", base, in)
 	fmt.Fprintf(os.Stderr, " - WARNING! %s.conf is executed as code on launch; review it before running the VM.\n", base)
 	okMap(map[string]any{"import": base})
 	return 0
@@ -340,12 +362,12 @@ func cloneVm(dir, name string, full bool) int {
 			die("CLONE_FAILED", cerr.Error())
 		}
 		if full {
-			fmt.Printf(" - Cloned %s to %s (full disk copy).\n", vmname, name)
+			infof(" - Cloned %s to %s (full disk copy).\n", vmname, name)
 		} else {
-			fmt.Printf(" - Cloned %s to %s (shared backing disk).\n", vmname, name)
+			infof(" - Cloned %s to %s (shared backing disk).\n", vmname, name)
 		}
 	} else {
-		fmt.Printf(" - Cloned %s to %s (config only; no disk image found).\n", vmname, name)
+		infof(" - Cloned %s to %s (config only; no disk image found).\n", vmname, name)
 	}
 	okMap(map[string]any{"clone": newDir})
 	return 0
@@ -387,8 +409,8 @@ func autostartCreate(name, confPath string) int {
 		exec.Command(s, "--user", "daemon-reload").Run()
 		exec.Command(s, "--user", "enable", "quickemu-"+name+".service").Run()
 	}
-	fmt.Println(" - Autostart unit written: " + unit)
-	fmt.Println("             Start now with: systemctl --user start quickemu-" + name + ".service")
+	info(" - Autostart unit written: " + unit)
+	info("             Start now with: systemctl --user start quickemu-" + name + ".service")
 	okMap(map[string]any{"unit": unit})
 	return 0
 }
@@ -404,7 +426,7 @@ func shortcutCreate(name, conf, opts string) int {
 	if err := os.WriteFile(file, []byte(body), 0644); err != nil {
 		die("SHORTCUT_FAILED", err.Error())
 	}
-	fmt.Println(" - " + file + " created.")
+	info(" - " + file + " created.")
 	okMap(map[string]any{"shortcut": file})
 	return 0
 }
@@ -413,7 +435,7 @@ func shortcutDelete(name string) {
 	file := filepath.Join(os.Getenv("HOME"), ".local", "share", "applications", name+".desktop")
 	if _, err := os.Stat(file); err == nil {
 		os.Remove(file)
-		fmt.Println(" - Deleted " + file)
+		info(" - Deleted " + file)
 	}
 }
 
@@ -437,7 +459,7 @@ func backupList(dir string) int {
 	bdir := backupDir(dir)
 	m, _ := filepath.Glob(filepath.Join(bdir, "*.quickvm.tar.gz"))
 	if outputJSON {
-		var items []map[string]any
+		items := []map[string]any{}
 		for _, f := range m {
 			st, _ := os.Stat(f)
 			var sz int64
@@ -449,9 +471,9 @@ func backupList(dir string) int {
 		okMap(map[string]any{"backups": items})
 		return 0
 	}
-	fmt.Println("Backups in " + bdir + ":")
+	info("Backups in " + bdir + ":")
 	for _, f := range m {
-		fmt.Println(" - " + filepath.Base(f))
+		info(" - " + filepath.Base(f))
 	}
 	return 0
 }
@@ -475,7 +497,7 @@ func backupPrune(dir string, keep int) int {
 	for i, f := range m {
 		if i >= keep {
 			os.Remove(f)
-			fmt.Println(" - Pruned " + filepath.Base(f))
+			info(" - Pruned " + filepath.Base(f))
 		}
 	}
 	ok("{}")
@@ -534,7 +556,7 @@ func backupVerify(fpath string) int {
 		fmt.Fprintln(os.Stderr, "ERROR! Backup "+fpath+" failed verification.")
 		return 1
 	}
-	fmt.Println(" - Backup " + fpath + " verified OK.")
+	info(" - Backup " + fpath + " verified OK.")
 	return 0
 }
 
@@ -567,7 +589,7 @@ func trashList() int {
 		okMap(map[string]any{"items": items})
 		return 0
 	}
-	fmt.Println("Trash contents:")
+	info("Trash contents:")
 	for _, s := range ents {
 		meta := ""
 		if b, err := os.ReadFile(filepath.Join(s, "trash-meta.json")); err == nil {
@@ -582,7 +604,7 @@ func trashList() int {
 		if meta != "" {
 			suffix = " (" + meta + ")"
 		}
-		fmt.Println(" - " + filepath.Base(strings.TrimSuffix(s, "/")) + suffix)
+		info(" - " + filepath.Base(strings.TrimSuffix(s, "/")) + suffix)
 	}
 	return 0
 }
@@ -590,13 +612,13 @@ func trashList() int {
 func trashEmpty() int {
 	root := trashRoot()
 	if _, err := os.Stat(root); err != nil {
-		fmt.Println(" - Trash is empty.")
+		info(" - Trash is empty.")
 		return 0
 	}
 	if err := os.RemoveAll(root); err != nil {
 		die("TRASH_FAILED", err.Error())
 	}
-	fmt.Println(" - Emptied trash (" + root + ")")
+	info(" - Emptied trash (" + root + ")")
 	return 0
 }
 
@@ -638,7 +660,7 @@ func trashRestore(name string) int {
 		die("RESTORE_FAILED", err.Error())
 	}
 	os.RemoveAll(slot)
-	fmt.Println(" - Restored " + name + " from trash into " + confDir)
+	info(" - Restored " + name + " from trash into " + confDir)
 	okMap(map[string]any{"restored": name})
 	return 0
 }
@@ -689,23 +711,23 @@ func vfioScan(gpuPassthrough string) int {
 			"configuredPassthrough": gpuPassthrough, "devices": dj})
 		return 0
 	}
-	fmt.Println("VFIO/IOMMU inventory:")
-	fmt.Printf(" - IOMMU groups: %d (%s)\n", groups, iommu)
+	info("VFIO/IOMMU inventory:")
+	infof(" - IOMMU groups: %d (%s)\n", groups, iommu)
 	if iommu == "absent" {
-		fmt.Println("   -> Enable intel_iommu=on or amd_iommu=on in the kernel command line.")
+		info("   -> Enable intel_iommu=on or amd_iommu=on in the kernel command line.")
 	}
 	for _, d := range devs {
 		suffix := ""
 		if d.Driver != "" {
 			suffix = " [driver: " + d.Driver + "]"
 		}
-		fmt.Printf(" - %s %s%s\n", d.PCI, d.Name, suffix)
+		infof(" - %s %s%s\n", d.PCI, d.Name, suffix)
 		if d.Driver == "vfio-pci" {
-			fmt.Println("     -> bound to vfio-pci; passable via gpu_passthrough=\"" + d.PCI + "\"")
+			info("     -> bound to vfio-pci; passable via gpu_passthrough=\"" + d.PCI + "\"")
 		}
 	}
 	if gpuPassthrough != "" {
-		fmt.Println(" - Configured gpu_passthrough: " + gpuPassthrough)
+		info(" - Configured gpu_passthrough: " + gpuPassthrough)
 	}
 	return 0
 }
@@ -768,6 +790,35 @@ func num(v interface{}) float64 {
 	return 0
 }
 
+// vmRunningDir: vm_running parity — the VM's pidfile exists, the pid
+// is alive AND the process belongs to the VM (comm matches the name,
+// its 15-char truncation or qemu*; comm-unreadable hosts fall back to
+// plain liveness, same as the Bash legacy path).
+func vmRunningDir(dir, name string) bool {
+	b, err := os.ReadFile(filepath.Join(dir, name+".pid"))
+	if err != nil {
+		return false
+	}
+	var pid int
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(b)), "%d", &pid); err != nil || pid <= 0 {
+		return false
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil || proc.Signal(syscall.Signal(0)) != nil {
+		return false
+	}
+	comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+	if err != nil {
+		return true // cannot verify identity — liveness decides
+	}
+	c := strings.TrimSpace(string(comm))
+	short := name
+	if len(short) > 15 {
+		short = short[:15]
+	}
+	return c == name || c == short || strings.HasPrefix(c, "qemu")
+}
+
 // deleteDisk: remove the VM disk + EFI vars + shortcut when the VM is
 // stopped (delete_disk parity).
 func deleteDisk(dir, pidFile string) int {
@@ -780,10 +831,10 @@ func deleteDisk(dir, pidFile string) int {
 	if c := vmConfPath(dir); c != "" {
 		name = strings.TrimSuffix(filepath.Base(c), ".conf")
 	}
-	fmt.Println("Deleting " + name + " virtual hard disk")
+	info("Deleting " + name + " virtual hard disk")
 	disk := confDisk(dir)
 	if disk == "" {
-		fmt.Println(" - disk_img not found. Doing nothing.")
+		info(" - disk_img not found. Doing nothing.")
 		return 0
 	}
 	os.Remove(disk)
@@ -795,7 +846,7 @@ func deleteDisk(dir, pidFile string) int {
 			os.Remove(f)
 		}
 	}
-	fmt.Println(" - Deleted " + disk)
+	info(" - Deleted " + disk)
 	shortcutDelete(name)
 	okMap(map[string]any{"deleted": disk})
 	return 0
@@ -902,7 +953,7 @@ func snapshotCreateExternal(dir, tag, desc, confPath string) int {
 		CreatedAt: time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 	})
 	snapMetaWrite(dir, arr)
-	fmt.Printf(" - External snapshot '%s' -> %s (parent %s)\n", tag, overlay, disk)
+	infof(" - External snapshot '%s' -> %s (parent %s)\n", tag, overlay, disk)
 	okMap(map[string]any{"snapshot": tag, "file": overlay, "parent": disk})
 	return 0
 }
@@ -920,12 +971,12 @@ func snapshotTree(dir string) int {
 	if c := vmConfPath(dir); c != "" {
 		name = strings.TrimSuffix(filepath.Base(c), ".conf")
 	}
-	fmt.Printf("Snapshot chain for %s (active: %s):\n", name, disk)
+	infof("Snapshot chain for %s (active: %s):\n", name, disk)
 	for _, s := range arr {
-		fmt.Printf(" - %s\n   %s <- %s\n", s.Tag, s.File, s.Parent)
+		infof(" - %s\n   %s <- %s\n", s.Tag, s.File, s.Parent)
 	}
 	if len(arr) == 0 {
-		fmt.Println(" - (no external snapshots)")
+		info(" - (no external snapshots)")
 	}
 	return 0
 }
@@ -957,7 +1008,7 @@ func snapshotVerify(dir string) int {
 		}
 	}
 	if rc == 0 {
-		fmt.Println(" - Snapshot chain verified.")
+		info(" - Snapshot chain verified.")
 	}
 	return rc
 }
@@ -997,7 +1048,7 @@ func snapshotConsolidate(dir, tag string) int {
 		}
 	}
 	snapMetaWrite(dir, rest)
-	fmt.Printf(" - Consolidated '%s' into %s.\n", tag, node.Parent)
+	infof(" - Consolidated '%s' into %s.\n", tag, node.Parent)
 	okMap(map[string]any{"consolidated": tag, "into": node.Parent})
 	return 0
 }

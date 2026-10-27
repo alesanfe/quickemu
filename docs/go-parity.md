@@ -156,15 +156,34 @@ available; each substitution was verified output-identical:
 | `openssl passwd -6` (autoinstall hash) | `simia-tech/crypt` — byte-identical `$6$` SHA512-crypt |
 | `bsdtar`/`7z`/`isoinfo` (ISO bootfiles) | `kdomanski/iso9660` — pure-Go ISO9660+RR walk (external tools remain as UDF fallback) |
 | `7z` (kolibrios archive) | `bodgit/sevenzip` — flat extraction parity |
+| `mkisofs`/`genisoimage`/`xorrisofs`/`cloud-localds` (ISO creation) | `diskfs/go-diskfs` — ISO9660 writer w/ Rock Ridge + Joliet + volid (verified w/ `isoinfo`) |
+| `uname -s -r -m` | `golang.org/x/sys/unix` `unix.Uname` — same syscall, no subprocess |
 | `zstd`/`xz`/`gzip`/`bzip2`/`unzip` | `klauspost/compress`, `ulikunitz/xz`, `archive/zip`, stdlib decompressors |
 | regex scrape of alpine `latest-releases.yaml` | `gopkg.in/yaml.v3` real parse (flavor+arch+iso+sha256 fields) |
-| hand-built `fmt.Sprintf` JSON payloads | `encoding/json` marshalling (`qmpCmd`/`okMap`/`jsonStr` helpers; QMP envelopes and all `ok(...)` data objects) |
+| hand-built `fmt.Sprintf` JSON payloads | `encoding/json` marshalling everywhere (envelopes, QMP commands, journal JSONL, trash-meta, op store) |
 | TOML | `BurntSushi/toml` (already in place) |
+
+Remaining external commands are the ones that ARE the runtime
+interfaces: `qemu-system-*`, `qemu-img`, `swtpm`, `virtiofsd`, host
+probes (`lspci`, `systemctl`, `sudo`), viewers (`spicy`,
+`remote-viewer`, `vncviewer`, `xdg-open`), interactive attach
+(`telnet`, `socat`), and optional `zsync`/`curl` for downloads (with
+fallbacks).
 
 Fixed while converting: `actHotplugDisk` sent `device_add` before
 `blockdev-add` and referenced a nonexistent `drive` name — now does
 `blockdev-add` first, then `device_add drive=<node>` (same as Bash and
-`quickemu-qmp`).
+`quickemu-qmp`). Also: absolute `disk_img`/`iso` conf values no longer
+get double-joined (`filepath.Join` doesn't reset on absolute operands);
+`--delete-plan` items are cwd-relative like Bash's `${VM}`/`find`
+output; re-launching a live VM attaches the viewer instead of spawning
+a second QEMU; the detached reaper verifies pidfile ownership before
+cleaning so a stale reaper can't wipe a relaunched VM's state; the
+exclusive `vm_lock` (mkdir + pid + stale reclaim) guards boot and
+mutating ops; `quickemu-vm` emits the v1 envelope only under
+`--format json`/`OUTPUT_FORMAT=json` (human lines are gated like
+`qe_info`); `--export` archives the real `--vm` conf path, not
+`<dir>.conf`.
 
 ## Verification
 

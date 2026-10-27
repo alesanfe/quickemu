@@ -17,9 +17,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/bodgit/sevenzip"
+	"github.com/diskfs/go-diskfs"
+	"github.com/diskfs/go-diskfs/disk"
+	"github.com/diskfs/go-diskfs/filesystem"
+	iso9660fs "github.com/diskfs/go-diskfs/filesystem/iso9660"
 	"github.com/kdomanski/iso9660"
 	"github.com/simia-tech/crypt"
 
@@ -587,13 +592,71 @@ func unattendedWindows(vmPath, driverDir, i18n string) int {
 		filepath.Join(dir, "spice-vdagent-x64-0.10.0.msi"), "")
 	fmt.Println("Making unattended.iso")
 	iso := filepath.Join(vmPath, "unattended.iso")
-	for _, tool := range []string{"mkisofs", "genisoimage", "xorrisofs"} {
-		if b, err := exec.LookPath(tool); err == nil {
-			if exec.Command(b, "-quiet", "-J", "-o", iso, dir+"/").Run() == nil {
-				return 0
-			}
+	files := map[string]string{}
+	err := filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
+		if err != nil || fi.IsDir() {
+			return err
+		}
+		rel, _ := filepath.Rel(dir, p)
+		files["/"+filepath.ToSlash(rel)] = p
+		return nil
+	})
+	if err == nil {
+		err = writeISO9660(iso, "unattended", files)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "ERROR! Could not build unattended.iso: "+err.Error())
+		return 1
+	}
+	return 0
+}
+
+// writeISO9660 builds an ISO9660 image with Rock Ridge + Joliet
+// extensions in pure Go — replaces the mkisofs/genisoimage/xorrisofs/
+// cloud-localds external chain (genisoimage -rock -joliet -volid).
+// `files` maps ISO paths (leading /) to host source paths.
+func writeISO9660(out, volid string, files map[string]string) error {
+	// diskfs preallocates the backing file; size it to content plus
+	// ISO9660 structural overhead (descriptors, path tables, padding).
+	var total int64 = 1 << 20
+	for _, src := range files {
+		if st, err := os.Stat(src); err == nil {
+			total += st.Size() + 8192
 		}
 	}
-	fmt.Fprintln(os.Stderr, "ERROR! Need mkisofs/genisoimage/xorrisofs to build unattended.iso")
-	return 1
+	d, err := diskfs.Create(out, total*2, diskfs.SectorSize(2048))
+	if err != nil {
+		return err
+	}
+	fs, err := d.CreateFilesystem(disk.FilesystemSpec{
+		Partition: 0, FSType: filesystem.TypeISO9660})
+	if err != nil {
+		return err
+	}
+	// Deterministic order so builds are reproducible.
+	names := make([]string, 0, len(files))
+	for k := range files {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fh, err := fs.OpenFile(name, os.O_CREATE|os.O_RDWR)
+		if err != nil {
+			return err
+		}
+		b, err := os.ReadFile(files[name])
+		if err == nil {
+			_, err = fh.Write(b)
+		}
+		fh.Close()
+		if err != nil {
+			return err
+		}
+	}
+	isofs, ok := fs.(*iso9660fs.FileSystem)
+	if !ok {
+		return fmt.Errorf("unexpected filesystem type %T", fs)
+	}
+	return isofs.Finalize(iso9660fs.FinalizeOptions{
+		RockRidge: true, Joliet: true, VolumeIdentifier: volid})
 }

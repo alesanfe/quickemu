@@ -16,6 +16,17 @@ import (
 
 type Conf map[string]string
 
+// joinConf resolves a conf-file value against the conf's directory.
+// filepath.Join does NOT reset on an absolute second operand (unlike
+// POSIX path resolution), so absolute values must be kept verbatim —
+// a conf may point anywhere on the filesystem (disk_img="/tmp/...").
+func joinConf(dir, p string) string {
+	if filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(dir, p)
+}
+
 func parseConf(path string) Conf {
 	if strings.HasSuffix(path, ".toml") {
 		return parseTomlConf(path)

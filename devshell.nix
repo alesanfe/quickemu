@@ -62,7 +62,10 @@ mkShell {
       ''} \
       -e '/cp "''${VARS_IN}" "''${VARS_OUT}"/a chmod +w "''${VARS_OUT}"' \
       -e 's,\$(command -v smbd),${pkgs.samba}/bin/smbd,' \
-      bin/quickemu > $PWD/.direnv/bin/quickemu
+      bin/quickemu.bash > $PWD/.direnv/bin/quickemu.bash
+    chmod +x $PWD/.direnv/bin/quickemu.bash
+    # Keep the Go-first wrapper available under .direnv/bin too.
+    cp bin/quickemu $PWD/.direnv/bin/quickemu
     chmod +x $PWD/.direnv/bin/quickemu
     # The patched entry resolves ../lib/quickemu next to itself.
     ln -sfn "$PWD/lib" "$PWD/.direnv/lib"

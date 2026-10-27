@@ -158,13 +158,16 @@ func main() {
 		id := flag(args, "--id")
 		o := load(dir, id)
 		o.State, o.Progress = "completed", 100
-		o.Result = json.RawMessage(`{"finishedAt":"` + time.Now().UTC().Format(time.RFC3339) + `"}`)
+		b, _ := json.Marshal(map[string]any{
+			"finishedAt": time.Now().UTC().Format(time.RFC3339)})
+		o.Result = json.RawMessage(b)
 		writeOp(dir, o)
 	case "fail":
 		id, code, msg := flag(args, "--id"), flag(args, "--code"), flag(args, "--message")
 		o := load(dir, id)
 		o.State = "failed"
-		o.Error = json.RawMessage(`{"code":"` + code + `","message":"` + msg + `"}`)
+		b, _ := json.Marshal(map[string]any{"code": code, "message": msg})
+		o.Error = json.RawMessage(b)
 		writeOp(dir, o)
 	case "status":
 		fmt.Println(string(must(filepath.Join(dir, flag(args, "--id")+".json"))))
@@ -173,14 +176,12 @@ func main() {
 	case "list":
 		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 		sort.Strings(ents)
-		fmt.Print(`{"operations":[`)
-		for i, e := range ents {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			fmt.Print(string(must(e)))
+		ops := make([]json.RawMessage, 0, len(ents))
+		for _, e := range ents {
+			ops = append(ops, json.RawMessage(must(e)))
 		}
-		fmt.Println("]}")
+		b, _ := json.Marshal(map[string]any{"operations": ops})
+		fmt.Println(string(b))
 	case "cancel":
 		id := flag(args, "--id")
 		o := load(dir, id)

@@ -98,6 +98,18 @@ func reapVM(pid int, dir, name string) {
 	for alivePid(pid) {
 		time.Sleep(2 * time.Second)
 	}
+	// Ownership guard: if the pidfile now records a DIFFERENT pid, a
+	// relaunch took over this VM dir — its state files belong to the
+	// live QEMU, so this reaper must not delete anything. Without the
+	// check, a reaper firing after a same-dir relaunch wipes the new
+	// instance's pidfile/sockets while it still runs.
+	if b, err := os.ReadFile(filepath.Join(dir, name+".pid")); err == nil {
+		cur := 0
+		fmt.Sscanf(strings.TrimSpace(string(b)), "%d", &cur)
+		if cur > 0 && cur != pid {
+			return
+		}
+	}
 	if lp := launcherPid; lp > 0 {
 		portRegistryRelease(lp)
 	}

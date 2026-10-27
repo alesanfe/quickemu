@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"golang.org/x/sys/unix"
 )
 
 func cmdOut(name string, args ...string) string {
@@ -114,7 +117,30 @@ func probeCPUInfo() string {
 	return cmdOut("lscpu")
 }
 
-func uname(args string) string { return cmdOut("uname", strings.Fields(args)...) }
+// uname: `uname -s -r -m` fields without spawning uname — the kernel
+// info comes from the uname(2) syscall (x/sys/unix).
+func uname(flags string) string {
+	var u unix.Utsname
+	if unix.Uname(&u) != nil {
+		return ""
+	}
+	m := map[byte]string{
+		's': unix.ByteSliceToString(u.Sysname[:]),
+		'r': unix.ByteSliceToString(u.Release[:]),
+		'v': unix.ByteSliceToString(u.Version[:]),
+		'm': unix.ByteSliceToString(u.Machine[:]),
+		'n': unix.ByteSliceToString(u.Nodename[:]),
+	}
+	var out []string
+	for _, f := range strings.Fields(flags) {
+		for _, c := range []byte(strings.TrimPrefix(f, "-")) {
+			if v, ok := m[c]; ok && v != "" {
+				out = append(out, v)
+			}
+		}
+	}
+	return strings.Join(out, " ")
+}
 
 // qrRedact: scrub HOME/user/host/IP/MAC/credentialed URLs (qr_redact).
 var (
@@ -211,45 +237,21 @@ func quickReportJSON() int {
 	if _, err := exec.LookPath("qemu-system-" + qarch); err == nil {
 		qver = cmdOut("qemu-system-"+qarch, "--version")
 	}
-	hasCurl := "false"
-	if _, err := exec.LookPath("curl"); err == nil {
-		hasCurl = "true"
-	}
-	jq := func(s string) string {
-		b, _ := jsonEscape(s)
-		return string(b)
-	}
-	out := fmt.Sprintf(`{"schemaVersion":1,"command":"host.report","success":true,"data":{"os":%s,"kernel":%s,"arch":%s,"quickemu":%s,"qemu":%s,"curl":%s},"warnings":[],"errors":[],"meta":{"redacted":true}}`,
-		jq(probeOSName()), jq(uname("-sr")), jq(uname("-m")),
-		jq(probeQuickemu()), jq(firstLine(qver)), hasCurl)
-	fmt.Println(qrRedact(out))
+	_, hasCurl := exec.LookPath("curl")
+	b, _ := json.Marshal(map[string]any{
+		"schemaVersion": 1, "command": "host.report", "success": true,
+		"data": map[string]any{
+			"os": probeOSName(), "kernel": uname("-sr"), "arch": uname("-m"),
+			"quickemu": probeQuickemu(), "qemu": firstLine(qver),
+			"curl": hasCurl == nil},
+		"warnings": []any{}, "errors": []any{},
+		"meta": map[string]any{"redacted": true}})
+	fmt.Println(qrRedact(string(b)))
 	return 0
 }
 
 func firstLine(s string) string {
 	return strings.SplitN(s, "\n", 2)[0]
-}
-
-// jsonEscape renders s as a JSON string literal.
-func jsonEscape(s string) ([]byte, error) {
-	q := `"`
-	for _, r := range s {
-		switch r {
-		case '"', '\\':
-			q += `\` + string(r)
-		case '\n':
-			q += `\n`
-		case '\t':
-			q += `\t`
-		default:
-			if r < 0x20 {
-				q += fmt.Sprintf(`\u%04x`, r)
-			} else {
-				q += string(r)
-			}
-		}
-	}
-	return []byte(q + `"`), nil
 }
 
 func main() {

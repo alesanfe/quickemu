@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -17,6 +18,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -47,6 +50,31 @@ func unameArch() string {
 	}
 }
 
+// unameFields: `uname -s -r -m` without spawning uname — same kernel
+// info via the uname(2) syscall (x/sys/unix).
+func unameFields(flags string) string {
+	var u unix.Utsname
+	if unix.Uname(&u) != nil {
+		return ""
+	}
+	m := map[byte]string{
+		's': unix.ByteSliceToString(u.Sysname[:]),
+		'r': unix.ByteSliceToString(u.Release[:]),
+		'v': unix.ByteSliceToString(u.Version[:]),
+		'm': unix.ByteSliceToString(u.Machine[:]),
+		'n': unix.ByteSliceToString(u.Nodename[:]),
+	}
+	var out []string
+	for _, f := range strings.Fields(flags) {
+		for _, c := range []byte(strings.TrimPrefix(f, "-")) {
+			if v, ok := m[c]; ok && v != "" {
+				out = append(out, v)
+			}
+		}
+	}
+	return strings.Join(out, " ")
+}
+
 func tool(name string, args ...string) (string, error) {
 	return toolEnv(name, nil, args...)
 }
@@ -72,8 +100,14 @@ func toolEnv(name string, env []string, args ...string) (string, error) {
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
 	}
-	out, err := cmd.CombinedOutput()
-	return string(out), err
+	// stdout is captured for the caller; stderr passes straight through
+	// to the user — Bash subprocess semantics (ERROR! lines must stay
+	// on stderr for contract callers).
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	return buf.String(), err
 }
 
 // qmpRaw sends a privileged QMP command from a trusted internal flow
@@ -84,7 +118,20 @@ func qmpRaw(payload string) (string, error) {
 		"execute", "--socket", qmpSock(), "--command", payload)
 }
 
-func vmdir() string { return filepath.Dir(vmConf) }
+// vmdir: vm_identify parity — the VM state dir is dirname(disk_img)
+// when the conf sets it, else <confdir>/<vmname> (the quickget
+// convention of a per-VM directory beside the conf). Never just the
+// conf's directory: state files must not mix into the caller's cwd.
+func vmdir() string {
+	confDir := filepath.Dir(vmConf)
+	if d := confKV()["disk_img"]; d != "" {
+		if !filepath.IsAbs(d) {
+			d = filepath.Join(confDir, d)
+		}
+		return filepath.Dir(d)
+	}
+	return filepath.Join(confDir, vmname())
+}
 func vmname() string {
 	return strings.TrimSuffix(filepath.Base(vmConf), filepath.Ext(vmConf))
 }
@@ -94,13 +141,14 @@ func pidPath() string { return filepath.Join(vmdir(), vmname()+".pid") }
 // qmp sends a QMP command via quickemu-qmp execute.
 func qmp(cmd string) (string, error) {
 	return tool("quickemu-qmp", "execute", "--socket", qmpSock(),
-		"--command", `{"execute":"`+cmd+`"}`)
+		"--command", qmpCmd(cmd, nil))
 }
 
 // hmp sends a human-monitor-command (sendkey/type/screendump).
 func hmp(cmd string) (string, error) {
-	payload := `{"execute":"human-monitor-command","arguments":{"command-line":"` + cmd + `"}}`
-	return tool("quickemu-qmp", "execute", "--socket", qmpSock(), "--command", payload)
+	return tool("quickemu-qmp", "execute", "--socket", qmpSock(),
+		"--command", qmpCmd("human-monitor-command",
+			map[string]any{"command-line": cmd}))
 }
 
 func readPID() int {
@@ -121,7 +169,85 @@ func alive(pid int) bool {
 	return err == nil && p.Signal(syscall.Signal(0)) == nil
 }
 
-func vmRunning() bool { return alive(readPID()) }
+// vmLockAcquire/vmLockRelease: vm_lock_* parity — mkdir-based
+// exclusive lock at <vmdir>/<vm>.lock with a pid file for stale-owner
+// reclaim. Bash defaults VM_LOCK_TRIES=1: one attempt, then LOCK_BUSY.
+func vmLockAcquire() bool {
+	lockDir := filepath.Join(vmdir(), vmname()+".lock")
+	os.MkdirAll(vmdir(), 0755)
+	tries := 1
+	if t := os.Getenv("VM_LOCK_TRIES"); t != "" {
+		if n, err := strconv.Atoi(t); err == nil && n > 0 {
+			tries = n
+		}
+	}
+	for i := 0; i < tries; i++ {
+		if err := os.Mkdir(lockDir, 0755); err == nil {
+			os.WriteFile(filepath.Join(lockDir, "pid"),
+				[]byte(strconv.Itoa(os.Getpid())), 0644)
+			return true
+		}
+		// Reclaim a dead writer (crash-safe, like Bash's kill -0 check).
+		if b, err := os.ReadFile(filepath.Join(lockDir, "pid")); err == nil {
+			if owner, _ := strconv.Atoi(strings.TrimSpace(string(b))); owner > 0 && !alive(owner) {
+				os.RemoveAll(lockDir)
+				continue
+			}
+		} else if st, err := os.Stat(lockDir); err == nil &&
+			time.Since(st.ModTime()) > 2*time.Second {
+			// Pid-less lock older than ~2s: crash remnant between
+			// mkdir and the pid write.
+			os.RemoveAll(lockDir)
+			continue
+		}
+		if i+1 < tries {
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
+	if outFmt == "json" {
+		emitFail("vm.lock", "VM_LOCKED", vmname()+" is locked by another operation.")
+	} else {
+		fmt.Fprintf(os.Stderr, "ERROR! %s is locked by another operation.\n", vmname())
+	}
+	return false
+}
+
+func vmLockRelease() {
+	os.RemoveAll(filepath.Join(vmdir(), vmname()+".lock"))
+}
+
+// procComm: /proc/<pid>/comm (linux) — vm_proc_comm parity; empty on
+// non-linux hosts where the fallback is plain liveness.
+func procComm(pid int) string {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+// vmPidAlive: vm_pid_alive parity — pid alive AND the process belongs
+// to this VM (comm matches the vm name, its 15-char truncation or
+// qemu*). When comm is unreadable (macOS, other users' procs) liveness
+// alone decides — same as the Bash legacy path.
+func vmPidAlive() bool {
+	pid := readPID()
+	if !alive(pid) {
+		return false
+	}
+	comm := procComm(pid)
+	if comm == "" {
+		return true
+	}
+	name := vmname()
+	short := name
+	if len(short) > 15 {
+		short = short[:15]
+	}
+	return comm == name || comm == short || strings.HasPrefix(comm, "qemu")
+}
+
+func vmRunning() bool { return vmPidAlive() }
 
 func paused() bool {
 	_, err := os.Stat(filepath.Join(vmdir(), vmname()+".paused"))
@@ -130,7 +256,7 @@ func paused() bool {
 
 func state() (string, int) {
 	pid := readPID()
-	if !alive(pid) {
+	if !vmPidAlive() {
 		if pid > 0 {
 			return "stale", 0
 		}
@@ -142,17 +268,64 @@ func state() (string, int) {
 	return "running", pid
 }
 
-func emitOK(cmd string, data any) {
-	b, _ := json.Marshal(map[string]any{"schemaVersion": 1, "success": true, "command": cmd, "data": data, "errors": []string{}})
+// emitEnvelope: full v1 contract envelope — {schemaVersion, command,
+// success, data, warnings, errors, meta{quickemuVersion,timestamp,
+// operationId?}} — identical shape to qe_emit.
+const qeVersion = "5.0.0"
+
+func emitEnvelope(cmd string, success bool, data any, errors any) {
+	meta := map[string]any{
+		"quickemuVersion": qeVersion,
+		"timestamp":       time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+	}
+	if op := os.Getenv("OPID"); op != "" {
+		meta["operationId"] = op
+	} else if op := os.Getenv("OP_ID"); op != "" {
+		meta["operationId"] = op
+	}
+	b, _ := json.Marshal(map[string]any{
+		"schemaVersion": 1, "command": cmd, "success": success,
+		"data": data, "warnings": []any{}, "errors": errors, "meta": meta,
+	})
 	fmt.Println(string(b))
+}
+
+func emitOK(cmd string, data any) {
+	emitEnvelope(cmd, true, data, []any{})
 }
 
 // ---------- action implementations ----------
 
+// allowedOps: vm_allowed_ops parity — the ops the UI may offer per
+// state, as a whitespace-separated list split into a JSON array.
+func allowedOps(state string) []string {
+	var ops string
+	switch state {
+	case "running":
+		ops = "pause resume shutdown reset kill status monitor-cmd screenshot send-keys type snapshot-clone export"
+	case "paused":
+		ops = "resume shutdown kill status monitor-cmd screenshot"
+	case "stopped", "stale":
+		ops = "start delete clone rename export import snapshot apply create delete info list inspect-conf delete-plan"
+	case "archived":
+		ops = "restore trash-list status inspect-conf delete"
+	case "unknown":
+		ops = "status inspect-conf"
+	default:
+		ops = "status"
+	}
+	return strings.Fields(ops)
+}
+
 func actStatus() int {
 	st, pid := state()
 	if outFmt == "json" {
-		emitOK("vm.status", map[string]any{"name": vmname(), "state": st, "pid": pid})
+		var p any
+		if pid > 0 {
+			p = pid
+		}
+		emitOK("vm.status", map[string]any{"name": vmname(), "state": st,
+			"pid": p, "allowedOps": allowedOps(st)})
 		return 0
 	}
 	if pid > 0 {
@@ -170,10 +343,12 @@ func glob(pat string) []string {
 
 func actListVMs() int {
 	type ent struct {
-		Name, OS, State string
-		PID             any
+		Name  string `json:"name"`
+		OS    string `json:"guest_os"`
+		State string `json:"state"`
+		PID   any    `json:"pid"`
 	}
-	var vms []ent
+	vms := []ent{}
 	for _, pat := range []string{"*.conf", "*/*.conf"} {
 		for _, f := range glob(pat) {
 			name := strings.TrimSuffix(filepath.Base(f), ".conf")
@@ -352,6 +527,15 @@ func actScreenshot() int {
 
 // vmOp runs `quickemu-vm <sub> <rest...>`; args are produced lazily at
 // dispatch time so vmdir()/vmname() see the parsed --vm flag.
+// vmLockedOps: the mutating ops Bash wraps in vm_lock_acquire in its
+// main dispatch (delete_vm, clone_vm, export_vm, autostart_vm,
+// create/delete_shortcut, delete_disk, rename_vm).
+var vmLockedOps = map[string]bool{
+	"delete": true, "delete-disk": true, "clone": true, "linked-clone": true,
+	"rename": true, "export": true, "autostart": true,
+	"shortcut": true, "shortcut-delete": true,
+}
+
 func vmOp(sub string, rest ...string) func() int {
 	return func() int {
 		// The vm tool locates the conf by glob; QE_VMCONF tells it which
@@ -359,10 +543,21 @@ func vmOp(sub string, rest ...string) func() int {
 		if vmConf != "" {
 			os.Setenv("QE_VMCONF", vmConf)
 		}
-		if self, err := os.Executable(); err == nil {
-			os.Setenv("QE_LAUNCHER", self)
+		// bin/quickemu (the entry wrapper) pre-sets QE_LAUNCHER so
+		// generated shortcuts/services invoke the canonical entry point
+		// rather than the inner Go binary; keep it when present.
+		if os.Getenv("QE_LAUNCHER") == "" {
+			if self, err := os.Executable(); err == nil {
+				os.Setenv("QE_LAUNCHER", self)
+			}
+		}
+		if vmLockedOps[sub] && !vmLockAcquire() {
+			return 1
 		}
 		out, err := tool("quickemu-vm", append([]string{sub}, rest...)...)
+		if vmLockedOps[sub] {
+			vmLockRelease()
+		}
 		fmt.Print(out)
 		return rc(err)
 	}
@@ -405,7 +600,7 @@ func actStop(force bool) int {
 	for i := 0; i < 40 && alive(pid); i++ {
 		time.Sleep(100 * time.Millisecond)
 	}
-	for _, ext := range []string{".pid", ".paused", "-qmp.socket", "-monitor.socket", "-serial.socket"} {
+	for _, ext := range []string{".pid", ".paused", "-qmp.socket", "-monitor.socket", "-serial.socket", "-agent.sock"} {
 		os.Remove(filepath.Join(vmdir(), vmname()+ext))
 	}
 	fmt.Println(" - " + vmname() + " stopped.")
@@ -413,8 +608,6 @@ func actStop(force bool) int {
 }
 
 func actLaunch() int {
-	// viewer_param_check (launch path only — skipped on --dry-run):
-	// viewer must be none|spicy|remote-viewer and the binary installed.
 	conf := confKV()
 	get := func(k string) string {
 		if v := confOpts[k]; v != "" {
@@ -422,6 +615,33 @@ func actLaunch() int {
 		}
 		return conf[k]
 	}
+	// Already-running parity: a second `quickemu --vm x.conf` never
+	// spawns a second QEMU — Bash attaches the viewer to the live
+	// instance instead. Without this the two QEMU processes race over
+	// the pidfile/sockets in the VM dir.
+	if vmRunning() {
+		fmt.Println(vmname())
+		fmt.Printf(" - Process:  Already running %s as %s (%d)\n",
+			vmConf, vmname(), readPID())
+		startViewer(get)
+		if mc := get("monitor_cmd"); mc != "" {
+			monitorSendBest(mc)
+		}
+		return 0
+	}
+	// vm_runtime_cleanup parity: a stale pidfile means an unclean
+	// shutdown — remove leftover state before booting (Bash does this
+	// in its main flow before any launch).
+	if readPID() > 0 && !vmPidAlive() {
+		for _, ext := range []string{
+			".pid", ".paused", ".spice", ".ports", ".runtime.json",
+			"-qmp.socket", "-monitor.socket", "-serial.socket", "-agent.sock",
+		} {
+			os.Remove(filepath.Join(vmdir(), vmname()+ext))
+		}
+	}
+	// viewer_param_check (launch path only — skipped on --dry-run):
+	// viewer must be none|spicy|remote-viewer and the binary installed.
 	viewer := get("viewer")
 	if viewer == "" {
 		viewer = "spicy"
@@ -438,8 +658,16 @@ func actLaunch() int {
 			return 1
 		}
 	}
+	// vm_lock_acquire parity: the boot runs under the exclusive VM
+	// lock so a concurrent launch fails LOCK_BUSY instead of racing
+	// the pidfile/sockets window (release right after spawn, like
+	// Bash's vm_lock_release post-qemu_spawn).
+	if !vmLockAcquire() {
+		return 1
+	}
 	out, err := tool("quickemu-launch", applyOverrides(), "--run")
 	fmt.Print(out)
+	vmLockRelease()
 	if err != nil {
 		return 1
 	}
@@ -679,6 +907,12 @@ func actDryRun() int {
 	conf := applyOverrides()
 	out, err := tool("quickemu-launch", conf)
 	fmt.Print(out)
+	if outFmt == "json" && err == nil {
+		// execution-plan.schema parity: human plan lines above, then the
+		// vm.plan envelope carrying the assembled QEMU command.
+		emitOK("vm.plan", map[string]any{"vm": vmname(),
+			"command": strings.TrimSpace(out)})
+	}
 	return rc(err)
 }
 
@@ -1169,10 +1403,7 @@ func actHostInfo() int {
 	if syscall.Statfs(dataDir, &st) == nil {
 		freeKb = int64(st.Bavail) * int64(st.Bsize) / 1024
 	}
-	kernel := ""
-	if b, err := exec.Command("uname", "-sr").Output(); err == nil {
-		kernel = strings.TrimSpace(string(b))
-	}
+	kernel := unameFields("-s -r")
 	emitOK("host.info", map[string]any{
 		"kernel": kernel, "arch": unameArch(), "cpuCores": runtime.NumCPU(),
 		"memTotalKb": memTotal, "kvm": kvm, "iommu": iommu, "qemu": qemuVer,
@@ -1531,28 +1762,29 @@ func qeEvent(typ, data string) {
 			seq = last.Seq + 1
 		}
 	}
-	pid := readPID()
-	pidStr := "null"
-	if pid > 0 {
-		pidStr = fmt.Sprintf("%d", pid)
+	var pid any
+	if p := readPID(); p > 0 {
+		pid = p
 	}
-	rec := fmt.Sprintf(`{"seq":%d,"ts":%q,"event":%q,"vm":%q,"pid":%s,"data":%s}`,
-		seq, time.Now().UTC().Format("2006-01-02T15:04:05Z"), typ, vmname(), pidStr, data)
+	if data == "" {
+		data = "null"
+	}
+	b, _ := json.Marshal(map[string]any{
+		"seq": seq, "ts": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"event": typ, "vm": vmname(), "pid": pid,
+		"data": json.RawMessage(data)})
 	fh, err := os.OpenFile(f, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return
 	}
 	defer fh.Close()
-	fmt.Fprintln(fh, rec)
+	fmt.Fprintln(fh, string(b))
 }
 
 // emitFail: failure envelope matching the Bash qe_fail contract.
 func emitFail(cmd, code, msg string) {
-	b, _ := json.Marshal(map[string]any{
-		"schemaVersion": 1, "success": false, "command": cmd,
-		"errors": []map[string]string{{"code": code, "message": msg}},
-	})
-	fmt.Println(string(b))
+	emitEnvelope(cmd, false, nil, []any{map[string]any{
+		"code": code, "message": msg, "severity": "error", "retryable": false}})
 }
 
 func usage() {
@@ -1890,6 +2122,31 @@ func main() {
 		usage()
 		os.Exit(2)
 	}
+	// --format propagates to delegated tools via the env (Bash reads
+	// OUTPUT_FORMAT the same way; quickemu-vm honors it too).
+	if outFmt == "json" {
+		os.Setenv("OUTPUT_FORMAT", "json")
+	}
+	// Fixes running VMs when PWD is not relative to the VM directory
+	// (bin/quickemu.bash parity): when the configured disk is not
+	// reachable from the cwd, operate from the conf's directory so
+	// relative paths in the conf resolve the way Bash resolves them.
+	if vmConf != "" {
+		if abs, err := filepath.Abs(vmConf); err == nil {
+			vmConf = abs
+		}
+		disk := confKV()["disk_img"]
+		if disk == "" {
+			df := confKV()["disk_format"]
+			if df == "" {
+				df = "qcow2"
+			}
+			disk = filepath.Join(vmdir(), "disk."+df)
+		}
+		if _, err := os.Stat(disk); err != nil {
+			os.Chdir(filepath.Dir(vmConf))
+		}
+	}
 	// default action: boot the VM (dry-run prints the argv)
 	if len(actions) == 0 {
 		if dryRunFlag {
@@ -1921,8 +2178,24 @@ func main() {
 			rcv = 2
 			continue
 		}
+		// vm_lock parity: Bash runs mutating actions under the
+		// exclusive VM lock (kill|pause|resume|shutdown|reset|
+		// send_keys|type_text|screenshot; vm/fs ops lock inside vmOp).
+		locked := map[string]bool{
+			"kill_vm": true, "pause_vm": true, "resume_vm": true,
+			"shutdown_vm": true, "reset_vm": true, "stop_vm": true,
+			"send_keys": true, "type_text": true, "screenshot_vm": true,
+		}
 		if fn := dispatch(act); fn != nil {
-			if r := fn(); r != 0 {
+			if locked[act] && !vmLockAcquire() {
+				rcv = 1
+				continue
+			}
+			r := fn()
+			if locked[act] {
+				vmLockRelease()
+			}
+			if r != 0 {
 				rcv = r
 			}
 		}

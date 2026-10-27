@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -16,8 +17,17 @@ import (
 
 const version = "0.1.0"
 
-func die(c, m string) { fmt.Printf(`{"success":false,"errors":[{"code":"%s","message":"%s"}]}`+"\n", c, m); os.Exit(1) }
-func ok(d string)   { fmt.Printf(`{"success":true,"data":%s}`+"\n", d); os.Exit(0) }
+func die(c, m string) {
+	b, _ := json.Marshal(map[string]any{"success": false,
+		"errors": []map[string]any{{"code": c, "message": m}}})
+	fmt.Println(string(b))
+	os.Exit(1)
+}
+func ok(data map[string]any) {
+	b, _ := json.Marshal(map[string]any{"success": true, "data": data})
+	fmt.Println(string(b))
+	os.Exit(0)
+}
 
 func stale(meta string) bool { // "pid ts instance [lease]" -> owner dead or lease out
 	f := strings.Fields(meta)
@@ -117,10 +127,10 @@ func main() {
 			}
 		}
 		os.WriteFile(f, []byte(rec), 0o600)
-		ok(`{"port":` + port + `}`)
+		ok(map[string]any{"port": port})
 	case "release":
 		os.Remove(filepath.Join(reg, port))
-		ok(`{"port":` + port + `}`)
+		ok(map[string]any{"port": port})
 	case "check":
 		if proto == "" {
 			proto = "tcp"
@@ -146,7 +156,7 @@ func main() {
 		if err != nil {
 			die("PORT_BOUND", err.Error())
 		}
-		ok(`{"port":` + port + `,"proto":"` + proto + `","bind":"` + bind + `","free":true}`)
+		ok(map[string]any{"port": port, "proto": proto, "bind": bind, "free": true})
 	case "find":
 		for p := lo; p <= hi; p++ {
 			f := filepath.Join(reg, strconv.Itoa(p))
@@ -182,13 +192,14 @@ func main() {
 		}
 		die("PORT_RANGE_EXHAUSTED", "no free port")
 	case "list":
-		var parts []string
+		parts := []map[string]any{}
 		for _, e := range ents {
 			if b, err := os.ReadFile(filepath.Join(reg, e.Name())); err == nil && isNum(e.Name()) {
-				parts = append(parts, fmt.Sprintf(`{"port":%s,"owner":"%s"}`, e.Name(), strings.TrimSpace(string(b))))
+				parts = append(parts, map[string]any{
+					"port": e.Name(), "owner": strings.TrimSpace(string(b))})
 			}
 		}
-		ok(`{"reservations":[` + strings.Join(parts, ",") + `]}`)
+		ok(map[string]any{"reservations": parts})
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", sub)
 		os.Exit(2)

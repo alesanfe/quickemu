@@ -16,8 +16,21 @@ import (
 	"strings"
 )
 
-func die(c, m string) { fmt.Printf(`{"success":false,"errors":[{"code":"%s","message":"%s"}]}`+"\n", c, m); os.Exit(1) }
-func ok(d string)   { fmt.Printf(`{"success":true,"data":%s}`+"\n", d); os.Exit(0) }
+func die(c, m string) {
+	b, _ := json.Marshal(map[string]any{"success": false,
+		"errors": []map[string]any{{"code": c, "message": m}}})
+	fmt.Println(string(b))
+	os.Exit(1)
+}
+
+// ok emits the envelope; d is a pre-marshalled JSON fragment (the
+// small fixed payloads built by callers below).
+func ok(d string) {
+	b, _ := json.Marshal(map[string]any{"success": true,
+		"data": json.RawMessage(d)})
+	fmt.Println(string(b))
+	os.Exit(0)
+}
 
 const maxMembers = 100000
 const maxDepth = 16
@@ -160,7 +173,8 @@ func main() {
 	if mismatch > 0 {
 		die("CHECKSUM_MISMATCH", fmt.Sprintf("%d members failed sha256", mismatch))
 	}
-	ok(fmt.Sprintf(`{"members":%d,"verified":%d}`, entries, len(files)))
+	d, _ := json.Marshal(map[string]any{"members": entries, "verified": len(files)})
+	ok(string(d))
 }
 // normArgs expands GNU-style --flag=value into --flag value so the
 // positional pair parsers stay uniform (pflag parity without the dep).

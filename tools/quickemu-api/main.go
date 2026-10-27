@@ -167,8 +167,9 @@ func vmCmd(vm, cmd string) (string, error) {
 	conf := filepath.Join(dir, vm+".conf")
 	sock := filepath.Join(dir, vm+"-qmp.socket")
 	qmp := func(c string) (string, error) {
+		payload, _ := json.Marshal(map[string]any{"execute": c})
 		return runCmd("quickemu-qmp", "execute", "--socket", sock,
-			"--command", `{"execute":"`+c+`"}`)
+			"--command", string(payload))
 	}
 	switch cmd {
 	case "start":

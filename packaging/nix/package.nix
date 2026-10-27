@@ -60,7 +60,7 @@ let
   # Extract version using builtins.split to avoid regex backtracking on large files.
   # builtins.match with .* patterns on multi-kilobyte files can cause stack overflow.
   versionParts = builtins.split "readonly VERSION=\"([0-9]+\\.[0-9]+\\.[0-9]+)\"" (
-    builtins.readFile ./bin/quickemu
+    builtins.readFile ./bin/quickemu.bash
   );
   version = builtins.elemAt (builtins.elemAt versionParts 1) 0;
 in
@@ -80,7 +80,7 @@ stdenv.mkDerivation (finalAttrs: {
       -e '/cp "''${VARS_IN}" "''${VARS_OUT}"/a chmod +w "''${VARS_OUT}"' \
       -e 's/Icon=.*qemu.svg/Icon=qemu/' \
       -e 's,\$(command -v smbd),${samba}/bin/smbd,' \
-      bin/quickemu
+      bin/quickemu.bash
   '';
 
   nativeBuildInputs = [
@@ -92,7 +92,7 @@ stdenv.mkDerivation (finalAttrs: {
     runHook preInstall
 
     installManPage docs/quickget.1 docs/quickemu.1 docs/quickemu_conf.5
-    install -Dm755 -t "$out/bin" bin/quickemu bin/quickget bin/quickreport
+    install -Dm755 -t "$out/bin" bin/quickemu bin/quickemu.bash bin/quickget bin/quickreport
     install -Dm755 -t "$out/libexec/quickemu" libexec/quickemu/chunkcheck.py
     install -d "$out/lib"
     cp -r lib/quickemu "$out/lib/"

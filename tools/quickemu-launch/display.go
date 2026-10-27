@@ -202,17 +202,17 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		}
 		// Bash: split -drive (if=none,id=SystemDisk) + -device pattern.
 		a = append(a, "-device", dev+",drive=SystemDisk",
-			"-drive", "id=SystemDisk,if=none,format=qcow2,file="+filepath.Join(dir, d)+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
+			"-drive", "id=SystemDisk,if=none,format=qcow2,file="+joinConf(dir, d)+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
 	}
 	if d := c.get("iso", ""); d != "" {
 		// Bash: plain cdrom drive (IDE), indexed.
-		a = append(a, "-drive", "media=cdrom,index=0,file="+filepath.Join(dir, d))
+		a = append(a, "-drive", "media=cdrom,index=0,file="+joinConf(dir, d))
 	}
 	if d := c.get("img", ""); d != "" {
-		a = append(a, "-drive", "file="+filepath.Join(dir, d)+",format=raw,if=virtio")
+		a = append(a, "-drive", "file="+joinConf(dir, d)+",format=raw,if=virtio")
 	}
 	if d := c.get("fixed_iso", ""); d != "" {
-		a = append(a, "-drive", "file="+filepath.Join(dir, d)+",media=cdrom")
+		a = append(a, "-drive", "file="+joinConf(dir, d)+",media=cdrom")
 	}
 	if c.get("storage", "") == "nvme" {
 		a = append(a, "-device", "nvme,drive=nvme0,serial=nvme0")

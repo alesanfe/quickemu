@@ -18,20 +18,20 @@ func bootMediaArgs(c Conf, dir string) []string {
 		a = append(a, "-boot", "order=dc")
 	case iso != "" && osn == "kolibrios":
 		// cdrom index=2 avoids the phantom-iso bug
-		a = append(a, "-drive", "media=cdrom,index=2,file="+filepath.Join(dir, iso))
+		a = append(a, "-drive", "media=cdrom,index=2,file="+joinConf(dir, iso))
 	case iso != "" && osn == "reactos":
 		a = append(a, "-boot", "order=d",
-			"-drive", "if=ide,index=2,media=cdrom,file="+filepath.Join(dir, iso))
+			"-drive", "if=ide,index=2,media=cdrom,file="+joinConf(dir, iso))
 	case iso != "" && strings.HasPrefix(osn, "windows"):
 		if _, err := os.Stat(filepath.Join(dir, "unattended.iso")); err == nil {
 			a = append(a, "-drive", "media=cdrom,index=2,file="+filepath.Join(dir, "unattended.iso"))
 		}
 	}
 	if c.get("floppy", "") != "" {
-		a = append(a, "-drive", "file="+filepath.Join(dir, c["floppy"])+",if=floppy")
+		a = append(a, "-drive", "file="+joinConf(dir, c["floppy"])+",if=floppy")
 	}
 	if c.get("driver_iso", "") != "" {
-		a = append(a, "-drive", "file="+filepath.Join(dir, c["driver_iso"])+",media=cdrom,if=none,id=driver", "-device", "virtio-cdrom,drive=driver")
+		a = append(a, "-drive", "file="+joinConf(dir, c["driver_iso"])+",media=cdrom,if=none,id=driver", "-device", "virtio-cdrom,drive=driver")
 	}
 	return a
 }

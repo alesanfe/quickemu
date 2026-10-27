@@ -592,27 +592,12 @@ func genSeedISO(vmPath, confFile string) int {
 		os.WriteFile(metaData, []byte("instance-id: "+vmPath+"\nlocal-hostname: "+vmPath+"\n"), 0644)
 	}
 	seed := filepath.Join(vmPath, "seed.iso")
-	type tool struct {
-		name string
-		args []string
-	}
-	candidates := []tool{
-		{"cloud-localds", []string{seed, userData, metaData}},
-		{"genisoimage", []string{"-output", seed, "-volid", "cidata", "-joliet", "-rock", userData, metaData}},
-		{"xorrisofs", []string{"-output", seed, "-volid", "cidata", "-joliet", "-rock", userData, metaData}},
-		{"mkisofs", []string{"-output", seed, "-volid", "cidata", "-joliet", "-rock", userData, metaData}},
-	}
-	built := false
-	for _, t := range candidates {
-		if bin, err := exec.LookPath(t.name); err == nil {
-			if exec.Command(bin, t.args...).Run() == nil {
-				built = true
-				break
-			}
-		}
-	}
-	if !built {
-		fmt.Fprintln(os.Stderr, "ERROR! No tool to build seed.iso (need cloud-localds, genisoimage, xorrisofs or mkisofs).")
+	// cloud-localds parity: a cidata seed ISO is just an ISO9660 image
+	// (volid=cidata, Rock Ridge + Joliet) holding user-data/meta-data.
+	if err := writeISO9660(seed, "cidata", map[string]string{
+		"/user-data": userData, "/meta-data": metaData,
+	}); err != nil {
+		fmt.Fprintln(os.Stderr, "ERROR! Could not build seed.iso: "+err.Error())
 		return 1
 	}
 	if _, err := os.Stat(seed); err == nil {

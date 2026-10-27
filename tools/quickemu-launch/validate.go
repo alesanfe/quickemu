@@ -34,12 +34,12 @@ func validateConf(c Conf, confPath string) []string {
 	}
 	dir := filepath.Dir(confPath)
 	if d := c.get("disk_img", ""); d != "" {
-		if _, err := os.Stat(filepath.Join(dir, d)); err != nil {
+		if _, err := os.Stat(joinConf(dir, d)); err != nil {
 			errs = append(errs, "disk_img not found: "+d)
 		}
 	}
 	if d := c.get("iso", ""); d != "" {
-		if _, err := os.Stat(filepath.Join(dir, d)); err != nil {
+		if _, err := os.Stat(joinConf(dir, d)); err != nil {
 			errs = append(errs, "iso not found: "+d)
 		}
 	}
