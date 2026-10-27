@@ -4,12 +4,12 @@
 package main
 
 import (
-	"strings"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -205,10 +205,87 @@ func main() {
 			os.Remove(ents[i])
 		}
 		fmt.Printf("{\"pruned\":%d}\n", max(0, len(ents)-keep))
+	case "recover":
+		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+		reaped := 0
+		for _, e := range ents {
+			var o Op
+			if json.Unmarshal(must(e), &o) != nil {
+				continue
+			}
+			if o.State != "queued" && o.State != "running" {
+				continue
+			}
+			if o.WorkerPid > 0 && syscall.Kill(o.WorkerPid, 0) == nil {
+				continue
+			}
+			o.State = "failed"
+			o.Error = json.RawMessage(`{"code":"OPERATION_INTERRUPTED","message":"worker dead"}`)
+			writeOp(dir, &o)
+			reaped++
+		}
+		fmt.Printf("{\"reaped\":%d}\n", reaped)
+	case "rollback":
+		id := flag(args, "--id")
+		if id == "" {
+			die("INVALID_ARGS", "--id required")
+		}
+		var o Op
+		if json.Unmarshal(must(filepath.Join(dir, id+".json")), &o) != nil {
+			die("OPERATION_NOT_FOUND", id)
+		}
+		rbCompensate(dir, o.Type)
+		o.State = "failed"
+		o.Error = json.RawMessage(`{"code":"OPERATION_ROLLBACK","message":"rolled back ` + o.Type + ` effects"}`)
+		writeOp(dir, &o)
+		fmt.Printf("{\"rolledBack\":\"%s\"}\n", o.Type)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", sub)
 		os.Exit(2)
 	}
+}
+
+// rbCompensate undoes the filesystem effects of an interrupted op by type.
+// Mirrors op_rollback in lib/quickemu/runtime/ops.sh exactly.
+func rbCompensate(dir, typ string) {
+	switch typ {
+	case "download":
+		for _, pat := range []string{"*.part", "*.zsync*", "*.tmp"} {
+			for _, f := range globVM(dir, pat) {
+				os.Remove(f)
+			}
+		}
+	case "import", "export":
+		for _, pat := range []string{".import-*", ".export-*"} {
+			for _, f := range globVM(dir, pat) {
+				os.RemoveAll(f)
+			}
+		}
+	case "clone", "rename":
+		for _, f := range globVM(dir, ".partial-*") {
+			os.RemoveAll(f)
+		}
+	case "delete":
+		trash := filepath.Join(filepath.Dir(dir), ".trash")
+		vm := filepath.Join(filepath.Dir(dir), "vm")
+		if _, err := os.Stat(trash); err == nil {
+			if _, err := os.Stat(vm); os.IsNotExist(err) {
+				os.Rename(trash, vm)
+			}
+		}
+	case "compact", "snapshot":
+		for _, pat := range []string{"*.tmp.qcow2", "*.compact-*"} {
+			for _, f := range globVM(dir, pat) {
+				os.Remove(f)
+			}
+		}
+	}
+}
+
+// globVM globs a pattern inside the VM dir (parent of the ops dir).
+func globVM(dir, pat string) []string {
+	ents, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), pat))
+	return ents
 }
 
 func flag(args []string, name string) string {
@@ -234,6 +311,7 @@ func max(a, b int) int {
 	}
 	return b
 }
+
 // normArgs expands GNU-style --flag=value into --flag value so the
 // positional pair parsers stay uniform (pflag parity without the dep).
 func normArgs(a []string) []string {
