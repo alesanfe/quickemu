@@ -149,5 +149,12 @@ func main() {
 	args = append(args, "-pidfile", filepath.Join(dir, "vm.pid"))
 	args = append(args, "-name", filepath.Base(dir))
 
+	if len(os.Args) > 2 && os.Args[2] == "--run" {
+		if err := runQEMU(os.Args[1], args); err != nil {
+			fmt.Fprintln(os.Stderr, "launch failed:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	fmt.Println(strings.Join(args, " "))
 }
