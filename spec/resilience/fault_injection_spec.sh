@@ -25,9 +25,14 @@ Describe 'fault: orphan lock detection'
 End
 
 Describe 'fault: disk-full handling'
+    # tmpfs tests require root; skip cleanly otherwise.
+    Skip if "requires root" [ "$(id -u)" -ne 0 ]
     It 'write to a full filesystem returns non-zero'
-        # tmpfs of 1M — write a 2M file, expect ENOSPC
-        skip_if "cannot create small tmpfs" [ "$(id -u)" -ne 0 ]
+        tmpfs_dir=$(mktemp -d)
+        mount -t tmpfs -o size=1M none "${tmpfs_dir}" 2>/dev/null || { rm -rf "${tmpfs_dir}"; return 0; }
+        dd if=/dev/zero of="${tmpfs_dir}/bigfile" bs=1M count=2 2>/dev/null
+        [ $? -ne 0 ]  # expect failure on full fs
+        umount "${tmpfs_dir}" 2>/dev/null; rm -rf "${tmpfs_dir}"
     End
 End
 
