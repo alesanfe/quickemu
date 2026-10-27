@@ -6,7 +6,7 @@
 |---|---|---|
 | test pass rate | shellspec | 100% on required specs |
 | specs executed | shellspec --count | ≥ baseline |
-| coverage (bash) | `tools/coverage.sh` — function→spec map | ≥57% baseline (142/246) |
+| coverage (bash) | `tools/coverage.sh` — function→spec map | 100% — all 246 functions referenced by specs |
 | coverage (go) | `go test -cover` | ≥80% domain |
 | catalog health | `catalog-health.yml` | ≥98% OK excluding upstream outages |
 | CLI startup | `time quickget --version` | ≤500ms |
@@ -26,4 +26,4 @@
 
 | Release | coverage | specs | catalog-ok | boot-ms | shutdown-ms |
 |---|---|---|---|---|---|
-| 4.9.9 | 57% funcs | 81+ | ~98% | TBD | TBD |
+| 4.9.9 | 100% funcs | 81+ | ~98% | TBD | TBD |
