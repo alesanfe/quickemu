@@ -47,6 +47,16 @@ func main() {
 	}
 	conf := parseConf(os.Args[1])
 	conf["_vmdir"] = filepath.Dir(os.Args[1])
+	if len(os.Args) > 2 && os.Args[2] == "--validate" {
+		if errs := validateConf(conf, os.Args[1]); len(errs) > 0 {
+			for _, e := range errs {
+				fmt.Fprintln(os.Stderr, "invalid:", e)
+			}
+			os.Exit(1)
+		}
+		fmt.Println("valid")
+		return
+	}
 	dir := filepath.Dir(os.Args[1])
 	osName := conf.get("guest_os", "linux")
 	arch := conf.get("arch", "x86_64")
