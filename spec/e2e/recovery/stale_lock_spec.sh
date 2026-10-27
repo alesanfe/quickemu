@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
-. "$(dirname "$0")/../support/e2e_lib.sh"
+# E2E-RECOVERY-001: an exclusive lock dir whose pid is dead must be
+# reclaimed — a crashed writer never blocks readers forever.
 Describe 'stale_lock_is_recovered @recovery @p1'
-ws="$(e2e_sandbox "$(e2e_id recovery)")"
-vm_fixture "$ws" >/dev/null
-touch "$ws/vm.conf.lock"
-It 'a stale lock does not block a fresh status'
-The value "$(qe_state "$ws/vm.conf")" should not equal ''
-End
+    Include spec/e2e/support/e2e_lib.sh
+
+    setup() {
+        ws="$(e2e_sandbox "$(e2e_id recovery)")"
+        vm_fixture "$ws" >/dev/null
+        CONF="$ws/vm.conf"
+        # Simulate a crashed writer: lock dir + pid file of a dead process.
+        mkdir -p "$ws/vm.lock"
+        echo 999999 >"$ws/vm.lock/pid"
+    }
+    BeforeEach 'setup'
+
+    It 'a stale lock does not block a fresh status'
+        When call qe_state "${CONF}"
+        The output should equal 'stopped'
+    End
 End

@@ -294,10 +294,12 @@ if [ -n "${VM}" ] && [ -e "${VM}" ]; then
                 ;;
             *)
                 ${ACTION}
+                ACTION_RC=$?
+                [ ${ACTION_RC} -ne 0 ] && exit ${ACTION_RC}
                 ;;
             esac
         done
-        exit
+        exit 0
     fi
 
     if [ -n "${SNAPSHOT_ACTION}" ]; then

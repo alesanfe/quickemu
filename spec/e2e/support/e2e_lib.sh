@@ -6,7 +6,7 @@
 
 # ── environment control ───────────────────────────────────────────────
 export LC_ALL=C LANG=C TZ=UTC
-: "${QE:=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/bin/quickemu}"
+: "${QE:=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)/bin/quickemu}"
 : "${E2E_ROOT:=/tmp/quickemu-e2e}"
 : "${E2E_ACCEL:=tcg}"
 : "${E2E_CPU:=qemu64}"
@@ -28,9 +28,12 @@ e2e_sandbox() {
 # vm_fixture <workspace> [name] — emits a minimal valid conf + disk
 vm_fixture() {
   local ws="$1" name="${2:-vm}"
-  printf 'guest_os="linux"\ndisk_img="%s/disk.qcow2"\nram="256M"\ndisplay="none"\nboot="legacy"\n' \
-    "$ws" >"${ws}/${name}.conf"
-  printf x >"${ws}/disk.qcow2"
+  # iso= stub: quickemu refuses to launch a conf with no bootable media.
+  printf 'guest_os="linux"\ndisk_img="%s/disk.qcow2"\niso="%s/stub.iso"\nram="256M"\ndisplay="none"\nboot="legacy"\n' \
+    "$ws" "$ws" >"${ws}/${name}.conf"
+  # Real qcow2 container — QEMU rejects a raw stub for a qcow2-declared disk.
+  qemu-img create -f qcow2 "${ws}/disk.qcow2" 64M >/dev/null 2>&1
+  printf x >"${ws}/stub.iso"
   printf '{"vmId":"%s","workspace":"%s","config":"%s","disk":"%s"}\n' \
     "${name}-${RUN_ID}" "$ws" "${ws}/${name}.conf" "${ws}/disk.qcow2"
 }

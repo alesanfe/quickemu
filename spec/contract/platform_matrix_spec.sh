@@ -34,7 +34,10 @@ Describe 'platform: environment detection'
     It 'CRLF does not corrupt editions lists (regression: jq.exe on Windows)'
         # The validate.sh tr -d '\r\n' fix must hold — editions must be
         # space-separated single-line output, not multi-line CRLF.
-        When run bash -c 'source lib/quickget/catalog/data.sh 2>/dev/null; releases_debian | tr "\n" " " | head -1 | wc -l'
+        # releases_debian needs the network (web_pipe); the static
+        # editions_alma proves the output-shape contract instead.
+        When run bash -c 'source lib/quickget/catalog/data.sh; out=$(editions_alma); a=$(printf %s "${out}" | wc -c); b=$(printf %s "${out}" | tr -d "\r\n" | wc -c); [ "${a}" -eq "${b}" ] || exit 1; printf "%s\n" "${out}"'
         The status should be success
+        The stdout should include 'boot minimal dvd'
     End
 End

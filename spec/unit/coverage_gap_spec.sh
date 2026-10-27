@@ -2,79 +2,131 @@
 # Covers verbosity levels, QMP allowlist, port registry helpers,
 # toml validate, proc helpers — the biggest coverage holes.
 Describe 'coverage: verbosity levels'
-    setup() { source lib/quickemu/cli/verbosity.sh; }
-    BeforeEach 'setup'
+    Include lib/quickemu/cli/verbosity.sh
 
-    It 'qe_log_enabled gates quiet always'
-        QUICKEMU_VERBOSITY=quiet; qe_log_enabled quiet
+    It 'qe_log_enabled emits quiet at quiet'
+        QUICKEMU_VERBOSITY=quiet
+        When call qe_log_enabled quiet
+        The status should be success
     End
     It 'qe_log_enabled gates normal on quiet'
-        QUICKEMU_VERBOSITY=quiet; ! qe_log_enabled normal
+        QUICKEMU_VERBOSITY=quiet
+        When call qe_log_enabled normal
+        The status should be failure
     End
     It 'qe_log_enabled gates debug only on debug'
-        QUICKEMU_VERBOSITY=debug; qe_log_enabled debug
-        QUICKEMU_VERBOSITY=normal; ! qe_log_enabled debug
+        QUICKEMU_VERBOSITY=normal
+        When call qe_log_enabled debug
+        The status should be failure
     End
-    It '_verbosity_rank maps levels to numbers'
-        [ "$(_verbosity_rank quiet)" -lt "$(_verbosity_rank normal)" ]
-        [ "$(_verbosity_rank normal)" -lt "$(_verbosity_rank verbose)" ]
-        [ "$(_verbosity_rank verbose)" -lt "$(_verbosity_rank debug)" ]
+    It 'qe_log_enabled emits debug at debug'
+        QUICKEMU_VERBOSITY=debug
+        When call qe_log_enabled debug
+        The status should be success
     End
-    It 'qe_log wrappers call the right level'
-        qe_debug() { :; }
-        qe_info() { :; }
-        qe_verbose() { :; }
-        qe_quiet() { :; }
-        qe_log() { :; }
+    It '_verbosity_rank maps levels to ordered numbers'
+        When call _verbosity_rank quiet
+        The output should equal '0'
+    End
+    It '_verbosity_rank orders normal below verbose'
+        When call _verbosity_rank normal
+        The output should equal '1'
+    End
+    It 'qe_log writes to stderr only at or above the level'
+        QUICKEMU_VERBOSITY=debug
+        When call qe_log debug "hello"
+        The stderr should include 'hello'
+    End
+    It 'qe_log suppresses messages above the level'
+        QUICKEMU_VERBOSITY=quiet
+        When call qe_log debug "hidden"
+        The stderr should equal ''
     End
 End
 
 Describe 'coverage: QMP command allowlist'
-    setup() { source lib/quickemu/runtime/monitor.sh 2>/dev/null || true; }
-    BeforeEach 'setup'
+    Include lib/quickemu/runtime/monitor.sh
 
     It 'qmp_command_allowed accepts query-*'
-        QUICKEMU_QMP_RAW=0; qmp_command_allowed '{"execute":"query-status"}'
+        QUICKEMU_QMP_RAW=0
+        When call qmp_command_allowed '{"execute":"query-status"}'
+        The status should be success
     End
     It 'qmp_command_allowed accepts system_powerdown'
-        QUICKEMU_QMP_RAW=0; qmp_command_allowed '{"execute":"system_powerdown"}'
+        QUICKEMU_QMP_RAW=0
+        When call qmp_command_allowed '{"execute":"system_powerdown"}'
+        The status should be success
     End
     It 'qmp_command_allowed accepts stop/cont'
-        QUICKEMU_QMP_RAW=0; qmp_command_allowed '{"execute":"stop"}'
-        qmp_command_allowed '{"execute":"cont"}'
+        QUICKEMU_QMP_RAW=0
+        When call qmp_command_allowed '{"execute":"cont"}'
+        The status should be success
     End
     It 'qmp_command_allowed rejects arbitrary commands'
-        QUICKEMU_QMP_RAW=0; ! qmp_command_allowed '{"execute":"chardev-remove"}'
+        QUICKEMU_QMP_RAW=0
+        When call qmp_command_allowed '{"execute":"chardev-remove"}'
+        The status should be failure
     End
     It 'qmp_command_allowed raw bypass when QUICKEMU_QMP_RAW=1'
-        QUICKEMU_QMP_RAW=1; qmp_command_allowed '{"execute":"chardev-remove"}'
+        QUICKEMU_QMP_RAW=1
+        When call qmp_command_allowed '{"execute":"chardev-remove"}'
+        The status should be success
     End
 End
 
 Describe 'coverage: port registry helpers'
-    setup() {
-        PR_DIR=$(mktemp -d)
-        source lib/quickemu/runtime/lifecycle.sh 2>/dev/null || true
-    }
-    BeforeEach 'setup'
+    Include lib/quickemu/runtime/lifecycle.sh
 
-    It '_port_registry_taken detects a port in use'
-        [ "$(type -t _port_registry_taken)" == function ] || return 0
-        echo 5555 > "${PR_DIR}/5555.pid"
-        _port_registry_taken 5555 "${PR_DIR}" || return 0
-        return 0
+    setup() { QE_PORT_REGISTRY=$(mktemp -d); }
+    cleanup() { rm -rf "${QE_PORT_REGISTRY}"; }
+    BeforeEach 'setup'
+    AfterEach 'cleanup'
+
+    It '_port_registry_taken detects a live reservation'
+        printf '%s %s %s %s\n' "$$" "$(date +%s)" inst vm >"${QE_PORT_REGISTRY}/5555"
+        When call _port_registry_taken 5555
+        The status should be success
     End
-    It '_port_registry_release removes a registration'
-        [ "$(type -t _port_registry_release)" == function ] || return 0
-        return 0
+    It '_port_registry_taken frees a dead reservation'
+        printf '999999 %s %s %s\n' "$(date +%s)" inst vm >"${QE_PORT_REGISTRY}/5556"
+        When call _port_registry_taken 5556
+        The status should be failure
+    End
+    It '_port_registry_reserve writes a reservation file'
+        When call _port_registry_reserve 5557
+        The status should be success
+        The path "${QE_PORT_REGISTRY}/5557" should be file
+    End
+    It '_port_registry_release drops reservations owned by this pid'
+        printf '%s %s %s %s\n' "$$" "$(date +%s)" inst vm >"${QE_PORT_REGISTRY}/5558"
+        When call _port_registry_release
+        The status should be success
+        The path "${QE_PORT_REGISTRY}/5558" should not be exist
     End
 End
 
 Describe 'coverage: toml validation'
-    It 'toml_validate exists and rejects empty input'
-        source lib/quickemu/config/toml.sh 2>/dev/null || return 0
-        [ "$(type -t toml_validate)" == function ] || return 0
-        ! toml_validate "" 2>/dev/null || true
-        return 0
+    Include lib/quickemu/config/toml.sh
+
+    setup() {
+        T_DIR=$(mktemp -d)
+        printf 'formatVersion = 1\nguest_os = "linux"\ndisk_img = "d.qcow2"\n' >"${T_DIR}/good.toml"
+        printf 'this is [not = toml\n' >"${T_DIR}/bad.toml"
+    }
+    cleanup() { rm -rf "${T_DIR}"; }
+    BeforeEach 'setup'
+    AfterEach 'cleanup'
+
+    It 'toml_validate accepts a well-formed file'
+        When call toml_validate "${T_DIR}/good.toml"
+        The status should be success
+    End
+    It 'toml_validate rejects malformed input'
+        When call toml_validate "${T_DIR}/bad.toml"
+        The status should be failure
+    End
+    It 'toml_validate rejects a missing file'
+        When call toml_validate "${T_DIR}/absent.toml"
+        The status should be failure
     End
 End

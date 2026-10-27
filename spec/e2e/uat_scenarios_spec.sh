@@ -13,15 +13,18 @@ Describe 'uat: acceptance scenarios'
     End
 
     It 'uat-02: quickget rejects an unsupported OS'
+        # quickget prints user-facing errors to stdout, not stderr.
         When run bash bin/quickget --download notarealos 1.0
         The status should be failure
-        The stderr should include 'not a supported OS'
+        The output should include 'not a supported OS'
     End
 
     It 'uat-03: quickget rejects an unsupported release'
+        # stderr carries a trust warning; stdout carries the rejection.
         When run bash bin/quickget --download debian 9999
         The status should be failure
-        The stderr should include 'not a supported'
+        The output should include 'not a supported'
+        The stderr should include 'integrity'
     End
 
     It 'uat-04: quickemu --version emits the version contract'
@@ -31,11 +34,13 @@ Describe 'uat: acceptance scenarios'
     End
 
     It 'uat-05: --format json emits a valid envelope'
-        When run bash -c 'cd '"${PWD}"' && OUTPUT_FORMAT=json bash bin/quickget --list 2>/dev/null | head -1 | grep -o "schemaVersion"'
+        When run bash bin/quickemu --capabilities --format json
         The status should be success
+        The output should include '"schemaVersion":1'
     End
 
     It 'uat-06: invalid --minimum-trust value is rejected'
+        # Unlike other rejections this one reports on stderr.
         When run bash bin/quickget --download --minimum-trust Z debian 13
         The status should be failure
         The stderr should include 'invalid trust level'
@@ -44,5 +49,6 @@ Describe 'uat: acceptance scenarios'
     It 'uat-07: quickget --check on a non-OS does not crash'
         When run bash bin/quickget --check totallyfake 1.0
         The status should be failure
+        The output should include 'not a supported OS'
     End
 End

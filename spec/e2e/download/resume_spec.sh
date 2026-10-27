@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-. "$(dirname "$0")/../support/e2e_lib.sh"
+# E2E-DOWNLOAD-001: interrupted downloads resume — the download layer must
+# pass a resume flag to curl/aria2 so partial files are not restarted.
 Describe 'download_resume @download @p1'
-It 'an interrupted download can resume'
-# quickget -c resumes partial downloads; verify the flag exists
-"$QE" --help 2>&1 | grep -q 'quickget' && echo ok
-End
+    It 'the download path uses resume-capable fetch'
+        When run bash -c 'grep -qE "continue-at|--continue=true" lib/quickget/download/web.sh'
+        The status should be success
+    End
 End
