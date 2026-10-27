@@ -50,7 +50,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-launch <conf> [--dry-run]")
 		os.Exit(2)
 	}
-	conf := parseConf(os.Args[1])
+	conf := applyPresets(parseConf(os.Args[1]))
 	conf["_vmdir"] = filepath.Dir(os.Args[1])
 	if len(os.Args) > 2 && os.Args[2] == "--validate" {
 		if errs := validateConf(conf, os.Args[1]); len(errs) > 0 {
@@ -90,6 +90,7 @@ func main() {
 	args = append(args, storageArgs(conf, dir)...)
 	args = append(args, displayArgs(conf, dir, osName, arch)...)
 	args = append(args, audioArgs(conf, osName)...)
+	args = append(args, networkArgs(conf)...)
 	args = append(args, portArgs(conf, dir)...)
 	args = append(args, fileshareArgs(conf, dir)...)
 	args = append(args, passthruArgs(conf)...)
