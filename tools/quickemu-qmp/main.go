@@ -4,11 +4,11 @@
 package main
 
 import (
-	"strings"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 

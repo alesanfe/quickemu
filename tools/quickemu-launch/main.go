@@ -152,6 +152,10 @@ func main() {
 	args = append(args, displayArgs(conf, dir, osName, arch)...)
 	args = append(args, audioArgs(conf, osName)...)
 	args = append(args, osQuirks(conf, osName, arch)...)
+	args = append(args, bootMediaArgs(conf, dir)...)
+	args = append(args, fileshareArgs(conf, dir)...)
+	args = append(args, channelArgs(conf, dir)...)
+	args = append(args, passthruArgs(conf)...)
 	// usb passthrough
 	if devs := conf.get("usb_devices", ""); devs != "" {
 		for _, d := range strings.Fields(devs) {

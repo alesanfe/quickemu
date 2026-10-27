@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"syscall"
 	"time"
 )
 
@@ -18,8 +20,8 @@ var qmpRaw bool // --raw: emit the bare QMP reply line for Bash callers
 var qmpSeq int // monotonic command ids for request/response correlation
 
 type qmpConn struct {
-	c   net.Conn
-	r   *bufio.Reader
+	c net.Conn
+	r *bufio.Reader
 }
 
 func qmpDial(socket string, timeout time.Duration) (*qmpConn, error) {
@@ -169,4 +171,35 @@ func runWatch(socket string) int {
 func mustJSON(v any) string {
 	b, _ := json.Marshal(v)
 	return string(b)
+}
+
+// SocketReady mirrors vm_monitor_socket_ready: socket exists, is a unix
+// socket, is not a symlink, and is owned by the current user.
+func SocketReady(path string) bool {
+	fi, err := os.Lstat(path)
+	if err != nil || fi.Mode()&os.ModeSymlink != 0 {
+		return false
+	}
+	if fi.Mode()&os.ModeSocket == 0 {
+		return false
+	}
+	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
+		return stat.Uid == uint32(os.Getuid())
+	}
+	return true
+}
+
+// SendCmd mirrors monitor_send_cmd: writes a raw command to the monitor
+// socket (not QMP) and returns the reply.
+func SendCmd(path, cmd string) (string, error) {
+	conn, err := net.DialTimeout("unix", path, 5*time.Second)
+	if err != nil {
+		return "", err
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	fmt.Fprintf(conn, "%s\n", cmd)
+	conn.(*net.UnixConn).CloseWrite()
+	b, err := io.ReadAll(conn)
+	return string(b), err
 }
