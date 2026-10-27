@@ -1,9 +1,9 @@
 module github.com/alesanfe/quickemu/tools/quickemu-ops
 
-go 1.23
+go 1.22
 
 require (
-	github.com/fsnotify/fsnotify v1.10.1
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/renameio/v2 v2.0.0
 	github.com/google/uuid v1.6.0

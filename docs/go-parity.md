@@ -10,7 +10,7 @@
 | qmp client | `lib/quickemu/runtime/monitor.sh` | `quickemu-qmp` | ✅ **100%** — query-status, safe commands |
 | archive import | `lib/quickemu/vm/disk.sh` (import part) | `quickemu-archive` | ✅ **100%** — tar-slip validation + extract |
 | toml config | `lib/quickemu/config/toml.sh` | `quickemu-toml` | ✅ **100%** — parse/validate |
-| api daemon | `quickemu-api.sh` | `quickemu-api` | ✅ **100%** — state/ops/start/stop/pause/resume/kill/reset |
+| api daemon | `quickemu-api.sh` (retired) | `quickemu-api` | ✅ **100%** — persistent HTTP daemon (state/ops/start/stop/pause/resume/kill/reset, bearer auth, TCP+unix listen); the socat shim was removed |
 | **unified CLI** | `bin/quickemu` + `lib/quickemu/cli/*.sh` | `quickemu-cli` | ✅ core — same flag surface: lifecycle (start/dry-run/status/pause/resume/shutdown/reset/stop/kill/restart), list-vms (text+JSON), snapshots/backup/clone/rename/move/trash/disk ops via quickemu-vm, monitor-cmd/send-keys/type/screenshot via quickemu-qmp HMP, op-* via quickemu-ops, conf overrides (--display/--access/--public-dir/--fullscreen/--braille/--keyboard-layout/--cpu-pinning/--extra-args) materialised into a temp conf. **Attach actions**: `vnc` (VNC client at vnc_listen, 5900+display), `spice-console` (viewer attach to running VM, same URI rules as start_viewer), `publicdir` (xdg-open public_dir), `serial-console`/`monitor-console` (interactive telnet attach) — all meaningful where Bash has dead aliases |
 | **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | ✅ **100%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers + **3 scrape-OSes (cachyos/manjaro/reactos) nativos en scrape.go** |
 
