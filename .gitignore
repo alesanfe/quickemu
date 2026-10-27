@@ -59,3 +59,11 @@ tools/quickget-cli/cli
 tools/quickreport/quickreport
 tools/quickemu-cli/cli
 tools/quickemu-vm/vm
+tools/quickemu-api/api
+tools/quickemu-archive/archive
+tools/quickemu-launch/launch
+tools/quickemu-ops/ops
+tools/quickemu-ports/ports
+tools/quickemu-proc/proc
+tools/quickemu-qmp/qmp
+tools/quickemu-toml/toml
