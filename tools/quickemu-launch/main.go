@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -51,6 +52,17 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-launch <conf> [--dry-run]")
 		os.Exit(2)
 	}
+	// --reap <pid> <dir> <name>: detached cleanup watcher spawned by
+	// runQEMU — the disowned `while kill -0` + vm_runtime_cleanup loop.
+	if os.Args[1] == "--reap" && len(os.Args) >= 5 {
+		pid := 0
+		fmt.Sscanf(os.Args[2], "%d", &pid)
+		if len(os.Args) >= 6 {
+			fmt.Sscanf(os.Args[5], "%d", &launcherPid)
+		}
+		reapVM(pid, os.Args[3], os.Args[4])
+		return
+	}
 	conf := applyPresets(parseConf(os.Args[1]))
 	conf["_vmdir"] = filepath.Dir(os.Args[1])
 	conf["_vmname"] = strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
@@ -78,6 +90,16 @@ func main() {
 				conf["_virtiofsd"] = "1"
 			}
 		}
+	}
+	// swtpm decision mirrors virtiofsd (configure_tpm): spawn the daemon
+	// before arg assembly on --run so the socket exists when the chardev
+	// is emitted (swtpm_socket_ready). Plan mode always emits.
+	conf["_run"] = ""
+	if runMode {
+		conf["_run"] = "1"
+	}
+	if confOn(conf, "tpm") && (!runMode || startSwtpm(conf)) {
+		conf["_swtpm"] = "1"
 	}
 	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	osName := conf.get("guest_os", "linux")
@@ -149,10 +171,45 @@ func main() {
 	args = append(args, passthruArgs(conf)...)
 	args = append(args, bootMediaArgs(conf, dir)...)
 	args = append(args, channelArgs(conf, dir)...)
-	// monitor + serial sockets
-	args = append(args, "-monitor", "unix:"+dotdir(dir)+vmname+"-monitor.socket"+",server,nowait")
-	args = append(args, "-qmp", "unix:"+dotdir(dir)+vmname+"-qmp.socket"+",server,nowait")
-	// serial: none for macos/windows default; socket otherwise; telnet conf
+	// extra_args verbatim append (vm.sh): word-split like the unquoted
+	// Bash expansion — the escape hatch for any QEMU flag quickemu
+	// does not model (e.g. extra_args="-accel tcg" to force TCG).
+	if ea := conf.get("extra_args", ""); ea != "" {
+		args = append(args, strings.Fields(ea)...)
+	}
+	// monitor + serial channels — vm_boot_channels parity. monitor=socket
+	// also gives the QMP socket; telnet/none have no structured channel.
+	switch mon := conf.get("monitor", "socket"); mon {
+	case "none":
+		args = append(args, "-monitor", "none")
+	case "telnet":
+		host := conf.get("monitor_telnet_host", "localhost")
+		portStr := conf.get("monitor_telnet_port", "4440")
+		start, _ := strconv.Atoi(portStr)
+		if start <= 0 {
+			start = 4440
+		}
+		port := getPort(start, 9, os.Getpid(), vmname)
+		if port <= 0 {
+			fmt.Fprintf(os.Stderr, " - Monitor:  All Monitor-Telnet ports have been exhausted.\n")
+		} else {
+			args = append(args, "-monitor",
+				fmt.Sprintf("telnet:%s:%d,server,nowait", host, port))
+			fmt.Printf(" - Monitor:  On host:  telnet %s %d\n", host, port)
+			portsRecord(dir, vmname,
+				fmt.Sprintf("monitor-telnet,%d,%s", port, host), runMode)
+		}
+	case "socket":
+		args = append(args, "-monitor",
+			"unix:"+dotdir(dir)+vmname+"-monitor.socket"+",server,nowait")
+		// Machine control channel (QMP) next to the HMP socket.
+		args = append(args, "-qmp",
+			"unix:"+dotdir(dir)+vmname+"-qmp.socket"+",server,nowait")
+	default:
+		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown monitor option.\n", mon)
+		os.Exit(1)
+	}
+	// serial: none for macos/windows default; socket otherwise.
 	ser := conf.get("serial", "")
 	if ser == "" {
 		switch osName {
@@ -166,9 +223,28 @@ func main() {
 	case "none":
 		args = append(args, "-serial", "none")
 	case "telnet":
-		args = append(args, "-serial", "telnet:"+conf.get("serial_telnet_host", "127.0.0.1")+":"+conf.get("serial_telnet_port", "6660")+",server,nowait")
+		host := conf.get("serial_telnet_host", "localhost")
+		portStr := conf.get("serial_telnet_port", "6660")
+		start, _ := strconv.Atoi(portStr)
+		if start <= 0 {
+			start = 6660
+		}
+		port := getPort(start, 9, os.Getpid(), vmname)
+		if port <= 0 {
+			fmt.Fprintf(os.Stderr, " - Serial:   All Serial Telnet ports have been exhausted.\n")
+		} else {
+			args = append(args, "-serial",
+				fmt.Sprintf("telnet:%s:%d,server,nowait", host, port))
+			fmt.Printf(" - Serial:   On host:  telnet %s %d\n", host, port)
+			portsRecord(dir, vmname,
+				fmt.Sprintf("serial-telnet,%d,%s", port, host), runMode)
+		}
+	case "socket":
+		args = append(args, "-serial",
+			"unix:"+dotdir(dir)+vmname+"-serial.socket"+",server,nowait")
 	default:
-		args = append(args, "-serial", "unix:"+dotdir(dir)+vmname+"-serial.socket"+",server,nowait")
+		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown serial option.\n", ser)
+		os.Exit(1)
 	}
 
 	// pidfile + daemonize

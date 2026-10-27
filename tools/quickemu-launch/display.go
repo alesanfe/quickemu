@@ -34,7 +34,9 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 		}
 		a = append(a, "-display", render)
 	case "vnc":
-		a = append(a, "-vnc", ":0", "-display", "none")
+		// vm.sh: args+=(-vnc "${vnc_listen}") — host:display pair,
+		// default 127.0.0.1:0 from bin/quickemu.
+		a = append(a, "-vnc", c.get("vnc_listen", "127.0.0.1:0"), "-display", "none")
 	case "none":
 		a = append(a, "-display", "none")
 	case "spice":

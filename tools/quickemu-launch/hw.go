@@ -100,7 +100,9 @@ func biosArgs(c Conf, osName, arch string) []string {
 		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE_4M.fd,readonly=on")
 	}
 	a = append(a, "-drive", "if=pflash,format=raw,unit=1,file="+vars)
-	if confOn(c, "tpm") {
+	// swtpm_socket_ready: emit the chardev only when the control socket
+	// will exist — always on --dry-run, only after startSwtpm on --run.
+	if confOn(c, "tpm") && (c["_run"] == "" || c["_swtpm"] == "1") {
 		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".swtpm-sock"
 		if arch == "aarch64" {
 			a = append(a, "-chardev", "socket,id=chrtpm,path="+sock,
@@ -148,6 +150,7 @@ func networkArgs(c Conf, t OsTuning) []string {
 		fwd := ""
 		if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229); p != "" {
 			fwd = ",hostfwd=tcp:127.0.0.1:" + p + "-:22"
+			portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p, c["_run"] == "1")
 		}
 		for _, pf := range strings.Fields(c.get("port_forwards", "")) {
 			kv := strings.SplitN(pf, ":", 2)

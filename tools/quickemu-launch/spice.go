@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -31,13 +32,24 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 			switch access := c.get("access", "local"); access {
 			case "", "local":
 				// Unix socket for local access — no port consumed.
-				spice += fmt.Sprintf(",unix=on,addr=%s%s.sock", dotdir(dir), vmname)
+				sock := filepath.Join(dir, vmname+".sock")
+				spice += ",unix=on,addr=" + dotdir(dir) + vmname + ".sock"
+				portsRecord(dir, vmname, "unix,"+sock, c["_run"] == "1")
+				spiceRecord(dir, vmname, sock, c["_run"] == "1")
 			default:
 				addr := access
 				if addr == "remote" {
 					addr = ""
 				}
-				spice += ",port=" + firstFreePort(c.get("spice_port", ""), 5930, 5939) + ",addr=" + addr
+				port := firstFreePort(c.get("spice_port", ""), 5930, 5939)
+				if port == "" {
+					fmt.Fprintln(os.Stderr, " - SPICE:    All SPICE ports have been exhausted.")
+					fmt.Fprintln(os.Stderr, "             ERROR! Requested SPICE display, but no SPICE ports are free.")
+					os.Exit(1)
+				}
+				spice += ",port=" + port + ",addr=" + addr
+				portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
+				spiceRecord(dir, vmname, port, c["_run"] == "1")
 			}
 		default: // none
 			addr := "127.0.0.1"
@@ -48,7 +60,15 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 			default:
 				addr = access
 			}
-			spice += ",port=" + firstFreePort(c.get("spice_port", ""), 5930, 5939) + ",addr=" + addr
+			port := firstFreePort(c.get("spice_port", ""), 5930, 5939)
+			if port == "" {
+				fmt.Fprintln(os.Stderr, " - SPICE:    All SPICE ports have been exhausted.")
+				fmt.Fprintln(os.Stderr, "             ERROR! Requested SPICE display, but no SPICE ports are free.")
+				os.Exit(1)
+			}
+			spice += ",port=" + port + ",addr=" + addr
+			portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
+			spiceRecord(dir, vmname, port, c["_run"] == "1")
 		}
 		a = append(a, "-spice", spice)
 		a = append(a, "-device", "virtio-serial-pci")

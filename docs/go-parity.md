@@ -39,7 +39,12 @@ or `.toml` — the configure_* pipeline of launch.sh + vm.sh:
   tpm (swtpm-sock), serial (none/socket/telnet), rtc, rng, balloon
 - `vm_config_load`: .conf parse + .toml via quickemu-toml (flat model,
   nested keys ignored with Bash warning) + profile/network presets
-- `--run` spawns QEMU with pidfile/identity/cleanup watcher;
+- `--run` spawns QEMU setsid-detached (survives session close) with
+  pidfile/identity, plus a double-forked cleanup watcher that reaps
+  swtpm/virtiofsd daemons and runtime state when QEMU exits —
+  `vm_runtime_cleanup` parity. `swtpm` is spawned by the launcher
+  itself with a pidfile (Bash `configure_tpm` parity), and the TPM
+  chardev is only emitted once the socket is ready.
   `--validate` checks the conf (guest_os [a-z0-9-]+ like Bash)
 
 Also covered: `extra_nics`/`extra_macs` arrays (user|restrict|passt|
@@ -49,11 +54,27 @@ daemon spawned on `--run`, 9p fallback), SPICE endpoint variants
 (spice-app `gl=`, spice local `unix=on,addr=<sock>`, spice remote and
 headless `port=,addr=` with 5930-5939 auto-alloc, `access` conf key
 standing in for `--access`), TOML arrays flattened to bash-array
-literals for `confList`.
+literals for `confList`, `extra_args` appended verbatim after the
+channel arguments, `port_forwards` host:guest syntax validation in
+`--validate`.
 
-Remaining: `--run` end-to-end boot verification vs Bash,
-port_forwards array syntax details, `access` is a
-CLI flag in Bash (mapped to a conf key in Go).
+Port registry (`ports.go`, run mode only): mkdir-lock allocation with
+stale-owner reclaim, reservations keyed by port number and owned by
+the launcher PID (`$$` parity), live TCP probe, release on stop —
+`quickemu-ports` parity. `.ports` records ssh/spice/unix/monitor-
+telnet/serial-telnet entries; `.spice` records the connect target
+(unix path or TCP port) for `start_viewer`.
+
+Verified end-to-end against real QEMU 8.2 (TCG, `qemu64` CPU model
+auto-selected under TCG): boot → QMP socket → pause/resume → HMP
+monitor commands → allowlisted QMP (denied `quit`, accepted
+`query-*`) → raw-channel USB hotplug (`device_add usb-host` with
+`vendorid`/`productid` — QEMU's actual property names; Bash used the
+same fix after `hostvendor`/`hostport` was rejected by real QEMU) →
+stop → watcher cleanup of pidfile/sockets/`.ports`/`.spice`.
+
+Remaining: `access` is a CLI flag in Bash (mapped to a conf key in
+Go).
 
 `monitor_cmd` is covered: `quickemu-cli --monitor-cmd` and
 `--send-keys`/`--type`/`--screenshot` reach the guest via QMP
@@ -97,7 +118,9 @@ dispatches every action to a Go backend tool:
   drive-backup, human-monitor-command; `QUICKEMU_QMP_RAW=1` sends any
   command (verified: quit → SHUTDOWN event → VM exit). Internal
   trusted flows (hotplug, lifecycle) bypass via the raw channel —
-  Bash fixed identically with `qmp_query_raw`.
+  Bash fixed identically with `qmp_query_raw`. USB hotplug uses the
+  real QEMU properties `vendorid`/`productid` (verified: real
+  `device_add usb-host` accepted, `info usb` shows the device).
 
 ## quickget pipeline (quickget-cli + quickget-vm)
 
