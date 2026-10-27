@@ -192,6 +192,7 @@ function configure_cpu() {
     fi
 
     CPU_MODEL="${CPU_MODEL:-host}"
+    USER_QEMU_ACCEL="${QEMU_ACCEL:-}"
     QEMU_ACCEL="tcg"
     # Configure appropriately for the host platform
     if [ "${OS_KERNEL}" == "Darwin" ]; then
@@ -210,7 +211,7 @@ function configure_cpu() {
         # extra_args='-accel tcg') — the VT-x/SVM gate below already
         # treats tcg as a non-hardware accel and lets it through. Must
         # not clobber a pre-set value with kvm before checking.
-        QEMU_ACCEL="${QEMU_ACCEL:-kvm}"
+        QEMU_ACCEL="${USER_QEMU_ACCEL:-kvm}"
     fi
 
     if [ "${ARCH_VM}" == "aarch64" ]; then

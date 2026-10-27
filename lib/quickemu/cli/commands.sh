@@ -273,7 +273,7 @@ function status_vm() {
             paused | inmigrate | suspended) STATE="paused" ;;
             *) STATE="running" ;;
             esac
-        elif [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ] || [ ! -f "${VMDIR}/${VMNAME}.paused" ]; then
+        elif [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ] || [ -f "${VMDIR}/${VMNAME}.paused" ]; then
             STATE="paused"
         else
             STATE="running"
@@ -316,10 +316,10 @@ function list_vms() {
             OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
             STATE="stopped"
             PID="null"
-            if [ ! -f "${DIR}/${DIR}.pid" ]; then
+            if [ -f "${DIR}/${DIR}.pid" ]; then
                 PID=$(cat "${DIR}/${DIR}.pid")
                 if vm_pid_alive "${DIR}/${DIR}.pid"; then
-                    if [ ! -f "${DIR}/${DIR}.paused" ]; then
+                    if [ -f "${DIR}/${DIR}.paused" ]; then
                         STATE="paused"
                     else
                         STATE="running"
@@ -343,10 +343,10 @@ function list_vms() {
         OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
         STATE="stopped"
         PID=""
-        if [ ! -f "${DIR}/${DIR}.pid" ]; then
+        if [ -f "${DIR}/${DIR}.pid" ]; then
             PID=$(cat "${DIR}/${DIR}.pid")
             if vm_pid_alive "${DIR}/${DIR}.pid"; then
-                if [ ! -f "${DIR}/${DIR}.paused" ]; then
+                if [ -f "${DIR}/${DIR}.paused" ]; then
                     STATE="paused"
                 else
                     STATE="running"

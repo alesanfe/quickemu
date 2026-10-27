@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -30,13 +31,8 @@ func hostHasKVM() bool {
 }
 
 func hostNCores() int {
-	if out, err := exec.Command("nproc").Output(); err == nil {
-		n := 0
-		if _, e := fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &n); e == nil {
-			return n
-		}
-	}
-	return 2
+	// get_nproc parity — Go's runtime equivalent of `nproc`.
+	return runtime.NumCPU()
 }
 
 func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
@@ -136,7 +132,6 @@ func networkArgs(c Conf, t OsTuning) []string {
 	if m := c.get("macaddr", c.get("mac_addr", "")); m != "" && net != "none" {
 		mac = ",mac=" + m
 	}
-	var a []string
 	switch net {
 	case "none":
 		return []string{"-nic", "none"}
@@ -169,7 +164,6 @@ func networkArgs(c Conf, t OsTuning) []string {
 		helper, _ := exec.LookPath("qemu-bridge-helper")
 		return []string{"-nic", "bridge,br=" + net + ",helper=" + helper + ",model=" + t.NetDevice + mac}
 	}
-	return a
 }
 
 // portArgs: SSH/SPICE port forwarding — configure_ports. Allocates
@@ -202,4 +196,46 @@ func firstFreePort(p string, lo, hi int) string {
 		}
 	}
 	return ""
+}
+
+// hostArch maps GOARCH to the qemu arch token (x86_64|aarch64).
+func hostArch() string {
+	if runtime.GOARCH == "arm64" {
+		return "aarch64"
+	}
+	return "x86_64"
+}
+
+// hostHypervisor: DMI sys_vendor detection — qemu/virtualbox mean we
+// are inside a VM (Bash MANUFACTURER case in configure_cpu).
+func hostHypervisor() string {
+	b, err := os.ReadFile("/sys/class/dmi/id/sys_vendor")
+	if err != nil {
+		return ""
+	}
+	v := strings.ToLower(strings.TrimSpace(string(b)))
+	if v == "qemu" || v == "virtualbox" {
+		return v
+	}
+	return ""
+}
+
+// hostCPUVendor: vendor_id from cpuinfo (GenuineIntel|AuthenticAMD|HygonGenuine).
+func hostCPUVendor() string {
+	b, err := os.ReadFile("/proc/cpuinfo")
+	if err != nil {
+		return ""
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(l, "vendor_id") {
+			return strings.TrimSpace(strings.SplitN(l, ":", 2)[1])
+		}
+	}
+	return ""
+}
+
+// hostHasFlag: vmx/svm/sse4_2/... presence in cpuinfo (check_cpu_flag).
+func hostHasFlag(flag string) bool {
+	b, err := os.ReadFile("/proc/cpuinfo")
+	return err == nil && strings.Contains(string(b), " "+flag)
 }

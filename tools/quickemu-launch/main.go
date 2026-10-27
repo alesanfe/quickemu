@@ -4,11 +4,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/BurntSushi/toml"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -77,10 +77,24 @@ func main() {
 	args := []string{"qemu-system-" + arch}
 
 	// accel + machine: tcg is a separate -accel arg; kvm goes inside
-	// -machine (the two args+= paths in vm.sh).
-	accel := "tcg"
-	if arch == "x86_64" && hostHasKVM() {
-		accel = "kvm"
+	// -machine (the two args+= paths in vm.sh). Same resolution as
+	// Bash configure_cpu: user QEMU_ACCEL override wins for native
+	// guests; cross-arch and qemu/virtualbox hypervisors force tcg.
+	accel := "kvm"
+	if u := conf.get("qemu_accel", os.Getenv("QEMU_ACCEL")); u != "" {
+		accel = u
+	}
+	hypervisor := hostHypervisor()
+	baseModel := ""
+	switch {
+	case arch == "aarch64":
+		baseModel = "max"
+		if hostArch() != "aarch64" {
+			accel = "tcg"
+		}
+	case arch != hostArch(), hypervisor != "":
+		accel = "tcg"
+		baseModel = "qemu64"
 	}
 	if accel == "tcg" {
 		args = append(args, "-accel", "tcg,tb-size=256,thread=multi")
@@ -91,6 +105,11 @@ func main() {
 
 	// vm_boot order: cpu->ram->bios->os_quirks->storage->display->audio
 	// ->ports->fileshare->usb->tpm->boot_media->channels->spawn
+	// Base CPU model (aarch64 -> max, cross-arch/hypervisor -> qemu64)
+	// applies only when the OS quirk did not already pin a model.
+	if baseModel != "" && !strings.HasPrefix(t.CPUFlags, "@") && t.CPUFlags == "" {
+		t.CPUFlags = "@" + baseModel
+	}
 	args = append(args, cpuArgs(conf, osName, arch, t)...)
 	args = append(args, ramArgs(conf)...)
 	args = append(args, biosArgs(conf, osName, arch)...)
@@ -151,6 +170,25 @@ func main() {
 	args = append(args, "-object", "rng-random,id=rng0,filename=/dev/urandom", "-device", "virtio-rng-pci,rng=rng0")
 
 	if len(os.Args) > 2 && os.Args[2] == "--run" {
+		// Hardware-virtualisation gate (configure_cpu): only enforced on
+		// a real launch — argv printing is the --dry-run equivalent and
+		// must not hard-fail on hosts without VT-x/SVM.
+		if hypervisor == "" && accel != "tcg" && arch == hostArch() && runtime.GOOS == "linux" {
+			switch hostCPUVendor() {
+			case "GenuineIntel":
+				if !hostHasFlag("vmx") {
+					fmt.Fprintln(os.Stderr, "ERROR! Intel VT-x support is required.")
+					fmt.Fprintln(os.Stderr, "         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
+					os.Exit(1)
+				}
+			case "AuthenticAMD", "HygonGenuine":
+				if !hostHasFlag("svm") {
+					fmt.Fprintln(os.Stderr, "ERROR! AMD SVM support is required.")
+					fmt.Fprintln(os.Stderr, "         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
+					os.Exit(1)
+				}
+			}
+		}
 		if err := runQEMU(os.Args[1], args); err != nil {
 			fmt.Fprintln(os.Stderr, "launch failed:", err)
 			os.Exit(1)
@@ -160,26 +198,17 @@ func main() {
 	fmt.Println(strings.Join(args, " "))
 }
 
-// parseTomlConf loads a .toml VM config via the quickemu-toml binary —
-// same parser as Bash toml.sh + loader.sh. It emits a JSON envelope;
-// the `data` field is the flattened key=value config.
+// parseTomlConf loads a .toml VM config via BurntSushi/toml — the same
+// library quickemu-toml wraps (Bash toml.sh parity). The flat config
+// model keeps scalar top-level keys only; nested tables/arrays are
+// ignored with the same warning as loader.sh.
 func parseTomlConf(path string) Conf {
 	c := Conf{}
-	out, err := exec.Command("quickemu-toml", "parse", "--file", path).Output()
-	if err != nil {
+	var doc map[string]any
+	if _, err := toml.DecodeFile(path, &doc); err != nil {
 		return c
 	}
-	var env struct {
-		Data map[string]any `json:"data"`
-	}
-	if json.Unmarshal(out, &env) != nil {
-		return c
-	}
-	for k, v := range env.Data {
-		if strings.Contains(k, ".") {
-			fmt.Fprintf(os.Stderr, "WARNING! Ignoring nested TOML key %q (flat config model).\n", k)
-			continue
-		}
+	for k, v := range doc {
 		switch x := v.(type) {
 		case string:
 			c[k] = x
@@ -187,8 +216,10 @@ func parseTomlConf(path string) Conf {
 			if x {
 				c[k] = "true"
 			}
-		case float64:
+		case int64, float64:
 			c[k] = fmt.Sprintf("%v", x)
+		default:
+			fmt.Fprintf(os.Stderr, "WARNING! Ignoring nested TOML key %q (flat config model).\n", k)
 		}
 	}
 	return c

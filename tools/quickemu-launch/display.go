@@ -175,9 +175,7 @@ func resolvePublic(c Conf) {
 		return
 	}
 	if pub == "" {
-		if out, err := exec.Command("xdg-user-dir", "PUBLICSHARE").Output(); err == nil {
-			pub = strings.TrimSpace(string(out))
-		}
+		pub = xdgUserDir("PUBLICSHARE")
 		if pub == "" {
 			if h := os.Getenv("HOME"); h != "" {
 				if _, err := os.Stat(filepath.Join(h, "Public")); err == nil {

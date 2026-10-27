@@ -32,7 +32,7 @@ End
 It 'prints the version'
     When run qg --version
     The status should be success
-    The output should include '4.'
+    The output should match pattern '[0-9]*.[0-9]*.[0-9]*'
 End
 It 'prints help'
     When run qg --help
