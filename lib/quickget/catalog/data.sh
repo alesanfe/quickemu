@@ -1310,7 +1310,8 @@ function releases_nova() {
 
 
 function editions_nova() {
-    echo escritorio ligero
+    # mirror only carries the escritorio image
+    echo escritorio
 }
 
 function releases_bosslinux() {
