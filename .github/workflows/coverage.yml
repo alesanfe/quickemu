@@ -1,0 +1,20 @@
+name: Coverage (kcov behavioral)
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08eba0b27e618071dde726df4478a0cf5e6f6a6f  # v4
+      - name: Install kcov + deps
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends kcov jq
+      - name: Behavioral coverage via kcov
+        run: bash tools/coverage-kcov.sh spec/unit
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: kcov-report
+          path: /tmp/kcov-*
