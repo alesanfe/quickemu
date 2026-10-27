@@ -246,8 +246,39 @@ func main() {
 		}
 		os.Exit(fetch(url, dest, sha))
 	}
+	if os.Args[1] == "get" {
+		var osName, release, edition, dir, arch string
+		pos := []string{}
+		for i := 2; i < len(os.Args); i++ {
+			if strings.HasPrefix(os.Args[i], "--") && i+1 < len(os.Args) {
+				switch os.Args[i] {
+				case "--dir":
+					dir = os.Args[i+1]
+				case "--arch":
+					arch = os.Args[i+1]
+				}
+				i++
+			} else {
+				pos = append(pos, os.Args[i])
+			}
+		}
+		if len(pos) > 0 {
+			osName = pos[0]
+		}
+		if len(pos) > 1 {
+			release = pos[1]
+		}
+		if len(pos) > 2 {
+			edition = pos[2]
+		}
+		if osName == "" {
+			fmt.Fprintln(os.Stderr, "get: <os> [release] [edition] required")
+			os.Exit(2)
+		}
+		os.Exit(getOS(osName, release, edition, dir, arch))
+	}
 	if os.Args[1] != "mkconf" {
-		fmt.Fprintln(os.Stderr, "usage: quickget-vm <mkconf|fetch> ...")
+		fmt.Fprintln(os.Stderr, "usage: quickget-vm <get|mkconf|fetch> ...")
 		os.Exit(2)
 	}
 	var osName, release, edition, image, iso, dir, arch string
@@ -352,4 +383,84 @@ func fetch(url, dest, wantSHA string) int {
 	}
 	fmt.Println(" - Downloaded " + dest)
 	return 0
+}
+
+// getOS: the quickget pipeline — resolve url+hash via the catalog
+// tool, fetch the checksum file, fetch+verify the image, then mkconf.
+// quickget-catalog is our own Go binary; zsync delegates to the
+// external zsync binary only for .zsync sources (Bash zsync_get).
+func getOS(osName, release, edition, dir, arch string) int {
+	cat, err := exec.LookPath("quickget-catalog")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "get: quickget-catalog not on PATH")
+		return 1
+	}
+	args := []string{"url", osName}
+	if release != "" {
+		args = append(args, release)
+	}
+	if edition != "" {
+		args = append(args, edition)
+	}
+	out, err := exec.Command(cat, args...).Output()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "get: url resolution failed for %s %s %s\n", osName, release, edition)
+		return 1
+	}
+	parts := strings.Fields(strings.TrimSpace(string(out)))
+	if len(parts) == 0 {
+		fmt.Fprintln(os.Stderr, "get: empty url")
+		return 1
+	}
+	url := parts[0]
+	hashURL := ""
+	if len(parts) > 1 {
+		hashURL = parts[1]
+	}
+	if dir == "" {
+		dir = osName + "-" + release
+		if edition != "" {
+			dir += "-" + edition
+		}
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	image := filepath.Join(dir, filepath.Base(url))
+	// checksum verification: fetch the hash file and grep the line for
+	// this image's basename (check_hash parity — SHA256SUMS format).
+	sha := ""
+	if hashURL != "" {
+		hf := filepath.Join(dir, ".hashsums")
+		if fetch(hashURL, hf, "") == 0 {
+			if b, err := os.ReadFile(hf); err == nil {
+				base := filepath.Base(url)
+				for _, l := range strings.Split(string(b), "\n") {
+					f := strings.Fields(l)
+					if len(f) == 2 && strings.HasSuffix(f[1], base) {
+						sha = f[0]
+						break
+					}
+				}
+			}
+			os.Remove(hf)
+		}
+	}
+	// zsync sources prefer the external zsync binary (delta download);
+	// otherwise plain fetch handles .zsync URLs as a normal download.
+	if strings.HasSuffix(url, ".zsync") {
+		if z, err := exec.LookPath("zsync"); err == nil {
+			cmd := exec.Command(z, "-o", image, url)
+			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+			if cmd.Run() != nil {
+				return 1
+			}
+		} else if fetch(url, image, sha) != 0 {
+			return 1
+		}
+	} else if fetch(url, image, sha) != 0 {
+		return 1
+	}
+	return mkconf(osName, release, edition, filepath.Base(image), "", dir, arch)
 }
