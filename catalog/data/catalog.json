@@ -1,0 +1,1929 @@
+{
+ "generated": "bash-dump",
+ "entries": [
+  {
+   "os": "9front",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "alma",
+   "releases": [
+    "9",
+    "8"
+   ],
+   "editions": [
+    "boot",
+    "minimal",
+    "dvd"
+   ],
+   "arch": [
+    "amd64",
+    "arm64"
+   ]
+  },
+  {
+   "os": "backbox",
+   "releases": [
+    "9"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "biebian",
+   "releases": [
+    "1.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "bosslinux",
+   "releases": [
+    "8.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "blankon",
+   "releases": [
+    "sinambung"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "caine",
+   "releases": [
+    "14.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "canaima",
+   "releases": [
+    "9.0",
+    "8.4"
+   ],
+   "editions": [
+    "full"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "altlinux",
+   "releases": [
+    "11"
+   ],
+   "editions": [
+    "workstation",
+    "simply",
+    "server",
+    "kworkstation",
+    "education"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "alpine",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ]
+  },
+  {
+   "os": "amogos",
+   "releases": [
+    "x64-1.5.0",
+    "x64-1.4.1",
+    "x64-1.4.0",
+    "x64-1.3.0",
+    "x64-1.2.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "android",
+   "releases": [
+    "9.0",
+    "8.1",
+    "7.1"
+   ],
+   "editions": [
+    "x86_64",
+    "x86"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "antix",
+   "releases": [
+    "23.1",
+    "23",
+    "22",
+    "21"
+   ],
+   "editions": [
+    "net-sysv",
+    "core-sysv",
+    "base-sysv",
+    "full-sysv",
+    "net-runit",
+    "core-runit",
+    "base-runit",
+    "full-runit"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "archcraft",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "archlinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "artixlinux",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "azurelinux",
+   "releases": [
+    "3.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ]
+  },
+  {
+   "os": "batocera",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "bazzite",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "gnome",
+    "plasma",
+    "deck-gnome",
+    "deck-plasma"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "biglinux",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "blackarch",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "blendos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "blissos",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "bodhi",
+   "releases": [
+    "7.0.0"
+   ],
+   "editions": [
+    "standard",
+    "hwe",
+    "s76"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "bunsenlabs",
+   "releases": [
+    "boron"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "cachyos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "desktop",
+    "handheld"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "centos-stream",
+   "releases": [],
+   "editions": [
+    "boot",
+    "dvd1"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "chimeralinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "base",
+    "gnome"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "crunchbang++",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "debian",
+   "releases": [],
+   "editions": [
+    "standard",
+    "cinnamon",
+    "gnome",
+    "kde",
+    "lxde",
+    "lxqt",
+    "mate",
+    "xfce",
+    "netinst"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "deepin",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "devuan",
+   "releases": [
+    "daedalus",
+    "chimaera"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "dragonflybsd",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "dragonos",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "easyos",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "edubuntu",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "elementary",
+   "releases": [
+    "8.1",
+    "8.0",
+    "7.1",
+    "7.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "endeavouros",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "endless",
+   "releases": [
+    "6.0.4"
+   ],
+   "editions": [
+    "base",
+    "en",
+    "fr",
+    "pt_BR",
+    "es"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "esfera",
+   "releases": [
+    "1.1.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "fedora",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ]
+  },
+  {
+   "os": "fedoracore",
+   "releases": [
+    "6",
+    "5",
+    "4",
+    "3",
+    "2",
+    "1"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "freebsd",
+   "releases": [],
+   "editions": [
+    "disc1",
+    "dvd1"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "freedos",
+   "releases": [
+    "1.4",
+    "1.3",
+    "1.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "garuda",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "cinnamon",
+    "dr460nized",
+    "dr460nized-gaming",
+    "gnome",
+    "hyprland",
+    "i3",
+    "kde-lite",
+    "mokka",
+    "sway",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "gecos",
+   "releases": [
+    "v2"
+   ],
+   "editions": [
+    "standard",
+    "lite"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "gentoo",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "minimal",
+    "livegui"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ghostbsd",
+   "releases": [],
+   "editions": [
+    "mate",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "gnomeos",
+   "releases": [
+    "nightly"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "gnulinex",
+   "releases": [
+    "v0.0.1"
+   ],
+   "editions": [
+    "netinst",
+    "classic"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "gobolinux",
+   "releases": [
+    "017.01"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "guadalinex",
+   "releases": [
+    "v9",
+    "v8",
+    "v7",
+    "v6",
+    "2004",
+    "1.0",
+    "mini2004"
+   ],
+   "editions": [
+    "standard"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "guadalinexedu",
+   "releases": [
+    "2013",
+    "10.04",
+    "9.04"
+   ],
+   "editions": [
+    "desktop",
+    "sdi",
+    "centros",
+    "nextslim"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "educaandos",
+   "releases": [
+    "20.04",
+    "20.04-2025021001",
+    "20.04-20241107",
+    "20.04-2024013001",
+    "20.04-2021122201",
+    "20.04-2021060801",
+    "v2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "emmabuntus",
+   "releases": [
+    "13.7"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "guix",
+   "releases": [
+    "1.5.0",
+    "1.4.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "hamonikr",
+   "releases": [
+    "7.0"
+   ],
+   "editions": [
+    "lts",
+    "hwe",
+    "lite"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "haiku",
+   "releases": [
+    "r1beta5",
+    "r1beta4",
+    "r1beta3"
+   ],
+   "editions": [
+    "x86_64",
+    "x86_gcc2h"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "hannahmontana",
+   "releases": [
+    "26.1.1"
+   ],
+   "editions": [
+    "lite",
+    "classic"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kali",
+   "releases": [
+    "current",
+    "kali-weekly"
+   ],
+   "editions": [
+    "standard",
+    "purple",
+    "netinst"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kaos",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kdelinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kdeneon",
+   "releases": [
+    "user",
+    "testing",
+    "unstable"
+   ],
+   "editions": [
+    "bigscreen",
+    "desktop",
+    "dev",
+    "ko",
+    "mobile"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kicksecure",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kurumin",
+   "releases": [
+    "8.06",
+    "7.0"
+   ],
+   "editions": [
+    "standard"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kolibrios",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "en_US",
+    "ru_RU",
+    "es_ES"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "kubuntu",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "linuxlite",
+   "releases": [
+    "6.6",
+    "6.4",
+    "6.2",
+    "6.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "linuxmint",
+   "releases": [
+    "22.1",
+    "22",
+    "21.3",
+    "21.2",
+    "21.1",
+    "21",
+    "20.3",
+    "20.2"
+   ],
+   "editions": [
+    "cinnamon",
+    "mate",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "lliurex",
+   "releases": [
+    "25",
+    "23",
+    "21.07",
+    "19.07",
+    "16.06"
+   ],
+   "editions": [
+    "desktop"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "lernstick",
+   "releases": [
+    "13"
+   ],
+   "editions": [
+    "edu",
+    "edu-mini",
+    "exam"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "life",
+   "releases": [
+    "24.04",
+    "22.04"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "linkat",
+   "releases": [
+    "22.04"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "lmde",
+   "releases": [
+    "6"
+   ],
+   "editions": [
+    "cinnamon"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "lubuntu",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "maboxlinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "macos",
+   "releases": [
+    "mojave",
+    "catalina",
+    "big-sur",
+    "monterey",
+    "ventura",
+    "sonoma",
+    "sequoia",
+    "tahoe"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "mageia",
+   "releases": [
+    "9"
+   ],
+   "editions": [
+    "Plasma",
+    "GNOME",
+    "Xfce"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "mangaka",
+   "releases": [
+    "chu"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "manjaro",
+   "releases": [
+    "xfce",
+    "gnome",
+    "plasma",
+    "cinnamon",
+    "i3",
+    "sway"
+   ],
+   "editions": [
+    "full",
+    "minimal"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "maxlinux",
+   "releases": [
+    "12.5",
+    "12",
+    "11.5.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "metamorphose",
+   "releases": [
+    "8.5.7"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "molinux",
+   "releases": [
+    "6.0"
+   ],
+   "editions": [
+    "zoraida"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "minino",
+   "releases": [
+    "queiles",
+    "artabros"
+   ],
+   "editions": [
+    "64",
+    "32",
+    "minimal",
+    "full"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "midnightbsd",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "mxlinux",
+   "releases": [
+    "25.3"
+   ],
+   "editions": [
+    "Xfce",
+    "KDE",
+    "Fluxbox"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "netboot",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "netbsd",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "nitrux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "nixos",
+   "releases": [
+    "unstable"
+   ],
+   "editions": [
+    "minimal",
+    "graphical"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "nobara",
+   "releases": [],
+   "editions": [
+    "Official",
+    "GNOME",
+    "KDE",
+    "Steam-HTPC",
+    "Steam-Handheld"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "nst",
+   "releases": [
+    "44-15105"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "nwg-shell",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "nova",
+   "releases": [
+    "7.0"
+   ],
+   "editions": [
+    "escritorio"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "nyarch",
+   "releases": [
+    "26.04"
+   ],
+   "editions": [
+    "gnome",
+    "kde",
+    "nv-gnome",
+    "nv-kde"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "omarchy",
+   "releases": [
+    "4.0.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "openbsd",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "openfyde",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "openindiana",
+   "releases": [],
+   "editions": [
+    "gui",
+    "text",
+    "minimal"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "openkylin",
+   "releases": [
+    "3.0"
+   ],
+   "editions": [
+    "desktop",
+    "server"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "openmandriva",
+   "releases": [
+    "rome"
+   ],
+   "editions": [
+    "plasma",
+    "plasma-wayland",
+    "gnome",
+    "lxqt"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "openmediavault",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "opensuse",
+   "releases": [
+    "microos",
+    "tumbleweed"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "opnsense",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "oraclelinux",
+   "releases": [
+    "9.3",
+    "9.2",
+    "9.1",
+    "9.0",
+    "8.9",
+    "8.8",
+    "8.7",
+    "8.6",
+    "8.5",
+    "8.4",
+    "7.9",
+    "7.8",
+    "7.7"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "os2warp",
+   "releases": [
+    "4",
+    "3",
+    "2.1",
+    "2.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "pardus",
+   "releases": [
+    "23.2",
+    "21.5",
+    "19.5"
+   ],
+   "editions": [
+    "gnome",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "parrotsec",
+   "releases": [],
+   "editions": [
+    "home",
+    "security"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "pclinuxos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "kde",
+    "kde-darkstar",
+    "mate",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "pentoo",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "full",
+    "core"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "peppermint",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "devuan-xfce",
+    "devuan-gnome",
+    "debian-xfce",
+    "debian-gnome"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "plan9",
+   "releases": [
+    "4e",
+    "3e",
+    "2e",
+    "1e"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ponyos",
+   "releases": [
+    "9.0",
+    "8.0",
+    "7.0",
+    "6.0",
+    "5.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "popos",
+   "releases": [
+    "22.04",
+    "20.04",
+    "24.04"
+   ],
+   "editions": [
+    "intel",
+    "nvidia"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "porteus",
+   "releases": [
+    "5.01"
+   ],
+   "editions": [
+    "cinnamon",
+    "gnome",
+    "kde",
+    "lxde",
+    "lxqt",
+    "mate",
+    "openbox",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "primtux",
+   "releases": [
+    "7"
+   ],
+   "editions": [
+    "2022-10"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "proxmox-ve",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "pureos",
+   "releases": [],
+   "editions": [
+    "gnome",
+    "plasma"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "q4os",
+   "releases": [],
+   "editions": [
+    "kde",
+    "trinity"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "qubes",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "reactos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "rebeccablackos",
+   "releases": [
+    "2026-02-22"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "rosalinux",
+   "releases": [
+    "13"
+   ],
+   "editions": [
+    "plasma6",
+    "plasma5",
+    "gnome",
+    "lxqt",
+    "server"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "rebornos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "recreomatic",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "redoxos",
+   "releases": [],
+   "editions": [
+    "desktop",
+    "server",
+    "demo"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "rockylinux",
+   "releases": [],
+   "editions": [
+    "minimal",
+    "dvd",
+    "boot"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "securityonion",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "siduction",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "slackware",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "slax",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "debian",
+    "slackware"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "slint",
+   "releases": [
+    "15.0-10"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "slitaz",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "solus",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "sparkylinux",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "spirallinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "Plasma",
+    "XFCE",
+    "Mate",
+    "LXQt",
+    "Gnome",
+    "Budgie",
+    "Cinnamon",
+    "Builder"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "subgraph",
+   "releases": [
+    "alpha"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "syllable",
+   "releases": [
+    "0.6.7"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "systemrescue",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "tails",
+   "releases": [
+    "stable"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "templeos",
+   "releases": [
+    "5.03"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "tinycore",
+   "releases": [
+    "15",
+    "14"
+   ],
+   "editions": [
+    "Core",
+    "TinyCore",
+    "CorePlus",
+    "CorePure64",
+    "TinyCorePure64"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "trisquel",
+   "releases": [
+    "11.0",
+    "10.0.1"
+   ],
+   "editions": [
+    "mate",
+    "lxde",
+    "kde",
+    "sugar"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "truenas-scale",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "tsurugi",
+   "releases": [
+    "26.03"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "tuxedo-os",
+   "releases": [
+    "current"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ubuntu",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ]
+  },
+  {
+   "os": "ubuntu-budgie",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ubuntu-mate",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ubuntu-server",
+   "releases": [
+    "daily-live"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ]
+  },
+  {
+   "os": "ubuntu-unity",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ubuntucinnamon",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ubuntukylin",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "ubuntustudio",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "uwuntu",
+   "releases": [
+    "22.10"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "vanillaos",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "vitalinux",
+   "releases": [
+    "3.5",
+    "3.4",
+    "3.3",
+    "3.2",
+    "2.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "void",
+   "releases": [],
+   "editions": [
+    "glibc",
+    "musl",
+    "xfce-glibc",
+    "xfce-musl"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "vyos",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "whonix",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "wifislax",
+   "releases": [
+    "4.12",
+    "4.11.1",
+    "4.10.1",
+    "4.9",
+    "4.7.2",
+    "4.3"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "windows",
+   "releases": [
+    "11",
+    "10"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "windows-server",
+   "releases": [
+    "2022",
+    "2019",
+    "2016"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "xubuntu",
+   "releases": [],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ]
+  },
+  {
+   "os": "zorin",
+   "releases": [
+    "18",
+    "17",
+    "16"
+   ],
+   "editions": [
+    "core64",
+    "lite64",
+    "education64"
+   ],
+   "arch": [
+    "amd64"
+   ]
+  }
+ ]
+}
