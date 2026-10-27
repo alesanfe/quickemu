@@ -45,3 +45,5 @@ tools/quickemu-ports/quickemu-ports
 tools/quickemu-archive/quickemu-archive
 quickreport.json
 quickreport.txt
+tools/quickemu-api/quickemu-api
+tools/quickemu-toml/quickemu-toml
