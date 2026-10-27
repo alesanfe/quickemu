@@ -65,10 +65,31 @@ func (q *qmpConn) write(cmd map[string]any) error {
 	return err
 }
 
+// qmpCommandAllowed: qmp_command_allowed parity — the structured
+// channel is fail-closed to read-only/graceful commands; raw QMP
+// requires QUICKEMU_QMP_RAW=1 (same env var as Bash).
+func qmpCommandAllowed(name string) bool {
+	if os.Getenv("QUICKEMU_QMP_RAW") == "1" {
+		return true
+	}
+	for _, p := range []string{"query-", "screendump", "system_powerdown",
+		"system_wakeup", "stop", "cont", "block-dirty-bitmap",
+		"drive-backup", "human-monitor-command"} {
+		if strings.Contains(name, p) {
+			return true
+		}
+	}
+	return false
+}
+
 func runExecute(socket, command string, timeout time.Duration) int {
 	var cmd map[string]any
 	if err := json.Unmarshal([]byte(command), &cmd); err != nil {
 		return emit("qmp.execute", nil, "QMP_BAD_COMMAND", "command is not valid QMP JSON: "+err.Error())
+	}
+	if name, _ := cmd["execute"].(string); name != "" && !qmpCommandAllowed(name) {
+		return emit("qmp.execute", nil, "QMP_DENIED",
+			"command '"+name+"' is not on the allowlist (set QUICKEMU_QMP_RAW=1 to send raw QMP)")
 	}
 	q, err := qmpDial(socket, timeout)
 	if err != nil { // one reconnect: a socket briefly not-ready isn't fatal

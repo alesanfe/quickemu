@@ -35,6 +35,14 @@ qmp_command_allowed() {
 qmp_command() { # json-command -> reply lines
     [ -n "${1}" ] || return 1
     qmp_command_allowed "${1}" || return 1
+    qmp_command_raw "${1}"
+}
+
+# Internal privileged sender: the allowlist guards the USER-facing
+# structured channel, not trusted internal flows (hotplug device_add/
+# device_del/blockdev-add validate their own arguments and must not be
+# blocked by it).
+qmp_command_raw() { # json-command -> reply lines
     vm_qmp_socket_ready || return 1
     command -v socat >/dev/null 2>&1 || return 1
     printf '{"execute":"qmp_capabilities"}\n%s\n' "${1}" |
@@ -45,6 +53,11 @@ qmp_command() { # json-command -> reply lines
 # error/absent channel.
 qmp_query() { # json-command -> {"return":...} or empty
     qmp_command "${1}" | grep -o '{"return".*}' | tail -1
+}
+
+# Internal variant bypassing the allowlist (see qmp_command_raw).
+qmp_query_raw() { # json-command -> {"return":...} or empty
+    qmp_command_raw "${1}" | grep -o '{"return".*}' | tail -1
 }
 
 # VM run state via QMP query-status: running|paused|shutdown|...
@@ -117,13 +130,13 @@ function monitor_send_cmd {
 qmp_device_add() { # qmp-args-json -> 0 ok / 1 rejected or no channel
     vm_qmp_socket_ready || { echo "ERROR! No QMP channel (VM not running?)." >&2; return 1; }
     command -v socat >/dev/null 2>&1 || { echo "ERROR! socat is required for hotplug." >&2; return 1; }
-    qmp_query "{\"execute\":\"device_add\",\"arguments\":${1}}" | grep -q '"return"'
+    qmp_query_raw "{\"execute\":\"device_add\",\"arguments\":${1}}" | grep -q '"return"'
 }
 
 qmp_device_del() { # devid -> 0 ok / 1
     vm_qmp_socket_ready || { echo "ERROR! No QMP channel (VM not running?)." >&2; return 1; }
     command -v socat >/dev/null 2>&1 || { echo "ERROR! socat is required for hotplug." >&2; return 1; }
-    qmp_query "{\"execute\":\"device_del\",\"arguments\":{\"id\":\"$(json_escape "${1}")\"}}" | grep -q '"return"'
+    qmp_query_raw "{\"execute\":\"device_del\",\"arguments\":{\"id\":\"$(json_escape "${1}")\"}}" | grep -q '"return"'
 }
 
 # --hotplug-usb 05ac:12a8  -> attach a host USB device to the running VM
@@ -143,7 +156,7 @@ vm_hotplug_disk() { # file
     ID="hotdisk$(basename "${F}" | tr -cd '[:alnum:]')"
     qmp_device_add "{\"driver\":\"virtio-blk-pci\",\"id\":\"${ID}\",\"drive\":\"${ID}drv\"}" 2>/dev/null \
         || qmp_device_add "{\"driver\":\"virtio-blk-pci\",\"id\":\"${ID}\"}"
-    qmp_query "{\"execute\":\"blockdev-add\",\"arguments\":{\"node-name\":\"${ID}node\",\"driver\":\"qcow2\",\"file\":{\"driver\":\"file\",\"filename\":\"$(json_escape "$(readlink -f "${F}")")\"}}}" >/dev/null 2>&1
+    qmp_query_raw "{\"execute\":\"blockdev-add\",\"arguments\":{\"node-name\":\"${ID}node\",\"driver\":\"qcow2\",\"file\":{\"driver\":\"file\",\"filename\":\"$(json_escape "$(readlink -f "${F}")")\"}}}" >/dev/null 2>&1
     qe_event "vm.hotplug" "{\"device\":\"disk\",\"id\":\"${ID}\"}"
     hotplug_persist "disk" "${F}"
     echo " - Hot-plugged disk ${F} as ${ID}."

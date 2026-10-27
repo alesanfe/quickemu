@@ -43,10 +43,50 @@ func flat(prefix string, m map[string]any, out map[string]any) {
 	}
 }
 
+// tomlKeyOrder: the exact key order of toml_from_conf in
+// lib/quickemu/config/toml.sh.
+var tomlKeyOrder = []string{
+	"guest_os", "arch", "disk_img", "disk_format", "disk_size", "iso", "img",
+	"fixed_iso", "floppy", "ram", "cpu_cores", "network", "bridge", "macaddr",
+	"ssh_port", "spice_port", "display", "monitor", "serial", "sound_card",
+	"sound_duplex", "public_dir", "seed", "kernel", "initrd", "boot_args",
+	"boot", "tpm", "secureboot", "gl", "width", "height", "vnc_listen",
+	"monitor_cmd", "port_forwards", "gpu_passthrough", "viewer",
+}
+
+// fromConf: toml_from_conf parity — convert a legacy bash .conf into
+// TOML on stdout (key="value" lines only; the conf is never executed).
+func fromConf(file string) int {
+	b, err := os.ReadFile(file)
+	if err != nil {
+		die("TOML_PARSE", err.Error())
+	}
+	kv := map[string]string{}
+	for _, l := range strings.Split(string(b), "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		p := strings.SplitN(l, "=", 2)
+		if len(p) == 2 {
+			kv[strings.TrimSpace(p[0])] = strings.Trim(strings.TrimSpace(p[1]), `"'`)
+		}
+	}
+	fmt.Println("# Migrated by quickemu --migrate-conf")
+	fmt.Println("formatVersion = 1")
+	fmt.Println()
+	for _, k := range tomlKeyOrder {
+		if v, ok := kv[k]; ok && v != "" {
+			fmt.Printf("%s = \"%s\"\n", k, strings.ReplaceAll(v, `"`, `\"`))
+		}
+	}
+	return 0
+}
+
 func main() {
 	os.Args = normArgs(os.Args)
 	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "usage: quickemu-toml <parse|validate|get> --file <f.toml> [--key k]")
+		fmt.Fprintln(os.Stderr, "usage: quickemu-toml <parse|validate|get|from-conf> --file <f> [--key k]")
 		os.Exit(2)
 	}
 	sub, file, key := os.Args[1], "", ""
@@ -60,6 +100,9 @@ func main() {
 	}
 	if file == "" {
 		die("BAD_ARGS", "--file required")
+	}
+	if sub == "from-conf" {
+		os.Exit(fromConf(file))
 	}
 	var doc map[string]any
 	if _, err := toml.DecodeFile(file, &doc); err != nil {

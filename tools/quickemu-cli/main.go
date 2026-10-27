@@ -7,29 +7,70 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 )
 
 var (
-	vmConf   string
-	outFmt   = "text"
-	actions  []string
-	confOpts = map[string]string{} // CLI overrides merged into the conf
-	extra    = map[string]string{} // action args (--monitor-cmd value etc.)
+	vmConf      string
+	outFmt      = "text"
+	actions     []string
+	confOpts    = map[string]string{} // CLI overrides merged into the conf
+	extra       = map[string]string{} // action args (--monitor-cmd value etc.)
+	trashFlag   bool                 // --trash: delete_vm stages to XDG trash
+	externalFlag bool                // --external: external qcow2 snapshot
+	doctorFix   bool                 // --fix: doctor attempts repairs
+	persistFlag bool                 // --persist: record hotplug in the conf
+	shortcutOpts []string            // SHORTCUT_OPTIONS accumulated for --shortcut
+	snapshotAct string               // --snapshot <action>
+	snapshotTag string               // --snapshot <action> <tag>
+	dryRunFlag  bool                 // --dry-run/--echo
 )
 
+// unameArch maps Go runtime.GOARCH to uname -m spellings.
+func unameArch() string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return "x86_64"
+	case "arm64":
+		return "aarch64"
+	default:
+		return runtime.GOARCH
+	}
+}
+
 func tool(name string, args ...string) (string, error) {
+	return toolEnv(name, nil, args...)
+}
+
+// toolEnv: tool() with extra env vars — used to pass QUICKEMU_QMP_RAW=1
+// only to trusted internal flows (hotplug), never to user QMP calls.
+func toolEnv(name string, env []string, args ...string) (string, error) {
 	bin, err := exec.LookPath(name)
 	if err != nil {
 		return "", fmt.Errorf("%s: not on PATH", name)
 	}
-	out, err := exec.Command(bin, args...).CombinedOutput()
+	cmd := exec.Command(bin, args...)
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+	out, err := cmd.CombinedOutput()
 	return string(out), err
+}
+
+// qmpRaw sends a privileged QMP command from a trusted internal flow
+// (hotplug), bypassing the user-channel allowlist — qmp_query_raw
+// parity.
+func qmpRaw(payload string) (string, error) {
+	return toolEnv("quickemu-qmp", []string{"QUICKEMU_QMP_RAW=1"},
+		"execute", "--socket", qmpSock(), "--command", payload)
 }
 
 func vmdir() string { return filepath.Dir(vmConf) }
@@ -89,7 +130,7 @@ func state() (string, int) {
 }
 
 func emitOK(cmd string, data any) {
-	b, _ := json.Marshal(map[string]any{"schemaVersion": 1, "success": true, "command": cmd, "data": data})
+	b, _ := json.Marshal(map[string]any{"schemaVersion": 1, "success": true, "command": cmd, "data": data, "errors": []string{}})
 	fmt.Println(string(b))
 }
 
@@ -171,11 +212,97 @@ func actResume() int {
 	return rc(err)
 }
 
+// actMonitorCmd: monitor_send_cmd parity — send an arbitrary monitor
+// command. Order: raw HMP socket (monitor=socket) → telnet
+// (monitor=telnet) → QMP human-monitor-command as last resort.
 func actMonitorCmd() int {
-	out, err := hmp(extra["monitor-cmd"])
-	fmt.Print(out)
-	return rc(err)
+	msg := extra["monitor-cmd"]
+	if msg == "" {
+		fmt.Fprintln(os.Stderr, "WARNING! Send to QEMU-Monitor: Message empty!")
+		return 1
+	}
+	conf := confKV()
+	mon := confOpts["monitor"]
+	if mon == "" {
+		mon = conf["monitor"]
+	}
+	switch mon {
+	case "", "socket":
+		sock := filepath.Join(vmdir(), vmname()+"-monitor.socket")
+		if _, err := os.Stat(sock); err == nil {
+			fmt.Println(" - Sending:  via socket " + msg)
+			if out, err := monitorSend("unix", sock, msg); err == nil {
+				fmt.Print(out)
+				return 0
+			}
+			fmt.Fprintln(os.Stderr, "WARNING! No qemu-monitor socket at "+sock+" - Couldn't send message to monitor!")
+			return 1
+		}
+		// QMP human-monitor-command covers the same surface.
+		out, err := hmp(msg)
+		fmt.Print(out)
+		return rc(err)
+	case "telnet":
+		fmt.Println(" - Sending:  via telnet " + msg)
+		addr := conf["monitor_telnet_host"] + ":" + conf["monitor_telnet_port"]
+		out, err := monitorSend("tcp", addr, msg)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "WARNING! No qemu-monitor channel available - Couldn't send message to monitor!")
+			return 1
+		}
+		fmt.Print(out)
+		return 0
+	default:
+		fmt.Fprintln(os.Stderr, "WARNING! No qemu-monitor channel available - Couldn't send message to monitor!")
+		return 1
+	}
 }
+
+// monitorSend: write a line to a QEMU human-monitor endpoint and read
+// the reply until the (qemu) prompt. The greeting and the per-char
+// readline echo are drained so only the reply body is returned (the
+// Bash socat+sed pipeline leaves the echo in; the payload is the same).
+func monitorSend(network, addr, msg string) (string, error) {
+	d := net.Dialer{Timeout: 2 * time.Second}
+	c, err := d.Dial(network, addr)
+	if err != nil {
+		return "", err
+	}
+	defer c.Close()
+	readUntil := func(token string, timeout time.Duration) string {
+		c.SetDeadline(time.Now().Add(timeout))
+		var b strings.Builder
+		buf := make([]byte, 4096)
+		for {
+			n, err := c.Read(buf)
+			if n > 0 {
+				b.Write(buf[:n])
+				if strings.Contains(b.String(), token) {
+					break
+				}
+			}
+			if err != nil {
+				break
+			}
+		}
+		return b.String()
+	}
+	readUntil("(qemu)", 1500*time.Millisecond) // greeting
+	if _, err := c.Write([]byte(msg + "\n")); err != nil {
+		return "", err
+	}
+	out := readUntil("(qemu)", 1500*time.Millisecond)
+	out = strings.ReplaceAll(out, "(qemu) ", "")
+	// Drop the echo line: everything up to the first newline is the
+	// command being re-typed by the monitor's readline.
+	if i := strings.Index(out, "\n"); i >= 0 {
+		out = out[i+1:]
+	}
+	out = ansiRe.ReplaceAllString(out, "")
+	return strings.ReplaceAll(out, "\r", ""), nil
+}
+
+var ansiRe = regexp.MustCompile("\x1b\\[[0-9;]*[A-Za-z]|[\x00-\x08\x0b\x0e-\x1f]")
 
 func actSendKeys() int {
 	out, err := hmp("sendkey " + extra["send-keys"])
@@ -214,6 +341,14 @@ func actScreenshot() int {
 // dispatch time so vmdir()/vmname() see the parsed --vm flag.
 func vmOp(sub string, rest ...string) func() int {
 	return func() int {
+		// The vm tool locates the conf by glob; QE_VMCONF tells it which
+		// one the user actually passed (dirs can hold several).
+		if vmConf != "" {
+			os.Setenv("QE_VMCONF", vmConf)
+		}
+		if self, err := os.Executable(); err == nil {
+			os.Setenv("QE_LAUNCHER", self)
+		}
 		out, err := tool("quickemu-vm", append([]string{sub}, rest...)...)
 		fmt.Print(out)
 		return rc(err)
@@ -250,7 +385,9 @@ func actStop(force bool) int {
 			p.Signal(syscall.SIGKILL)
 		}
 	} else {
-		qmp("quit")
+		// "quit" is not allowlisted on the structured QMP channel — the
+		// HMP passthrough is how Bash issues it.
+		hmp("quit")
 	}
 	for i := 0; i < 40 && alive(pid); i++ {
 		time.Sleep(100 * time.Millisecond)
@@ -325,7 +462,13 @@ func dispatch(act string) func() int {
 	case "shutdown_vm":
 		return qmpOp(msg("system_powerdown"), func() string { return " - " + vmname() + " shutting down." })
 	case "reset_vm":
-		return qmpOp(msg("system_reset"), nil)
+		// system_reset is not on the QMP allowlist — Bash sends it over
+		// the HMP channel (human-monitor-command).
+		return func() int {
+			out, err := hmp("system_reset")
+			fmt.Print(out)
+			return rc(err)
+		}
 	case "kill_vm":
 		return func() int { return actStop(true) }
 	case "stop_vm":
@@ -339,9 +482,24 @@ func dispatch(act string) func() int {
 	case "screenshot_vm":
 		return actScreenshot
 	case "delete_vm":
-		return vmOp("delete", vmdir())
+		return func() int {
+			a := []string{"delete", vmdir()}
+			if trashFlag {
+				a = append(a, "--trash")
+			}
+			if extra["plan-id"] != "" {
+				a = append(a, "--plan-id="+extra["plan-id"])
+			}
+			return vmOp(a[0], a[1:]...)()
+		}
 	case "clone_vm":
-		return vmOp("clone", vmdir(), extra["clone"])
+		return func() int {
+			a := []string{"clone", vmdir(), extra["clone"]}
+			if extra["full"] != "" {
+				a = append(a, "--full")
+			}
+			return vmOp(a[0], a[1:]...)()
+		}
 	case "linked_clone_vm":
 		return vmOp("linked-clone", vmdir(), extra["linked-clone"])
 	case "rename_vm":
@@ -366,6 +524,61 @@ func dispatch(act string) func() int {
 		return vmOp("compact", vmdir())
 	case "disk_resize":
 		return vmOp("resize", vmdir(), extra["disk-resize"])
+	case "delete_disk":
+		return vmOp("delete-disk", vmdir(), pidPath())
+	case "export_vm":
+		return func() int { return vmOp("export", vmdir(), extra["export"])() }
+	case "import_vm":
+		return func() int { return vmOp("import", vmdir(), extra["import"])() }
+	case "backup_verify":
+		return func() int { return vmOp("backup-verify", vmdir(), extra["backup-verify"])() }
+	case "backup_restore":
+		return func() int { return vmOp("backup-restore", vmdir(), extra["backup-restore"], ".")() }
+	case "backup_prune":
+		return func() int { return vmOp("backup-prune", vmdir(), extra["backup-prune"])() }
+	case "trash_empty":
+		return vmOp("trash-empty", vmdir())
+	case "trash_restore":
+		return func() int { return vmOp("trash-restore", vmdir(), extra["trash-restore"])() }
+	case "vfio_scan":
+		return vmOp("vfio-scan", vmdir())
+	case "autostart_vm":
+		return vmOp("autostart", vmdir())
+	case "shortcut_create":
+		return func() int {
+			a := []string{"shortcut", vmdir()}
+			return vmOp(a[0], append(a[1:], shortcutOpts...)...)()
+		}
+	case "delete_shortcut":
+		return vmOp("shortcut-delete", vmdir())
+	case "snapshot_tree":
+		return vmOp("snapshot-tree", vmdir())
+	case "snapshot_verify":
+		return vmOp("snapshot-verify", vmdir())
+	case "snapshot_cmd":
+		return actSnapshotCmd
+	case "host_info":
+		return actHostInfo
+	case "capabilities":
+		return actCapabilities
+	case "inventory_show":
+		return actInventory
+	case "vm_stats":
+		return actStats
+	case "inspect_conf":
+		return actInspectConf
+	case "migrate_conf":
+		return actMigrateConf
+	case "events_read":
+		return actEvents
+	case "plugin_list":
+		return actPlugins
+	case "vm_hotplug_usb":
+		return actHotplugUSB
+	case "vm_hotplug_disk":
+		return actHotplugDisk
+	case "vm_hotunplug":
+		return actHotunplug
 	case "operation_status":
 		return opsOp("status")
 	case "operation_list":
@@ -539,17 +752,537 @@ func hostFreeMemMB() int {
 	return 0
 }
 
+// ---------- additional actions (options.sh parity round 2) ----------
+
+func isNum(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+// actSnapshotCmd: `--snapshot <action> [tag]` — the compound snapshot
+// command from options.sh (apply/create/tree/verify/consolidate/
+// delete/info|list), with --external for create.
+func actSnapshotCmd() int {
+	switch snapshotAct {
+	case "apply":
+		r := vmOp("snapshot-apply", vmdir(), snapshotTag)()
+		vmOp("snapshot-info", vmdir())()
+		return r
+	case "create":
+		args := []string{"snapshot-create", vmdir(), snapshotTag}
+		if externalFlag {
+			args = append(args, "--external")
+		}
+		r := vmOp(args[0], args[1:]...)()
+		vmOp("snapshot-info", vmdir())()
+		return r
+	case "tree":
+		return vmOp("snapshot-tree", vmdir())()
+	case "verify":
+		return vmOp("snapshot-verify", vmdir())()
+	case "consolidate":
+		r := vmOp("snapshot-consolidate", vmdir(), snapshotTag)()
+		vmOp("snapshot-tree", vmdir())()
+		return r
+	case "delete":
+		r := vmOp("snapshot-delete", vmdir(), snapshotTag)()
+		vmOp("snapshot-info", vmdir())()
+		return r
+	case "info", "list":
+		if outFmt == "json" {
+			return vmOp("snapshot-list-json", vmdir())()
+		}
+		return vmOp("snapshot-info", vmdir())()
+	default:
+		fmt.Fprintf(os.Stderr, "ERROR! %q is not a supported snapshot action.\n", snapshotAct)
+		usage()
+		return 1
+	}
+}
+
+// actCapabilities: static contract envelope (capabilities parity —
+// keep in sync with schemas/v1/capabilities.schema.json).
+func actCapabilities() int {
+	emitOK("capabilities", map[string]any{
+		"applicationVersion": "5.0.0",
+		"capabilities": map[string]bool{
+			"structuredCatalog": true, "structuredStatus": true, "listVms": true,
+			"snapshots": true, "structuredSnapshots": true, "monitorCommands": true,
+			"sendKeys": true, "screenshot": true, "clone": true, "rename": true,
+			"exportImport": true, "diskOps": true, "downloadProgress": false,
+			"safeDeletePlan": true, "verifiableDeletePlan": true, "qmpChannel": true,
+			"instanceIdentity": true, "sharedExclusiveLocks": true,
+			"portRegistry": true, "verifiedArchives": true, "structuredEvents": true,
+			"asyncOperations": true, "tomlConfig": true, "hostInventory": true,
+		},
+	})
+	return 0
+}
+
+// actHostInfo: host_info parity — machine-readable host inventory
+// (acceleration, deps, machine facts) for QuickGUI.
+func actHostInfo() int {
+	kvm := fileExists("/dev/kvm")
+	iommu := false
+	if ents, err := os.ReadDir("/sys/kernel/iommu_groups"); err == nil {
+		for _, e := range ents {
+			if sub, err := os.ReadDir(filepath.Join("/sys/kernel/iommu_groups", e.Name())); err == nil && len(sub) > 0 {
+				iommu = true
+			}
+		}
+	}
+	var gpus []string
+	if lspci, err := exec.LookPath("lspci"); err == nil {
+		if out, err := exec.Command(lspci, "-Dnn").Output(); err == nil {
+			for _, l := range strings.Split(string(out), "\n") {
+				ll := strings.ToLower(l)
+				if strings.Contains(ll, "vga") || strings.Contains(ll, "3d") || strings.Contains(ll, "display") {
+					f := strings.Fields(l)
+					if len(f) > 1 {
+						gpus = append(gpus, strings.Join(f[1:], " "))
+					}
+					if len(gpus) == 8 {
+						break
+					}
+				}
+			}
+		}
+	}
+	qemuVer := ""
+	if q, err := exec.LookPath("qemu-system-x86_64"); err == nil {
+		if out, err := exec.Command(q, "--version").Output(); err == nil {
+			qemuVer = strings.TrimSpace(strings.SplitN(string(out), "\n", 2)[0])
+		}
+	}
+	has := func(name string) bool { _, e := exec.LookPath(name); return e == nil }
+	globAny := func(pats ...string) bool {
+		for _, p := range pats {
+			if m, _ := filepath.Glob(p); len(m) > 0 {
+				return true
+			}
+		}
+		return false
+	}
+	var memTotal, hugePages int
+	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(l, "MemTotal:") {
+				fmt.Sscanf(l, "MemTotal: %d kB", &memTotal)
+			}
+			if strings.HasPrefix(l, "HugePages_Total:") {
+				fmt.Sscanf(l, "HugePages_Total: %d", &hugePages)
+			}
+		}
+	}
+	freeKb := int64(0)
+	var st syscall.Statfs_t
+	dataDir := os.Getenv("XDG_DATA_HOME")
+	if dataDir == "" {
+		dataDir = filepath.Join(os.Getenv("HOME"), ".local", "share")
+	}
+	if syscall.Statfs(dataDir, &st) == nil {
+		freeKb = int64(st.Bavail) * int64(st.Bsize) / 1024
+	}
+	kernel := ""
+	if b, err := exec.Command("uname", "-sr").Output(); err == nil {
+		kernel = strings.TrimSpace(string(b))
+	}
+	emitOK("host.info", map[string]any{
+		"kernel": kernel, "arch": unameArch(), "cpuCores": runtime.NumCPU(),
+		"memTotalKb": memTotal, "kvm": kvm, "iommu": iommu, "qemu": qemuVer,
+		"qemuAarch64": has("qemu-system-aarch64"), "qemuImg": has("qemu-img"),
+		"socat": has("socat"), "jq": has("jq"), "swtpm": has("swtpm"),
+		"ovmf": globAny("/usr/share/OVMF*/OVMF_CODE.fd", "/usr/share/edk2/ovmf/OVMF_CODE.fd"),
+		"aavmf": globAny("/usr/share/AAVMF*", "/usr/share/edk2/aarch64/QEMU_EFI.fd"),
+		"passt": has("passt"), "virtiofsd": has("virtiofsd"), "spicy": has("spicy"),
+		"remoteViewer": has("remote-viewer"), "freeKb": freeKb,
+		"hugePages": hugePages, "gpus": gpus,
+	})
+	return 0
+}
+
+// actInventory: --inventory — the global VM registry at
+// $XDG_DATA_HOME/quickemu/vms.json.
+func actInventory() int {
+	db := filepath.Join(os.Getenv("HOME"), ".local", "share", "quickemu", "vms.json")
+	if x := os.Getenv("XDG_DATA_HOME"); x != "" {
+		db = filepath.Join(x, "quickemu", "vms.json")
+	}
+	b, err := os.ReadFile(db)
+	if err != nil {
+		if outFmt == "json" {
+			fmt.Println("{}")
+		} else {
+			fmt.Println("No VMs registered yet.")
+		}
+		return 0
+	}
+	if outFmt == "json" {
+		fmt.Println(string(b))
+		return 0
+	}
+	var m map[string]struct {
+		VM, State, Dir, LastSeen string
+	}
+	if json.Unmarshal(b, &m) == nil {
+		for _, v := range m {
+			fmt.Printf(" - %s [%s] %s (seen %s)\n", v.VM, v.State, v.Dir, v.LastSeen)
+		}
+	}
+	return 0
+}
+
+// actStats: vm_stats parity — QMP cpus/block/balloon in one envelope.
+func actStats() int {
+	if _, err := os.Stat(qmpSock()); err != nil {
+		if outFmt == "json" {
+			emitFail("vm.stats", "VM_MUST_BE_RUNNING", "no running QMP")
+		} else {
+			fmt.Fprintln(os.Stderr, "ERROR! VM is not running (no QMP socket).")
+		}
+		return 1
+	}
+	get := func(cmd string) json.RawMessage {
+		out, err := qmp(cmd)
+		if err != nil {
+			return json.RawMessage("null")
+		}
+		var env struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if json.Unmarshal([]byte(out), &env) == nil && env.Data != nil {
+			return env.Data
+		}
+		return json.RawMessage("null")
+	}
+	out := map[string]json.RawMessage{
+		"cpus": get("query-cpus-fast"), "block": get("query-blockstats"), "memory": get("query-balloon"),
+	}
+	b, _ := json.Marshal(out)
+	if outFmt == "json" {
+		emitOK("vm.stats", json.RawMessage(b))
+		return 0
+	}
+	var m map[string]any
+	json.Unmarshal(b, &m)
+	var ncpu int
+	if c, ok := m["cpus"].(map[string]any); ok {
+		if r, ok := c["return"].([]any); ok {
+			ncpu = len(r)
+		}
+	}
+	bal := "n/a"
+	if c, ok := m["memory"].(map[string]any); ok {
+		if r, ok := c["return"].(map[string]any); ok {
+			if a, ok := r["actual"]; ok {
+				bal = fmt.Sprintf("%v", a)
+			}
+		}
+	}
+	fmt.Printf("CPUs: %d  Balloon: %s\n", ncpu, bal)
+	return 0
+}
+
+// actInspectConf: inspect_conf parity — read the conf WITHOUT
+// executing it (conf files are bash; foreign confs must be inspected).
+func actInspectConf() int {
+	f := vmConf
+	if f == "" && len(os.Args) > 0 {
+		f = ""
+	}
+	b, err := os.ReadFile(f)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", f)
+		return 1
+	}
+	keys := map[string]bool{}
+	for _, k := range []string{"guest_os", "arch", "boot", "tpm", "secureboot", "disk_img",
+		"disk_format", "disk_size", "iso", "img", "fixed_iso", "floppy", "ram", "cpu_cores",
+		"network", "bridge", "macaddr", "port_forwards", "display", "monitor", "serial",
+		"sound_card", "public_dir", "seed", "kernel", "initrd", "boot_args",
+		"gpu_passthrough", "vnc_listen"} {
+		keys[k] = true
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" || strings.HasPrefix(l, "#") {
+			continue
+		}
+		kv := strings.SplitN(l, "=", 2)
+		if len(kv) == 2 && keys[strings.TrimSpace(kv[0])] {
+			fmt.Printf("%s=%s\n", strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1]))
+		}
+	}
+	return 0
+}
+
+// actMigrateConf: migrate_conf parity — write a TOML migration of the
+// conf next to it; --dry-run prints the TOML (or a diff vs existing).
+func actMigrateConf() int {
+	out := strings.TrimSuffix(vmConf, ".conf") + ".toml"
+	if dryRunFlag {
+		if _, err := os.Stat(out); err == nil {
+			t, _ := tool("quickemu-toml", "from-conf", "--file", vmConf)
+			fmt.Println("Diff (existing " + out + " vs regenerated):")
+			fmt.Print(t)
+		} else {
+			t, terr := tool("quickemu-toml", "from-conf", "--file", vmConf)
+			fmt.Print(t)
+			if terr != nil {
+				return 1
+			}
+		}
+		return 0
+	}
+	if _, err := os.Stat(out); err == nil {
+		fmt.Fprintf(os.Stderr, "ERROR! %s already exists.\n", out)
+		return 1
+	}
+	t, err := tool("quickemu-toml", "from-conf", "--file", vmConf)
+	if err != nil {
+		fmt.Print(t)
+		return 1
+	}
+	if err := os.WriteFile(out, []byte(t), 0644); err != nil {
+		fmt.Fprintln(os.Stderr, "ERROR! "+err.Error())
+		return 1
+	}
+	fmt.Println(" - Migrated " + vmConf + " -> " + out + " (original kept)")
+	return 0
+}
+
+// actEvents: qe_events_read parity — JSONL events with seq > cursor.
+func actEvents() int {
+	cur := 0
+	fmt.Sscanf(extra["events"], "%d", &cur)
+	f := filepath.Join(vmdir(), vmname()+".events.jsonl")
+	b, err := os.ReadFile(f)
+	if err != nil {
+		return 0
+	}
+	for _, l := range strings.Split(string(b), "\n") {
+		if !strings.Contains(l, `"seq":`) {
+			continue
+		}
+		var e struct {
+			Seq int `json:"seq"`
+		}
+		if json.Unmarshal([]byte(l), &e) == nil && e.Seq > cur {
+			fmt.Println(l)
+		}
+	}
+	return 0
+}
+
+// actPlugins: plugin_list parity — quickemu-plugin-* on PATH.
+func actPlugins() int {
+	seen := map[string]bool{}
+	var names []string
+	for _, d := range filepath.SplitList(os.Getenv("PATH")) {
+		ents, err := os.ReadDir(d)
+		if err != nil {
+			continue
+		}
+		for _, e := range ents {
+			if n := e.Name(); strings.HasPrefix(n, "quickemu-plugin-") && !seen[n] {
+				seen[n] = true
+				names = append(names, strings.TrimPrefix(n, "quickemu-plugin-"))
+			}
+		}
+	}
+	for _, n := range names {
+		fmt.Println(n)
+	}
+	return 0
+}
+
+// actPlugin: plugin_dispatch parity — exec quickemu-plugin-<name> with
+// the plugin env contract.
+func actPlugin(name string, pargs []string) int {
+	bin, err := exec.LookPath("quickemu-plugin-" + name)
+	if err != nil {
+		if outFmt == "json" {
+			emitFail("vm.plugin", "NOT_FOUND", "plugin '"+name+"' not installed")
+		} else {
+			fmt.Fprintf(os.Stderr, "ERROR! Plugin 'quickemu-plugin-%s' not found on PATH.\n", name)
+		}
+		return 1
+	}
+	cmd := exec.Command(bin, pargs...)
+	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
+	cmd.Env = append(os.Environ(),
+		"VMDIR="+vmdir(), "VMNAME="+vmname(),
+		"OUTPUT_FORMAT="+outFmt, "QE_SCHEMA_VERSION=1")
+	if err := cmd.Run(); err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			return ee.ExitCode()
+		}
+		return 1
+	}
+	return 0
+}
+
+// actHotplugUSB: vm_hotplug_usb parity — usb-host device_add.
+func actHotplugUSB() int {
+	vp := extra["hotplug-usb"]
+	if ok, _ := filepath.Match("[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]", vp); !ok {
+		fmt.Fprintln(os.Stderr, "ERROR! --hotplug-usb needs vendor:product hex (e.g. 05ac:12a8).")
+		return 1
+	}
+	var vid, pid uint64
+	fmt.Sscanf(vp, "%x:%x", &vid, &pid)
+	id := "hotusb" + strings.ReplaceAll(vp, ":", "")
+	payload := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","hostvendor":%d,"hostport":%d}}`, id, vid, pid)
+	out, err := qmpRaw(payload)
+	fmt.Print(out)
+	if err == nil {
+		qeEvent("vm.hotplug", fmt.Sprintf(`{"device":"usb","id":%q}`, id))
+		fmt.Println(" - Hot-plugged USB " + vp + " as " + id + ".")
+		if persistFlag {
+			hotplugPersist("usb", vp)
+		}
+	}
+	return rc(err)
+}
+
+// actHotplugDisk: vm_hotplug_disk parity — virtio-blk + blockdev-add.
+func actHotplugDisk() int {
+	f := extra["hotplug-disk"]
+	abs, err := filepath.Abs(f)
+	if err != nil || !fileExists(abs) {
+		fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", f)
+		return 1
+	}
+	base := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			return r
+		}
+		return -1
+	}, filepath.Base(f))
+	id := "hotdisk" + base
+	payload := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"virtio-blk-pci","id":"%s","drive":"%sdrv"}}`, id, id)
+	out, err := qmpRaw(payload)
+	if err != nil {
+		payload = fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"virtio-blk-pci","id":"%s"}}`, id)
+		out, err = qmpRaw(payload)
+	}
+	fmt.Print(out)
+	// blockdev-add wires the node for the drive.
+	node := fmt.Sprintf(`{"execute":"blockdev-add","arguments":{"node-name":"%snode","driver":"qcow2","file":{"driver":"file","filename":%q}}}`, id, abs)
+	qmpRaw(node)
+	if err == nil {
+		qeEvent("vm.hotplug", fmt.Sprintf(`{"device":"disk","id":%q}`, id))
+		if persistFlag {
+			hotplugPersist("disk", f)
+		}
+		fmt.Println(" - Hot-plugged disk " + f + " as " + id + ".")
+	}
+	return rc(err)
+}
+
+// actHotunplug: vm_hotunplug parity — device_del by id.
+func actHotunplug() int {
+	id := extra["hotunplug"]
+	payload := fmt.Sprintf(`{"execute":"device_del","arguments":{"id":%q}}`, id)
+	out, err := qmpRaw(payload)
+	fmt.Print(out)
+	if err == nil {
+		qeEvent("vm.hotunplug", fmt.Sprintf(`{"id":%q}`, id))
+		fmt.Println(" - Hot-unplugged " + id + ".")
+	}
+	return rc(err)
+}
+
+// hotplugPersist: append the device to the conf so it reattaches on
+// next boot (--persist parity with monitor.sh).
+func hotplugPersist(kind, val string) {
+	b, err := os.ReadFile(vmConf)
+	if err != nil {
+		return
+	}
+	var key, kv string
+	switch kind {
+	case "usb":
+		key, kv = "usb_devices", fmt.Sprintf("%q", val)
+	default:
+		key, kv = "extra_disks", fmt.Sprintf("%q", val)
+	}
+	c := string(b)
+	if strings.Contains(c, key+"=") {
+		// append to existing array
+		re := regexp.MustCompile(key + `=\(([^)]*)\)`)
+		c = re.ReplaceAllString(c, key+"=($1 "+kv+")")
+	} else {
+		c += key + "=(" + kv + ")\n"
+	}
+	os.WriteFile(vmConf, []byte(c), 0644)
+}
+
+// qeEvent: append a JSONL event to <vmdir>/<vm>.events.jsonl
+// (qe_event parity: seq, ts, event, vm, pid, data).
+func qeEvent(typ, data string) {
+	f := filepath.Join(vmdir(), vmname()+".events.jsonl")
+	seq := 1
+	if b, err := os.ReadFile(f); err == nil {
+		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+		var last struct {
+			Seq int `json:"seq"`
+		}
+		if json.Unmarshal([]byte(lines[len(lines)-1]), &last) == nil {
+			seq = last.Seq + 1
+		}
+	}
+	pid := readPID()
+	pidStr := "null"
+	if pid > 0 {
+		pidStr = fmt.Sprintf("%d", pid)
+	}
+	rec := fmt.Sprintf(`{"seq":%d,"ts":%q,"event":%q,"vm":%q,"pid":%s,"data":%s}`,
+		seq, time.Now().UTC().Format("2006-01-02T15:04:05Z"), typ, vmname(), pidStr, data)
+	fh, err := os.OpenFile(f, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+	fmt.Fprintln(fh, rec)
+}
+
+// emitFail: failure envelope matching the Bash qe_fail contract.
+func emitFail(cmd, code, msg string) {
+	b, _ := json.Marshal(map[string]any{
+		"schemaVersion": 1, "success": false, "command": cmd,
+		"errors": []map[string]string{{"code": code, "message": msg}},
+	})
+	fmt.Println(string(b))
+}
+
 func usage() {
 	fmt.Println(`quickemu — create and control VMs (Go CLI)
 Usage: quickemu --vm <conf> [action flags]
 
-Actions: --start --dry-run --status --pause --resume --shutdown
-  --reset --stop --kill --restart --list-vms --delete-vm
-  --clone <name> --rename <name> --move <dir> --backup --backup-list
-  --snapshot-create <tag> --snapshot-apply <tag> --snapshot-delete <tag>
-  --snapshot-list --monitor-cmd <c> --send-keys <k> --type <t>
-  --screenshot [file] --disk-compact --op-list --op-status
-Conf overrides: --display --access --public-dir --format json|text`)
+Actions: --start --dry-run|--echo --status --status-quo --pause --resume
+  --shutdown --reset --stop --kill --restart --list-vms --delete-vm
+  --delete-disk --clone <n> --linked-clone <d> --rename <n> --move <dir>
+  --backup --backup-list --backup-verify <f> --backup-restore <f>
+  --backup-prune [n] --export [f] --import <f> --trash --trash-list
+  --trash-empty --trash-restore <vm> --snapshot <act> [tag] --external
+  --snapshot-tree --snapshot-verify --monitor-cmd <c> --send-keys <k>
+  --type <t> --screenshot [f] --disk-compact --disk-resize <sz>
+  --hotplug-usb <v:p> --hotplug-disk <f> --hotunplug <id> --persist
+  --autostart --shortcut --delete-shortcut --doctor|--check --fix
+  --delete-plan --plan-id <id> --inspect-conf --migrate-conf --stats
+Host: --capabilities --host-info --inventory --vfio-scan --events [n]
+  --plugins --plugin <n> [args] --op-list --op-status --op-watch
+Conf overrides: --display --viewer --width --height --ssh-port
+  --spice-port --monitor --serial --keyboard --mouse --usb-controller
+  --sound-card --public-dir --profile --offline --format json|text`)
 }
 
 func main() {
@@ -558,7 +1291,20 @@ func main() {
 		os.Exit(2)
 	}
 	args := os.Args[1:]
-	dryRun := false
+	// Normalise: Bash accepts -flag and --flag equally, plus --flag=value.
+	var norm []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "--") && strings.Contains(a, "=") {
+			kv := strings.SplitN(a, "=", 2)
+			norm = append(norm, kv[0], kv[1])
+		} else if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && len(a) > 2 {
+			norm = append(norm, "-"+a)
+		} else {
+			norm = append(norm, a)
+		}
+	}
+	args = norm
+	dryRunFlag = false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		val := func() string {
@@ -568,6 +1314,10 @@ func main() {
 			}
 			return ""
 		}
+		// scOpt accumulates the flag verbatim into the shortcut Exec line
+		// (SHORTCUT_OPTIONS parity).
+		scOpt := func() { shortcutOpts = append(shortcutOpts, a) }
+		scOptVal := func() { shortcutOpts = append(shortcutOpts, a, val()) }
 		switch a {
 		case "-h", "--help":
 			usage()
@@ -575,14 +1325,116 @@ func main() {
 		case "--version":
 			fmt.Println("5.0.0")
 			return
-		case "--vm", "-vm":
+		case "--vm":
 			vmConf = val()
 		case "--format":
 			outFmt = val()
-		case "--dry-run":
-			dryRun = true
-		case "--status", "--status-quo":
+		case "--dry-run", "--echo":
+			dryRunFlag = true
+		case "--status":
 			actions = append(actions, "status_vm")
+		case "--status-quo":
+			confOpts["snapshot"] = "on"
+		case "--capabilities":
+			actions = append(actions, "capabilities")
+		case "--host-info":
+			actions = append(actions, "host_info")
+		case "--inventory":
+			actions = append(actions, "inventory_show")
+		case "--stats":
+			actions = append(actions, "vm_stats")
+		case "--events":
+			cur := "0"
+			if i+1 < len(args) && isNum(args[i+1]) {
+				cur = val()
+			}
+			extra["events"] = cur
+			actions = append(actions, "events_read")
+		case "--vfio-scan":
+			actions = append(actions, "vfio_scan")
+		case "--migrate-conf":
+			actions = append(actions, "migrate_conf")
+		case "--inspect-conf":
+			actions = append(actions, "inspect_conf")
+		case "--export":
+			extra["export"] = val()
+			actions = append(actions, "export_vm")
+		case "--import":
+			extra["import"] = val()
+			actions = append(actions, "import_vm")
+		case "--backup-verify":
+			extra["backup-verify"] = val()
+			actions = append(actions, "backup_verify")
+		case "--backup-restore":
+			extra["backup-restore"] = val()
+			actions = append(actions, "backup_restore")
+		case "--backup-prune":
+			k := val()
+			if k == "" {
+				k = "5"
+			}
+			extra["backup-prune"] = k
+			actions = append(actions, "backup_prune")
+		case "--trash-empty":
+			actions = append(actions, "trash_empty")
+		case "--trash":
+			trashFlag = true
+		case "--trash-restore":
+			extra["trash-restore"] = val()
+			actions = append(actions, "trash_restore")
+		case "--autostart":
+			actions = append(actions, "autostart_vm")
+		case "--shortcut":
+			actions = append(actions, "shortcut_create")
+		case "--delete-shortcut":
+			actions = append(actions, "delete_shortcut")
+		case "--snapshot-tree":
+			actions = append(actions, "snapshot_tree")
+		case "--snapshot-verify":
+			actions = append(actions, "snapshot_verify")
+		case "--snapshot":
+			snapshotAct = val()
+			switch snapshotAct {
+			case "info", "list", "tree", "verify":
+			default:
+				snapshotTag = val()
+			}
+			actions = append(actions, "snapshot_cmd")
+		case "--external":
+			externalFlag = true
+		case "--full":
+			extra["full"] = "1"
+		case "--plugin":
+			os.Exit(actPlugin(val(), args[i+1:]))
+		case "--plugins":
+			actions = append(actions, "plugin_list")
+		case "--fix":
+			doctorFix = true
+		case "--profile":
+			confOpts["profile"] = val()
+		case "--plan-id":
+			extra["plan-id"] = val()
+		case "--hotplug-usb":
+			extra["hotplug-usb"] = val()
+			actions = append(actions, "vm_hotplug_usb")
+		case "--hotplug-disk":
+			extra["hotplug-disk"] = val()
+			actions = append(actions, "vm_hotplug_disk")
+		case "--hotunplug":
+			extra["hotunplug"] = val()
+			actions = append(actions, "vm_hotunplug")
+		case "--persist":
+			persistFlag = true
+		case "--offline":
+			scOpt()
+			confOpts["network"] = "none"
+		case "--width", "--height", "--ssh-access", "--ssh-port", "--spice-port",
+			"--monitor-telnet-host", "--monitor-telnet-port",
+			"--serial-telnet-host", "--serial-telnet-port",
+			"--keyboard", "--mouse", "--usb-controller", "--usb-passthrough",
+			"--sound-card", "--sound-duplex":
+			scOptVal()
+			confOpts[strings.TrimPrefix(a, "--")] = args[i]
 		case "--list-vms", "--list":
 			actions = append(actions, "list_vms")
 		case "--pause":
@@ -616,11 +1468,13 @@ func main() {
 				extra["screenshot"] = val()
 			}
 			actions = append(actions, "screenshot_vm")
+		case "--delete", "--delete-disk":
+			actions = append(actions, "delete_disk")
 		case "--delete-vm":
 			actions = append(actions, "delete_vm")
 		case "--delete-plan":
 			actions = append(actions, "delete_plan")
-		case "--doctor":
+		case "--doctor", "--check":
 			actions = append(actions, "doctor_vm")
 		case "--clone":
 			extra["clone"] = val()
@@ -708,7 +1562,7 @@ func main() {
 	}
 	// default action: boot the VM (dry-run prints the argv)
 	if len(actions) == 0 {
-		if dryRun {
+		if dryRunFlag {
 			os.Exit(actDryRun())
 		}
 		os.Exit(actLaunch())
@@ -716,14 +1570,23 @@ func main() {
 	rcv := 0
 	for _, act := range actions {
 		if act == "start" {
-			if dryRun {
+			if dryRunFlag {
 				rcv = actDryRun()
 			} else {
 				rcv = actLaunch()
 			}
 			continue
 		}
-		if vmConf == "" && act != "list_vms" {
+		// Host-level actions do not need --vm (early-action parity:
+		// Bash runs capabilities|list_vms|import_vm before conf load;
+		// the rest are host-scope ops that only read machine state).
+		hostOnly := map[string]bool{
+			"capabilities": true, "host_info": true, "list_vms": true,
+			"inventory_show": true, "plugin_list": true, "import_vm": true,
+			"trash_list": true, "trash_empty": true, "trash_restore": true,
+			"vfio_scan": true,
+		}
+		if vmConf == "" && !hostOnly[act] {
 			fmt.Fprintln(os.Stderr, "ERROR! --vm is required for "+act)
 			rcv = 2
 			continue

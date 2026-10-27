@@ -73,12 +73,31 @@ dispatches every action to a Go backend tool:
 - journal ops → `quickemu-ops`
 - `--format json` emits the v1 envelope on vm.status / vm.list
 - `--doctor` (doctor_vm parity), `--delete-plan`, `--ignore-msrs-always`
-
-Still Bash-only CLI surface (documented residual): plugins,
-shortcuts, vfio-scan, migrate-conf, inspect-conf, inventory, events,
-autostart, backup-verify/restore/prune, trash-restore/empty,
-delete-disk, snapshot-info/tree/verify, viewer/vnc/
-spice-console, telnet monitor/serial attach, --echo/--export/--import.
+- Full options.sh surface: `--export/--import`, `--backup-verify/
+  --backup-restore/--backup-prune`, `--trash*/--trash-restore`,
+  `--autostart`, `--shortcut/--delete-shortcut`, `--vfio-scan`,
+  `--host-info`, `--capabilities`, `--inventory`, `--stats`,
+  `--migrate-conf` (quickemu-toml `from-conf`), `--inspect-conf`
+  (exec-free conf reader), `--events [cursor]` (JSONL seq filter),
+  `--plugin <name>`/`--plugins` (quickemu-plugin-* on PATH),
+  `--hotplug-usb/--hotplug-disk/--hotunplug/--persist` (QMP device_add/
+  device_del/blockdev-add via internal raw channel), `--snapshot
+  <act>` compound + `--external` (qcow2 overlay chains in
+  snapshots.json + qemu-img commit consolidate), `--snapshot-tree/
+  --snapshot-verify`, `--delete-disk` (disk+OVMF vars+shortcut),
+  `--clone [--full]` (linked backing-disk default / convert full),
+  `--echo`=`--dry-run`, `--check`=`--doctor`, single-dash long opts
+  and `--flag=value`.
+- `monitor_cmd` reaches every HMP command: raw `-monitor` unix socket
+  first, then telnet, then QMP `human-monitor-command` — the same
+  precedence as `monitor_send_cmd` (greeting and per-char readline
+  echo drained, payload identical).
+- QMP channel is fail-closed like `qmp_command_allowed`: query-*,
+  screendump, system_powerdown/wakeup, stop, cont, block-dirty-bitmap,
+  drive-backup, human-monitor-command; `QUICKEMU_QMP_RAW=1` sends any
+  command (verified: quit → SHUTDOWN event → VM exit). Internal
+  trusted flows (hotplug, lifecycle) bypass via the raw channel —
+  Bash fixed identically with `qmp_query_raw`.
 
 ## quickget pipeline (quickget-cli + quickget-vm)
 

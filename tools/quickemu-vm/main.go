@@ -25,6 +25,13 @@ func ok(data string) {
 }
 
 func vmConfPath(dir string) string {
+	// QE_VMCONF: the caller (quickemu-cli) knows exactly which conf the
+	// user passed; a dir can contain several .conf files (clones).
+	if c := os.Getenv("QE_VMCONF"); c != "" {
+		if _, err := os.Stat(c); err == nil {
+			return c
+		}
+	}
 	ents, _ := filepath.Glob(filepath.Join(dir, "*.conf"))
 	if len(ents) > 0 {
 		return ents[0]
@@ -180,51 +187,212 @@ func main() {
 		}
 		fmt.Printf("Plan id: %s (required by --delete-vm --plan-id)\n", planID)
 	case "backup":
-		// backup_vm: tar the vmdir into .backups/<ts>.tar.gz
-		bdir := filepath.Join(dir, ".backups")
-		if err := os.MkdirAll(bdir, 0755); err != nil {
-			die("BACKUP_FAILED", err.Error())
+		// backup_vm: export into <vmdir>/backups/<utc>-<vm>.quickvm.tar.gz
+		os.Exit(backupVm(dir))
+	case "backup-list":
+		os.Exit(backupList(dir))
+	case "backup-verify":
+		if len(args) < 3 {
+			die("INVALID_ARGS", "backup-verify needs a file")
 		}
-		ts := time.Now().UTC().Format("20060102-150405")
-		dst := filepath.Join(bdir, "backup-"+ts+".tar.gz")
-		if err := tarGz(dir, dst); err != nil {
-			die("BACKUP_FAILED", err.Error())
+		os.Exit(backupVerify(args[2]))
+	case "backup-restore":
+		f, dest := "", "."
+		if len(args) > 2 {
+			f = args[2]
 		}
-		ok(fmt.Sprintf("{\"backup\":%q}", dst))
-	case "clone":
-		// clone_vm: copy dir + rewrite vm_name in .conf
-		name := ""
+		if len(args) > 3 {
+			dest = args[3]
+		}
+		if f == "" {
+			die("INVALID_ARGS", "backup-restore needs a file")
+		}
+		os.Exit(backupRestore(f, dest))
+	case "backup-prune":
+		keep := 5
+		if len(args) > 2 {
+			fmt.Sscanf(args[2], "%d", &keep)
+		}
+		os.Exit(backupPrune(dir, keep))
+	case "export":
+		out := filepath.Base(dir) + ".quickvm.tar.gz"
+		if len(args) > 2 {
+			out = args[2]
+		}
+		os.Exit(exportVm(dir, out))
+	case "import":
+		if len(args) < 3 {
+			die("INVALID_ARGS", "import needs a .quickvm.tar.gz file")
+		}
+		os.Exit(importVm(args[2], "."))
+	case "autostart":
+		name := filepath.Base(dir)
+		conf := vmConfPath(dir)
+		if conf != "" {
+			name = strings.TrimSuffix(filepath.Base(conf), ".conf")
+		}
+		os.Exit(autostartCreate(name, conf))
+	case "shortcut":
+		name := filepath.Base(dir)
+		if conf := vmConfPath(dir); conf != "" {
+			name = strings.TrimSuffix(filepath.Base(conf), ".conf")
+		}
+		opts := ""
+		if len(args) > 2 {
+			opts = strings.Join(args[2:], " ")
+		}
+		os.Exit(shortcutCreate(name, vmConfPath(dir), opts))
+	case "shortcut-delete":
+		name := filepath.Base(dir)
+		if conf := vmConfPath(dir); conf != "" {
+			name = strings.TrimSuffix(filepath.Base(conf), ".conf")
+		}
+		shortcutDelete(name)
+		fmt.Println(" - Shortcut removed for " + name)
+		ok(fmt.Sprintf("{\"shortcutDeleted\":%q}", name))
+	case "trash-list":
+		os.Exit(trashList())
+	case "trash-empty":
+		os.Exit(trashEmpty())
+	case "trash-restore":
+		name := filepath.Base(dir)
 		if len(args) > 2 {
 			name = args[2]
+		}
+		os.Exit(trashRestore(name))
+	case "vfio-scan":
+		os.Exit(vfioScan(""))
+	case "snapshot-info":
+		os.Exit(snapshotInfo(dir))
+	case "snapshot-list-json":
+		os.Exit(snapshotListJSON(dir, filepath.Base(dir)))
+	case "delete-disk":
+		pidFile := ""
+		if len(args) > 2 {
+			pidFile = args[2]
+		}
+		os.Exit(deleteDisk(dir, pidFile))
+	case "resize":
+		// disk_resize: qemu-img resize, VM stopped, size arg required.
+		if len(args) < 3 || args[2] == "" {
+			fmt.Fprintln(os.Stderr, "ERROR! '--disk-resize' needs a size (e.g. 32G).")
+			os.Exit(1)
+		}
+		disk := confDisk(dir)
+		if _, err := os.Stat(disk); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
+			os.Exit(1)
+		}
+		if err := execCommand("qemu-img", "resize", disk, args[2]).Run(); err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR! Failed to resize "+disk+".")
+			os.Exit(1)
+		}
+		fmt.Println(" - Resized " + disk + " to " + args[2] + ".")
+		fmt.Println("             Remember to grow the partition and filesystem inside the guest.")
+		ok(fmt.Sprintf("{\"resized\":%q,\"size\":%q}", disk, args[2]))
+	case "compact":
+		// disk_compact: qemu-img convert to .compact then atomic swap.
+		disk := confDisk(dir)
+		if _, err := os.Stat(disk); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
+			os.Exit(1)
+		}
+		fmt_ := confGet(dir, "disk_format")
+		if fmt_ == "" {
+			fmt_ = "qcow2"
+		}
+		out := disk + ".compact"
+		if err := execCommand("qemu-img", "convert", "-O", fmt_, disk, out).Run(); err != nil {
+			os.Remove(out)
+			fmt.Fprintln(os.Stderr, "ERROR! Failed to compact "+disk+".")
+			os.Exit(1)
+		}
+		if err := os.Rename(out, disk); err != nil {
+			os.Remove(out)
+			fmt.Fprintln(os.Stderr, "ERROR! Failed to replace "+disk+".")
+			os.Exit(1)
+		}
+		fmt.Println(" - Compacted " + disk)
+		ok(fmt.Sprintf("{\"compacted\":%q}", disk))
+	case "clone":
+		// clone_vm parity: sibling conf rewrite + linked backing disk
+		// (default) or full disk copy (--full). Runtime artifacts,
+		// snapshots metadata, ops and backups are not copied.
+		name := ""
+		full := false
+		for _, a := range args[2:] {
+			if a == "--full" {
+				full = true
+			} else {
+				name = a
+			}
 		}
 		if name == "" {
 			die("INVALID_ARGS", "clone needs a new name")
 		}
-		dst := filepath.Join(filepath.Dir(dir), name)
-		if err := cpDir(dir, dst); err != nil {
-			die("CLONE_FAILED", err.Error())
-		}
-		conf := vmConfPath(dst)
-		if conf != "" {
-			b, _ := os.ReadFile(conf)
-			b = []byte(strings.ReplaceAll(string(b), "vm_name=\""+filepath.Base(dir)+"\"", "vm_name=\""+name+"\""))
-			os.WriteFile(conf, b, 0644)
-		}
-		ok(fmt.Sprintf("{\"clone\":%q}", dst))
+		os.Exit(cloneVm(dir, name, full))
 	case "delete":
-		// delete_vm: move to XDG trash root — same semantics as vm.sh.
-		trashRoot := filepath.Join(xdgData(), "quickemu", "trash")
-		slot := filepath.Join(trashRoot, time.Now().UTC().Format("20060102-150405")+"-"+filepath.Base(dir))
-		if err := os.MkdirAll(filepath.Join(slot, "vm"), 0755); err != nil {
-			die("DELETE_FAILED", err.Error())
+		// delete_vm: confinement + plan-id guard, then conf+dir+shortcut
+		// to trash (default) or rm -rf (--no-trash / --hard-delete).
+		name := filepath.Base(dir)
+		conf := dir + ".conf"
+		planID, useTrash := "", false
+		for _, a := range args[2:] {
+			if strings.HasPrefix(a, "--plan-id=") {
+				planID = strings.TrimPrefix(a, "--plan-id=")
+			} else if a == "--trash" {
+				useTrash = true
+			}
 		}
-		dst := filepath.Join(slot, "vm", filepath.Base(dir))
-		if err := os.Rename(dir, dst); err != nil {
-			die("DELETE_FAILED", err.Error())
+		if c := vmConfPath(dir); c != "" {
+			conf = c
+			name = strings.TrimSuffix(filepath.Base(c), ".conf")
 		}
-		meta := fmt.Sprintf("{\"vm\":%q,\"trashedAt\":%q,\"originConfDir\":%q}", filepath.Base(dir), time.Now().UTC().Format(time.RFC3339), filepath.Dir(dir))
-		os.WriteFile(filepath.Join(slot, "trash-meta.json"), []byte(meta), 0644)
-		ok(fmt.Sprintf("{\"deleted\":%q,\"restore\":\"--trash-restore %s\"}", dst, filepath.Base(dir)))
+		// Confinement: only delete the canonical sibling of the conf.
+		if st, err := os.Stat(dir); err == nil && st.IsDir() {
+			expected, _ := filepath.EvalSymlinks(filepath.Join(filepath.Dir(conf), name))
+			resolved, _ := filepath.EvalSymlinks(dir)
+			if resolved != "" && expected != "" && resolved != expected {
+				die("PERMISSION_DENIED", "quickemu refuses to delete '"+resolved+"': not the VM directory "+expected+".")
+			}
+		}
+		if planID != "" {
+			actual := deletePlanID(name, deletePlanItems(dir))
+			if actual != planID {
+				code := "PLAN_MISMATCH"
+				if actual == "" || actual == "sha256:empty" {
+					code = "PLAN_EXPIRED"
+				}
+				die(code, fmt.Sprintf("delete plan is stale (expected %s, got %s); regenerate with --delete-plan", planID, actual))
+			}
+		}
+		fmt.Println("Deleting " + name + " completely")
+		if st, err := os.Stat(dir); err == nil && st.IsDir() {
+			if useTrash {
+				slot := filepath.Join(trashRoot(), time.Now().UTC().Format("20060102T150405Z")+"-"+name)
+				if err := os.MkdirAll(filepath.Join(slot, "vm"), 0755); err != nil {
+					die("DELETE_FAILED", err.Error())
+				}
+				if err := os.Rename(dir, filepath.Join(slot, "vm", filepath.Base(dir))); err != nil {
+					die("DELETE_FAILED", "Could not move "+dir+" to trash.")
+				}
+				if err := os.Rename(conf, filepath.Join(slot, "vm", filepath.Base(conf))); err != nil {
+					die("DELETE_FAILED", "Could not move "+conf+" to trash.")
+				}
+				meta := fmt.Sprintf("{\"vm\":%q,\"trashedAt\":%q,\"originConfDir\":%q}",
+					name, time.Now().UTC().Format("2006-01-02T15:04:05Z"), filepath.Dir(conf))
+				os.WriteFile(filepath.Join(slot, "trash-meta.json"), []byte(meta), 0644)
+				fmt.Println(" - Moved " + name + " to trash (" + slot + "); restore with --trash-restore " + name)
+			} else {
+				os.RemoveAll(dir)
+				os.Remove(conf)
+				fmt.Println(" - Deleted " + conf + " and " + dir + "/")
+			}
+			shortcutDelete(name)
+		} else {
+			fmt.Println(" - " + dir + " not found. Doing nothing.")
+		}
+		ok(fmt.Sprintf("{\"deleted\":%q}", name))
 	case "rename":
 		name := ""
 		if len(args) > 2 {
@@ -290,6 +458,31 @@ func main() {
 			die("INVALID_ARGS", "snapshot op needs a tag")
 		}
 		tag := args[2]
+		// vm_running guard: qemu-img snapshot on a live disk corrupts it.
+		if c := vmConfPath(dir); c != "" {
+			pf := filepath.Join(dir, strings.TrimSuffix(filepath.Base(c), ".conf")+".pid")
+			if b, err := os.ReadFile(pf); err == nil && len(strings.TrimSpace(string(b))) > 0 {
+				fmt.Fprintln(os.Stderr, " - ERROR! Stop the VM before managing snapshots.")
+				os.Exit(1)
+			}
+		}
+		// --external/-external [desc]: qcow2 overlay chain instead of
+		// an internal qemu-img snapshot (snapshot_create_external).
+		for _, a := range args[3:] {
+			if a == "--external" || a == "-external" {
+				if op == "snapshot-create" {
+					desc := ""
+					for j, b := range args[3:] {
+						if b != "--external" && b != "-external" && (j == 0 || args[3+j-1] == "--external" || args[3+j-1] == "-external") {
+							desc = b
+							break
+						}
+					}
+					os.Exit(snapshotCreateExternal(dir, tag, desc, vmConfPath(dir)))
+				}
+				die("INVALID_ARGS", "--external only applies to snapshot-create")
+			}
+		}
 		disk := confDisk(dir)
 		if disk == "" {
 			die("NO_DISK", "no disk_img in "+dir)
@@ -300,6 +493,15 @@ func main() {
 			die("SNAPSHOT_FAILED", err.Error())
 		}
 		ok(fmt.Sprintf("{\"snapshot\":%q,\"op\":%q}", tag, op))
+	case "snapshot-tree":
+		os.Exit(snapshotTree(dir))
+	case "snapshot-verify":
+		os.Exit(snapshotVerify(dir))
+	case "snapshot-consolidate":
+		if len(args) < 3 {
+			die("INVALID_ARGS", "snapshot-consolidate needs a tag")
+		}
+		os.Exit(snapshotConsolidate(dir, args[2]))
 	case "snapshot-list":
 		sdir := filepath.Join(dir, ".snapshots")
 		ents, _ := filepath.Glob(filepath.Join(sdir, "*.json"))
@@ -323,6 +525,27 @@ func xdgData() string {
 		return v
 	}
 	return filepath.Join(os.Getenv("HOME"), ".local", "share")
+}
+
+// confGet: read a bare key="value" line from the VM's .conf.
+func confGet(dir, key string) string {
+	conf := vmConfPath(dir)
+	if conf == "" {
+		return ""
+	}
+	f, err := os.Open(conf)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
+		if strings.HasPrefix(line, key+"=") {
+			return strings.Trim(strings.SplitN(line, "=", 2)[1], `"'`)
+		}
+	}
+	return ""
 }
 
 func confDisk(dir string) string {
