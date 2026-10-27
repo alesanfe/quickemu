@@ -6,7 +6,7 @@ jobs:
   actionlint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - run: |
           wget -q https://github.com/rhysd/actionlint/releases/download/v1.7.9/actionlint_1.7.9_linux_amd64.tar.gz
           tar -xzf actionlint_*_linux_amd64.tar.gz actionlint
@@ -16,13 +16,13 @@ jobs:
     permissions:
       security-events: write
     steps:
-      - uses: actions/checkout@v7
-      - uses: zizmorcore/zizmor-action@v0.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: zizmorcore/zizmor-action@3aa7e2f1ad15075829ef5158ee06938ae12e1769  # v0.4.0
   osv-scanner:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: google/osv-scanner-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: google/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36  # v2.7.0
         with:
           scan-args: |-
             --skip-git

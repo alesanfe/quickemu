@@ -30,12 +30,14 @@ on:
 # TODO: arm64 runner
 # https://github.blog/changelog/2024-06-03-actions-arm-based-linux-and-windows-runners-are-now-in-public-beta/
 
+permissions:
+  contents: read
 jobs:
   test-deb-build:
     runs-on: ubuntu-22.04
     steps:
     - name: "Checkout 🥡"
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
     - name: "Build & Test .deb 🍥"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,11 +60,11 @@ jobs:
       contents: "read"
     steps:
       - name: "Checkout 🥡"
-        uses: "actions/checkout@v7"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: "Install Nix ❄️"
-        uses: "DeterminateSystems/nix-installer-action@v23"
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa  # v23
       - name: "Enable Magic Nix Cache 🪄"
-        uses: "DeterminateSystems/magic-nix-cache-action@v15"
+        uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7  # v15
       - name: "Build & Test .nix ❄️"
         run: |
           nix build .#quickemu

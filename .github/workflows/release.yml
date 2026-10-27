@@ -8,7 +8,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c8c92ee2c4c71f70f4824f1b2b3c4d5e6f7a8b  # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Generate SBOM
         run: bash scripts/gen-sbom.sh "${GITHUB_REF_NAME}" > sbom.json
       - name: Build tarball + checksums
@@ -16,7 +16,7 @@ jobs:
           tar -czf "quickemu-${GITHUB_REF_NAME}.tar.gz" bin lib libexec schemas spec docs AGENTS.md
           sha256sum "quickemu-${GITHUB_REF_NAME}.tar.gz" sbom.json > SHA256SUMS
       - name: Publish release
-        uses: softprops/action-gh-release@72f2c99fcb4768fed3efc4a12ce4c0d4ae7d90d3  # v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

@@ -68,7 +68,8 @@ function delete_vm() {
     if [ -d "${VMDIR}" ]; then
         if [ -n "${TRASH}" ]; then
             local TRASH_ROOT="${XDG_DATA_HOME:-${HOME}/.local/share}/quickemu/trash"
-            local SLOT="${TRASH_ROOT}/$(date -u +%Y%m%dT%H%M%SZ)-${VMNAME}"
+            local SLOT
+            SLOT="${TRASH_ROOT}/$(date -u +%Y%m%dT%H%M%SZ)-${VMNAME}"
             mkdir -p "${TRASH_ROOT}" || exit 1
             mkdir -p "${SLOT}/vm" || exit 1
             mv "${VMDIR}" "${SLOT}/vm/$(basename "${VMDIR}")" || { echo "ERROR! Could not move ${VMDIR} to trash." >&2; exit 1; }
@@ -214,7 +215,7 @@ function trash_restore() {
         echo "ERROR! Multiple trash entries for '${NAME}'; remove extras first." >&2
         return 1
     fi
-    SLOT="${ROOT}/$(ls -1 "${ROOT}" | grep -m1 -- "-${NAME}$")"
+    SLOT="${SLOT%/}"
     local SRC_DIR="${SLOT}/vm/${NAME}" SRC_CONF="${SLOT}/vm/${NAME}.conf" DEST_DIR
     DEST_DIR=$(dirname "${SRC_CONF}")/..
     # Restore next to where the conf lived? Simpler: restore into the conf's
@@ -851,7 +852,7 @@ vm_boot_channels() {
         args+=(-monitor unix:${SOCKET_MONITOR},server,nowait)
         # Machine control channel (QMP): structured state/commands, always
         # next to the HMP socket so both consoles stay available.
-        args+=(-qmp unix:${SOCKET_QMP},server,nowait)
+        args+=(-qmp "unix:${SOCKET_QMP},server,nowait")
         if command -v socat &>/dev/null; then
             echo " - Monitor:  On host:  socat -,echo=0,icanon=0 unix-connect:${SOCKET_MONITOR}"
         elif command -v nc &>/dev/null; then
@@ -1571,9 +1572,9 @@ function snapshot_list_json() {
 # their bound drivers and what gpu_passthrough would need. Read-only —
 # it never binds/unbinds devices.
 function vfio_scan() {
-    local IOMMU="absent" GROUPS=0 GPU_JSON="" FIRST=1 DEV DRIVER DESC CLASS
+    local IOMMU="absent" NGROUPS=0 GPU_JSON="" FIRST=1 DEV DRIVER DESC CLASS
     if [ -d /sys/kernel/iommu_groups ]; then
-        GROUPS=$(find /sys/kernel/iommu_groups -maxdepth 2 -name devices -type d 2>/dev/null | wc -l)
+        NGROUPS=$(find /sys/kernel/iommu_groups -maxdepth 2 -name devices -type d 2>/dev/null | wc -l)
         IOMMU="present"
     fi
     if command -v lspci >/dev/null 2>&1; then
@@ -1589,10 +1590,10 @@ function vfio_scan() {
     fi
     if [ "${OUTPUT_FORMAT:-}" == "json" ]; then
         qe_ok "vm.vfio.scan" "$(printf '{"iommu":"%s","iommuGroups":%s,"configuredPassthrough":"%s","devices":[%s]}' \
-            "${IOMMU}" "${GROUPS}" "$(json_escape "${gpu_passthrough:-}")" "${GPU_JSON}")"
+            "${IOMMU}" "${NGROUPS}" "$(json_escape "${gpu_passthrough:-}")" "${GPU_JSON}")"
     else
         echo "VFIO/IOMMU inventory:"
-        echo " - IOMMU groups: ${GROUPS} (${IOMMU})"
+        echo " - IOMMU groups: ${NGROUPS} (${IOMMU})"
         [ "${IOMMU}" == "absent" ] && echo "   -> Enable intel_iommu=on or amd_iommu=on in the kernel command line."
         command -v lspci >/dev/null 2>&1 || { echo " - lspci not available (install pciutils)."; return 0; }
         lspci -Dnn 2>/dev/null | grep -Ei "vga|3d controller|display controller" | while read -r LINE; do
@@ -1622,7 +1623,8 @@ function move_vm() {
     [ -d "${DEST}" ] || { echo "ERROR! Destination ${DEST} does not exist." >&2; return 1; }
     [ -e "${DEST}/${VMNAME}.conf" ] || [ -e "${DEST}/$(basename "${VMDIR}")" ] \
         && { echo "ERROR! ${VMNAME} already exists in ${DEST}." >&2; return 1; }
-    local OLD_DIR="${VMDIR}" NEW_DIR="${DEST}/$(basename "${VMDIR}")"
+    local OLD_DIR="${VMDIR}" NEW_DIR
+    NEW_DIR="${DEST}/$(basename "${VMDIR}")"
     if [ -d "${OLD_DIR}" ]; then
         mv "${OLD_DIR}" "${NEW_DIR}" || { echo "ERROR! Could not move ${OLD_DIR}." >&2; return 1; }
     fi

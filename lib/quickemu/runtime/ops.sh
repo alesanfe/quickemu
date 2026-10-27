@@ -145,7 +145,7 @@ op_rollback() {
             ;;
         clone|rename)
             # Partial clone/rename — remove the destination if it's incomplete
-            [ -d "${d}/.partial-"* ] && rm -rf "${d}/.partial-"* 2>/dev/null || true
+            rm -rf "${d}"/.partial-* 2>/dev/null || true
             ;;
         delete)
             # Move .trash back into place if present and destination missing

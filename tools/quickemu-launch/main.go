@@ -110,6 +110,11 @@ func main() {
 		accel = "tcg"
 		baseModel = "qemu64"
 	}
+	// User-forced TCG on a native x86 guest also drops to qemu64 —
+	// the `host` CPU model exists only under KVM (configure_cpu).
+	if accel == "tcg" && baseModel == "" && arch == "x86_64" {
+		baseModel = "qemu64"
+	}
 	if accel == "tcg" {
 		args = append(args, "-accel", "tcg,tb-size=256,thread=multi")
 		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off")

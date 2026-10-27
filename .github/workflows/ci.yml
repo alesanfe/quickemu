@@ -6,7 +6,7 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@08c8c92ee2c4c71f70f4824f1b2b3c4d5e6f7a8b  # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Install dependencies
         run: |
           sudo apt-get -y update
@@ -25,17 +25,32 @@ jobs:
         if: always()
         run: bash tools/metrics-trend.sh
       - name: Upload metrics history
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
           name: quality-history
           path: docs/quality/history.jsonl
 
+  bash-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - name: Install dependencies
+        run: sudo apt-get -y update && sudo apt-get -y install qemu-utils jq
+      - name: Bash entrypoints smoke test
+        run: |
+          bin/quickemu --help >/dev/null
+          bin/quickemu --version
+          bin/quickget --list | tail -5
+          bin/quickget --version 2>/dev/null || true
+          bash -n bin/quickemu bin/quickget bin/quickgetc bin/quickreport
+          echo "bash baseline OK"
+
   e2e:
     runs-on: ubuntu-latest
     needs: tests
     steps:
-      - uses: actions/checkout@08c8c92ee2c4c71f70f4824f1b2b3c4d5e6f7a8b  # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Install dependencies
         run: |
           sudo apt-get -y update

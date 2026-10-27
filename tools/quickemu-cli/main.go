@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -54,6 +55,16 @@ func tool(name string, args ...string) (string, error) {
 // only to trusted internal flows (hotplug), never to user QMP calls.
 func toolEnv(name string, env []string, args ...string) (string, error) {
 	bin, err := exec.LookPath(name)
+	if err != nil {
+		// Fall back to a sibling of this binary — lets an absolute-path
+		// invocation find the helper tools even off PATH.
+		if self, e := os.Executable(); e == nil {
+			sib := filepath.Join(filepath.Dir(self), name)
+			if _, e2 := os.Stat(sib); e2 == nil {
+				bin, err = sib, nil
+			}
+		}
+	}
 	if err != nil {
 		return "", fmt.Errorf("%s: not on PATH", name)
 	}
@@ -109,6 +120,8 @@ func alive(pid int) bool {
 	p, err := os.FindProcess(pid)
 	return err == nil && p.Signal(syscall.Signal(0)) == nil
 }
+
+func vmRunning() bool { return alive(readPID()) }
 
 func paused() bool {
 	_, err := os.Stat(filepath.Join(vmdir(), vmname()+".paused"))
@@ -400,10 +413,263 @@ func actStop(force bool) int {
 }
 
 func actLaunch() int {
-	conf := applyOverrides()
-	out, err := tool("quickemu-launch", conf, "--run")
+	// viewer_param_check (launch path only — skipped on --dry-run):
+	// viewer must be none|spicy|remote-viewer and the binary installed.
+	conf := confKV()
+	get := func(k string) string {
+		if v := confOpts[k]; v != "" {
+			return v
+		}
+		return conf[k]
+	}
+	viewer := get("viewer")
+	if viewer == "" {
+		viewer = "spicy"
+	}
+	switch viewer {
+	case "none", "spicy", "remote-viewer":
+	default:
+		fmt.Fprintf(os.Stderr, "ERROR! Requested viewer '%s' is not recognised.\n", viewer)
+		return 1
+	}
+	if viewer != "none" {
+		if _, err := exec.LookPath(viewer); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! Requested '%s' as viewer, but '%s' is not installed.\n", viewer, viewer)
+			return 1
+		}
+	}
+	out, err := tool("quickemu-launch", applyOverrides(), "--run")
 	fmt.Print(out)
-	return rc(err)
+	if err != nil {
+		return 1
+	}
+	startViewer(get)
+	// Auto-skip the press-any-key prompt on uninstalled Windows guests.
+	if get("iso") != "" && strings.HasPrefix(get("guest_os"), "windows") {
+		for i := 0; i < 5; i++ {
+			time.Sleep(1 * time.Second)
+			monitorSendBest("sendkey ret")
+		}
+	}
+	// monitor_cmd conf key: Bash sends it after every boot.
+	if mc := get("monitor_cmd"); mc != "" && extra["monitor-cmd"] == "" {
+		monitorSendBest(mc)
+	}
+	return 0
+}
+
+// monitorSendBest: try the raw monitor socket first, then QMP hmp —
+// used for post-boot commands where either channel may be up.
+func monitorSendBest(msg string) {
+	sock := filepath.Join(vmdir(), vmname()+"-monitor.socket")
+	if _, err := os.Stat(sock); err == nil {
+		if _, err := monitorSend("unix", sock, msg); err == nil {
+			return
+		}
+	}
+	hmp(msg)
+}
+
+// startViewer: start_viewer parity — attach spicy/remote-viewer when
+// display=spice. Unix socket (path in .spice or default <vm>.sock for
+// local access) or TCP (port in .spice / spice_port for remote).
+func startViewer(get func(string) string) {
+	viewer := get("viewer")
+	if viewer == "" {
+		viewer = "spicy"
+	}
+	if viewer == "none" || get("display") != "spice" {
+		return
+	}
+	bin, err := exec.LookPath(viewer)
+	if err != nil {
+		return
+	}
+	var args []string
+	spiceInfo := ""
+	if b, err := os.ReadFile(filepath.Join(vmdir(), vmname()+".spice")); err == nil {
+		spiceInfo = strings.TrimSpace(string(b))
+	}
+	switch {
+	case strings.Contains(spiceInfo, "/"):
+		if viewer == "spicy" {
+			args = append(args, "--uri=spice+unix://"+spiceInfo)
+		} else {
+			args = append(args, "spice+unix://"+spiceInfo)
+		}
+	case spiceInfo != "":
+		if viewer == "spicy" {
+			args = append(args, "--port", spiceInfo)
+		} else {
+			args = append(args, "spice://localhost:"+spiceInfo)
+		}
+	default:
+		access := get("access")
+		if access == "" || access == "local" {
+			sock := filepath.Join(vmdir(), vmname()+".sock")
+			if viewer == "spicy" {
+				args = append(args, "--uri=spice+unix://"+sock)
+			} else {
+				args = append(args, "spice+unix://"+sock)
+			}
+		} else {
+			port := get("spice_port")
+			if viewer == "spicy" {
+				args = append(args, "--port", port)
+			} else {
+				args = append(args, "spice://localhost:"+port)
+			}
+		}
+	}
+	args = append(args, "--title", vmname())
+	if get("guest_os") != "macos" {
+		if pub := get("public_dir"); pub != "" {
+			args = append(args, "--spice-shared-dir", pub)
+		}
+	}
+	if get("fullscreen") == "true" || get("fullscreen") == "on" {
+		args = append(args, "--full-screen")
+	}
+	cmd := exec.Command(bin, args...)
+	cmd.Start() // detached — viewer outlives the CLI process
+}
+
+// actSpiceConsole: spice-console parity target — attach the configured
+// SPICE viewer to an already-running VM (start_viewer on attach).
+func actSpiceConsole() int {
+	if !vmRunning() {
+		fmt.Fprintf(os.Stderr, "ERROR! %s is not running — no SPICE session to attach to.\n", vmname())
+		return 1
+	}
+	conf := confKV()
+	get := func(k string) string {
+		if v := confOpts[k]; v != "" {
+			return v
+		}
+		return conf[k]
+	}
+	if get("display") != "spice" && get("display") != "spice-app" {
+		fmt.Fprintln(os.Stderr, "ERROR! VM display is '"+get("display")+"' — spice-console needs display=spice.")
+		return 1
+	}
+	startViewer(get)
+	fmt.Println(" - Viewer:   attached to " + vmname())
+	return 0
+}
+
+// actVNC: vnc parity target — open a VNC client against a running VM
+// configured with display=vnc. vnc_listen is host:display (display N
+// maps to TCP 5900+N, same arithmetic as QEMU -vnc).
+func actVNC() int {
+	if !vmRunning() {
+		fmt.Fprintf(os.Stderr, "ERROR! %s is not running — no VNC session to attach to.\n", vmname())
+		return 1
+	}
+	conf := confKV()
+	if conf["display"] != "vnc" {
+		fmt.Fprintln(os.Stderr, "ERROR! VM display is '"+conf["display"]+"' — vnc needs display=vnc.")
+		return 1
+	}
+	listen := conf["vnc_listen"]
+	if listen == "" {
+		listen = "127.0.0.1:0" // bin/quickemu default
+	}
+	host, disp := listen, "0"
+	if i := strings.LastIndex(listen, ":"); i >= 0 {
+		host, disp = listen[:i], listen[i+1:]
+	}
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	d, err := strconv.Atoi(disp)
+	if err != nil || d < 0 || d > 99 {
+		fmt.Fprintf(os.Stderr, "ERROR! '%s' is not a valid VNC listen address (expected host:display).\n", listen)
+		return 1
+	}
+	port := strconv.Itoa(5900 + d)
+	// remote-viewer understands vnc:// URIs; plain vncviewer wants host::port.
+	for _, cand := range []string{"remote-viewer", "vncviewer", "xtightvncviewer", "gvncviewer"} {
+		if bin, err := exec.LookPath(cand); err == nil {
+			var c *exec.Cmd
+			if cand == "remote-viewer" {
+				c = exec.Command(bin, "vnc://"+host+":"+port)
+			} else {
+				c = exec.Command(bin, host+"::"+port)
+			}
+			fmt.Println(" - VNC:      attaching " + cand + " to " + host + ":" + port)
+			c.Start()
+			return 0
+		}
+	}
+	fmt.Fprintln(os.Stderr, "ERROR! No VNC viewer found (remote-viewer, vncviewer, xtightvncviewer, gvncviewer).")
+	fmt.Fprintln(os.Stderr, " - VNC:      VM listens on "+host+":"+port)
+	return 1
+}
+
+// actPublicDir: open the VM's public_dir in the host file manager,
+// creating it if needed — the 'publicdir' subcommand.
+func actPublicDir() int {
+	conf := confKV()
+	pub := conf["public_dir"]
+	if pub == "" {
+		fmt.Fprintln(os.Stderr, "ERROR! public_dir is not set in "+vmname()+" config.")
+		return 1
+	}
+	if !filepath.IsAbs(pub) {
+		pub = filepath.Join(vmdir(), pub)
+	}
+	if err := os.MkdirAll(pub, 0755); err != nil {
+		fmt.Fprintln(os.Stderr, "ERROR! Cannot create "+pub+": "+err.Error())
+		return 1
+	}
+	opener := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		opener = "open"
+	}
+	bin, err := exec.LookPath(opener)
+	if err != nil {
+		fmt.Println(" - Public:   " + pub) // no file manager — still give the path
+		return 0
+	}
+	exec.Command(bin, pub).Start()
+	fmt.Println(" - Public:   " + pub)
+	return 0
+}
+
+// actTelnet: interactive attach to a QEMU telnet chardev — used for
+// serial-console (serial=telnet) and monitor-console (monitor=telnet).
+func actTelnet(kind string) int {
+	if !vmRunning() {
+		fmt.Fprintf(os.Stderr, "ERROR! %s is not running.\n", vmname())
+		return 1
+	}
+	conf := confKV()
+	if conf[kind] != "telnet" {
+		fmt.Fprintf(os.Stderr, "ERROR! %s is '%s' — attach needs %s=telnet.\n", kind, conf[kind], kind)
+		return 1
+	}
+	host := conf[kind+"_telnet_host"]
+	if host == "" {
+		host = "localhost"
+	}
+	port := conf[kind+"_telnet_port"]
+	if port == "" {
+		if kind == "monitor" {
+			port = "4440"
+		} else {
+			port = "6660"
+		}
+	}
+	bin, err := exec.LookPath("telnet")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "ERROR! telnet client not installed — connect manually:")
+		fmt.Fprintln(os.Stderr, "       telnet "+host+" "+port)
+		return 1
+	}
+	fmt.Println(" - " + strings.ToUpper(kind[:1]) + kind[1:] + ":   telnet " + host + " " + port)
+	cmd := exec.Command(bin, host, port)
+	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
+	return rc(cmd.Run())
 }
 
 func actDryRun() int {
@@ -593,6 +859,16 @@ func dispatch(act string) func() int {
 		return vmOp("delete-plan", vmdir(), "--format", outFmt)
 	case "ignore_msrs_always":
 		return actIgnoreMSRsAlways
+	case "spice_console":
+		return actSpiceConsole
+	case "vnc_viewer":
+		return actVNC
+	case "publicdir_open":
+		return actPublicDir
+	case "serial_console":
+		return func() int { return actTelnet("serial") }
+	case "monitor_console":
+		return func() int { return actTelnet("monitor") }
 	}
 	return nil
 }
@@ -1275,6 +1551,7 @@ Actions: --start --dry-run|--echo --status --status-quo --pause --resume
   --trash-empty --trash-restore <vm> --snapshot <act> [tag] --external
   --snapshot-tree --snapshot-verify --monitor-cmd <c> --send-keys <k>
   --type <t> --screenshot [f] --disk-compact --disk-resize <sz>
+  --spice-console --vnc --publicdir --serial-console --monitor-console
   --hotplug-usb <v:p> --hotplug-disk <f> --hotunplug <id> --persist
   --autostart --shortcut --delete-shortcut --doctor|--check --fix
   --delete-plan --plan-id <id> --inspect-conf --migrate-conf --stats
@@ -1285,12 +1562,39 @@ Conf overrides: --display --viewer --width --height --ssh-port
   --sound-card --public-dir --profile --offline --format json|text`)
 }
 
+// subcommandAliases: options.sh line-16 parity — `quickemu status
+// --vm x` is rewritten to `quickemu --status --vm x`. Unknown bare
+// words fall through to the normal unknown-parameter error.
+var subcommandAliases = map[string]bool{
+	"status": true, "vfio-scan": true, "disk-compact": true, "move": true,
+	"pause": true, "resume": true, "reset": true, "shutdown": true,
+	"kill": true, "restart": true, "delete-vm": true, "delete-plan": true,
+	"list-vms": true, "capabilities": true, "host-info": true,
+	"migrate-conf": true, "inspect-conf": true, "backup": true,
+	"backup-list": true, "trash": true, "trash-list": true, "clone": true,
+	"rename": true, "snapshot-apply": true, "snapshot-create": true,
+	"snapshot-delete": true, "snapshot-info": true, "snapshot-list": true,
+	"monitor-cmd": true, "send-keys": true, "type": true, "screenshot": true,
+	"viewer": true, "fullscreen": true, "status-quo": true, "vnc": true,
+	"spice-console": true, "publicdir": true, "serial-console": true,
+	"monitor-console": true, "ignore-msrs": true,
+	"ignore-msrs-always": true, "create-disk": true, "disk-resize": true,
+	"disk-resize-commit": true, "backup-verify": true, "backup-restore": true,
+	"trash-restore": true, "op-status": true, "operation-status": true,
+	"operation-list": true, "operation-cancel": true, "op-watch": true,
+	"operation-watch": true, "op-list": true,
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(2)
 	}
 	args := os.Args[1:]
+	// Subcommand alias: `quickemu <action> ...` -> `quickemu --<action>`.
+	if !strings.HasPrefix(args[0], "-") && subcommandAliases[args[0]] {
+		args[0] = "--" + args[0]
+	}
 	// Normalise: Bash accepts -flag and --flag equally, plus --flag=value.
 	var norm []string
 	for _, a := range args {
@@ -1533,6 +1837,16 @@ func main() {
 			confOpts["serial"] = val()
 		case "--viewer":
 			confOpts["viewer"] = val()
+		case "--spice-console":
+			actions = append(actions, "spice_console")
+		case "--vnc":
+			actions = append(actions, "vnc_viewer")
+		case "--publicdir":
+			actions = append(actions, "publicdir_open")
+		case "--serial-console":
+			actions = append(actions, "serial_console")
+		case "--monitor-console":
+			actions = append(actions, "monitor_console")
 		case "--fullscreen", "--full-screen":
 			confOpts["fullscreen"] = "true"
 		case "--braille":

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: Install test dependencies
         run: |
           sudo apt-get update
@@ -30,7 +30,7 @@ jobs:
           pgrep -af 'socat|qemu-system|shellspec' && exit 1 || true
       - name: Upload failing spec logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: spec-artifacts
           path: .spec-artifacts/
@@ -38,13 +38,13 @@ jobs:
   specs-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: run bash-only specs on macOS
         run: |
           ./shellspec-0.28.1/shellspec spec/resilience/ spec/unit/cli/             spec/unit/planning/ spec/unit/config/
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: function->spec coverage report
         run: bash tools/coverage.sh

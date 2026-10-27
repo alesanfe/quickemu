@@ -68,3 +68,7 @@ tools/quickemu-proc/proc
 tools/quickemu-qmp/qmp
 tools/quickemu-toml/toml
 tools/quickgetc/quickgetc
+
+# Go coverage artifacts (CI uploads them, never commit)
+tools/*/coverage.out
+tools/quickget-cli/quickget-cli

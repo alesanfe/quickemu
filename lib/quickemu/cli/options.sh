@@ -273,10 +273,6 @@ else
             DISK_SIZE_ARG="${2}"
             shift 2
             ;;
-        -disk-compact | --disk-compact)
-            ACTIONS+=(disk_compact)
-            shift
-            ;;
         -export | --export)
             ACTIONS+=(export_vm)
             EXPORT_FILE="${2}"

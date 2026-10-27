@@ -11,7 +11,7 @@
 | archive import | `lib/quickemu/vm/disk.sh` (import part) | `quickemu-archive` | ✅ **100%** — tar-slip validation + extract |
 | toml config | `lib/quickemu/config/toml.sh` | `quickemu-toml` | ✅ **100%** — parse/validate |
 | api daemon | `quickemu-api.sh` | `quickemu-api` | ✅ **100%** — state/ops/start/stop/pause/resume/kill/reset |
-| **unified CLI** | `bin/quickemu` + `lib/quickemu/cli/*.sh` | `quickemu-cli` | ✅ core — same flag surface: lifecycle (start/dry-run/status/pause/resume/shutdown/reset/stop/kill/restart), list-vms (text+JSON), snapshots/backup/clone/rename/move/trash/disk ops via quickemu-vm, monitor-cmd/send-keys/type/screenshot via quickemu-qmp HMP, op-* via quickemu-ops, conf overrides (--display/--access/--public-dir/--fullscreen/--braille/--keyboard-layout/--cpu-pinning/--extra-args) materialised into a temp conf |
+| **unified CLI** | `bin/quickemu` + `lib/quickemu/cli/*.sh` | `quickemu-cli` | ✅ core — same flag surface: lifecycle (start/dry-run/status/pause/resume/shutdown/reset/stop/kill/restart), list-vms (text+JSON), snapshots/backup/clone/rename/move/trash/disk ops via quickemu-vm, monitor-cmd/send-keys/type/screenshot via quickemu-qmp HMP, op-* via quickemu-ops, conf overrides (--display/--access/--public-dir/--fullscreen/--braille/--keyboard-layout/--cpu-pinning/--extra-args) materialised into a temp conf. **Attach actions**: `vnc` (VNC client at vnc_listen, 5900+display), `spice-console` (viewer attach to running VM, same URI rules as start_viewer), `publicdir` (xdg-open public_dir), `serial-console`/`monitor-console` (interactive telnet attach) — all meaningful where Bash has dead aliases |
 | **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | ✅ **100%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers + **3 scrape-OSes (cachyos/manjaro/reactos) nativos en scrape.go** |
 
 ## Go catalog detail
@@ -126,7 +126,14 @@ dispatches every action to a Go backend tool:
 ## Verification
 
 ```bash
-tools/build-go.sh        # builds all 14 binaries
+tools/build-go.sh        # builds all 15 binaries
+tools/go-check.sh        # vet + test -race -coverprofile + build, all modules
 tools/run-go-tests.sh    # go test -race -cover per package
 tools/compare-backends.sh  # zero divergences on extracted subsystems
 ```
+
+E2E (real QEMU, TCG): `spec/e2e/go_cli_boot_spec.sh` boots a VM via
+`quickemu-cli`, checks pidfile/QMP/status running, pause→resume,
+`--monitor-cmd` HMP round-trip, QMP allowlist (query-* ok, `quit`
+denied without `QUICKEMU_QMP_RAW=1`), and clean `--stop` teardown.
+Skip-gated when qemu-system-*/go are unavailable.

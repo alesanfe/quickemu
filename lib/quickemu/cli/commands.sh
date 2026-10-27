@@ -401,8 +401,8 @@ host_info() {
     local QE_VER
     QE_VER=$(${QEMU:-qemu-system-x86_64} --version 2>/dev/null | head -1)
     local OVMF="false" AAVMF="false"
-    ls /usr/share/OVMF*/OVMF_CODE.fd /usr/share/edk2/ovmf/OVMF_CODE.fd 2>/dev/null | grep -q . && OVMF="true"
-    ls /usr/share/AAVMF* /usr/share/edk2/aarch64/QEMU_EFI.fd 2>/dev/null | grep -q . && AAVMF="true"
+    { compgen -G "/usr/share/OVMF*/OVMF_CODE.fd" || compgen -G "/usr/share/edk2/ovmf/OVMF_CODE.fd"; } >/dev/null && OVMF="true"
+    { compgen -G "/usr/share/AAVMF*" || compgen -G "/usr/share/edk2/aarch64/QEMU_EFI.fd"; } >/dev/null && AAVMF="true"
     local FREE_HUGE
     FREE=$(df -k "${XDG_DATA_HOME:-$HOME/.local/share}" 2>/dev/null | awk 'NR==2{print $4}')
     HUGE=$(awk '/HugePages_Total/{print $2}' /proc/meminfo 2>/dev/null || echo 0)

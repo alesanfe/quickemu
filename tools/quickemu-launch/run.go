@@ -16,7 +16,7 @@ import (
 
 func runQEMU(confPath string, args []string) error {
 	dir := filepath.Dir(confPath)
-	name := filepath.Base(dir)
+	name := strings.TrimSuffix(filepath.Base(confPath), filepath.Ext(confPath))
 	// launch script (execution artifact, same as bash)
 	script := filepath.Join(dir, name+".sh")
 	scriptBody := "#!/usr/bin/env bash\n" + strings.Join(args, " \\n    ") + " 2>/dev/null\n"
