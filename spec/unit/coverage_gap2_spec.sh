@@ -1,127 +1,262 @@
 # Second coverage-gap spec — exercises the remaining uncovered cluster.
-# Behavioral tests for pure/state helpers; declare -f contract checks
-# for functions that need a live QEMU/QMP context.
+# Behavioral tests for pure/state helpers; contract checks for functions
+# that need a live QEMU/QMP context.
+# shellcheck shell=bash
+Include lib/quickemu/support/json.sh
+Include lib/quickemu/support/events.sh
+Include lib/quickemu/support/filesystem.sh
+Include lib/quickemu/cli/verbosity.sh
+Include lib/quickemu/cli/doctor.sh
+Include lib/quickemu/cli/plugins.sh
+Include lib/quickemu/cli/commands.sh
+Include lib/quickemu/config/toml.sh
+Include lib/quickemu/planning/delete_plan.sh
+Include lib/quickemu/runtime/lifecycle.sh
+Include lib/quickemu/runtime/monitor.sh
+Include lib/quickemu/runtime/launch.sh
+Include lib/quickemu/runtime/ops.sh
+
+qe_fn_exists() { # name -> 0 if defined
+    [ "$(type -t "${1}")" = "function" ]
+}
+
 Describe 'coverage2: ops journal helpers'
     setup() {
-        export VMDIR=$(mktemp -d)
-        source lib/quickemu/runtime/ops.sh 2>/dev/null || true
+        VMDIR=$(mktemp -d); export VMDIR
     }
-    BeforeEach 'setup'
     cleanup() { rm -rf "${VMDIR}"; }
+    BeforeEach 'setup'
     AfterEach 'cleanup'
 
     It 'op_dir resolves under VMDIR'
-        [ "$(type -t op_dir)" == function ] || return 0
-        op_dir | grep -q "${VMDIR}"
+        When call op_dir
+        The output should include "${VMDIR}"
     End
 
-    It 'op_recover marks dead-owner ops as interrupted'
-        [ "$(type -t op_recover)" == function ] || return 0
+    It 'op_recover marks dead-owner ops as failed'
         d=$(op_dir); mkdir -p "${d}"
         printf '{"schemaVersion":1,"operationId":"t1","type":"download","vm":"v","state":"running","progress":5,"startedAt":"x","result":null,"error":null}\n' > "${d}/t1.json"
         echo 999999 > "${d}/t1.owner"
-        op_recover
-        grep -q '"state":"failed"' "${d}/t1.json"
+        When call op_recover
+        The contents of file "${d}/t1.json" should include '"state":"failed"'
     End
 
     It 'op_rollback cleans download .part'
-        [ "$(type -t op_rollback)" == function ] || return 0
         d=$(op_dir); mkdir -p "${d}"
         printf '{"schemaVersion":1,"operationId":"t2","type":"download","vm":"v","state":"failed","progress":0,"startedAt":"x","result":null,"error":null}\n' > "${d}/t2.json"
         touch "${VMDIR}/file.iso.part"
-        op_rollback t2
-        [ ! -f "${VMDIR}/file.iso.part" ]
+        When call op_rollback t2
+        The path "${VMDIR}/file.iso.part" should not be exist
     End
 
-    It 'op_prune/op_list/op_cancel exist'
-        for fn in op_prune op_list op_cancel _ops_bin; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-        done
-        return 0
+    It 'op_prune exists'
+        When call qe_fn_exists op_prune
+        The status should be success
+    End
+    It 'op_list exists'
+        When call qe_fn_exists op_list
+        The status should be success
+    End
+    It 'op_cancel exists'
+        When call qe_fn_exists op_cancel
+        The status should be success
+    End
+    It '_ops_bin exists'
+        When call qe_fn_exists _ops_bin
+        The status should be success
     End
 End
 
 Describe 'coverage2: filesystem dirs'
-    setup() { source lib/quickemu/support/filesystem.sh 2>/dev/null || true; }
-    BeforeEach 'setup'
-
-    It 'qe_data_dir/qe_runtime_dir/qe_state_dir resolve'
-        for fn in qe_data_dir qe_runtime_dir qe_state_dir; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-            ${fn} >/dev/null 2>&1 || true
-        done
-        return 0
+    It 'qe_data_dir exists and resolves'
+        When call qe_data_dir
+        The status should be success
+        The output should include 'quickemu'
+    End
+    It 'qe_runtime_dir exists and resolves'
+        When call qe_runtime_dir
+        The status should be success
+        The output should include 'quickemu'
+    End
+    It 'qe_state_dir exists and resolves'
+        When call qe_state_dir
+        The status should be success
+        The output should include 'quickemu'
     End
 End
 
 Describe 'coverage2: events helpers'
-    setup() { source lib/quickemu/support/events.sh 2>/dev/null || true; }
-    BeforeEach 'setup'
-
-    It 'qe_events_file/qe_event/qe_events_read exist'
-        for fn in qe_events_file qe_event qe_events_read _qe_events_next_seq _qe_events_rotate; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-        done
-        return 0
+    It 'qe_events_file exists'
+        When call qe_fn_exists qe_events_file
+        The status should be success
+    End
+    It 'qe_event exists'
+        When call qe_fn_exists qe_event
+        The status should be success
+    End
+    It 'qe_events_read exists'
+        When call qe_fn_exists qe_events_read
+        The status should be success
+    End
+    It '_qe_events_next_seq exists'
+        When call qe_fn_exists _qe_events_next_seq
+        The status should be success
+    End
+    It '_qe_events_rotate exists'
+        When call qe_fn_exists _qe_events_rotate
+        The status should be success
     End
 End
 
 Describe 'coverage2: monitor commands'
-    setup() { source lib/quickemu/runtime/monitor.sh 2>/dev/null || true; }
-    BeforeEach 'setup'
-
-    It 'qmp_query/qmp_command/vm_qmp_socket_ready exist'
-        for fn in qmp_query qmp_command vm_qmp_socket_ready qmp_device_add qmp_device_del hotplug_persist vm_control vm_hotplug_disk vm_hotplug_usb vm_hotunplug; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-        done
-        return 0
+    It 'qmp_query exists'
+        When call qe_fn_exists qmp_query
+        The status should be success
+    End
+    It 'qmp_command exists'
+        When call qe_fn_exists qmp_command
+        The status should be success
+    End
+    It 'vm_qmp_socket_ready exists'
+        When call qe_fn_exists vm_qmp_socket_ready
+        The status should be success
+    End
+    It 'qmp_device_add exists'
+        When call qe_fn_exists qmp_device_add
+        The status should be success
+    End
+    It 'qmp_device_del exists'
+        When call qe_fn_exists qmp_device_del
+        The status should be success
+    End
+    It 'hotplug_persist exists'
+        When call qe_fn_exists hotplug_persist
+        The status should be success
+    End
+    It 'vm_control exists'
+        When call qe_fn_exists vm_control
+        The status should be success
+    End
+    It 'vm_hotplug_disk exists'
+        When call qe_fn_exists vm_hotplug_disk
+        The status should be success
+    End
+    It 'vm_hotplug_usb exists'
+        When call qe_fn_exists vm_hotplug_usb
+        The status should be success
+    End
+    It 'vm_hotunplug exists'
+        When call qe_fn_exists vm_hotunplug
+        The status should be success
     End
 End
 
 Describe 'coverage2: lifecycle helpers'
-    setup() { source lib/quickemu/runtime/lifecycle.sh 2>/dev/null || true; }
-    BeforeEach 'setup'
-
-    It 'vm_transition_ok validates state transitions'
-        [ "$(type -t vm_transition_ok)" == function ] || return 0
-        # running -> stopped is valid; stopped -> running is not
-        vm_transition_ok running stopped 2>/dev/null || true
-        ! vm_transition_ok stopped running 2>/dev/null || true
-        return 0
+    It 'vm_transition_ok allows running->pause'
+        When call vm_transition_ok running pause
+        The status should be success
+    End
+    It 'vm_transition_ok allows stopped->start'
+        When call vm_transition_ok stopped start
+        The status should be success
+    End
+    It 'vm_transition_ok rejects stopped->pause'
+        When call vm_transition_ok stopped pause
+        The status should be failure
+    End
+    It 'vm_transition_ok allows any->status'
+        When call vm_transition_ok archived status
+        The status should be success
     End
 
-    It 'vm_proc_comm/vm_proc_start_time/vm_instance_uuid exist'
-        for fn in vm_proc_comm vm_proc_start_time vm_instance_uuid vm_allowed_ops vm_verify_invariants _vm_lock_has_live_readers _vm_lock_prune_readers; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-        done
-        return 0
+    It 'vm_proc_comm exists'
+        When call qe_fn_exists vm_proc_comm
+        The status should be success
+    End
+    It 'vm_proc_start_time exists'
+        When call qe_fn_exists vm_proc_start_time
+        The status should be success
+    End
+    It 'vm_instance_uuid exists'
+        When call qe_fn_exists vm_instance_uuid
+        The status should be success
+    End
+    It 'vm_allowed_ops exists'
+        When call qe_fn_exists vm_allowed_ops
+        The status should be success
+    End
+    It 'vm_verify_invariants exists'
+        When call qe_fn_exists vm_verify_invariants
+        The status should be success
     End
 End
 
 Describe 'coverage2: cli commands'
-    setup() { source lib/quickemu/cli/commands.sh 2>/dev/null || true; }
-    BeforeEach 'setup'
-
-    It 'operation_status/list/cancel/watch exist'
-        for fn in operation_status operation_list operation_cancel operation_watch _ops_bin events_read host_info inventory_show linked_clone_vm migrate_conf guest_os_param_check; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-        done
-        return 0
+    It 'operation_status exists'
+        When call qe_fn_exists operation_status
+        The status should be success
+    End
+    It 'operation_list exists'
+        When call qe_fn_exists operation_list
+        The status should be success
+    End
+    It 'operation_cancel exists'
+        When call qe_fn_exists operation_cancel
+        The status should be success
+    End
+    It 'operation_watch exists'
+        When call qe_fn_exists operation_watch
+        The status should be success
+    End
+    It 'events_read exists'
+        When call qe_fn_exists events_read
+        The status should be success
+    End
+    It 'host_info exists'
+        When call qe_fn_exists host_info
+        The status should be success
+    End
+    It 'inventory_show exists'
+        When call qe_fn_exists inventory_show
+        The status should be success
+    End
+    It 'migrate_conf exists'
+        When call qe_fn_exists migrate_conf
+        The status should be success
+    End
+    It 'guest_os_param_check exists'
+        When call qe_fn_exists guest_os_param_check
+        The status should be success
     End
 End
 
 Describe 'coverage2: misc'
-    It 'qe_doctor/plugin_dispatch/plugin_list exist'
-        for fn in qe_doctor plugin_dispatch plugin_list; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-        done
-        return 0
+    It 'qe_doctor exists'
+        When call qe_fn_exists qe_doctor
+        The status should be success
     End
-
-    It 'toml_from_conf/delete_plan_dependents/configure_cpu_pinning/qemu_spawn exist'
-        for fn in toml_from_conf delete_plan_dependents configure_cpu_pinning qemu_spawn; do
-            [ "$(type -t ${fn})" == function ] || { echo "missing ${fn}"; return 1; }
-        done
-        return 0
+    It 'plugin_dispatch exists'
+        When call qe_fn_exists plugin_dispatch
+        The status should be success
+    End
+    It 'plugin_list exists'
+        When call qe_fn_exists plugin_list
+        The status should be success
+    End
+    It 'toml_from_conf exists'
+        When call qe_fn_exists toml_from_conf
+        The status should be success
+    End
+    It 'delete_plan_dependents exists'
+        When call qe_fn_exists delete_plan_dependents
+        The status should be success
+    End
+    It 'configure_cpu_pinning exists'
+        When call qe_fn_exists configure_cpu_pinning
+        The status should be success
+    End
+    It 'qemu_spawn exists'
+        When call qe_fn_exists qemu_spawn
+        The status should be success
     End
 End

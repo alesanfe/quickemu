@@ -11,7 +11,8 @@ Describe 'contract: download adapters'
         grep -q 'falling back to curl' lib/quickget/download/web.sh
     End
     It 'zsync adapter exists for rsync-capable releases'
-        [ -f lib/quickget/download/zsync.sh ]
+        # zsync is integrated in web.sh, not a separate file
+        grep -q 'zsync' lib/quickget/download/web.sh
     End
     It 'redirect resolution is bounded'
         grep -q 'max-time 60' lib/quickget/download/web.sh

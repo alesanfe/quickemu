@@ -8,6 +8,12 @@ Describe 'parity: bash vs go structured output'
         # top-level keys. We compare schema shape, not exact values
         # (timestamps, operationIds differ legitimately).
         bash_out=$(OUTPUT_FORMAT=json bash -c 'cd '"${PWD}"' && source lib/quickemu/support/json.sh 2>/dev/null; qe_ok vm.test "{}"' 2>/dev/null | head -1)
+        # No Go binary → nothing to compare; a missing tool must not
+        # report a pass or a fail.
+        if [ -z "${GO_BIN:-}" ] || [ ! -x "${GO_BIN:-/nonexistent}" ]; then
+            Pending 'GO_BIN not set — cannot compare parity'
+            return 0
+        fi
         go_out=$("${GO_BIN}" status --format json 2>/dev/null | head -1 || echo "n/a")
         [ "${go_out}" == "n/a" ] && { echo "go binary produced no output"; return 0; }
         bash_keys=$(echo "${bash_out}" | grep -oE '"[a-zA-Z]+":' | sort -u)
