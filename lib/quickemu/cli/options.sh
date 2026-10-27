@@ -139,15 +139,18 @@ else
             shift
             ;;
         -hotplug-usb | --hotplug-usb)
-            ACTIONS+=(vm_hotplug_usb "${2}")
+            HOTPLUG_USB="${2}"
+            ACTIONS+=(vm_hotplug_usb)
             shift 2
             ;;
         -hotplug-disk | --hotplug-disk)
-            ACTIONS+=(vm_hotplug_disk "${2}")
+            HOTPLUG_DISK="${2}"
+            ACTIONS+=(vm_hotplug_disk)
             shift 2
             ;;
         -hotunplug | --hotunplug)
-            ACTIONS+=(vm_hotunplug "${2}")
+            HOTUNPLUG_ID="${2}"
+            ACTIONS+=(vm_hotunplug)
             shift 2
             ;;
         -backup-prune | --backup-prune)

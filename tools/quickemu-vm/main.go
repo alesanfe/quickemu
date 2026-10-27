@@ -654,6 +654,9 @@ func confDisk(dir string) string {
 		if strings.HasPrefix(line, "disk_img=") {
 			v := strings.SplitN(line, "=", 2)[1]
 			v = strings.Trim(v, `\"'`)
+			if filepath.IsAbs(v) {
+				return v
+			}
 			return filepath.Join(dir, v)
 		}
 	}

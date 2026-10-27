@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -166,7 +167,13 @@ func alive(pid int) bool {
 		return false
 	}
 	p, err := os.FindProcess(pid)
-	return err == nil && p.Signal(syscall.Signal(0)) == nil
+	if err != nil {
+		return false
+	}
+	err = p.Signal(syscall.Signal(0))
+	// EPERM means the process exists but belongs to another user —
+	// still alive; a foreign owner's lock must never be reclaimed.
+	return err == nil || errors.Is(err, syscall.EPERM)
 }
 
 // vmLockAcquire/vmLockRelease: vm_lock_* parity — mkdir-based
@@ -187,18 +194,28 @@ func vmLockAcquire() bool {
 				[]byte(strconv.Itoa(os.Getpid())), 0644)
 			return true
 		}
-		// Reclaim a dead writer (crash-safe, like Bash's kill -0 check).
+		// Reclaim a dead writer (crash-safe, like Bash's kill -0 check)
+		// then retry the mkdir immediately — a reclaimed lock is
+		// ours to take, not a reason to fail this attempt.
 		if b, err := os.ReadFile(filepath.Join(lockDir, "pid")); err == nil {
 			if owner, _ := strconv.Atoi(strings.TrimSpace(string(b))); owner > 0 && !alive(owner) {
 				os.RemoveAll(lockDir)
-				continue
+				if err := os.Mkdir(lockDir, 0755); err == nil {
+					os.WriteFile(filepath.Join(lockDir, "pid"),
+						[]byte(strconv.Itoa(os.Getpid())), 0644)
+					return true
+				}
 			}
 		} else if st, err := os.Stat(lockDir); err == nil &&
 			time.Since(st.ModTime()) > 2*time.Second {
 			// Pid-less lock older than ~2s: crash remnant between
 			// mkdir and the pid write.
 			os.RemoveAll(lockDir)
-			continue
+			if err := os.Mkdir(lockDir, 0755); err == nil {
+				os.WriteFile(filepath.Join(lockDir, "pid"),
+					[]byte(strconv.Itoa(os.Getpid())), 0644)
+				return true
+			}
 		}
 		if i+1 < tries {
 			time.Sleep(200 * time.Millisecond)
@@ -266,6 +283,27 @@ func state() (string, int) {
 		return "paused", pid
 	}
 	return "running", pid
+}
+
+// runtimeCleanup: vm_runtime_cleanup parity — when a pidfile exists but
+// its process is dead the VM died uncleanly; drop every runtime
+// artefact a boot can leave behind plus stale op locks, and record a
+// vm.stopped event. Runs before actions and before boot, like Bash's
+// main flow.
+func runtimeCleanup() {
+	if !(readPID() > 0 && !vmPidAlive()) {
+		return
+	}
+	dir, name := vmdir(), vmname()
+	for _, ext := range []string{
+		".pid", ".paused", ".spice", ".sock", ".ports", ".runtime.json",
+		"-qmp.socket", "-monitor.socket", "-serial.socket", "-agent.sock",
+	} {
+		os.Remove(filepath.Join(dir, name+ext))
+	}
+	os.RemoveAll(filepath.Join(dir, name+".lock"))
+	os.RemoveAll(filepath.Join(dir, name+".lock.shared"))
+	qeEvent("vm.stopped", "")
 }
 
 // emitEnvelope: full v1 contract envelope — {schemaVersion, command,
@@ -640,14 +678,7 @@ func actLaunch() int {
 	// vm_runtime_cleanup parity: a stale pidfile means an unclean
 	// shutdown — remove leftover state before booting (Bash does this
 	// in its main flow before any launch).
-	if readPID() > 0 && !vmPidAlive() {
-		for _, ext := range []string{
-			".pid", ".paused", ".spice", ".ports", ".runtime.json",
-			"-qmp.socket", "-monitor.socket", "-serial.socket", "-agent.sock",
-		} {
-			os.Remove(filepath.Join(vmdir(), vmname()+ext))
-		}
-	}
+	runtimeCleanup()
 	// viewer_param_check (launch path only — skipped on --dry-run):
 	// viewer must be none|spicy|remote-viewer and the binary installed.
 	viewer := get("viewer")
@@ -1144,8 +1175,168 @@ func toolExists(name string) bool {
 	return err == nil
 }
 
+// vmVerifyInvariants: lifecycle.sh parity — a state claims only what's
+// true: running/paused need pidfile+runtime.json; stopped/archived
+// must not have a stale pidfile.
+func vmVerifyInvariants() bool {
+	st, _ := state()
+	dir, name := vmdir(), vmname()
+	pf := filepath.Join(dir, name+".pid")
+	rt := filepath.Join(dir, name+".runtime.json")
+	switch st {
+	case "running", "paused":
+		if !fileExists(pf) {
+			fmt.Fprintf(os.Stderr, "INVARIANT: %s without pidfile\n", st)
+			return false
+		}
+		if !fileExists(rt) {
+			fmt.Fprintf(os.Stderr, "INVARIANT: %s without runtime.json\n", st)
+			return false
+		}
+	case "stopped", "archived":
+		if fileExists(pf) {
+			fmt.Fprintf(os.Stderr, "INVARIANT: %s with stale pidfile\n", st)
+			return false
+		}
+	}
+	return true
+}
+
+// qeDoctor: doctor.sh parity — diagnoses stale/corrupt runtime state;
+// fix==true repairs what's safe (never touches disks or the conf).
+// Text mode prints " - <finding>" lines; --format json emits a
+// vm.doctor envelope. Runs before the capability report, like
+// doctor_vm does.
+func qeDoctor(fix bool) {
+	vmVerifyInvariants()
+	findings := []string{}
+	dir, name := vmdir(), vmname()
+
+	rt := filepath.Join(dir, name+".runtime.json")
+	if b, err := os.ReadFile(rt); err == nil && !strings.Contains(string(b), `"schemaVersion"`) {
+		findings = append(findings, "runtime-corrupt:"+rt)
+		if fix {
+			os.Remove(rt)
+			findings = append(findings, "fixed:removed-corrupt-runtime")
+		}
+	}
+
+	pf := filepath.Join(dir, name+".pid")
+	live := false
+	if b, err := os.ReadFile(pf); err == nil {
+		p := strings.TrimSpace(string(b))
+		if n, err := strconv.Atoi(p); err == nil && alive(n) {
+			live = true
+		} else if p != "" {
+			findings = append(findings, "stale-pidfile:"+p)
+			if fix {
+				os.Remove(pf)
+				os.Remove(filepath.Join(dir, name+".paused"))
+				findings = append(findings, "fixed:removed-stale-pid")
+			}
+		}
+	}
+
+	lockPaths := []string{filepath.Join(dir, name+".lock")}
+	if ents, _ := filepath.Glob(filepath.Join(dir, name+".lock.shared", "*")); len(ents) > 0 {
+		lockPaths = append(lockPaths, ents...)
+	}
+	for _, l := range lockPaths {
+		st, err := os.Stat(l)
+		if err != nil || !st.IsDir() {
+			continue
+		}
+		lp := ""
+		if b, err := os.ReadFile(filepath.Join(l, "pid")); err == nil {
+			lp = strings.TrimSpace(string(b))
+		} else {
+			lp = filepath.Base(l)
+		}
+		if n, err := strconv.Atoi(lp); err == nil && !alive(n) {
+			findings = append(findings, "stale-lock:"+l)
+			if fix {
+				os.RemoveAll(l)
+				findings = append(findings, "fixed:reclaimed-lock")
+			}
+		}
+	}
+
+	var socks []string
+	for _, pat := range []string{name + "*.socket", name + ".monitor", name + ".qmp"} {
+		if m, _ := filepath.Glob(filepath.Join(dir, pat)); len(m) > 0 {
+			socks = append(socks, m...)
+		}
+	}
+	for _, s := range socks {
+		st, err := os.Stat(s)
+		if err != nil || st.Mode()&os.ModeSocket == 0 {
+			continue
+		}
+		if !live {
+			findings = append(findings, "stale-socket:"+s)
+			if fix {
+				os.Remove(s)
+				findings = append(findings, "fixed:removed-socket")
+			}
+		}
+	}
+
+	ev := filepath.Join(dir, name+".events.jsonl")
+	if b, err := os.ReadFile(ev); err == nil && len(b) > 0 {
+		lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+		if !strings.Contains(lines[len(lines)-1], "}") {
+			findings = append(findings, "event-truncated:"+ev)
+			if fix {
+				rest := strings.Join(lines[:len(lines)-1], "\n")
+				if rest != "" {
+					rest += "\n"
+				}
+				os.WriteFile(ev, []byte(rest), 0644)
+				findings = append(findings, "fixed:dropped-truncated-event")
+			}
+		}
+	}
+
+	for _, op := range func() []string {
+		m, _ := filepath.Glob(filepath.Join(dir, "ops", "*.json"))
+		return m
+	}() {
+		b, err := os.ReadFile(op)
+		if err != nil {
+			continue
+		}
+		var o struct {
+			State     string `json:"state"`
+			WorkerPid int    `json:"workerPid"`
+		}
+		if json.Unmarshal(b, &o) != nil ||
+			(o.State != "queued" && o.State != "running") ||
+			(o.WorkerPid > 0 && alive(o.WorkerPid)) {
+			continue
+		}
+		findings = append(findings, "orphan-operation:"+op)
+		if fix {
+			s := regexp.MustCompile(`"state":"[^"]*"`).ReplaceAllString(string(b), `"state":"interrupted"`)
+			os.WriteFile(op, []byte(s), 0644)
+			findings = append(findings, "fixed:marked-interrupted")
+		}
+	}
+
+	if outFmt == "json" {
+		emitOK("vm.doctor", map[string]any{"vm": name, "fix": fix, "findings": findings})
+	} else {
+		if len(findings) == 0 {
+			fmt.Println(" - " + name + ": healthy.")
+		}
+		for _, f := range findings {
+			fmt.Println(" - " + f)
+		}
+	}
+}
+
 // actDoctor: doctor_vm parity — config vs host capabilities report.
 func actDoctor() int {
+	qeDoctor(doctorFix)
 	conf := confKV()
 	issues := 0
 	fmt.Println("Checking " + vmname() + " against host capabilities:")
@@ -1671,12 +1862,15 @@ func actHotplugUSB() int {
 	payload := qmpCmd("device_add", map[string]any{"driver": "usb-host", "id": id, "vendorid": vid, "productid": pid})
 	out, err := qmpRaw(payload)
 	fmt.Print(out)
+	if persistFlag {
+		// Desired state vs observed QMP state (vm_hotplug_usb parity):
+		// the conf records the device for next boot even when the live
+		// attach failed.
+		hotplugPersist("usb", vp)
+	}
 	if err == nil {
 		qeEvent("vm.hotplug", jsonStr(map[string]any{"device": "usb", "id": id}))
 		fmt.Println(" - Hot-plugged USB " + vp + " as " + id + ".")
-		if persistFlag {
-			hotplugPersist("usb", vp)
-		}
 	}
 	return rc(err)
 }
@@ -1705,11 +1899,11 @@ func actHotplugDisk() int {
 			map[string]any{"driver": "virtio-blk-pci", "id": id, "drive": node}))
 		fmt.Print(out)
 	}
+	if persistFlag {
+		hotplugPersist("disk", f)
+	}
 	if err == nil {
 		qeEvent("vm.hotplug", jsonStr(map[string]any{"device": "disk", "id": id}))
-		if persistFlag {
-			hotplugPersist("disk", f)
-		}
 		fmt.Println(" - Hot-plugged disk " + f + " as " + id + ".")
 	}
 	return rc(err)
@@ -1751,6 +1945,7 @@ func hotplugPersist(kind, val string) {
 		c += key + "=(" + kv + ")\n"
 	}
 	os.WriteFile(vmConf, []byte(c), 0644)
+	fmt.Println(" - Persisted " + kind + " " + val + " into " + vmConf + " (applies next boot).")
 }
 
 // qeEvent: append a JSONL event to <vmdir>/<vm>.events.jsonl
@@ -2172,6 +2367,9 @@ func main() {
 		}
 		os.Exit(actLaunch())
 	}
+	// Bash main flow: a stale pidfile means an unclean shutdown — clean
+	// runtime artefacts before running any action (vm_runtime_cleanup).
+	runtimeCleanup()
 	rcv := 0
 	for _, act := range actions {
 		if act == "start" {

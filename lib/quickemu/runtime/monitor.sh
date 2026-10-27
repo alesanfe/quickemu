@@ -141,7 +141,7 @@ qmp_device_del() { # devid -> 0 ok / 1
 
 # --hotplug-usb 05ac:12a8  -> attach a host USB device to the running VM
 vm_hotplug_usb() { # vid:pid
-    local VIDPID="${1}"
+    local VIDPID="${1:-${HOTPLUG_USB}}"
     [[ "${VIDPID}" =~ ^[0-9a-fA-F]{4}:[0-9a-fA-F]{4}$ ]] || { echo "ERROR! --hotplug-usb needs vendor:product hex (e.g. 05ac:12a8)." >&2; return 1; }
     local ID="hotusb${VIDPID//:/}"
     qmp_device_add "{\"driver\":\"usb-host\",\"id\":\"${ID}\",\"vendorid\":$((16#${VIDPID%:*})),\"productid\":$((16#${VIDPID#*:}))}" \
@@ -151,7 +151,7 @@ vm_hotplug_usb() { # vid:pid
 
 # --hotplug-disk file.qcow2 -> attach a virtio-blk disk to the running VM
 vm_hotplug_disk() { # file
-    local F="${1}" ID
+    local F="${1:-${HOTPLUG_DISK}}" ID
     [ -f "${F}" ] || { echo "ERROR! ${F} not found." >&2; return 1; }
     ID="hotdisk$(basename "${F}" | tr -cd '[:alnum:]')"
     qmp_device_add "{\"driver\":\"virtio-blk-pci\",\"id\":\"${ID}\",\"drive\":\"${ID}drv\"}" 2>/dev/null \
@@ -164,8 +164,9 @@ vm_hotplug_disk() { # file
 
 # --hotunplug <id> -> remove a previously hot-plugged device
 vm_hotunplug() { # devid
-    qmp_device_del "${1}" && qe_event "vm.hotunplug" "{\"id\":\"$(json_escape "${1}")\"}" \
-        && echo " - Hot-unplugged ${1}."
+    local ID="${1:-${HOTUNPLUG_ID}}"
+    qmp_device_del "${ID}" && qe_event "vm.hotunplug" "{\"id\":\"$(json_escape "${ID}")\"}" \
+        && echo " - Hot-unplugged ${ID}."
 }
 
 # ---- persistent hotplug ----
