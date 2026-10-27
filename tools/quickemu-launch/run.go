@@ -25,8 +25,8 @@ func detach(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Setsid = true
 }
 
-func runQEMU(confPath string, args []string) error {
-	dir := filepath.Dir(confPath)
+func runQEMU(confPath string, vmdir string, args []string) error {
+	dir := vmdir
 	if abs, err := filepath.Abs(dir); err == nil {
 		dir = abs
 	}

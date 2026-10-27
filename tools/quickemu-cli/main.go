@@ -349,9 +349,17 @@ func actListVMs() int {
 		PID   any    `json:"pid"`
 	}
 	vms := []ent{}
+	// A VM may appear twice — once as ./name.conf and once as
+	// name/name.conf (quickget layout). Identity is the basename, so
+	// dedupe by it; top-level confs list first.
+	seen := map[string]bool{}
 	for _, pat := range []string{"*.conf", "*/*.conf"} {
 		for _, f := range glob(pat) {
 			name := strings.TrimSuffix(filepath.Base(f), ".conf")
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
 			gos := "linux"
 			if b, err := os.ReadFile(f); err == nil {
 				for _, l := range strings.Split(string(b), "\n") {
@@ -1263,6 +1271,14 @@ func isNum(s string) bool {
 	if s == "" {
 		return false
 	}
+	// Signed integers are valid values (e.g. --events -1 replays the
+	// stream from the start) — Bash consumes the next token as-is.
+	if s[0] == '-' || s[0] == '+' {
+		s = s[1:]
+	}
+	if s == "" {
+		return false
+	}
 	for _, r := range s {
 		if r < '0' || r > '9' {
 			return false
@@ -1634,7 +1650,11 @@ func jsonStr(m map[string]any) string {
 // qmpCmd marshals a QMP execute envelope — shared helper so embedded
 // ids/filenames are escaped by encoding/json, not hand-rolled Sprintf.
 func qmpCmd(execute string, args map[string]any) string {
-	b, _ := json.Marshal(map[string]any{"execute": execute, "arguments": args})
+	m := map[string]any{"execute": execute}
+	if args != nil {
+		m["arguments"] = args
+	}
+	b, _ := json.Marshal(m)
 	return string(b)
 }
 
@@ -2098,8 +2118,13 @@ func main() {
 			confOpts["ignore_msrs"] = "on"
 		default:
 			if strings.HasPrefix(a, "-") {
-				fmt.Fprintf(os.Stderr, "ERROR! Not supported argument '%s'\n", a)
-				os.Exit(2)
+				// options.sh parity: the message and usage go to
+				// stdout (echo), exit 1 — structured callers rely on
+				// an empty-stderr+nonzero-exit shape to classify the
+				// failure as a missing envelope.
+				fmt.Printf("ERROR! \"%s\" is not a supported parameter.\n", a)
+				usage()
+				os.Exit(1)
 			}
 		}
 	}
@@ -2119,6 +2144,13 @@ func main() {
 	if vmConf != "" {
 		if abs, err := filepath.Abs(vmConf); err == nil {
 			vmConf = abs
+		}
+		// conf-load parity: Bash dies here ("Virtual machine
+		// configuration not found.") before any action runs — the
+		// message goes to stdout like every Bash echo.
+		if _, err := os.Stat(vmConf); err != nil {
+			fmt.Println("ERROR! Virtual machine configuration not found.")
+			os.Exit(1)
 		}
 		disk := confKV()["disk_img"]
 		if disk == "" {

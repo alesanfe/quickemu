@@ -115,7 +115,7 @@ func deletePlanItems(dir string) []string {
 		}
 		return p
 	}
-	var items []string
+	items := []string{}
 	conf := vmConfPath(dir)
 	if conf != "" {
 		items = append(items, rel(conf))

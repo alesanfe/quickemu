@@ -75,7 +75,7 @@ func main() {
 		return
 	}
 	conf := applyPresets(parseConf(os.Args[1]))
-	conf["_vmdir"] = filepath.Dir(os.Args[1])
+	conf["_vmdir"] = vmDir(conf, os.Args[1])
 	conf["_vmname"] = strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	if len(os.Args) > 2 && os.Args[2] == "--validate" {
 		if errs := validateConf(conf, os.Args[1]); len(errs) > 0 {
@@ -88,6 +88,8 @@ func main() {
 		return
 	}
 	dir := filepath.Dir(os.Args[1])
+	vmdir := conf["_vmdir"]
+	os.MkdirAll(vmdir, 0o755)
 	resolvePublic(conf)
 
 	// virtiofs decision happens before arg assembly (start_virtiofsd):
@@ -177,7 +179,7 @@ func main() {
 	args = append(args, audioArgs(conf, osName, t)...)
 	args = append(args, networkArgs(conf, t)...)
 	args = append(args, portArgs(conf, dir)...)
-	args = append(args, spiceArgs(conf, dir, vmname, osName, t)...)
+	args = append(args, spiceArgs(conf, vmdir, vmname, osName, t)...)
 	args = append(args, fileshareArgs(conf, dir)...)
 	args = append(args, passthruArgs(conf)...)
 	args = append(args, bootMediaArgs(conf, dir)...)
@@ -207,15 +209,15 @@ func main() {
 			args = append(args, "-monitor",
 				fmt.Sprintf("telnet:%s:%d,server,nowait", host, port))
 			fmt.Printf(" - Monitor:  On host:  telnet %s %d\n", host, port)
-			portsRecord(dir, vmname,
+			portsRecord(vmdir, vmname,
 				fmt.Sprintf("monitor-telnet,%d,%s", port, host), runMode)
 		}
 	case "socket":
 		args = append(args, "-monitor",
-			"unix:"+dotdir(dir)+vmname+"-monitor.socket"+",server,nowait")
+			"unix:"+dotdir(vmdir)+vmname+"-monitor.socket"+",server,nowait")
 		// Machine control channel (QMP) next to the HMP socket.
 		args = append(args, "-qmp",
-			"unix:"+dotdir(dir)+vmname+"-qmp.socket"+",server,nowait")
+			"unix:"+dotdir(vmdir)+vmname+"-qmp.socket"+",server,nowait")
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown monitor option.\n", mon)
 		os.Exit(1)
@@ -247,12 +249,12 @@ func main() {
 			args = append(args, "-serial",
 				fmt.Sprintf("telnet:%s:%d,server,nowait", host, port))
 			fmt.Printf(" - Serial:   On host:  telnet %s %d\n", host, port)
-			portsRecord(dir, vmname,
+			portsRecord(vmdir, vmname,
 				fmt.Sprintf("serial-telnet,%d,%s", port, host), runMode)
 		}
 	case "socket":
 		args = append(args, "-serial",
-			"unix:"+dotdir(dir)+vmname+"-serial.socket"+",server,nowait")
+			"unix:"+dotdir(vmdir)+vmname+"-serial.socket"+",server,nowait")
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown serial option.\n", ser)
 		os.Exit(1)
@@ -260,7 +262,7 @@ func main() {
 
 	// pidfile + daemonize
 	args = append(args, "-name", vmname+",process="+vmname+",debug-threads=on")
-	args = append(args, "-pidfile", dotdir(dir)+vmname+".pid")
+	args = append(args, "-pidfile", dotdir(vmdir)+vmname+".pid")
 	args = append(args, rtcArgs(osName)...)
 	args = append(args, "-device", "virtio-balloon")
 	args = append(args, "-object", "rng-random,id=rng0,filename=/dev/urandom", "-device", "virtio-rng-pci,rng=rng0")
@@ -309,7 +311,7 @@ func main() {
 			}
 			fmt.Fprintf(os.Stderr, " - TSC:      WARNING! Unstable TSC detected (clocksource: %s), proceeding.\n", clock)
 		}
-		if err := runQEMU(os.Args[1], args); err != nil {
+		if err := runQEMU(os.Args[1], vmdir, args); err != nil {
 			fmt.Fprintln(os.Stderr, "launch failed:", err)
 			os.Exit(1)
 		}
@@ -359,6 +361,23 @@ func dotdir(dir string) string {
 		return "./"
 	}
 	return dir + "/"
+}
+
+// vmDir: Bash vm_identify parity — runtime state (pidfile, sockets,
+// .ports, .log, .runtime.json, locks) lives in the disk's directory:
+// dirname(disk_img) resolved against the conf directory for relative
+// paths. With no disk_img configured the quickget convention applies:
+// a per-VM directory named after the conf, alongside it.
+func vmDir(conf Conf, confPath string) string {
+	dir := filepath.Dir(confPath)
+	if d := strings.TrimSpace(conf.get("disk_img", "")); d != "" {
+		if filepath.IsAbs(d) {
+			return filepath.Dir(d)
+		}
+		return filepath.Join(dir, filepath.Dir(d))
+	}
+	name := strings.TrimSuffix(filepath.Base(confPath), filepath.Ext(confPath))
+	return filepath.Join(dir, name)
 }
 
 // confOn: quickemu conf booleans are "on" (with "true"/"yes" tolerated).
