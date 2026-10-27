@@ -1580,9 +1580,10 @@ function get_kicksecure() {
 
 
 function get_uwuntu() {
-    local ISO
-    ISO="$(web_pipe "https://uwuntuos.com/" | grep -o 'href="[^"]*\\.iso' | cut -d'"' -f2 | grep -i "22.10" | head -1 | xargs basename 2>/dev/null)"
-    echo "https://uwuntuos.com/releases/${RELEASE}/${ISO:-uwuntu-22.10-leo-dango-amd64.iso}"
+    # UwUntu 22.10 — official site moved to MediaFire (not curl-able);
+    # the ISO is preserved on archive.org
+    local ISO="UwUntu-22.10-desktop-amd64.iso"
+    echo "https://archive.org/download/uw-untu-22.10-desktop-amd-64_202212/${ISO}"
 }
 
 function get_caine() {
