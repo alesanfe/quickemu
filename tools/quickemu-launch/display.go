@@ -3,19 +3,15 @@
 package main
 
 import (
-	"fmt"
 	"path/filepath"
+	"strings"
 )
 
 func displayArgs(c Conf, dir, osName, arch string) []string {
 	var a []string
 	display := c.get("display", "none")
-	video := c.get("video", "virtio-gpu")
 	if display != "none" && display != "spice" {
 		a = append(a, "-display", display)
-	}
-	if c.get("spice_port", "") != "" {
-		a = append(a, "-spice", fmt.Sprintf("port=%s,disable-ticketing=on", c["spice_port"]))
 	}
 	if c.get("viewer", "") == "none" {
 		a = append(a, "-display", "none")
@@ -28,16 +24,40 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	case "none":
 		a = append(a, "-display", "none")
 	}
-	// video device per guest_os
-	switch osName {
-	case "windows":
-		a = append(a, "-device", "virtio-gpu-gl" /* windows uses virtio-gpu */)
-	case "macos":
-		a = append(a, "-device", "virtio-gpu-gl", "-global", "ICH9-LPC.disable_s3=1", "-global", "ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off")
-	default:
-		a = append(a, "-device", video)
+	// DISPLAY_DEVICE resolution (display.sh): per guest_os + mode.
+	dev := displayDevice(c, osName, arch, display)
+	if display == "none" {
+		a = append(a, "-vga", "none")
 	}
+	// Bash appends xres/yres to virtio-gpu devices.
+	res := ""
+	if strings.HasPrefix(dev, "virtio-") {
+		res = ",xres=" + c.get("width", "1280") + ",yres=" + c.get("height", "800")
+	}
+	a = append(a, "-device", dev+res)
 	return a
+}
+
+// displayDevice: the DISPLAY_DEVICE table from display.sh.
+func displayDevice(c Conf, osName, arch, display string) string {
+	if v := c.get("video", ""); v != "" {
+		return v
+	}
+	switch {
+	case osName == "linux_old" || strings.HasSuffix(osName, "solaris"):
+		return "vmware-svga"
+	case arch == "aarch64":
+		return "virtio-gpu-pci"
+	case osName == "macos":
+		if display == "none" || display == "spice" {
+			return "qxl-vga"
+		}
+		return "virtio-vga"
+	case display == "none" || display == "spice" || display == "spice-app":
+		return "virtio-gpu"
+	default:
+		return "virtio-vga"
+	}
 }
 
 func audioArgs(c Conf, osName string, t OsTuning) []string {
