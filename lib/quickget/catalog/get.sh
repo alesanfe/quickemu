@@ -1911,16 +1911,18 @@ function get_openkylin() {
 }
 
 function get_altlinux() {
-    # ALT Linux (Russia) — official FTP mirror, per-edition filename prefix
-    local PREFIX="alt-${EDITION}"
-    [ "${EDITION}" = "simply" ] && PREFIX="slinux"
+    # ALT Linux (Russia) — official FTP mirror, per-edition naming
     local BASE="https://ftp.altlinux.org/pub/distributions/ALTLinux/images/p${RELEASE}/${EDITION}/x86_64"
-    # latest verified point release on the mirror
-    local VER="11.2"
-    [ "${EDITION}" = "workstation" ] && VER="11.2"
-    [ "${EDITION}" = "simply" ] && VER="11.1"
-    [ "${EDITION}" = "server" ] && VER="11.1"
-    echo "${BASE}/${PREFIX}-${VER}-x86_64.iso"
+    local ISO
+    case "${EDITION}" in
+        workstation) ISO="alt-workstation-11.2-x86_64.iso";;
+        simply)      ISO="slinux-11.1-x86_64.iso";;
+        server)      ISO="alt-server-11.1-x86_64.iso";;
+        kworkstation) ISO="alt-kworkstation-11-live-x86_64.iso"
+            BASE="https://ftp.altlinux.org/pub/distributions/ALTLinux/images/p${RELEASE}/kworkstation";;
+        education)   ISO="alt-education-11.2-x86_64.iso";;
+    esac
+    echo "${BASE}/${ISO}"
 }
 
 function get_hamonikr() {
@@ -1952,7 +1954,7 @@ function get_rosalinux() {
     # ROSA FRESH 13.2 (Russia) — official mirror, per-edition subdirs
     local ED
     ED="$(echo "${EDITION}" | tr '[:lower:]' '[:upper:]')"
-    local ISO="ROSA.FRESH.${ED}.13.2.x86_64.iso"
+    local ISO="ROSA.FRESH.${ED}.13.3.x86_64.iso"
     echo "https://mirror.rosa.ru/rosa/rosa13/iso/ROSA.FRESH.13/${EDITION}/${ISO}"
 }
 
