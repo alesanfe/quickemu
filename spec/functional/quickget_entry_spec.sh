@@ -126,16 +126,19 @@ Describe 'selection validation'
         When run qg alma 7
         The status should be failure
         The output should include 'not a supported release'
+        The stderr should include 'integrity'
     End
     It 'requires an edition for editioned OSes'
         When run qg alma 9
         The status should be failure
         The output should include 'must specify an edition'
+        The stderr should include 'integrity'
     End
     It 'rejects an unsupported edition'
         When run qg alma 9 bogus
         The status should be failure
         The output should include 'not a supported'
+        The stderr should include 'integrity'
     End
 End
 
@@ -177,6 +180,7 @@ Describe 'download flow'
         When run qg alma 9 dvd
         The status should be success
         The output should include 'Downloading AlmaLinux 9 dvd'
+        The stderr should include 'integrity'
         The file "$TESTDIR/alma-9-dvd.conf" should be exist
         The contents of file "$TESTDIR/alma-9-dvd.conf" should include 'guest_os="linux"'
     End

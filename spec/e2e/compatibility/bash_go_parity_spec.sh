@@ -22,11 +22,12 @@ Describe 'bash_go_parity @compatibility @p1'
         # Parity contract: both emit schemaVersion + success + structured
         # errors[]. The Go error envelope is intentionally slimmer (no
         # command/data/warnings/meta); the contract keys must match.
-        for src in bash go; do
-            eval "out=\${${src}_out}"
-            printf '%s' "${out}" | jq -e '.schemaVersion == 1 and (.success | type == "boolean") and (.errors | type == "array")' \
-                >/dev/null 2>&1 || { echo "${src} envelope violates contract: ${out}"; return 1; }
-        done
+        valid_env() {
+            printf '%s' "${1}" | jq -e '.schemaVersion == 1 and (.success | type == "boolean") and (.errors | type == "array")' \
+                >/dev/null 2>&1
+        }
+        valid_env "${bash_out}" || { echo "bash envelope violates contract: ${bash_out}"; return 1; }
+        valid_env "${go_out}" || { echo "go envelope violates contract: ${go_out}"; return 1; }
     }
 
     It 'bash and go emit the same envelope keys on error paths'

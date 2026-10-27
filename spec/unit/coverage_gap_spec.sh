@@ -1,3 +1,4 @@
+# shellcheck disable=SC2034
 # Specs targeting the uncovered-function cluster (57% -> higher).
 # Covers verbosity levels, QMP allowlist, port registry helpers,
 # toml validate, proc helpers — the biggest coverage holes.
