@@ -230,7 +230,12 @@ function web_check() {
             shift
         fi
     done
-    curl --disable --silent --location --head --output /dev/null --fail --connect-timeout 30 --max-time 30 --retry 3 "${HEADERS[@]}" "${URL}"
+    if curl --disable --silent --location --head --output /dev/null --fail         --connect-timeout 30 --max-time 30 --retry 3         "${HEADERS[@]}" "${URL}"; then
+        return 0
+    fi
+    # Presigned URLs (S3/R2/Azure SAS) bind the signature to GET and reject
+    # HEAD; fall back to a single-byte ranged GET to validate reachability.
+    curl --disable --silent --location --range 0-0 --output /dev/null --fail         --connect-timeout 30 --max-time 30 --retry 3         "${HEADERS[@]}" "${URL}"
 }
 
 
