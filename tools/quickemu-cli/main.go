@@ -374,8 +374,169 @@ func dispatch(act string) func() int {
 		return opsOp("cancel", extra["op-cancel"])
 	case "operation_watch":
 		return opsOp("watch", extra["op-watch"])
+	case "doctor_vm":
+		return actDoctor
+	case "delete_plan":
+		return vmOp("delete-plan", vmdir(), "--format", outFmt)
+	case "ignore_msrs_always":
+		return actIgnoreMSRsAlways
 	}
 	return nil
+}
+
+// actIgnoreMSRsAlways: ignore_msrs_always — persist kvm ignore_msrs=Y
+// via /etc/modprobe.d and rebuild initramfs (update-initramfs or
+// mkinitcpio). Requires sudo, same as Bash.
+func actIgnoreMSRsAlways() int {
+	if !fileExists("/etc/modprobe.d") {
+		fmt.Fprintln(os.Stderr, "ERROR! /etc/modprobe.d was not found, I don't know how to configure this system.")
+		return 1
+	}
+	if b, err := os.ReadFile("/etc/modprobe.d/kvm-quickemu.conf"); err == nil && strings.Contains(string(b), "ignore_msrs=Y") {
+		return 0 // already enabled (initramfs rebuilt previously)
+	}
+	sh := exec.Command("sudo", "tee", "/etc/modprobe.d/kvm-quickemu.conf")
+	sh.Stdin = strings.NewReader("options kvm ignore_msrs=Y\n")
+	sh.Stdout, sh.Stderr = os.Stdout, os.Stderr
+	if err := sh.Run(); err != nil {
+		return 1
+	}
+	switch {
+	case toolExists("update-initramfs"):
+		return rc(exec.Command("sudo", "update-initramfs", "-k", "all", "-u").Run())
+	case toolExists("mkinitcpio"):
+		return rc(exec.Command("sudo", "mkinitcpio", "-P").Run())
+	default:
+		fmt.Fprintln(os.Stderr, "ERROR! User does not have update-initramfs or mkinitcpio installed, please find out respective utility to update/regenrate intiramfs.")
+		fmt.Fprintln(os.Stderr, "Run respective command for rebuilding initramfs: 'sudo update-initramfs -k all -u'(debian) or 'sudo mkinitcpio -P'(arch)")
+		return 1
+	}
+}
+
+func toolExists(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
+// actDoctor: doctor_vm parity — config vs host capabilities report.
+func actDoctor() int {
+	conf := confKV()
+	issues := 0
+	fmt.Println("Checking " + vmname() + " against host capabilities:")
+	if fileExists("/dev/kvm") {
+		fmt.Println(" o KVM:  /dev/kvm available")
+	} else {
+		fmt.Println(" x KVM:  /dev/kvm not writable, VM will use slow TCG emulation")
+		issues++
+	}
+	if _, err := exec.LookPath("qemu-system-x86_64"); err != nil {
+		fmt.Println(" x QEMU: qemu-system-x86_64 not executable")
+		issues++
+	}
+	if d := conf["disk_img"]; d != "" && !fileExists(d) {
+		fmt.Printf(" x Disk: %s missing (will be created, %s)\n", d, conf["disk_size"])
+	}
+	if i := conf["iso"]; i != "" && !fileExists(i) {
+		fmt.Println(" x ISO:  " + i + " missing")
+		issues++
+	}
+	if strings.Contains(conf["boot"], "efi") {
+		found := false
+		for _, g := range []string{"OVMF_CODE*.fd", "AAVMF*.fd"} {
+			if m, _ := filepath.Glob(filepath.Join(vmdir(), g)); len(m) > 0 {
+				found = true
+			}
+		}
+		if found {
+			fmt.Println(" o EFI:  firmware files present")
+		} else {
+			fmt.Println(" x EFI:  no OVMF/AAVMF firmware found")
+			issues++
+		}
+	}
+	if ram := conf["ram"]; ram != "" {
+		if want := memMB(ram); want > 0 {
+			if free := hostFreeMemMB(); free > 0 && want*1024 > free*1024 {
+				fmt.Printf(" x RAM:  VM wants %s but only %dM available\n", ram, free)
+				issues++
+			} else {
+				fmt.Printf(" o RAM:  %s requested (%dM free)\n", ram, free)
+			}
+		}
+	}
+	if conf["tpm"] == "on" {
+		if _, err := exec.LookPath("swtpm"); err != nil {
+			fmt.Println(" x TPM:  tpm=on but swtpm not installed")
+			issues++
+		}
+	}
+	switch conf["network"] {
+	case "", "none", "restrict", "passt", "slirp":
+	default:
+		if _, err := os.Stat("/sys/class/net/" + conf["network"]); err == nil {
+			fmt.Println(" o NET:  bridge " + conf["network"] + " up")
+		} else {
+			fmt.Println(" x NET:  bridge interface " + conf["network"] + " does not exist")
+			issues++
+		}
+	}
+	if issues == 0 {
+		fmt.Println(" - No problems detected.")
+	} else {
+		fmt.Printf(" - %d issue(s) found.\n", issues)
+	}
+	return 0
+}
+
+func confKV() map[string]string {
+	m := map[string]string{}
+	if b, err := os.ReadFile(vmConf); err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if i := strings.Index(l, "="); i > 0 && !strings.HasPrefix(l, "#") {
+				m[strings.TrimSpace(l[:i])] = strings.Trim(strings.TrimSpace(l[i+1:]), `"'`)
+			}
+		}
+	}
+	return m
+}
+
+func fileExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+func memMB(s string) int {
+	s = strings.TrimSpace(s)
+	mult := 1
+	if strings.HasSuffix(s, "G") {
+		mult, s = 1024, s[:len(s)-1]
+	} else if strings.HasSuffix(s, "M") {
+		s = s[:len(s)-1]
+	} else if strings.HasSuffix(s, "K") {
+		s = s[:len(s)-1]
+		mult = 0 // <1M
+	}
+	n := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n * mult
+}
+
+func hostFreeMemMB() int {
+	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(l, "MemAvailable:") {
+				var kb int
+				fmt.Sscanf(l, "MemAvailable: %d kB", &kb)
+				return kb / 1024
+			}
+		}
+	}
+	return 0
 }
 
 func usage() {
@@ -457,6 +618,10 @@ func main() {
 			actions = append(actions, "screenshot_vm")
 		case "--delete-vm":
 			actions = append(actions, "delete_vm")
+		case "--delete-plan":
+			actions = append(actions, "delete_plan")
+		case "--doctor":
+			actions = append(actions, "doctor_vm")
 		case "--clone":
 			extra["clone"] = val()
 			actions = append(actions, "clone_vm")
@@ -524,6 +689,12 @@ func main() {
 			confOpts["cpu_pinning"] = val()
 		case "--extra_args", "--extra-args":
 			confOpts["extra_args"] = val()
+		case "--ignore-tsc-warning":
+			confOpts["ignore_tsc_warning"] = "on"
+		case "--ignore-msrs-always":
+			actions = append(actions, "ignore_msrs_always")
+		case "--ignore-msrs":
+			confOpts["ignore_msrs"] = "on"
 		default:
 			if strings.HasPrefix(a, "-") {
 				fmt.Fprintf(os.Stderr, "ERROR! Not supported argument '%s'\n", a)

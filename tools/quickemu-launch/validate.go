@@ -5,8 +5,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 // guestOSRe: Bash guest_os_param_check accepts any [a-z0-9-]+ token —
@@ -53,5 +55,62 @@ func validateConf(c Conf, confPath string) []string {
 			errs = append(errs, "spice_port out of range")
 		}
 	}
+	// planning gates (plan_check_ram/tpm/net): warnings, not errors —
+	// Bash only warns or prompts, never rejects the conf.
+	if ram := c.get("ram", ""); ram != "" {
+		if want := memMB(ram); want > 0 {
+			if free := hostFreeMemMB(); free > 0 && want > free {
+				errs = append(errs, fmt.Sprintf("ram=%s exceeds free memory (%dM available)", ram, free))
+			}
+		}
+	}
+	if c.get("tpm", "") == "on" {
+		if _, err := exec.LookPath("swtpm"); err != nil {
+			errs = append(errs, "tpm=on but swtpm not installed")
+		}
+	}
+	switch net := c.get("network", ""); net {
+	case "", "none", "restrict", "passt", "slirp":
+	default:
+		if _, err := os.Stat("/sys/class/net/" + net); err != nil {
+			errs = append(errs, "bridge interface "+net+" does not exist")
+		}
+	}
 	return errs
+}
+
+// memMB parses ram values like 4G/512M into MB (0 for non-numeric).
+func memMB(s string) int {
+	s = strings.TrimSpace(s)
+	mult := 1
+	if strings.HasSuffix(s, "G") {
+		mult, s = 1024, s[:len(s)-1]
+	} else if strings.HasSuffix(s, "M") {
+		s = s[:len(s)-1]
+	} else if strings.HasSuffix(s, "K") {
+		return 0
+	}
+	n := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n * mult
+}
+
+// hostFreeMemMB: MemAvailable from /proc/meminfo (host_free_mem_mb).
+func hostFreeMemMB() int {
+	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(l, "MemAvailable:") {
+				var kb int
+				if _, err := fmt.Sscanf(l, "MemAvailable: %d kB", &kb); err == nil {
+					return kb / 1024
+				}
+			}
+		}
+	}
+	return 0
 }

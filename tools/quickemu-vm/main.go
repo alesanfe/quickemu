@@ -5,6 +5,7 @@ package main
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -31,14 +32,153 @@ func vmConfPath(dir string) string {
 	return ""
 }
 
+// outputJSON toggles the v1 envelope vs human text (--format json).
+var outputJSON bool
+
+// deletePlanItems enumerates dir contents excluding runtime artifacts —
+// mirrors delete_plan_items' find with the same exclusions and C-locale
+// sort order.
+func deletePlanItems(dir string) []string {
+	excl := map[string]bool{
+		".lock": true, ".lock.shared": true, ".runtime.json": true,
+		".pid": true, ".sock": true, ".socket": true, ".ports": true,
+		".paused": true, ".spice": true, ".monitor": true,
+	}
+	var items []string
+	conf := vmConfPath(dir)
+	if conf != "" {
+		items = append(items, conf)
+	}
+	filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || p == dir {
+			return nil
+		}
+		if excl[filepath.Ext(p)] || excl[filepath.Base(p)] {
+			return nil
+		}
+		items = append(items, p)
+		return nil
+	})
+	// LC_ALL=C sort: bytewise; the conf first then sorted rest (Bash
+	// lists ${VM} first, then the find output sorted).
+	if len(items) > 1 {
+		rest := items[1:]
+		for i := 0; i < len(rest); i++ {
+			for j := i + 1; j < len(rest); j++ {
+				if rest[j] < rest[i] {
+					rest[i], rest[j] = rest[j], rest[i]
+				}
+			}
+		}
+	}
+	return items
+}
+
+// deletePlanID: sha256 over the canonical plan serialization —
+// "vm=<name>\n" then "<path>|<size>|<mtime>|<type>" per item.
+func deletePlanID(name string, items []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "vm=%s\n", name)
+	for _, it := range items {
+		line := it
+		if st, err := os.Lstat(it); err == nil {
+			kind := "file"
+			switch {
+			case st.IsDir():
+				kind = "directory"
+			case st.Mode()&os.ModeSymlink != 0:
+				kind = "symbolic link"
+			}
+			line += fmt.Sprintf("|%d|%s|%s", st.Size(), st.ModTime().Format("2006-01-02 15:04:05.000000000 -0700"), kind)
+		}
+		b.WriteString(line + "\n")
+	}
+	sum := sha256.Sum256([]byte(b.String()))
+	return fmt.Sprintf("sha256:%x", sum)
+}
+
+// deletePlanDependents: qcow2s in dir whose backing_file resolves
+// inside the same dir (deleting it would orphan the child).
+func deletePlanDependents(dir string) []string {
+	var out []string
+	if _, err := exec.LookPath("qemu-img"); err != nil {
+		return out
+	}
+	filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+		if err != nil || !strings.HasSuffix(p, ".qcow2") || info.IsDir() {
+			return nil
+		}
+		b, err := exec.Command("qemu-img", "info", "--output=json", p).Output()
+		if err != nil {
+			return nil
+		}
+		var j struct {
+			Backing string `json:"backing-filename"`
+		}
+		if json.Unmarshal(b, &j) != nil || j.Backing == "" {
+			return nil
+		}
+		bf := j.Backing
+		if strings.HasPrefix(bf, dir+"/") || strings.HasPrefix(bf, "./") || strings.HasPrefix(bf, filepath.Base(dir)+"/") {
+			out = append(out, p+" -> "+bf)
+		}
+		return nil
+	})
+	return out
+}
+
 func main() {
 	args := os.Args[1:]
 	if len(args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-vm <op> <vmdir> [args]")
 		os.Exit(2)
 	}
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--format" && i+1 < len(args) && args[i+1] == "json" {
+			outputJSON = true
+			args = append(args[:i], args[i+2:]...)
+			i--
+		} else if args[i] == "--format=json" {
+			outputJSON = true
+			args = append(args[:i], args[i+1:]...)
+			i--
+		}
+	}
+	if len(args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: quickemu-vm <op> <vmdir> [args]")
+		os.Exit(2)
+	}
 	op, dir := args[0], args[1]
 	switch op {
+	case "delete-plan":
+		// delete_plan: enumerate what --delete-vm would remove (runtime
+		// artifacts excluded), sha256 planId over canonical entries,
+		// backing-chain dependents. Never deletes anything.
+		name := filepath.Base(dir)
+		conf := vmConfPath(dir)
+		if conf != "" {
+			name = strings.TrimSuffix(filepath.Base(conf), ".conf")
+		}
+		items := deletePlanItems(dir)
+		planID := deletePlanID(name, items)
+		dependents := deletePlanDependents(dir)
+		if outputJSON {
+			arr, _ := json.Marshal(items)
+			dep, _ := json.Marshal(dependents)
+			ok(fmt.Sprintf("{\"vm\":%q,\"planId\":%q,\"delete\":%s,\"dependents\":%s}", name, planID, arr, dep))
+			return
+		}
+		fmt.Println("Delete plan for " + name + ":")
+		if len(items) == 0 {
+			fmt.Println(" - nothing to delete")
+		}
+		for _, it := range items {
+			fmt.Println(" - " + it)
+		}
+		for _, d := range dependents {
+			fmt.Println(" - dependent: " + d)
+		}
+		fmt.Printf("Plan id: %s (required by --delete-vm --plan-id)\n", planID)
 	case "backup":
 		// backup_vm: tar the vmdir into .backups/<ts>.tar.gz
 		bdir := filepath.Join(dir, ".backups")

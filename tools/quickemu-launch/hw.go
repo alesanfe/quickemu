@@ -279,7 +279,71 @@ func hostCPUVendor() string {
 }
 
 // hostHasFlag: vmx/svm/sse4_2/... presence in cpuinfo (check_cpu_flag).
+// AMD's invtsc is reported as constant_tsc — same equivalence as Bash.
 func hostHasFlag(flag string) bool {
 	b, err := os.ReadFile("/proc/cpuinfo")
-	return err == nil && strings.Contains(string(b), " "+flag)
+	if err != nil {
+		return false
+	}
+	if strings.Contains(string(b), " "+flag) {
+		return true
+	}
+	return flag == "invtsc" && hostCPUVendor() == "AuthenticAMD" &&
+		strings.Contains(string(b), " constant_tsc")
+}
+
+// hostMacosTSCUnstable: host_macos_tsc_unstable — Linux host + AMD +
+// macos guest + Ventura+ release + no tsc=reliable + clocksource!=tsc.
+// Returns (unstable, clocksource).
+func hostMacosTSCUnstable(c Conf) (bool, string) {
+	if runtime.GOOS != "linux" || hostCPUVendor() != "AuthenticAMD" {
+		return false, ""
+	}
+	if c.get("guest_os", "") != "macos" {
+		return false, ""
+	}
+	switch c.get("macos_release", "") {
+	case "ventura", "sonoma", "sequoia", "tahoe":
+	default:
+		return false, ""
+	}
+	if b, err := os.ReadFile("/proc/cmdline"); err == nil && strings.Contains(string(b), "tsc=reliable") {
+		return false, ""
+	}
+	b, err := os.ReadFile("/sys/devices/system/clocksource/clocksource0/current_clocksource")
+	if err != nil {
+		return false, ""
+	}
+	clock := strings.TrimSpace(string(b))
+	return clock != "tsc", clock
+}
+
+// hostDefaultIface: interface owning the default route (host_default_iface).
+func hostDefaultIface() string {
+	b, err := os.ReadFile("/proc/net/route")
+	if err != nil {
+		return ""
+	}
+	for _, l := range strings.Split(string(b), "\n")[1:] {
+		f := strings.Fields(l)
+		if len(f) >= 2 && f[1] == "00000000" {
+			return f[0]
+		}
+	}
+	return ""
+}
+
+// hostTotalMemMB: MemTotal in MiB (host_total_mem_mb).
+func hostTotalMemMB() int {
+	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(l, "MemTotal:") {
+				var kb int
+				if _, err := fmt.Sscanf(l, "MemTotal: %d kB", &kb); err == nil {
+					return kb / 1024
+				}
+			}
+		}
+	}
+	return 0
 }

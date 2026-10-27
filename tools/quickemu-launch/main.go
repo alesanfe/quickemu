@@ -193,6 +193,30 @@ func main() {
 				}
 			}
 		}
+		// MSR alert (ignore_msrs_alert): warn when kvm ignore_msrs=N —
+		// macOS/Windows guests crash on unhandled MSRs otherwise.
+		if b, err := os.ReadFile("/sys/module/kvm/parameters/ignore_msrs"); err == nil && strings.TrimSpace(string(b)) == "N" {
+			fmt.Fprintln(os.Stderr, " - MSR:      WARNING! Ignoring unhandled Model-Specific Registers is disabled.")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "             echo 1 | sudo tee /sys/module/kvm/parameters/ignore_msrs")
+			fmt.Fprintln(os.Stderr, "")
+			fmt.Fprintln(os.Stderr, "             If you are unable to run macOS or Windows VMs then run the above")
+			fmt.Fprintln(os.Stderr, "             This will enable ignoring of unhandled MSRs until you reboot the host.")
+			fmt.Fprintln(os.Stderr, "             You can make this change permanent by running: 'quickemu --ignore-msrs-always'")
+		}
+		// TSC gate (plan_check_tsc): macOS Ventura+ on AMD hosts with an
+		// unstable clocksource can freeze — warn/abort unless bypassed.
+		if tsc, clock := hostMacosTSCUnstable(conf); tsc {
+			if conf.get("ignore_tsc_warning", "") == "" {
+				fmt.Fprintf(os.Stderr, " - TSC:      WARNING! Unstable TSC detected (clocksource: %s)\n", clock)
+				fmt.Fprintln(os.Stderr, "             macOS may freeze on AMD Ryzen mobile CPUs.")
+				fmt.Fprintln(os.Stderr, "             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot.")
+				fmt.Fprintln(os.Stderr, "             Or:  Use macOS Big Sur (11) or Monterey (12) instead.")
+				fmt.Fprintln(os.Stderr, "ERROR! Use ignore_tsc_warning=\"on\" in the conf (or --ignore-tsc-warning) to bypass.")
+				os.Exit(1)
+			}
+			fmt.Fprintf(os.Stderr, " - TSC:      WARNING! Unstable TSC detected (clocksource: %s), proceeding.\n", clock)
+		}
 		if err := runQEMU(os.Args[1], args); err != nil {
 			fmt.Fprintln(os.Stderr, "launch failed:", err)
 			os.Exit(1)

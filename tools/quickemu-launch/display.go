@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -17,8 +18,21 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	switch display {
 	case "sdl", "spice-app":
 		a = append(a, "-display", display+",gl="+gl)
-	case "cocoa", "gtk":
-		a = append(a, "-display", display+",grab-on-hover=on,zoom-to-fit=off,gl="+gl)
+	case "cocoa":
+		// display.sh: gl=on + check_cocoa_gl_es_support → gl=es;
+		// otherwise bare "cocoa" (gl param omitted entirely).
+		if gl == "on" && cocoaGLES() {
+			gl = "es"
+			a = append(a, "-display", display+",gl=es")
+		} else {
+			a = append(a, "-display", display)
+		}
+	case "gtk":
+		render := display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + gl
+		if c.get("fullscreen", "") == "true" {
+			render += ",full-screen=on"
+		}
+		a = append(a, "-display", render)
 	case "vnc":
 		a = append(a, "-vnc", ":0", "-display", "none")
 	case "none":
@@ -82,6 +96,43 @@ func displayDevice(c Conf, osName, arch, display string) string {
 		}
 	}
 	return dev
+}
+
+// cocoaGLES mirrors check_cocoa_gl_es_support (macOS-only): probe
+// `qemu -display cocoa,gl=es -M none` for OpenGL rejection, then fall
+// back to scanning for ANGLE's libEGL.dylib near the QEMU prefix or
+// in DYLD_LIBRARY_PATH.
+func cocoaGLES() bool {
+	if runtime.GOOS != "darwin" {
+		return false
+	}
+	qemu, err := exec.LookPath("qemu-system-x86_64")
+	if err != nil {
+		return false
+	}
+	out, _ := exec.Command(qemu, "-display", "cocoa,gl=es", "-M", "none").CombinedOutput()
+	s := string(out)
+	if !strings.Contains(strings.ToLower(s), "opengl support was not enabled") && !strings.Contains(s, "does not accept") {
+		return true // QEMU accepted gl=es
+	}
+	real, _ := filepath.EvalSymlinks(qemu)
+	prefix := filepath.Dir(filepath.Dir(real))
+	libs := []string{
+		prefix + "/lib/libEGL.dylib",
+		"/opt/homebrew/lib/libEGL.dylib",
+		"/usr/local/lib/libEGL.dylib",
+	}
+	if dl := os.Getenv("DYLD_LIBRARY_PATH"); dl != "" {
+		for _, p := range strings.Split(dl, ":") {
+			libs = append(libs, p+"/libEGL.dylib")
+		}
+	}
+	for _, l := range libs {
+		if _, err := os.Stat(l); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func audioArgs(c Conf, osName string, t OsTuning) []string {
