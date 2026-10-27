@@ -58,7 +58,10 @@ function validate_release() {
         *ubuntu*) RELEASE_GENERATOR="releases_ubuntu";;
         *) RELEASE_GENERATOR="${1}";;
     esac
-    RELEASES=$(${RELEASE_GENERATOR})
+    # releases_* may emit one-per-line (jq output); normalize for the
+    # space-delimited containment check and strip CRLF from Windows jq.exe
+    RELEASES=$(${RELEASE_GENERATOR} | tr -d '
+' | tr -s ' ')
     error_not_supported_release "${RELEASE_GENERATOR}"
 }
 
