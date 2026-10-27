@@ -47,3 +47,8 @@ quickreport.json
 quickreport.txt
 tools/quickemu-api/quickemu-api
 tools/quickemu-toml/quickemu-toml
+tools/quickemu-cli/quickemu-cli
+tools/quickemu-launch/quickemu-launch
+tools/quickemu-vm/quickemu-vm
+tools/quickget-catalog/quickget-catalog
+tools/quickget-vm/quickget-vm
