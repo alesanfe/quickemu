@@ -6,6 +6,9 @@
 package main
 
 import (
+	"archive/zip"
+	"compress/bzip2"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +17,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/klauspost/compress/zstd"
+	"github.com/ulikunitz/xz"
 )
 
 // finalURL: web_redirect parity — follow redirects and return the
@@ -220,32 +226,23 @@ func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 }
 
 // imageNormalize: per-OS post-download fixups (decompress, convert to
-// qcow2, resize). Returns the final image filename inside vmPath.
+// qcow2, resize). Compression is pure Go; only qemu-img and 7z stay
+// external. Returns the final image filename inside vmPath.
 func imageNormalize(osName, iso, vmPath string) string {
-	run := func(name string, args ...string) error {
-		bin, err := exec.LookPath(name)
-		if err != nil {
-			return err
-		}
-		return exec.Command(bin, args...).Run()
-	}
-	strip := func(sfx string) string {
-		os.Remove(filepath.Join(vmPath, iso))
-		return strings.TrimSuffix(iso, sfx)
-	}
-	_ = strip
 	switch osName {
 	case "batocera":
 		if strings.HasSuffix(iso, ".gz") {
-			run("gzip", "-d", filepath.Join(vmPath, iso))
-			iso = strings.TrimSuffix(iso, ".gz")
+			if decompressGZ(filepath.Join(vmPath, iso)) {
+				iso = strings.TrimSuffix(iso, ".gz")
+			}
 		}
 		// Grow the raw image so Batocera can expand its partition.
 		run("qemu-img", "resize", "-f", "raw", filepath.Join(vmPath, iso), "128G")
 	case "dragonflybsd":
 		if strings.HasSuffix(iso, ".bz2") {
-			run("bzip2", "-d", filepath.Join(vmPath, iso))
-			iso = strings.TrimSuffix(iso, ".bz2")
+			if decompressBZ2(filepath.Join(vmPath, iso)) {
+				iso = strings.TrimSuffix(iso, ".bz2")
+			}
 		}
 	case "easyos":
 		if strings.HasSuffix(iso, ".img") {
@@ -255,24 +252,27 @@ func imageNormalize(osName, iso, vmPath string) string {
 		}
 	case "openfyde":
 		if strings.HasSuffix(iso, ".xz") {
-			run("xz", "-d", filepath.Join(vmPath, iso))
-			iso = strings.TrimSuffix(iso, ".xz")
-			run("qemu-img", "convert", "-f", "raw", "-O", "qcow2",
-				filepath.Join(vmPath, iso), filepath.Join(vmPath, "disk.qcow2"))
-			iso = "disk.qcow2"
+			if decompressXZ(filepath.Join(vmPath, iso)) {
+				iso = strings.TrimSuffix(iso, ".xz")
+				run("qemu-img", "convert", "-f", "raw", "-O", "qcow2",
+					filepath.Join(vmPath, iso), filepath.Join(vmPath, "disk.qcow2"))
+				iso = "disk.qcow2"
+			}
 		}
 	case "redoxos":
 		if strings.HasSuffix(iso, ".zst") {
-			if _, err := exec.LookPath("zstd"); err != nil {
-				fmt.Fprintln(os.Stderr, "ERROR! 'zstd' needs installing. Unable to extract file.")
-			} else if run("zstd", "-dq", filepath.Join(vmPath, iso)) == nil {
-				iso = strip(".zst")
+			if decompressZstd(filepath.Join(vmPath, iso)) {
+				os.Remove(filepath.Join(vmPath, iso))
+				iso = strings.TrimSuffix(iso, ".zst")
+			} else {
+				fmt.Fprintln(os.Stderr, "ERROR! Unable to extract file.")
 			}
 		}
 	case "freedos", "reactos":
 		if strings.HasSuffix(iso, ".zip") {
-			run("unzip", "-qo", filepath.Join(vmPath, iso), "-d", vmPath)
-			iso = findISO(vmPath, iso)
+			if extractZip(filepath.Join(vmPath, iso), vmPath) {
+				iso = findISO(vmPath, iso)
+			}
 		}
 	case "kolibrios":
 		if strings.HasSuffix(iso, ".7z") {
@@ -285,6 +285,126 @@ func imageNormalize(osName, iso, vmPath string) string {
 		}
 	}
 	return iso
+}
+
+func run(name string, args ...string) error {
+	bin, err := exec.LookPath(name)
+	if err != nil {
+		return err
+	}
+	return exec.Command(bin, args...).Run()
+}
+
+// decompressGZ/XZ/Zstd/BZ2 + extractZip: pure-Go decompressors so the
+// pipeline does not depend on host gzip/xz/zstd/bzip2/unzip binaries.
+func decompressGZ(p string) bool {
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	gr, err := gzip.NewReader(f)
+	if err != nil {
+		return false
+	}
+	w, err := os.Create(strings.TrimSuffix(p, ".gz"))
+	if err != nil {
+		return false
+	}
+	defer w.Close()
+	if _, err := io.Copy(w, gr); err != nil {
+		return false
+	}
+	os.Remove(p)
+	return true
+}
+
+func decompressBZ2(p string) bool {
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	w, err := os.Create(strings.TrimSuffix(p, ".bz2"))
+	if err != nil {
+		return false
+	}
+	defer w.Close()
+	if _, err := io.Copy(w, bzip2.NewReader(f)); err != nil {
+		return false
+	}
+	os.Remove(p)
+	return true
+}
+
+func decompressXZ(p string) bool {
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	xr, err := xz.NewReader(f)
+	if err != nil {
+		return false
+	}
+	w, err := os.Create(strings.TrimSuffix(p, ".xz"))
+	if err != nil {
+		return false
+	}
+	defer w.Close()
+	if _, err := io.Copy(w, xr); err != nil {
+		return false
+	}
+	os.Remove(p)
+	return true
+}
+
+func decompressZstd(p string) bool {
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	zr, err := zstd.NewReader(f)
+	if err != nil {
+		return false
+	}
+	w, err := os.Create(strings.TrimSuffix(p, ".zst"))
+	if err != nil {
+		return false
+	}
+	defer w.Close()
+	if _, err := io.Copy(w, zr.IOReadCloser()); err != nil {
+		return false
+	}
+	return true
+}
+
+func extractZip(zipPath, dest string) bool {
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return false
+	}
+	defer zr.Close()
+	for _, zf := range zr.File {
+		d := filepath.Join(dest, zf.Name)
+		if zf.FileInfo().IsDir() {
+			os.MkdirAll(d, 0755)
+			continue
+		}
+		rc, err := zf.Open()
+		if err != nil {
+			continue
+		}
+		os.MkdirAll(filepath.Dir(d), 0755)
+		w, err := os.Create(d)
+		if err == nil {
+			io.Copy(w, rc)
+			w.Close()
+		}
+		rc.Close()
+	}
+	return true
 }
 
 // findISO: after an archive unpack, pick up the extracted .iso name
