@@ -64,6 +64,7 @@ func main() {
 		return
 	}
 	dir := filepath.Dir(os.Args[1])
+	resolvePublic(conf)
 	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	osName := conf.get("guest_os", "linux")
 	arch := conf.get("arch", "x86_64")
@@ -76,10 +77,8 @@ func main() {
 
 	// machine + accel
 	accel := "tcg"
-	if arch == "x86_64" {
-		if _, err := os.Stat("/dev/kvm"); err == nil {
-			accel = "kvm"
-		}
+	if arch == "x86_64" && hostHasKVM() {
+		accel = "kvm"
 	}
 	args = append(args, "-accel", accel+",tb-size=256,thread=multi")
 	args = append(args, "-machine", machine+",smm=off,vmport=off")
@@ -118,13 +117,13 @@ func main() {
 	args = append(args, bootMediaArgs(conf, dir)...)
 	args = append(args, channelArgs(conf, dir)...)
 	// monitor + serial sockets
-	args = append(args, "-monitor", "unix:"+filepath.Join(dir, vmname+"-monitor.socket")+",server,nowait")
-	args = append(args, "-qmp", "unix:"+filepath.Join(dir, vmname+"-qmp.socket")+",server,nowait")
-	args = append(args, "-serial", "unix:"+filepath.Join(dir, vmname+"-serial.socket")+",server,nowait")
+	args = append(args, "-monitor", "unix:"+dotdir(dir)+vmname+"-monitor.socket"+",server,nowait")
+	args = append(args, "-qmp", "unix:"+dotdir(dir)+vmname+"-qmp.socket"+",server,nowait")
+	args = append(args, "-serial", "unix:"+dotdir(dir)+vmname+"-serial.socket"+",server,nowait")
 
 	// pidfile + daemonize
 	args = append(args, "-name", vmname+",process="+vmname+",debug-threads=on")
-	args = append(args, "-pidfile", filepath.Join(dir, vmname+".pid"))
+	args = append(args, "-pidfile", dotdir(dir)+vmname+".pid")
 	args = append(args, "-rtc", "base=utc,clock=host")
 	args = append(args, "-device", "virtio-balloon")
 	args = append(args, "-object", "rng-random,id=rng0,filename=/dev/urandom", "-device", "virtio-rng-pci,rng=rng0")
@@ -171,4 +170,13 @@ func parseTomlConf(path string) Conf {
 		}
 	}
 	return c
+}
+
+// dotdir: Bash launches with cwd=vmdir so artifacts render as ./name —
+// emit the same prefix when the conf sits in the current directory.
+func dotdir(dir string) string {
+	if dir == "." {
+		return "./"
+	}
+	return dir + "/"
 }

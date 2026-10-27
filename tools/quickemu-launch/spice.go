@@ -15,7 +15,7 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 	a = append(a, "-spice", "disable-ticketing=on,port="+port+",addr=127.0.0.1")
 	// virtio-serial + guest agent + vdagent + webdav channels
 	a = append(a, "-device", "virtio-serial-pci")
-	a = append(a, "-chardev", fmt.Sprintf("socket,id=agent0,path=%s/%s-agent.sock,server=on,wait=off", dir, vmname))
+	a = append(a, "-chardev", fmt.Sprintf("socket,id=agent0,path=%s%s-agent.sock,server=on,wait=off", dotdir(dir), vmname))
 	a = append(a, "-device", "virtserialport,chardev=agent0,name=org.qemu.guest_agent.0")
 	a = append(a, "-chardev", "spicevmc,id=vdagent0,name=vdagent")
 	a = append(a, "-device", "virtserialport,chardev=vdagent0,name=com.redhat.spice.0")

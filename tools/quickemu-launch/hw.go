@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,16 +18,48 @@ func hostSMT() bool {
 	return err == nil && strings.TrimSpace(string(b)) == "on"
 }
 
+// hostHasKVM: writable /dev/kvm AND vmx|svm in cpuinfo — same as
+// Bash host_has_kvm + the VT-x/SVM requirement in configure_cpu.
+func hostHasKVM() bool {
+	f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	b, err := os.ReadFile("/proc/cpuinfo")
+	return err == nil && (strings.Contains(string(b), " vmx") || strings.Contains(string(b), " svm"))
+}
+
+func hostNCores() int {
+	if out, err := exec.Command("nproc").Output(); err == nil {
+		n := 0
+		if _, e := fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &n); e == nil {
+			return n
+		}
+	}
+	return 2
+}
+
 func cpuArgs(c Conf, osName, arch string) []string {
-	cores := c.get("cpu_cores", "2")
+	// cpu_cores unset -> tier by host logical cpus (configure_cpu).
+	cores := c.get("cpu_cores", "")
+	if cores == "" {
+		n := hostNCores()
+		switch {
+		case n >= 32:
+			cores = "16"
+		case n >= 16:
+			cores = "8"
+		case n >= 8:
+			cores = "4"
+		case n >= 4:
+			cores = "2"
+		default:
+			cores = "1"
+		}
+	}
 	cpu := "host"
-	accel := "tcg"
-	if arch == "x86_64" {
-		accel = "kvm"
-	}
-	if accel == "tcg" {
-		cpu = "max"
-	}
+
 	var a []string
 	switch osName {
 	case "macos":
@@ -70,7 +103,7 @@ func biosArgs(c Conf, osName, arch string) []string {
 	// Bash configure_bios: OVMF uses TWO pflash drives — CODE (unit=0,
 	// readonly) + VARS (unit=1, writable per-VM copy) — plus the secure
 	// pflash global. The vars file is copied into the vmdir at launch.
-	vars := filepath.Join(c["_vmdir"], "OVMF_VARS.fd")
+	vars := dotdir(c["_vmdir"]) + "OVMF_VARS.fd"
 	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
 	if c.get("secureboot", "") == "true" {
 		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file=/usr/share/OVMF/OVMF_CODE.secboot.fd,readonly=on")
@@ -115,9 +148,10 @@ func networkArgs(c Conf, t OsTuning) []string {
 		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "passt,id=nic"}
 	case "":
-		// user mode: hostfwd appended to the user netdev
+		// user mode: hostfwd appended to the user netdev.
+		// configure_ports auto-allocates ssh_port 22220-22229 when unset.
 		fwd := ""
-		if p := c.get("ssh_port", ""); p != "" {
+		if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229); p != "" {
 			fwd = ",hostfwd=tcp:127.0.0.1:" + p + "-:22"
 		}
 		for _, pf := range strings.Fields(c.get("port_forwards", "")) {
@@ -125,6 +159,9 @@ func networkArgs(c Conf, t OsTuning) []string {
 			if len(kv) == 2 {
 				fwd += ",hostfwd=tcp::" + kv[0] + "-:" + kv[1] + ",hostfwd=udp::" + kv[0] + "-:" + kv[1]
 			}
+		}
+		if pub := c["_public"]; pub != "" {
+			fwd += ",smb=" + pub // Samba share on the user netdev
 		}
 		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "user,hostname=" + vm + fwd + ",id=nic"}
@@ -150,4 +187,20 @@ func portArgs(c Conf, dir string) []string {
 		return a // spice args built in displayArgs
 	}
 	return a
+}
+
+// firstFreePort: returns p if set, else the first free TCP port in
+// [lo,hi] — get_port(22220,9) parity.
+func firstFreePort(p string, lo, hi int) string {
+	if p != "" {
+		return p
+	}
+	for port := lo; port <= hi; port++ {
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err == nil {
+			ln.Close()
+			return fmt.Sprint(port)
+		}
+	}
+	return ""
 }

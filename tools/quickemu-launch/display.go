@@ -140,13 +140,12 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 	return a
 }
 
-// fileshareArgs: fileshare_param_check + configure_file_sharing parity —
-// 9p fsdev for the public share dir. public_dir conf key, "none"
-// disables; auto-detects xdg-user-dir PUBLICSHARE else ~/Public.
-func fileshareArgs(c Conf, dir string) []string {
+// resolvePublic: fileshare_param_check parity — resolves PUBLIC early
+// (called before arg building; the user netdev reads it for ,smb=).
+func resolvePublic(c Conf) {
 	pub := c.get("public_dir", "")
 	if pub == "none" {
-		return nil
+		return
 	}
 	if pub == "" {
 		if out, err := exec.Command("xdg-user-dir", "PUBLICSHARE").Output(); err == nil {
@@ -161,10 +160,18 @@ func fileshareArgs(c Conf, dir string) []string {
 		}
 	}
 	if pub == "" {
-		return nil
+		return
 	}
 	if st, err := os.Stat(pub); err != nil || !st.IsDir() {
 		fmt.Fprintf(os.Stderr, " - WARNING! Public directory does not exist: %s\n", pub)
+		return
+	}
+	c["_public"] = pub
+}
+
+func fileshareArgs(c Conf, dir string) []string {
+	pub := c["_public"]
+	if pub == "" {
 		return nil
 	}
 	tag := "Public-" + strings.ToLower(os.Getenv("USER"))
