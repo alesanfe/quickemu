@@ -1733,8 +1733,22 @@ function get_lliurex() {
     local ISO="LliureX-home-desktop_${RELEASE}_latest.iso"
     case "${RELEASE}" in
         23)    ISO="LliureX-${EDITION}_64bits_23_latest.iso";;
-        21.07) ISO="LliureX-${EDITION}_64bits_21_20220406.iso"; BASE="http://lliurex.net/isos/21.07_64bits/20220406";;
-        19.07) ISO="lliurex-${EDITION}_64bits_19_latest.iso"; BASE="http://lliurex.net/isos/19.07_64bits";;
+        21.07)
+            case "${EDITION}" in
+                desktop-fp) ISO="LliureX-desktop-fp_64bits_21_20220406.iso";;
+                client-fp)  ISO="LliureX-client-fp_64bits_21_20220406.iso";;
+                server-fp)  ISO="LliureX-server-fp_64bits_21_20220406.iso";;
+                *)          ISO="LliureX-${EDITION}_64bits_21_20220406.iso";;
+            esac
+            BASE="http://lliurex.net/isos/21.07_64bits/20220406";;
+        19.07)
+            case "${EDITION}" in
+                escriptori-fp) ISO="lliurex-Escriptori-fp_64bits_19_latest.iso";;
+                client-fp)     ISO="lliurex-Client-fp_64bits_19_latest.iso";;
+                servidor-fp)   ISO="lliurex-Servidor-fp_64bits_19_latest.iso";;
+                *)             ISO="lliurex-${EDITION}_64bits_19_latest.iso";;
+            esac
+            BASE="http://lliurex.net/isos/19.07_64bits";;
         16.06) ISO="lliurex-${EDITION}_64bits_16_latest.iso"; BASE="http://lliurex.net/isos/16.06_64bits";;
     esac
     echo "${BASE}/${ISO}"
@@ -1782,7 +1796,14 @@ function get_educaandos() {
     # EducaAndOS — official cica.es mirror, verified filenames
     local BASE="http://guadalinex-edu.cica.es/centros"
     local ISO="educaandos-20.04-instalador-centros.iso"
-    [ "${RELEASE}" = "v2" ] && ISO="EducaAndosV2-offline.iso"
+    case "${RELEASE}" in
+        v2)                 ISO="EducaAndosV2-offline.iso";;
+        20.04-2021122201)   ISO="educaandos-20.04-2021122201.iso";;
+        20.04-2021060801)   ISO="educaandos-20.04-instalador-centros-2021060801.iso";;
+        20.04-2024013001)   ISO="educaandos-20.04-instalador-centros-2024013001.iso";;
+        20.04-20241107)     ISO="educaandos-20.04-instalador-centros-20241107.iso";;
+        20.04-2025021001)   ISO="educaandos-20.04-instalador-centros-2025021001.iso";;
+    esac
     echo "${BASE}/${ISO}"
 }
 

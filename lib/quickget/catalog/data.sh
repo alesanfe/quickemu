@@ -1120,8 +1120,9 @@ function editions_lliurex() {
     # 21.07: desktop/client/server/infantil/multimedia (+fp variants)
     case "${RELEASE}" in
         23)    echo desktop server client;;
-        21.07) echo desktop client server infantil multimedia;;
-        19.07|16.06) echo escriptori client servidor infantil musica pime;;
+        21.07) echo desktop client server infantil multimedia desktop-fp client-fp server-fp;;
+        19.07) echo escriptori client servidor infantil musica pime escriptori-fp client-fp servidor-fp;;
+        16.06) echo escriptori client servidor infantil musica pime;;
         *)     echo desktop;;
     esac
 }
@@ -1164,7 +1165,7 @@ function editions_gnulinex() {
 }
 
 function releases_educaandos() {
-    echo 20.04 v2
+    echo 20.04 20.04-2025021001 20.04-20241107 20.04-2024013001 20.04-2021122201 20.04-2021060801 v2
 }
 
 function releases_minino() {
