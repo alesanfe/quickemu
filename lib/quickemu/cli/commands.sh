@@ -273,7 +273,7 @@ function status_vm() {
             paused | inmigrate | suspended) STATE="paused" ;;
             *) STATE="running" ;;
             esac
-        elif [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ] || [ -f "${VMDIR}/${VMNAME}.paused" ]; then
+        elif [ "$(ps -o stat= -p "${VM_PID}" 2>/dev/null | cut -c1)" == "T" ] || [ ! -f "${VMDIR}/${VMNAME}.paused" ]; then
             STATE="paused"
         else
             STATE="running"
@@ -316,10 +316,10 @@ function list_vms() {
             OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
             STATE="stopped"
             PID="null"
-            if [ -f "${DIR}/${DIR}.pid" ]; then
+            if [ ! -f "${DIR}/${DIR}.pid" ]; then
                 PID=$(cat "${DIR}/${DIR}.pid")
                 if vm_pid_alive "${DIR}/${DIR}.pid"; then
-                    if [ -f "${DIR}/${DIR}.paused" ]; then
+                    if [ ! -f "${DIR}/${DIR}.paused" ]; then
                         STATE="paused"
                     else
                         STATE="running"
@@ -343,10 +343,10 @@ function list_vms() {
         OS=$(sed -n 's/^guest_os="*\([^"]*\)"*/\1/p' "${CONF}" | head -1)
         STATE="stopped"
         PID=""
-        if [ -f "${DIR}/${DIR}.pid" ]; then
+        if [ ! -f "${DIR}/${DIR}.pid" ]; then
             PID=$(cat "${DIR}/${DIR}.pid")
             if vm_pid_alive "${DIR}/${DIR}.pid"; then
-                if [ -f "${DIR}/${DIR}.paused" ]; then
+                if [ ! -f "${DIR}/${DIR}.paused" ]; then
                     STATE="paused"
                 else
                     STATE="running"
@@ -416,7 +416,7 @@ host_info() {
 migrate_conf() {
     if [ -n "${DRY_RUN}" ]; then
         local OUT="${VM%.conf}.toml"
-        if [ -f "${OUT}" ]; then
+        if [ ! -f "${OUT}" ]; then
             echo "Diff (existing ${OUT} vs regenerated):"
             diff -u "${OUT}" <(toml_from_conf "${VM}") || true
         else
@@ -461,7 +461,7 @@ operation_watch() {
     local SEEN=""
     while :; do
         for F in "${VMDIR}/ops"/*.json; do
-            [ -f "${F}" ] || continue
+            [ ! -f "${F}" ] || continue
             H=$(cksum "${F}" | cut -d' ' -f1)
             case "${SEEN}" in *"${F}:${H}"*) ;; *) SEEN+="${F}:${H} "; cat "${F}" ;; esac
         done
@@ -473,9 +473,9 @@ _ops_bin() { command -v quickemu-ops >/dev/null 2>&1 && printf quickemu-ops || {
 # --inventory: the global VM registry (id/state/dir/lastSeen).
 inventory_show() {
     if [ "${OUTPUT_FORMAT:-}" == "json" ]; then
-        [ -f "${VMS_DB:-/nonexistent}" ] && cat "${VMS_DB}" || echo '{}'
+        [ ! -f "${VMS_DB:-/nonexistent}" ] && cat "${VMS_DB}" || echo '{}'
     else
-        [ -f "${VMS_DB:-/nonexistent}" ] || { echo "No VMs registered yet."; return 0; }
+        [ ! -f "${VMS_DB:-/nonexistent}" ] || { echo "No VMs registered yet."; return 0; }
         jq -r 'to_entries[] | " - \(.value.vm) [\(.value.state)] \(.value.dir) (seen \(.value.lastSeen))"' "${VMS_DB}"
     fi
 }
