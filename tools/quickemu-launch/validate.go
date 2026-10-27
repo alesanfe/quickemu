@@ -43,16 +43,24 @@ func validateConf(c Conf, confPath string) []string {
 			errs = append(errs, "iso not found: "+d)
 		}
 	}
+	// ports_param_check: port_forwards entries must be HOST:GUEST
+	// numbers; ssh_port/spice_port must be numeric in range.
+	fwdRe := regexp.MustCompile(`^[0-9]+:[0-9]+$`)
+	for _, pf := range strings.Fields(c.get("port_forwards", "")) {
+		if !fwdRe.MatchString(pf) {
+			errs = append(errs, "'"+pf+"' is not a valid port forward (expected host:guest numbers)")
+		}
+	}
 	if p := c.get("ssh_port", ""); p != "" {
 		var n int
 		if fmt.Sscanf(p, "%d", &n); n < 1 || n > 65535 {
-			errs = append(errs, "ssh_port out of range")
+			errs = append(errs, "ssh_port must be a number in 1-65535")
 		}
 	}
 	if p := c.get("spice_port", ""); p != "" {
 		var n int
 		if fmt.Sscanf(p, "%d", &n); n < 1 || n > 65535 {
-			errs = append(errs, "spice_port out of range")
+			errs = append(errs, "spice_port must be a number in 1-65535")
 		}
 	}
 	// planning gates (plan_check_ram/tpm/net): warnings, not errors —

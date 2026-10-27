@@ -67,3 +67,4 @@ tools/quickemu-ports/ports
 tools/quickemu-proc/proc
 tools/quickemu-qmp/qmp
 tools/quickemu-toml/toml
+tools/quickgetc/quickgetc

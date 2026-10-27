@@ -4,7 +4,7 @@
 export PATH="${HOME}/go/bin:/usr/local/go/bin:${PATH}"
 cd "$(dirname "${0}")/.." || exit 1
 RC=0
-for d in tools/quickemu-*/ tools/quickget-*/; do
+for d in tools/quickemu-*/ tools/quickget-*/ tools/quickgetc/; do
     [ -f "${d}go.mod" ] || continue
     name=$(basename "${d}")
     out=$(cd "${d}" && go test -race -cover ./... 2>&1) || RC=1

@@ -1,0 +1,332 @@
+// download.go: cache populate + web transport + checksum + archive
+// extraction — download/{cache,web}.sh parity. Compression is pure
+// Go (klauspost zstd, ulikunitz xz, stdlib gz/bz2/zip/tar) so no
+// external decompressor binaries are needed.
+package main
+
+import (
+	"archive/tar"
+	"archive/zip"
+	"compress/bzip2"
+	"compress/gzip"
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/sha512"
+	"encoding/json"
+	"fmt"
+	"hash"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/klauspost/compress/zstd"
+	"github.com/ulikunitz/xz"
+)
+
+const (
+	cacheFile = "quickget_data.json.zst"
+	cacheURL  = "https://github.com/lj3954/quickget_configs/releases/download/daily/quickget_data.json.zst"
+	qgcUA     = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+)
+
+// cacheIsValid: cache file must be from the current UTC day.
+func cacheIsValid(p string) bool {
+	st, err := os.Stat(p)
+	if err != nil {
+		return false
+	}
+	now := time.Now().UTC()
+	m := st.ModTime().UTC()
+	return now.Year() == m.Year() && now.YearDay() == m.YearDay()
+}
+
+// populateCache: download the daily dataset if stale, then
+// zstd-decompress it into the catalog model.
+func populateCache() []OSEntry {
+	cacheDir := os.Getenv("XDG_CACHE_HOME")
+	if cacheDir == "" {
+		cacheDir = filepath.Join(os.Getenv("HOME"), ".cache")
+	}
+	p := filepath.Join(cacheDir, cacheFile)
+	if !cacheIsValid(p) {
+		fmt.Println("Downloading quickget data from " + cacheURL)
+		os.MkdirAll(cacheDir, 0755)
+		if webGet(cacheURL, cacheDir, cacheFile, nil) != 0 {
+			fmt.Fprintln(os.Stderr, "ERROR! Failed to download catalog data.")
+			os.Exit(1)
+		}
+	}
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Failed to read %s\n", p)
+		os.Exit(1)
+	}
+	zr, err := zstd.NewReader(nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	defer zr.Close()
+	data, err := zr.DecodeAll(raw, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Failed to decompress %s. Try running quickgetc again.\n", p)
+		os.Remove(p)
+		os.Exit(1)
+	}
+	var cat []OSEntry
+	if err := json.Unmarshal(data, &cat); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Failed to parse catalog data: %v\n", err)
+		os.Exit(1)
+	}
+	return cat
+}
+
+// webGet: redirect resolution + resume download with the Chrome UA.
+func webGet(url, dir, file string, headers [][2]string) int {
+	url = webRedirect(url)
+	if file == "" {
+		file = filepath.Base(url)
+	}
+	if dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! Unable to create directory %s\n", dir)
+			return 1
+		}
+	}
+	dest := filepath.Join(dir, file)
+	var have int64
+	if st, err := os.Stat(dest); err == nil {
+		have = st.Size()
+	}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	req.Header.Set("User-Agent", qgcUA)
+	for _, h := range headers {
+		req.Header.Set(h[0], h[1])
+	}
+	if have > 0 {
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", have))
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s\n", url)
+		return 1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s (HTTP %d)\n", url, resp.StatusCode)
+		return 1
+	}
+	flag := os.O_CREATE | os.O_WRONLY
+	if have > 0 && resp.StatusCode == http.StatusPartialContent {
+		flag |= os.O_APPEND
+	} else {
+		flag |= os.O_TRUNC
+		have = 0
+	}
+	f, err := os.OpenFile(dest, flag, 0644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer f.Close()
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s\n", url)
+		os.Remove(dest)
+		return 1
+	}
+	return 0
+}
+
+// webRedirect: resolve final URL after redirects (HEAD).
+func webRedirect(url string) string {
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return url
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return url
+	}
+	resp.Body.Close()
+	if resp.Request.URL.String() != url {
+		return resp.Request.URL.String()
+	}
+	return url
+}
+
+// webCheck: HEAD reachability probe.
+func webCheck(url string, headers [][2]string) bool {
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return false
+	}
+	for _, h := range headers {
+		req.Header.Set(h[0], h[1])
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode >= 200 && resp.StatusCode < 400
+}
+
+// checkHash: guess the hash algorithm by hex length and verify —
+// md5(32)/sha1(40)/sha256(64)/sha512(128).
+func checkHash(path, want string) bool {
+	var h hash.Hash
+	var name string
+	switch len(want) {
+	case 32:
+		h, name = md5.New(), "md5sum"
+	case 40:
+		h, name = sha1.New(), "sha1sum"
+	case 64:
+		h, name = sha256.New(), "sha256sum"
+	case 128:
+		h, name = sha512.New(), "sha512sum"
+	default:
+		fmt.Printf("WARNING! Can't guess hash algorithm, not checking %s hash.\n", path)
+		return true
+	}
+	fmt.Printf("Checking %s with %s... ", path, name)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Println("ERROR!")
+		return false
+	}
+	h.Write(b)
+	if fmt.Sprintf("%x", h.Sum(nil)) != strings.ToLower(want) {
+		fmt.Println("ERROR!")
+		fmt.Printf("%s doesn't match %s. Try running 'quickgetc' again.\n", path, want)
+		return false
+	}
+	fmt.Println("Good!")
+	return true
+}
+
+// extractArchive: decompress a downloaded source by archive_format
+// (tar*/xz/gz/bz2/zip). Returns the final file path.
+func extractArchive(format, file, vmPath, imageType string) string {
+	open := func() (io.ReadCloser, error) {
+		return os.Open(file)
+	}
+	switch {
+	case strings.HasPrefix(format, "tar"):
+		rc, err := open()
+		if err != nil {
+			return file
+		}
+		defer rc.Close()
+		tr := tar.NewReader(rc)
+		for {
+			hdr, err := tr.Next()
+			if err != nil {
+				break
+			}
+			dest := filepath.Join(vmPath, hdr.Name)
+			if hdr.FileInfo().IsDir() {
+				os.MkdirAll(dest, 0755)
+				continue
+			}
+			os.MkdirAll(filepath.Dir(dest), 0755)
+			w, err := os.Create(dest)
+			if err != nil {
+				continue
+			}
+			io.Copy(w, tr)
+			w.Close()
+		}
+		if m, _ := filepath.Glob(filepath.Join(vmPath, "*."+imageType)); len(m) > 0 {
+			return m[0]
+		}
+		return file
+	case format == "xz":
+		rc, err := open()
+		if err != nil {
+			return file
+		}
+		defer rc.Close()
+		xr, err := xz.NewReader(rc)
+		if err != nil {
+			return file
+		}
+		out := strings.TrimSuffix(file, ".xz")
+		w, err := os.Create(out)
+		if err != nil {
+			return file
+		}
+		io.Copy(w, xr)
+		w.Close()
+		return out
+	case format == "gz":
+		rc, err := open()
+		if err != nil {
+			return file
+		}
+		defer rc.Close()
+		gr, err := gzip.NewReader(rc)
+		if err != nil {
+			return file
+		}
+		out := strings.TrimSuffix(file, ".gz")
+		w, err := os.Create(out)
+		if err != nil {
+			return file
+		}
+		io.Copy(w, gr)
+		w.Close()
+		return out
+	case format == "bz2":
+		rc, err := open()
+		if err != nil {
+			return file
+		}
+		defer rc.Close()
+		out := strings.TrimSuffix(file, ".bz2")
+		w, err := os.Create(out)
+		if err != nil {
+			return file
+		}
+		io.Copy(w, bzip2.NewReader(rc))
+		w.Close()
+		return out
+	case format == "zip":
+		zr, err := zip.OpenReader(file)
+		if err != nil {
+			return file
+		}
+		defer zr.Close()
+		for _, zf := range zr.File {
+			if zf.FileInfo().IsDir() {
+				os.MkdirAll(filepath.Join(vmPath, zf.Name), 0755)
+				continue
+			}
+			rc, err := zf.Open()
+			if err != nil {
+				continue
+			}
+			dest := filepath.Join(vmPath, zf.Name)
+			os.MkdirAll(filepath.Dir(dest), 0755)
+			w, err := os.Create(dest)
+			if err == nil {
+				io.Copy(w, rc)
+				w.Close()
+			}
+			rc.Close()
+		}
+		if m, _ := filepath.Glob(filepath.Join(vmPath, "*."+imageType)); len(m) > 0 {
+			return m[0]
+		}
+		return file
+	}
+	return file
+}
