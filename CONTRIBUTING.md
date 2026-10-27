@@ -1,42 +1,38 @@
-# Contributing to Quickemu (alesanfe fork)
+# Contributing to quickemu
 
-## Ground rules
+## Before you start
 
-- **Bash 4.0+**, ShellCheck clean (CI blocks on severity: warning).
-- Conventional Commits (`feat(scope):`, `fix(scope):` — see AGENTS.md).
-- Every defect is a regression test BEFORE the fix, not after.
-- New behaviour ships with a ShellSpec example in `spec/` plus the
-  matching `schemas/v1/*.schema.json` when it emits structured output.
+- Read `AGENTS.md` — project structure, test commands, conventions.
+- Read `docs/adapter-contract.md` before adding an OS to quickget.
+- Read `docs/error-codes.md` before adding error paths.
 
-## Run the gate locally
+## Development setup
 
-```sh
-bash tools/run-specs.sh 180 spec          # per-spec isolated suite
-bash tools/go-check.sh                    # vet + test + build helpers
-shellcheck -S warning bin/* lib/**/*.sh   # lint
-bash tools/compare-backends.sh            # Bash vs Go divergence check
+```bash
+# Linux: bash 4.0+, jq, curl, socat, qemu-utils
+# Verify your change:
+bash -n <edited-file>
+./shellspec-0.28.1/shellspec
+shellcheck -S warning bin/* lib/**/*.sh
 ```
 
-## Adding a command
+## Commits
 
-1. Envelope command name goes in `docs/guides/command-map.md` first
-   (it's the contract — changing it later is a breaking change).
-2. Add the flag in `lib/quickemu/cli/options.sh`, the action in
-   `lib/quickemu/cli/commands.sh`, the impl in the right `lib/` layer.
-3. Emit `qe_ok`/`qe_fail` with a TYPED code — never freeform errors.
-4. State-changing ops: verify `vm_transition_ok <state> <op>` first;
-   mutating ops take `vm_lock_acquire`, readers take `shared`.
+Conventional Commits — CI validates PR titles:
 
-## Adding a Go helper (ADR-0001)
+- `feat(quickget):` new OS / releases / editions
+- `fix(quickget):` catalog fix  
+- `feat(quickemu):` runtime feature
+- `fix(quickemu):` runtime fix
+- `docs:` / `ci:` / `test:` / `refactor:` / `chore:`
 
-- Contract v1 envelope identical to Bash; `--raw` for text fallback.
-- New deps need: justification vs stdlib, versioned pin in go.sum,
-  and a POC behind `-tags poc` when they replace a hot path.
-- Run `tools/go-check.sh` — vet, tests (race when cgo), build.
+## Adding an OS
 
-## PRs
+1. Follow `docs/adapter-contract.md` exactly
+2. Verify `quickget --check <os> <release> <edition>` on real Linux
+3. No torrent-only, appliance-only, or JS-wrapped download URLs
 
-- One concern per PR; keep unrelated diffs out.
-- CI must be green: shellcheck + specs + build.
-- Changes to `schemas/v1/` are breaking — bump the envelope version
-  only after a deprecation period (see `toml-deprecation.md` model).
+## Reporting bugs
+
+Use the issue template — include commit hash, host env, repro commands,
+and `--verbose` output or JSON envelope.

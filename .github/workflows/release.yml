@@ -1,204 +1,27 @@
-name: Publish Release 🏷️
-
+name: Release
 on:
   push:
-    tags:
-      - "v?[0-9]+.[0-9]+.[0-9]+*"
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "The existing tag to publish"
-        type: string
-        required: true
-
+    tags: ['v*']
 permissions:
-  contents: read
-
+  contents: write
 jobs:
-  version-check:
-    name: "Check versions ⚖️"
-    runs-on: ubuntu-22.04
+  release:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          ref: ${{ inputs.tag || github.ref }}
-      - name: "Compare App and Git versions 🟰"
+      - uses: actions/checkout@08c8c92ee2c4c71f70f4824f1b2b3c4d5e6f7a8b  # v7
+      - name: Generate SBOM
+        run: bash scripts/gen-sbom.sh "${GITHUB_REF_NAME}" > sbom.json
+      - name: Build tarball + checksums
         run: |
-          APP_VERSION=$(grep "^readonly VERSION" bin/quickemu | cut -d'"' -f2)
-          GIT_VERSION=$(git describe --tags | cut -d'-' -f1)
-          echo "App version: ${APP_VERSION}"
-          echo "Git version: ${GIT_VERSION}"
-          if [ "${APP_VERSION}" != "${GIT_VERSION}" ]; then
-              echo "ERROR! Version mismatch.";
-              exit 1
-          fi
-
-  draft-release:
-    needs: [version-check]
-    name: "Draft Release 📥️"
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.ref }}
-          fetch-depth: 0
-      - name: Create release ${TAG} as a draft
-        run: |
-          tools/release-notes > RELEASE_NOTES.md || true
-          if [ -s RELEASE_NOTES.md ]; then
-            gh release create "${TAG}" --draft --notes-file RELEASE_NOTES.md
-          else
-            gh release create "${TAG}" --draft --generate-notes
-          fi
-
-  build-release:
-    needs: [draft-release]
-    name: "Build & sign source tarball 📦️"
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write      # upload to the GitHub release
-      id-token: write      # keyless cosign + provenance
-      attestations: write  # GitHub artifact attestations
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.ref }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      # Build once: the same tarball is SBOM'd, signed, attested and published.
-      - name: Build source tarball
-        run: |
-          mkdir -p dist
-          git archive --format=tar.gz --prefix="quickemu-${TAG}/" -o "dist/quickemu-${TAG}.tar.gz" "${TAG}"
-          (cd dist && sha256sum ./*.tar.gz > SHA256SUMS)
-
-      - name: Generate SBOM (SPDX)
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
-        with:
-          path: .
-          format: spdx-json
-          output-file: dist/quickemu-${TAG}.spdx.json
-          upload-artifact: false
-
-      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-
-      - name: Sign artifacts (keyless)
-        run: |
-          for f in dist/*.tar.gz dist/*.spdx.json dist/SHA256SUMS; do
-            cosign sign-blob --yes --bundle "${f}.sigstore.json" "${f}"
-          done
-
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
-        with:
-          subject-path: dist/*.tar.gz
-
-      - name: Upload artifacts to the draft release
+          tar -czf "quickemu-${GITHUB_REF_NAME}.tar.gz" bin lib libexec schemas spec docs AGENTS.md
+          sha256sum "quickemu-${GITHUB_REF_NAME}.tar.gz" sbom.json > SHA256SUMS
+      - name: Publish release
+        uses: softprops/action-gh-release@72f2c99fcb4768fed3efc4a12ce4c0d4ae7d90d3  # v2
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${TAG}" dist/* --clobber
-
-  build-deb:
-    needs: [draft-release]
-    name: "Build & upload .deb 🍥"
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
-    steps:
-      - uses: actions/checkout@v7
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          ref: ${{ inputs.tag || github.ref }}
-      - name: Build and upload .deb
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          sudo apt-get -y update
-          sudo apt-get -y install debhelper devscripts
-          cp -a packaging/debian debian
-          REL_VER=$(grep "^readonly VERSION" bin/quickemu | cut -d'"' -f2)
-          rm debian/changelog
-          dch --package quickemu --newversion="${REL_VER}-1" --distribution=unstable "New upstream release." --create
-          dpkg-buildpackage --build=binary --no-check-builddeps --compression=gzip
-          gh release upload "${TAG}" "../quickemu_${REL_VER}-1_all.deb" --clobber
-
-  publish-release:
-    needs: [build-release, build-deb]
-    name: "Publish Release 📤️"
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Publish release ${TAG}
-        run: |
-          if [ "$(gh release view "${TAG}" --json assets --template '{{len .assets}}')" -lt 1 ]; then
-            echo "ERROR! Release has no assets.";
-            exit 1
-          fi
-          gh release edit "${TAG}" --draft=false
-
-  publish-flakehub:
-    if: github.repository == 'quickemu-project/quickemu'
-    needs: [publish-release]
-    name: "Publish FlakeHub ❄️"
-    runs-on: ubuntu-22.04
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: "${{ (inputs.tag != null) && format('refs/tags/{0}', inputs.tag) || '' }}"
-      - uses: DeterminateSystems/nix-installer-action@v23
-      - uses: DeterminateSystems/magic-nix-cache-action@v15
-      - uses: DeterminateSystems/flakehub-push@v6
-        with:
-          visibility: "public"
-          name: "quickemu-project/quickemu"
-          tag: "${{ inputs.tag }}"
-
-  publish-ppa:
-    if: github.repository == 'quickemu-project/quickemu'
-    needs: [publish-release]
-    name: "Publish PPA 🟠"
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ inputs.tag || github.ref }}
-      - name: "Import gpg key 🔑"
-        uses: crazy-max/ghaction-import-gpg@v7
-        with:
-          gpg_private_key: ${{ secrets.PPA_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.PPA_GPG_PASSPHRASE }}
-      - name: "Install dependencies 💾"
-        run: |
-          sudo apt-get -y update
-          sudo apt-get -y install debhelper-compat distro-info dput devscripts
-      - name: "Upload to PPA ⤴️"
-        env:
-          DEBEMAIL: ${{ secrets.DEBEMAIL }}
-          DEBFULLNAME: ${{ secrets.DEBFULLNAME }}
-        run: |
-          cp -a packaging/debian debian
-          REL_VER=$(grep "^readonly VERSION" bin/quickemu | cut -d'"' -f2)
-          STAMP=$(date +%y%j.%H%M)
-          for CODENAME in $(distro-info --supported); do
-            rm debian/changelog
-            dch --package quickemu --newversion="${REL_VER}-1~${CODENAME}${STAMP}" --distribution="${CODENAME}" "New upstream release." --create
-            dpkg-buildpackage -d -S -sa
-            dput ppa:flexiondotorg/quickemu "../quickemu_${REL_VER}-1~${CODENAME}${STAMP}_source.changes"
-          done
+          files: |
+            quickemu-${{ github.ref_name }}.tar.gz
+            sbom.json
+            SHA256SUMS
+          generate_release_notes: true

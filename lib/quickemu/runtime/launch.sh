@@ -191,7 +191,7 @@ function configure_cpu() {
         HOST_CPU_SOCKETS=1
     fi
 
-    CPU_MODEL="host"
+    CPU_MODEL="${CPU_MODEL:-host}"
     QEMU_ACCEL="tcg"
     # Configure appropriately for the host platform
     if [ "${OS_KERNEL}" == "Darwin" ]; then

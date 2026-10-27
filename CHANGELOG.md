@@ -1,34 +1,33 @@
 # Changelog
 
-## 4.9.9 — Structured-API release
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+Versioning follows the structured-contract version in `schemas/v1/`.
 
-The contract declared by `schemas/v1/` is stable from this version;
-`meta.operationId`, `data.allowedOps`, typed `errors[]` codes and the
-events/ops registries are part of the public surface.
+## Unreleased
 
-minStructuredQuickemuVersion = **4.9.9**
+### Added
+- SECURITY.md, CODE_OF_CONDUCT.md, threat-model, supported-platforms,
+  error-codes, adapter-contract docs (QE-09/04/03 governance)
+- `quickget --minimum-trust <A-E>` — enforce source integrity policy
+- `lib/quickget/catalog/trust.sh` — trust levels inferred/overridable
+- `spec/e2e/qemu_boot_spec.sh` — real-QEMU E2E (TCG, skip-gated)
+- `spec/e2e/uat_scenarios_spec.sh` — acceptance scenarios (QE-14)
+- `lib/quickemu/cli/verbosity.sh` — quiet/normal/verbose/debug levels
+- `docs/quality/benchmarks.md` — performance baselines (QE-12)
+- QMP socket owner/symlink validation + command allowlist (QE-04)
+- CI: e2e job + `actions/checkout` pinned to SHA (QE-10)
 
-- Locks: shared/exclusive RW locks, stale/pid-less reclaim by mtime.
-- Identity: instanceId + pid + startTime + uid + fingerprint.
-- Registry: global port reservations (TCP/UDP, IPv6, lease expiry).
-- Archives: manifest + sha256 per member, canonical paths, slip/link/
-  bomb guards. Export is self-verifying; import verifies before install.
-- Contract: envelope v1 `{schemaVersion,command,success,data,warnings,
-  errors[],meta{quickemuVersion,timestamp,operationId}}`.
-- QMP: channel with capabilities, correlated ids, event separation,
-  Bash socat or Go `quickemu-qmp` (`--raw`/envelope, watch streams).
-- States: canonical `vm_state`/`vm_allowed_ops` in `vm.status`.
-- Config: TOML parse/validate/migrate (`--migrate-conf`, `--dry-run`),
-  schema `schemas/v1/vm-toml.schema.json`, double-read deprecation plan.
-- Ops: async registry `<vmdir>/ops/*.json`, UUID ids, cancelRequested →
-  cancelled, workerPid, prune, `op watch` (fsnotify+polling fallback).
-- Events: JSONL `vm.events.jsonl` with seq, cursor read, ~1MB rotation.
-- VM ops: trash+restore, backups verify/restore/prune, backing-chain
-  delete plan (`PLAN_EXPIRED`/`PLAN_MISMATCH`), transactional
-  clone/rename/move, disk compact/resize, extra_disks/extra_nics,
-  external qcow2 snapshot trees (`--snapshot tree|verify|consolidate`),
-  QMP hotplug + `--persist`, `doctor --fix`, `--host-info`, `--vfio-scan`,
-  subcommand aliases, XDG dirs, bash/zsh/fish completion.
-- Go helpers (ADR-0001): quickemu-qmp, quickemu-proc, quickemu-ops,
-  quickemu-ports, quickemu-archive, quickemu-toml — each behind the v1
-  contract with Bash fallback.
+### Fixed
+- `web_check` falls back to `GET --range 0-0` on HEAD-403 (presigned URLs)
+- `validate.sh` normalizes CRLF in releases/editions lists (Windows jq.exe)
+- `elementary` moved to dl.elementaryos.org CDN (8.1)
+- `securityonion` via GitHub releases tag (host migrated to SPA)
+- `kicksecure` rewritten for libvirt 18 bundle layout
+- `uwuntu` via archive.org (site moved to MediaFire)
+
+## [4.9.9] - structured-contract version
+
+- Initial hardening fork of quickemu-project/quickemu
+- JSON v1 contract with meta.operationId
+- Stable error codes (LOCK_BUSY, PLAN_EXPIRED, OPERATION_NOT_FOUND, PORT_BUSY)
+- ~165 OS catalog, verified on real Linux

@@ -332,8 +332,7 @@ function get_elementary() {
     local ISO="elementaryos-${RELEASE}-stable${STAMP}.iso"
     # elementary moved its CDN from ams3.dl.elementary.io to dl.elementaryos.org
     local URL="https://dl.elementaryos.org"
-    echo "${URL}/$(date +%s | tr -d "
-" | base64)/${ISO} ${HASH}"
+    echo "${URL}/$(printf %s "$(date +%s)" | base64)/${ISO} ${HASH}"
 }
 
 
