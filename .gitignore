@@ -72,3 +72,16 @@ tools/quickgetc/quickgetc
 # Go coverage artifacts (CI uploads them, never commit)
 tools/*/coverage.out
 tools/quickget-cli/quickget-cli
+# stray short-name binaries from `go build` in module dirs
+tools/*/api
+tools/*/archive
+tools/*/catalog
+tools/*/cli
+tools/*/launch
+tools/*/ops
+tools/*/ports
+tools/*/proc
+tools/*/qmp
+tools/*/toml
+tools/*/vm
+tools/*/coverage.out

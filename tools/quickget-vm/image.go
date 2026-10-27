@@ -9,6 +9,7 @@ import (
 	"archive/zip"
 	"compress/bzip2"
 	"compress/gzip"
+	"crypto/rand"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,6 +18,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/bodgit/sevenzip"
+	"github.com/kdomanski/iso9660"
+	"github.com/simia-tech/crypt"
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
@@ -39,11 +44,73 @@ func finalURL(url string) string {
 	return resp.Request.URL.String()
 }
 
+// isoExtractPure: pure-Go ISO9660 walk — finds prefix/vmlinuz and
+// prefix/initrd (Rock Ridge names, case-insensitive, ";N" version
+// suffix stripped). Replaces the bsdtar/7z/isoinfo dependency for
+// standard ISO9660 images; UDF-only images fall back to the tools.
+func isoExtractPure(iso, out, prefix string) bool {
+	f, err := os.Open(iso)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	img, err := iso9660.OpenImage(f)
+	if err != nil {
+		return false
+	}
+	root, err := img.RootDir()
+	if err != nil {
+		return false
+	}
+	want := map[string]string{
+		"vmlinuz": out + "/vmlinuz",
+		"initrd":  out + "/initrd",
+	}
+	var walk func(dir *iso9660.File) bool
+	walk = func(dir *iso9660.File) bool {
+		kids, err := dir.GetChildren()
+		if err != nil {
+			return false
+		}
+		for _, k := range kids {
+			name := strings.ToLower(strings.SplitN(k.Name(), ";", 2)[0])
+			if k.IsDir() {
+				if name == prefix || prefix == "" {
+					if walk(k) {
+						return true
+					}
+				}
+				continue
+			}
+			dst, ok := want[name]
+			if !ok {
+				continue
+			}
+			w, err := os.Create(dst)
+			if err != nil {
+				continue
+			}
+			_, err = io.Copy(w, k.Reader())
+			w.Close()
+			if err == nil {
+				delete(want, name)
+			}
+		}
+		return len(want) == 0
+	}
+	if !walk(root) {
+		return false
+	}
+	return true
+}
+
 // isoExtractBootfiles: extract PREFIX/vmlinuz + PREFIX/initrd from an
-// ISO using the first available tool (bsdtar > 7z > isoinfo), then
-// normalise the extracted names to OUT root.
+// ISO — pure-Go ISO9660 first, bsdtar > 7z > isoinfo as fallback for
+// UDF/hybrid images — then normalise the extracted names to OUT root.
 func isoExtractBootfiles(iso, out, prefix string) bool {
-	lower := strings.ToLower(prefix)
+	if isoExtractPure(iso, out, strings.ToLower(prefix)) {
+		return true
+	}
 	upper := strings.ToUpper(prefix)
 	done := false
 	if b, err := exec.LookPath("bsdtar"); err == nil {
@@ -64,9 +131,8 @@ func isoExtractBootfiles(iso, out, prefix string) bool {
 			}
 		}
 	}
-	_ = lower
 	if !done {
-		fmt.Fprintln(os.Stderr, "ERROR! Need bsdtar, 7z or isoinfo to extract kernel from the ISO.")
+		fmt.Fprintln(os.Stderr, "ERROR! Could not read the ISO (not ISO9660) and no bsdtar, 7z or isoinfo fallback is available.")
 		return false
 	}
 	// 7z/bsdtar may place files at OUT root or under PREFIX.
@@ -186,21 +252,37 @@ func copyFile(src, dst string) error {
 // genUbuntuAutoinstall: subiquity unattended install — extract casper
 // kernel+initrd, write the autoinstall user-data, build the NoCloud
 // seed, and append kernel/initrd/boot_args to the conf.
+// cryptSalt: random SHA512-crypt salt chars — simia-tech/crypt expects
+// "$6$<salt>" as the setting string.
+func cryptSalt(n int) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./"
+	b := make([]byte, n)
+	rb := make([]byte, n)
+	if _, err := rand.Read(rb); err != nil {
+		copy(rb, "quickemu")
+	}
+	for i := range b {
+		b[i] = chars[int(rb[i])%len(chars)]
+	}
+	return string(b)
+}
+
 func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 	if !isoExtractBootfiles(iso, vmPath, "casper") {
 		fmt.Fprintln(os.Stderr, "ERROR! Could not extract casper/vmlinuz+initrd from "+iso)
 		return 1
 	}
-	out, err := exec.Command("openssl", "passwd", "-6", "quickemu").Output()
+	// SHA512-crypt of "quickemu" — pure-Go equivalent of
+	// `openssl passwd -6 quickemu` (removes the openssl dependency).
+	pwHash, err := crypt.Crypt("quickemu", "$6$"+cryptSalt(8))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! openssl is required to generate the install password hash.")
+		fmt.Fprintln(os.Stderr, "ERROR! could not generate the install password hash.")
 		return 1
 	}
 	userName := os.Getenv("USER")
 	if userName == "" {
 		userName = "quickemu"
 	}
-	pwHash := strings.TrimSpace(string(out))
 	userData := "#cloud-config\nautoinstall:\n  version: 1\n  identity:\n" +
 		"    hostname: " + vmPath + "\n    username: " + userName +
 		"\n    password: \"" + pwHash + "\"\n  ssh:\n    install-server: true\n" +
@@ -276,15 +358,38 @@ func imageNormalize(osName, iso, vmPath string) string {
 		}
 	case "kolibrios":
 		if strings.HasSuffix(iso, ".7z") {
-			if _, err := exec.LookPath("7z"); err != nil {
-				fmt.Fprintln(os.Stderr, "ERROR! '7zip' needs installing. Unable to extract file.")
-			} else {
-				run("7z", "e", filepath.Join(vmPath, iso), "-o"+vmPath)
+			if extract7z(filepath.Join(vmPath, iso), vmPath) {
 				iso = findISO(vmPath, iso)
 			}
 		}
 	}
 	return iso
+}
+
+// extract7z: pure-Go 7z extraction (bodgit/sevenzip) — mirrors
+// `7z e -o<dir>` flat extraction, no external binary needed.
+func extract7z(arc, dir string) bool {
+	r, err := sevenzip.OpenReader(arc)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "ERROR! could not read 7z archive: "+err.Error())
+		return false
+	}
+	defer r.Close()
+	ok := false
+	for _, f := range r.File {
+		rc, err := f.Open()
+		if err != nil {
+			continue
+		}
+		out, err := os.Create(filepath.Join(dir, filepath.Base(f.Name)))
+		if err == nil {
+			io.Copy(out, rc)
+			out.Close()
+			ok = true
+		}
+		rc.Close()
+	}
+	return ok
 }
 
 func run(name string, args ...string) error {

@@ -146,6 +146,26 @@ dispatches every action to a Go backend tool:
   dmg→raw convert → pinned OSX-KVM OpenCore/OVMF fetch → mkconf
 - `quickreport` — host probes + redaction + output file
 
+## External-binary reductions (pure-Go libraries)
+
+The Go pipeline drops host-tool dependencies where a library is
+available; each substitution was verified output-identical:
+
+| Bash dependency | Go replacement |
+|---|---|
+| `openssl passwd -6` (autoinstall hash) | `simia-tech/crypt` — byte-identical `$6$` SHA512-crypt |
+| `bsdtar`/`7z`/`isoinfo` (ISO bootfiles) | `kdomanski/iso9660` — pure-Go ISO9660+RR walk (external tools remain as UDF fallback) |
+| `7z` (kolibrios archive) | `bodgit/sevenzip` — flat extraction parity |
+| `zstd`/`xz`/`gzip`/`bzip2`/`unzip` | `klauspost/compress`, `ulikunitz/xz`, `archive/zip`, stdlib decompressors |
+| regex scrape of alpine `latest-releases.yaml` | `gopkg.in/yaml.v3` real parse (flavor+arch+iso+sha256 fields) |
+| hand-built `fmt.Sprintf` JSON payloads | `encoding/json` marshalling (`qmpCmd`/`okMap`/`jsonStr` helpers; QMP envelopes and all `ok(...)` data objects) |
+| TOML | `BurntSushi/toml` (already in place) |
+
+Fixed while converting: `actHotplugDisk` sent `device_add` before
+`blockdev-add` and referenced a nonexistent `drive` name — now does
+`blockdev-add` first, then `device_add drive=<node>` (same as Bash and
+`quickemu-qmp`).
+
 ## Verification
 
 ```bash

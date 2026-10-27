@@ -92,7 +92,7 @@ func exportVm(dir, out string) int {
 	tw.WriteHeader(&tar.Header{Name: "quickvm-checksums.sha256", Mode: 0644, Size: int64(len(sumb))})
 	tw.Write([]byte(sumb))
 	fmt.Printf(" - Exported %s to %s\n", name, out)
-	ok(fmt.Sprintf("{\"export\":%q}", out))
+	okMap(map[string]any{"export": out})
 	return 0
 }
 
@@ -232,7 +232,7 @@ func importVm(in, destDir string) int {
 	}
 	fmt.Printf(" - Imported %s from %s\n", base, in)
 	fmt.Fprintf(os.Stderr, " - WARNING! %s.conf is executed as code on launch; review it before running the VM.\n", base)
-	ok(fmt.Sprintf("{\"import\":%q}", base))
+	okMap(map[string]any{"import": base})
 	return 0
 }
 
@@ -347,7 +347,7 @@ func cloneVm(dir, name string, full bool) int {
 	} else {
 		fmt.Printf(" - Cloned %s to %s (config only; no disk image found).\n", vmname, name)
 	}
-	ok(fmt.Sprintf("{\"clone\":%q}", newDir))
+	okMap(map[string]any{"clone": newDir})
 	return 0
 }
 
@@ -389,7 +389,7 @@ func autostartCreate(name, confPath string) int {
 	}
 	fmt.Println(" - Autostart unit written: " + unit)
 	fmt.Println("             Start now with: systemctl --user start quickemu-" + name + ".service")
-	ok(fmt.Sprintf("{\"unit\":%q}", unit))
+	okMap(map[string]any{"unit": unit})
 	return 0
 }
 
@@ -405,7 +405,7 @@ func shortcutCreate(name, conf, opts string) int {
 		die("SHORTCUT_FAILED", err.Error())
 	}
 	fmt.Println(" - " + file + " created.")
-	ok(fmt.Sprintf("{\"shortcut\":%q}", file))
+	okMap(map[string]any{"shortcut": file})
 	return 0
 }
 
@@ -437,16 +437,16 @@ func backupList(dir string) int {
 	bdir := backupDir(dir)
 	m, _ := filepath.Glob(filepath.Join(bdir, "*.quickvm.tar.gz"))
 	if outputJSON {
-		var items []string
+		var items []map[string]any
 		for _, f := range m {
 			st, _ := os.Stat(f)
 			var sz int64
 			if st != nil {
 				sz = st.Size()
 			}
-			items = append(items, fmt.Sprintf("{\"file\":%q,\"size\":%d}", f, sz))
+			items = append(items, map[string]any{"file": f, "size": sz})
 		}
-		ok("{\"backups\":[" + strings.Join(items, ",") + "]}")
+		okMap(map[string]any{"backups": items})
 		return 0
 	}
 	fmt.Println("Backups in " + bdir + ":")
@@ -555,15 +555,16 @@ func trashList() int {
 	root := trashRoot()
 	ents, _ := filepath.Glob(filepath.Join(root, "*/"))
 	if outputJSON {
-		var items []string
+		var items []map[string]any
 		for _, s := range ents {
 			meta, _ := os.ReadFile(filepath.Join(s, "trash-meta.json"))
 			if len(meta) == 0 {
 				meta = []byte("{}")
 			}
-			items = append(items, fmt.Sprintf("{\"slot\":%q,\"meta\":%s}", strings.TrimSuffix(s, "/"), string(meta)))
+			items = append(items, map[string]any{"slot": strings.TrimSuffix(s, "/"),
+				"meta": json.RawMessage(meta)})
 		}
-		ok("{\"items\":[" + strings.Join(items, ",") + "]}")
+		okMap(map[string]any{"items": items})
 		return 0
 	}
 	fmt.Println("Trash contents:")
@@ -638,7 +639,7 @@ func trashRestore(name string) int {
 	}
 	os.RemoveAll(slot)
 	fmt.Println(" - Restored " + name + " from trash into " + confDir)
-	ok(fmt.Sprintf("{\"restored\":%q}", name))
+	okMap(map[string]any{"restored": name})
 	return 0
 }
 
@@ -675,16 +676,17 @@ func vfioScan(gpuPassthrough string) int {
 		}
 	}
 	if outputJSON {
-		var dj []string
+		var dj []map[string]any
 		for _, d := range devs {
 			ready := "false"
 			if d.Driver == "vfio-pci" {
 				ready = "true"
 			}
-			dj = append(dj, fmt.Sprintf("{\"pci\":%q,\"name\":%q,\"driver\":%q,\"vfioReady\":%s}", d.PCI, d.Name, d.Driver, ready))
+			dj = append(dj, map[string]any{"pci": d.PCI, "name": d.Name,
+			"driver": d.Driver, "vfioReady": ready == "true"})
 		}
-		ok(fmt.Sprintf("{\"iommu\":%q,\"iommuGroups\":%d,\"configuredPassthrough\":%q,\"devices\":[%s]}",
-			iommu, groups, gpuPassthrough, strings.Join(dj, ",")))
+		okMap(map[string]any{"iommu": iommu, "iommuGroups": groups,
+			"configuredPassthrough": gpuPassthrough, "devices": dj})
 		return 0
 	}
 	fmt.Println("VFIO/IOMMU inventory:")
@@ -751,7 +753,7 @@ func snapshotListJSON(dir, vmName string) int {
 			}
 		}
 	}
-	ok(fmt.Sprintf("{\"vm\":%q,\"snapshots\":%s}", vmName, snaps))
+	okMap(map[string]any{"vm": vmName, "snapshots": json.RawMessage(snaps)})
 	return 0
 }
 
@@ -795,7 +797,7 @@ func deleteDisk(dir, pidFile string) int {
 	}
 	fmt.Println(" - Deleted " + disk)
 	shortcutDelete(name)
-	ok(fmt.Sprintf("{\"deleted\":%q}", disk))
+	okMap(map[string]any{"deleted": disk})
 	return 0
 }
 
@@ -901,7 +903,7 @@ func snapshotCreateExternal(dir, tag, desc, confPath string) int {
 	})
 	snapMetaWrite(dir, arr)
 	fmt.Printf(" - External snapshot '%s' -> %s (parent %s)\n", tag, overlay, disk)
-	ok(fmt.Sprintf("{\"snapshot\":%q,\"file\":%q,\"parent\":%q}", tag, overlay, disk))
+	okMap(map[string]any{"snapshot": tag, "file": overlay, "parent": disk})
 	return 0
 }
 
@@ -911,7 +913,7 @@ func snapshotTree(dir string) int {
 	disk := confDisk(dir)
 	if outputJSON {
 		b, _ := json.Marshal(arr)
-		ok(fmt.Sprintf("{\"active\":%q,\"snapshots\":%s}", disk, string(b)))
+		okMap(map[string]any{"active": disk, "snapshots": json.RawMessage(b)})
 		return 0
 	}
 	name := filepath.Base(dir)
@@ -996,7 +998,7 @@ func snapshotConsolidate(dir, tag string) int {
 	}
 	snapMetaWrite(dir, rest)
 	fmt.Printf(" - Consolidated '%s' into %s.\n", tag, node.Parent)
-	ok(fmt.Sprintf("{\"consolidated\":%q,\"into\":%q}", tag, node.Parent))
+	okMap(map[string]any{"consolidated": tag, "into": node.Parent})
 	return 0
 }
 

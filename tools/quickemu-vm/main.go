@@ -16,12 +16,30 @@ import (
 )
 
 func die(code, msg string) {
-	fmt.Printf("{\"errors\":[{\"code\":\"%s\",\"message\":%q}],\"schemaVersion\":1,\"success\":false}\n", code, msg)
+	emit(map[string]any{"success": false,
+		"errors": []map[string]string{{"code": code, "message": msg}}})
 	os.Exit(1)
 }
 
 func ok(data string) {
-	fmt.Printf("{\"data\":%s,\"errors\":[],\"schemaVersion\":1,\"success\":true}\n", data)
+	emit(map[string]any{"success": true, "errors": []any{}, "data": json.RawMessage(data)})
+}
+
+// okMap: typed variant of ok — data is marshalled by encoding/json
+// instead of hand-built with fmt.Sprintf.
+func okMap(data map[string]any) {
+	emit(map[string]any{"success": true, "errors": []any{}, "data": data})
+}
+
+// emit: single envelope writer — field order fixed by the v1 schema
+// (schemaVersion, success, data/errors).
+func emit(m map[string]any) {
+	out := map[string]any{"schemaVersion": 1}
+	for k, v := range m {
+		out[k] = v
+	}
+	b, _ := json.Marshal(out)
+	fmt.Println(string(b))
 }
 
 func vmConfPath(dir string) string {
@@ -172,7 +190,8 @@ func main() {
 		if outputJSON {
 			arr, _ := json.Marshal(items)
 			dep, _ := json.Marshal(dependents)
-			ok(fmt.Sprintf("{\"vm\":%q,\"planId\":%q,\"delete\":%s,\"dependents\":%s}", name, planID, arr, dep))
+			okMap(map[string]any{"vm": name, "planId": planID,
+				"delete": json.RawMessage(arr), "dependents": json.RawMessage(dep)})
 			return
 		}
 		fmt.Println("Delete plan for " + name + ":")
@@ -249,7 +268,7 @@ func main() {
 		}
 		shortcutDelete(name)
 		fmt.Println(" - Shortcut removed for " + name)
-		ok(fmt.Sprintf("{\"shortcutDeleted\":%q}", name))
+		okMap(map[string]any{"shortcutDeleted": name})
 	case "trash-list":
 		os.Exit(trashList())
 	case "trash-empty":
@@ -289,7 +308,7 @@ func main() {
 		}
 		fmt.Println(" - Resized " + disk + " to " + args[2] + ".")
 		fmt.Println("             Remember to grow the partition and filesystem inside the guest.")
-		ok(fmt.Sprintf("{\"resized\":%q,\"size\":%q}", disk, args[2]))
+		okMap(map[string]any{"resized": disk, "size": args[2]})
 	case "compact":
 		// disk_compact: qemu-img convert to .compact then atomic swap.
 		disk := confDisk(dir)
@@ -313,7 +332,7 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println(" - Compacted " + disk)
-		ok(fmt.Sprintf("{\"compacted\":%q}", disk))
+		okMap(map[string]any{"compacted": disk})
 	case "clone":
 		// clone_vm parity: sibling conf rewrite + linked backing disk
 		// (default) or full disk copy (--full). Runtime artifacts,
@@ -392,7 +411,7 @@ func main() {
 		} else {
 			fmt.Println(" - " + dir + " not found. Doing nothing.")
 		}
-		ok(fmt.Sprintf("{\"deleted\":%q}", name))
+		okMap(map[string]any{"deleted": name})
 	case "rename":
 		name := ""
 		if len(args) > 2 {
@@ -411,7 +430,7 @@ func main() {
 			b = []byte(strings.ReplaceAll(string(b), "vm_name=\""+filepath.Base(dir)+"\"", "vm_name=\""+name+"\""))
 			os.WriteFile(conf, b, 0644)
 		}
-		ok(fmt.Sprintf("{\"renamed\":%q}", dst))
+		okMap(map[string]any{"renamed": dst})
 	case "move":
 		dst := ""
 		if len(args) > 2 {
@@ -423,7 +442,7 @@ func main() {
 		if err := cpDir(dir, dst); err != nil {
 			die("MOVE_FAILED", err.Error())
 		}
-		ok(fmt.Sprintf("{\"moved\":%q}", dst))
+		okMap(map[string]any{"moved": dst})
 	case "profile":
 		if len(args) < 3 {
 			die("INVALID_ARGS", "profile needs a name")
@@ -442,7 +461,7 @@ func main() {
 		if err != nil {
 			die("UNKNOWN_PRESET", err.Error())
 		}
-		ok(fmt.Sprintf("{\"network\":%q}", v))
+		okMap(map[string]any{"network": v})
 	case "linked-clone":
 		if len(args) < 4 {
 			die("INVALID_ARGS", "linked-clone needs src dst")
@@ -451,7 +470,7 @@ func main() {
 		if err := cmd.Run(); err != nil {
 			die("LINKED_CLONE_FAILED", err.Error())
 		}
-		ok(fmt.Sprintf("{\"linkedClone\":%q}", args[3]))
+		okMap(map[string]any{"linkedClone": args[3]})
 	case "snapshot-create", "snapshot-apply", "snapshot-delete":
 		// qemu-img snapshot -c/-a/-d <tag> <disk> — same as vm.sh.
 		if len(args) < 3 {
@@ -492,7 +511,7 @@ func main() {
 		if err := cmd.Run(); err != nil {
 			die("SNAPSHOT_FAILED", err.Error())
 		}
-		ok(fmt.Sprintf("{\"snapshot\":%q,\"op\":%q}", tag, op))
+		okMap(map[string]any{"snapshot": tag, "op": op})
 	case "snapshot-tree":
 		os.Exit(snapshotTree(dir))
 	case "snapshot-verify":

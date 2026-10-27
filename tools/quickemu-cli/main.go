@@ -1408,6 +1408,20 @@ func actPlugin(name string, pargs []string) int {
 	return 0
 }
 
+// jsonStr marshals a small object to a JSON string — for event
+// payloads that travel inside the envelope rather than standalone.
+func jsonStr(m map[string]any) string {
+	b, _ := json.Marshal(m)
+	return string(b)
+}
+
+// qmpCmd marshals a QMP execute envelope — shared helper so embedded
+// ids/filenames are escaped by encoding/json, not hand-rolled Sprintf.
+func qmpCmd(execute string, args map[string]any) string {
+	b, _ := json.Marshal(map[string]any{"execute": execute, "arguments": args})
+	return string(b)
+}
+
 // actHotplugUSB: vm_hotplug_usb parity — usb-host device_add.
 func actHotplugUSB() int {
 	vp := extra["hotplug-usb"]
@@ -1418,11 +1432,11 @@ func actHotplugUSB() int {
 	var vid, pid uint64
 	fmt.Sscanf(vp, "%x:%x", &vid, &pid)
 	id := "hotusb" + strings.ReplaceAll(vp, ":", "")
-	payload := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","vendorid":%d,"productid":%d}}`, id, vid, pid)
+	payload := qmpCmd("device_add", map[string]any{"driver": "usb-host", "id": id, "vendorid": vid, "productid": pid})
 	out, err := qmpRaw(payload)
 	fmt.Print(out)
 	if err == nil {
-		qeEvent("vm.hotplug", fmt.Sprintf(`{"device":"usb","id":%q}`, id))
+		qeEvent("vm.hotplug", jsonStr(map[string]any{"device": "usb", "id": id}))
 		fmt.Println(" - Hot-plugged USB " + vp + " as " + id + ".")
 		if persistFlag {
 			hotplugPersist("usb", vp)
@@ -1446,18 +1460,17 @@ func actHotplugDisk() int {
 		return -1
 	}, filepath.Base(f))
 	id := "hotdisk" + base
-	payload := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"virtio-blk-pci","id":"%s","drive":"%sdrv"}}`, id, id)
-	out, err := qmpRaw(payload)
-	if err != nil {
-		payload = fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"virtio-blk-pci","id":"%s"}}`, id)
-		out, err = qmpRaw(payload)
-	}
+	node := id + "node"
+	out, err := qmpRaw(qmpCmd("blockdev-add", map[string]any{"node-name": node,
+		"driver": "qcow2", "file": map[string]any{"driver": "file", "filename": abs}}))
 	fmt.Print(out)
-	// blockdev-add wires the node for the drive.
-	node := fmt.Sprintf(`{"execute":"blockdev-add","arguments":{"node-name":"%snode","driver":"qcow2","file":{"driver":"file","filename":%q}}}`, id, abs)
-	qmpRaw(node)
 	if err == nil {
-		qeEvent("vm.hotplug", fmt.Sprintf(`{"device":"disk","id":%q}`, id))
+		out, err = qmpRaw(qmpCmd("device_add",
+			map[string]any{"driver": "virtio-blk-pci", "id": id, "drive": node}))
+		fmt.Print(out)
+	}
+	if err == nil {
+		qeEvent("vm.hotplug", jsonStr(map[string]any{"device": "disk", "id": id}))
 		if persistFlag {
 			hotplugPersist("disk", f)
 		}
@@ -1469,11 +1482,11 @@ func actHotplugDisk() int {
 // actHotunplug: vm_hotunplug parity — device_del by id.
 func actHotunplug() int {
 	id := extra["hotunplug"]
-	payload := fmt.Sprintf(`{"execute":"device_del","arguments":{"id":%q}}`, id)
+	payload := qmpCmd("device_del", map[string]any{"id": id})
 	out, err := qmpRaw(payload)
 	fmt.Print(out)
 	if err == nil {
-		qeEvent("vm.hotunplug", fmt.Sprintf(`{"id":%q}`, id))
+		qeEvent("vm.hotunplug", jsonStr(map[string]any{"id": id}))
 		fmt.Println(" - Hot-unplugged " + id + ".")
 	}
 	return rc(err)

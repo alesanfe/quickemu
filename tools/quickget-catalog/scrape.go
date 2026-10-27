@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 // scrape resolves URL+hash for scrape-type OSes. Each case mirrors its
@@ -17,7 +19,9 @@ import (
 func scrape(osName, release, edition, arch string) (string, string, error) {
 	switch osName {
 	case "alpine":
-		// get_alpine: fetch latest-releases.yaml, extract version+sha256
+		// get_alpine: fetch latest-releases.yaml, extract the
+		// alpine-virt flavor's version + sha256 (real YAML parse —
+		// replaces the fragile regex over the document).
 		qarch := "x86_64"
 		if arch == "arm64" {
 			qarch = "aarch64"
@@ -27,14 +31,21 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		if err != nil {
 			return "", "", err
 		}
-		// extract Virtual-flavor version + sha256
-		version := findLine(body, `flavor: alpine-virt[\s\S]*?version: ([\d.]+)`, 1)
-		if version == "" {
-			version = findLine(body, `version: ([\d.]+)`, 1)
+		var doc []struct {
+			Flavor string `yaml:"flavor"`
+			Arch   string `yaml:"arch"`
+			Iso    string `yaml:"iso"`
+			Sha256 string `yaml:"sha256"`
 		}
-		sha := findLine(body, `flavor: alpine-virt[\s\S]*?sha256: ([a-f0-9]{64})`, 1)
-		iso := fmt.Sprintf("alpine-virt-%s-%s.iso", version, qarch)
-		return u + "/" + iso, sha, nil
+		if err := yaml.Unmarshal([]byte(body), &doc); err != nil {
+			return "", "", err
+		}
+		for _, f := range doc {
+			if f.Flavor == "alpine-virt" && (f.Arch == qarch || f.Arch == "") {
+				return u + "/" + f.Iso, f.Sha256, nil
+			}
+		}
+		return "", "", fmt.Errorf("alpine-virt flavor not found in latest-releases.yaml")
 	case "archlinux":
 		// get_archlinux: fetch releng/releases/json, take releases[0]
 		body, err := fetchString("https://archlinux.org/releng/releases/json/")

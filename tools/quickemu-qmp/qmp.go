@@ -229,6 +229,13 @@ func SendCmd(path, cmd string) (string, error) {
 	return string(b), err
 }
 
+// qmpCmd marshals a QMP execute envelope — replaces hand-built
+// fmt.Sprintf JSON (proper escaping of embedded filenames/ids).
+func qmpCmd(execute string, args map[string]any) string {
+	b, _ := json.Marshal(map[string]any{"execute": execute, "arguments": args})
+	return string(b)
+}
+
 // HotplugUSB mirrors vm_hotplug_usb: QMP device_add usb-host with hex
 // vendor:product parsing. Returns the device id on success.
 func HotplugUSB(sock, vidpid string) (string, error) {
@@ -242,7 +249,7 @@ func HotplugUSB(sock, vidpid string) (string, error) {
 		return "", fmt.Errorf("bad vendor:product %q", vidpid)
 	}
 	id := "hotusb" + parts[0] + parts[1]
-	cmd := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"usb-host","id":"%s","vendorid":%d,"productid":%d}}`, id, v, p)
+	cmd := qmpCmd("device_add", map[string]any{"driver": "usb-host", "id": id, "vendorid": v, "productid": p})
 	if rc := runExecute(sock, cmd, 5*time.Second); rc != 0 {
 		return "", fmt.Errorf("device_add failed (rc=%d)", rc)
 	}
@@ -259,11 +266,11 @@ func HotplugDisk(sock, file string) (string, error) {
 	abs, _ := filepath.Abs(file)
 	node := id + "node"
 	// blockdev-add first (registers the file), then device_add references it
-	q := fmt.Sprintf(`{"execute":"blockdev-add","arguments":{"node-name":"%s","driver":"qcow2","file":{"driver":"file","filename":%q}}}`, node, abs)
+	q := qmpCmd("blockdev-add", map[string]any{"node-name": node, "driver": "qcow2", "file": map[string]any{"driver": "file", "filename": abs}})
 	if rc := runExecute(sock, q, 5*time.Second); rc != 0 {
 		return "", fmt.Errorf("blockdev-add failed (rc=%d)", rc)
 	}
-	dev := fmt.Sprintf(`{"execute":"device_add","arguments":{"driver":"virtio-blk-pci","id":"%s","drive":"%s"}}`, id, node)
+	dev := qmpCmd("device_add", map[string]any{"driver": "virtio-blk-pci", "id": id, "drive": node})
 	if rc := runExecute(sock, dev, 5*time.Second); rc != 0 {
 		return "", fmt.Errorf("device_add failed (rc=%d)", rc)
 	}
@@ -272,7 +279,7 @@ func HotplugDisk(sock, file string) (string, error) {
 
 // Hotunplug mirrors vm_hotunplug: device_del by id.
 func Hotunplug(sock, devid string) error {
-	if rc := runExecute(sock, fmt.Sprintf(`{"execute":"device_del","arguments":{"id":%q}}`, devid), 5*time.Second); rc != 0 {
+	if rc := runExecute(sock, qmpCmd("device_del", map[string]any{"id": devid}), 5*time.Second); rc != 0 {
 		return fmt.Errorf("device_del failed (rc=%d)", rc)
 	}
 	return nil
@@ -334,7 +341,7 @@ func TypeText(monSock, text string) error {
 
 // Screenshot mirrors screenshot_vm: QMP screendump to a PPM file.
 func Screenshot(sock, out string) error {
-	q := fmt.Sprintf(`{"execute":"screendump","arguments":{"filename":%q}}`, out)
+	q := qmpCmd("screendump", map[string]any{"filename": out})
 	if rc := runExecute(sock, q, 5*time.Second); rc != 0 {
 		return fmt.Errorf("screendump failed")
 	}
