@@ -54,3 +54,5 @@ tools/quickget-catalog/quickget-catalog
 tools/quickget-vm/quickget-vm
 tools/quickget-cli/quickget
 tools/quickget-vm/vm
+tools/quickget-catalog/catalog
+tools/quickget-cli/cli
