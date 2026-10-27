@@ -15,12 +15,13 @@ import (
 )
 
 var (
-	arch        = hostArch()
-	minTrust    = ""
-	insecure    = false
-	cloudInit   = false
-	unattended  = false
-	checkAllArc = false
+	arch              = hostArch()
+	minTrust          = ""
+	insecure          = false
+	cloudInit         = false
+	unattended        = false
+	disableUnattended = false
+	checkAllArc       = false
 )
 
 func hostArch() string {
@@ -325,7 +326,7 @@ func trustOK(level, min string) bool {
 }
 
 // actGet is the default/download pipeline: quickget-vm get (or --no-conf
-// for --download). Windows unattended extras are a documented residual.
+// for --download). VirtIO/unattended/seed extras run inside quickget-vm.
 func actGet(osName, release, edition string, noConf bool) int {
 	if minTrust != "" {
 		lvl := trustLevel(osName)
@@ -351,52 +352,20 @@ func actGet(osName, release, edition string, noConf bool) int {
 		args = append(args, "--no-conf")
 	}
 	if unattended {
-		fmt.Fprintln(os.Stderr, " - note: unattended image generation is not yet migrated; downloading ISO only")
+		args = append(args, "--unattended")
 	}
 	return runPassthru("quickget-vm", args...)
 }
 
-// actCreateConfig: --create-config — generate the .conf for an already
-// downloaded image inside <os>-<release>[-<edition>].
-func actCreateConfig(osName, release, edition string) int {
-	dir := osName + "-" + release
-	if edition != "" {
-		dir += "-" + edition
+// actCreateConfig: --create-config <vm-path> <input> [--flags] —
+// create_config parity: build a VM dir+conf from a local image or URL.
+func actCreateConfig(vmPath, input string) int {
+	args := []string{"customconf", vmPath, input}
+	if unattended {
+		args = append(args, "--unattended")
 	}
-	// Find the downloaded image/iso inside the VM dir (create_config parity).
-	image, iso := "", ""
-	for _, f := range globDir(dir) {
-		ext := strings.ToLower(filepath.Ext(f))
-		switch ext {
-		case ".iso", ".img", ".dmg":
-			if iso == "" {
-				iso = f
-			}
-		case ".qcow2", ".raw":
-			if image == "" {
-				image = f
-			}
-		}
-	}
-	if image == "" && iso == "" {
-		fmt.Fprintf(os.Stderr, "ERROR! No downloaded image found in %s\n", dir)
-		return 1
-	}
-	args := []string{"mkconf", "--os", osName, "--dir", dir, "--arch", arch}
-	if release != "" {
-		args = append(args, "--release", release)
-	}
-	if edition != "" {
-		args = append(args, "--edition", edition)
-	}
-	if image != "" {
-		args = append(args, "--image", image)
-	}
-	if iso != "" {
-		args = append(args, "--iso", iso)
-	}
-	if cloudInit {
-		args = append(args, "--cloud-init")
+	if disableUnattended {
+		args = append(args, "--disable-unattended")
 	}
 	return runPassthru("quickget-vm", args...)
 }
@@ -415,6 +384,7 @@ func globDir(dir string) []string {
 	return out
 }
 
+var _ = globDir // retained for future use
 func usage() {
 	fmt.Println(`quickget — download OS images and create VM configs (Go CLI)
 
@@ -474,6 +444,8 @@ func main() {
 			cloudInit = true
 		case "--unattended", "-unattended":
 			unattended = true
+		case "--disable-unattended", "-disable-unattended":
+			disableUnattended = true
 		case "--download", "-download":
 			op = "download"
 		case "--create-config", "-create-config":
@@ -575,11 +547,13 @@ func main() {
 		}
 		rc = actGet(osName, release, edition, true)
 	case "config":
-		if osName == "" {
-			fmt.Fprintln(os.Stderr, "ERROR! You must specify an OS.")
+		// create_config <vm-path> <input>: positional args are the VM
+		// dir name and the image path/URL.
+		if osName == "" || release == "" {
+			fmt.Fprintln(os.Stderr, "ERROR! --create-config needs <vm-path> <input>.")
 			os.Exit(1)
 		}
-		rc = actCreateConfig(osName, release, edition)
+		rc = actCreateConfig(osName, release)
 	case "update":
 		fmt.Fprintln(os.Stderr, "ERROR! --update (catalog update check) is not yet migrated to Go")
 		rc = 1

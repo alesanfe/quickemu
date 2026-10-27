@@ -170,6 +170,12 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 			diskFormat = "raw"
 			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
 			typeLine = ""
+		case strings.HasSuffix(strings.ToLower(imageFile), ".vdi"):
+			// Bash emits a dead `disk=` line for .vdi; disk_img is the
+			// functional equivalent the launcher actually consumes.
+			diskFormat = "vdi"
+			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
+			typeLine = ""
 		}
 	}
 
@@ -262,6 +268,9 @@ func main() {
 				case "--no-conf":
 					noConf = true
 					i--
+				case "--unattended":
+					unattendedFlag = true
+					i--
 				}
 				i++
 			} else {
@@ -283,8 +292,28 @@ func main() {
 		}
 		os.Exit(getOS(osName, release, edition, dir, arch))
 	}
+	if os.Args[1] == "customconf" {
+		// create_config parity: quickget-vm customconf <vm-path> <input>
+		// [--unattended|--disable-unattended]
+		var vmPath, input, flag string
+		pos := []string{}
+		for _, a := range os.Args[2:] {
+			if strings.HasPrefix(a, "--") {
+				flag = a
+			} else {
+				pos = append(pos, a)
+			}
+		}
+		if len(pos) > 0 {
+			vmPath = pos[0]
+		}
+		if len(pos) > 1 {
+			input = pos[1]
+		}
+		os.Exit(customConf(vmPath, input, flag))
+	}
 	if os.Args[1] != "mkconf" {
-		fmt.Fprintln(os.Stderr, "usage: quickget-vm <get|mkconf|fetch> ...")
+		fmt.Fprintln(os.Stderr, "usage: quickget-vm <get|mkconf|fetch|customconf> ...")
 		os.Exit(2)
 	}
 	var osName, release, edition, image, iso, dir, arch string
@@ -399,7 +428,7 @@ func fetch(url, dest, wantSHA string) int {
 // tool, fetch the checksum file, fetch+verify the image, then mkconf.
 // quickget-catalog is our own Go binary; zsync delegates to the
 // external zsync binary only for .zsync sources (Bash zsync_get).
-var cloudInitFlag, noConf bool
+var cloudInitFlag, noConf, unattendedFlag bool
 
 func getOS(osName, release, edition, dir, arch string) int {
 	cat, err := exec.LookPath("quickget-catalog")
@@ -484,7 +513,37 @@ func getOS(osName, release, edition, dir, arch string) int {
 	if noConf {
 		return 0
 	}
-	return mkconf(osName, release, edition, filepath.Base(image), "", dir, arch, cloudInitFlag)
+	// image_normalize: decompress/convert the artifact per-OS and pick
+	// up the final image name inside the VM dir.
+	imageName := imageNormalize(osName, filepath.Base(image), dir)
+	// windows/windows-server: fetch virtio-win.iso + build the
+	// unattended install media for retail releases 10/11 (get.sh flow).
+	fixedISO := ""
+	if osName == "windows" || osName == "windows-server" {
+		virtio := filepath.Join(dir, "virtio-win.iso")
+		if _, err := os.Stat(virtio); err != nil {
+			fmt.Println("Downloading VirtIO drivers...")
+			fetch("https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso", virtio, "")
+		}
+		fixedISO = "virtio-win.iso"
+		if release == "10" || release == "11" {
+			os.Remove(filepath.Join(dir, "unattended.iso"))
+			unattendedWindows(dir, "w"+release, "")
+		}
+	}
+	rc := mkconf(osName, release, edition, imageName, fixedISO, dir, arch, cloudInitFlag)
+	if rc != 0 {
+		return rc
+	}
+	// --unattended: ubuntu-server subiquity seed (config.sh flow).
+	if unattendedFlag {
+		if osName == "ubuntu-server" {
+			confFile := dir + ".conf"
+			return genUbuntuAutoinstall(dir, filepath.Join(dir, imageName), confFile)
+		}
+		fmt.Fprintln(os.Stderr, "WARNING! --unattended is only supported for ubuntu-server; ignoring.")
+	}
+	return 0
 }
 
 // genSeedISO: gen_seed_iso parity — write user-data + meta-data and
