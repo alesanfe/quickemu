@@ -63,7 +63,7 @@ func biosArgs(c Conf, osName, arch string) []string {
 	return a
 }
 
-func networkArgs(c Conf) []string {
+func networkArgs(c Conf, t OsTuning) []string {
 	net := c.get("network", "user")
 	ssh := c.get("ssh_port", "")
 	var a []string
@@ -73,13 +73,13 @@ func networkArgs(c Conf) []string {
 		if ssh != "" {
 			fwd = ",hostfwd=tcp::" + ssh + "-:22"
 		}
-		a = append(a, "-netdev", "user,id=net0"+fwd, "-device", "virtio-net,netdev=net0")
+		a = append(a, "-netdev", "user,id=net0"+fwd, "-device", t.NetDevice+",netdev=net0")
 	case "bridge":
 		br := c.get("bridge", "br0")
 		mac := c.get("mac_addr", "")
 		nd := "-netdev"
 		args := "bridge,id=net0,br=" + br
-		dev := "virtio-net,netdev=net0"
+		dev := t.NetDevice + ",netdev=net0"
 		if mac != "" {
 			dev += ",mac=" + mac
 		}

@@ -86,11 +86,26 @@ func main() {
 	args = append(args, cpuArgs(conf, osName, arch)...)
 	args = append(args, ramArgs(conf)...)
 	args = append(args, biosArgs(conf, osName, arch)...)
-	args = append(args, osQuirks(conf, osName, arch)...)
-	args = append(args, storageArgs(conf, dir)...)
+	t := osQuirks(conf, osName, arch)
+	args = append(args, t.ExtraArgs...)
+	if t.Balloon != "" {
+		args = append(args, strings.Fields(t.Balloon)...)
+	}
+	if t.Keyboard == "ps2" {
+		args = append(args, "-device", "ps2-kbd")
+	}
+	if t.Mouse == "ps2" {
+		args = append(args, "-device", "ps2-mouse")
+	} else if t.Mouse == "usb" {
+		args = append(args, "-device", "usb-mouse")
+	}
+	if t.UsbPassthrough != "" {
+		args = append(args, "-device", t.UsbPassthrough)
+	}
+	args = append(args, storageArgs(conf, dir, t)...)
 	args = append(args, displayArgs(conf, dir, osName, arch)...)
-	args = append(args, audioArgs(conf, osName)...)
-	args = append(args, networkArgs(conf)...)
+	args = append(args, audioArgs(conf, osName, t)...)
+	args = append(args, networkArgs(conf, t)...)
 	args = append(args, portArgs(conf, dir)...)
 	args = append(args, fileshareArgs(conf, dir)...)
 	args = append(args, passthruArgs(conf)...)

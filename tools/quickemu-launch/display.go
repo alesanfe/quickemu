@@ -40,8 +40,11 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	return a
 }
 
-func audioArgs(c Conf, osName string) []string {
+func audioArgs(c Conf, osName string, t OsTuning) []string {
 	sc := c.get("sound", "intel-hda")
+	if t.SoundCard != "" {
+		sc = t.SoundCard
+	}
 	duplex := "hda-duplex"
 	switch osName {
 	case "windows":
@@ -65,10 +68,14 @@ func audioArgs(c Conf, osName string) []string {
 	}
 }
 
-func storageArgs(c Conf, dir string) []string {
+func storageArgs(c Conf, dir string, t OsTuning) []string {
 	var a []string
 	if d := c.get("disk_img", ""); d != "" {
-		a = append(a, "-drive", "file="+filepath.Join(dir, d)+",format=qcow2,if=virtio,cache=writeback,discard=unmap")
+		if t.MacDiskDev != "" {
+			a = append(a, "-drive", "file="+filepath.Join(dir, d)+",format=qcow2,if=none,id=disk,cache=writeback,discard=unmap", "-device", t.MacDiskDev+",drive=disk")
+		} else {
+			a = append(a, "-drive", "file="+filepath.Join(dir, d)+",format=qcow2,if=virtio,cache=writeback,discard=unmap")
+		}
 	}
 	if d := c.get("iso", ""); d != "" {
 		a = append(a, "-drive", "file="+filepath.Join(dir, d)+",media=cdrom,if=none,id=cdrom", "-device", "virtio-cdrom,drive=cdrom")
@@ -81,21 +88,6 @@ func storageArgs(c Conf, dir string) []string {
 	}
 	if c.get("storage", "") == "nvme" {
 		a = append(a, "-device", "nvme,drive=nvme0,serial=nvme0")
-	}
-	return a
-}
-
-func osQuirks(c Conf, osName, arch string) []string {
-	var a []string
-	switch osName {
-	case "windows":
-		a = append(a, "-global", "kvm-pit.lost_tick_policy=discard")
-	case "macos":
-		a = append(a, "-global", "ICH9-LPC.disable_s3=1", "-global", "ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off")
-	case "linux":
-		if c.get("snapshot", "") == "true" {
-			a = append(a, "-snapshot")
-		}
 	}
 	return a
 }
