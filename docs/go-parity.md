@@ -11,6 +11,7 @@
 | archive import | `lib/quickemu/vm/disk.sh` (import part) | `quickemu-archive` | ✅ **100%** — tar-slip validation + extract |
 | toml config | `lib/quickemu/config/toml.sh` | `quickemu-toml` | ✅ **100%** — parse/validate |
 | api daemon | `quickemu-api.sh` | `quickemu-api` | ✅ **100%** — state/ops/start/stop/pause/resume/kill/reset |
+| **unified CLI** | `bin/quickemu` + `lib/quickemu/cli/*.sh` | `quickemu-cli` | ✅ core — same flag surface: lifecycle (start/dry-run/status/pause/resume/shutdown/reset/stop/kill/restart), list-vms (text+JSON), snapshots/backup/clone/rename/move/trash/disk ops via quickemu-vm, monitor-cmd/send-keys/type/screenshot via quickemu-qmp HMP, op-* via quickemu-ops, conf overrides (--display/--access/--public-dir/--fullscreen/--braille/--keyboard-layout/--cpu-pinning/--extra-args) materialised into a temp conf |
 | **catalog** | `lib/quickget/catalog/*.sh` | `quickget-catalog` | ✅ **100%** — list/releases/editions/arch/trust ✅; url resolution ✅ for 113 static templates + 91 hash fetchers + **3 scrape-OSes (cachyos/manjaro/reactos) nativos en scrape.go** |
 
 ## Go catalog detail
@@ -51,8 +52,32 @@ standing in for `--access`), TOML arrays flattened to bash-array
 literals for `confList`.
 
 Remaining: `--run` end-to-end boot verification vs Bash,
-port_forwards array syntax details, monitor_cmd hooks, `access` is a
+port_forwards array syntax details, `access` is a
 CLI flag in Bash (mapped to a conf key in Go).
+
+`monitor_cmd` is covered: `quickemu-cli --monitor-cmd` and
+`--send-keys`/`--type`/`--screenshot` reach the guest via QMP
+`human-monitor-command` through `quickemu-qmp`.
+
+## Unified CLI (quickemu-cli)
+
+`tools/quickemu-cli` is the Go `quickemu` binary — the user-facing
+entry point that previously only existed as Bash. It parses the same
+flag surface as `bin/quickemu` + `lib/quickemu/cli/options.sh` and
+dispatches every action to a Go backend tool:
+
+- lifecycle → `quickemu-launch` (`--run`) / pid+marker state machine
+- QMP actions → `quickemu-qmp execute` (`.paused` marker parity with
+  `pause_vm`/`resume_vm`)
+- filesystem ops → `quickemu-vm`
+- journal ops → `quickemu-ops`
+- `--format json` emits the v1 envelope on vm.status / vm.list
+
+Still Bash-only CLI surface (documented residual): doctor, plugins,
+shortcuts, vfio-scan, migrate-conf, inspect-conf, inventory, events,
+autostart, backup-verify/restore/prune, trash-restore/empty,
+delete-disk, delete-plan, snapshot-info/tree/verify, viewer/vnc/
+spice-console, telnet monitor/serial attach, --echo/--export/--import.
 
 ## Verification
 
