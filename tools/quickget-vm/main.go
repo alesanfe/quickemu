@@ -139,7 +139,7 @@ func hostArch() string {
 	return "x86_64"
 }
 
-func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string) int {
+func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, cloudInit ...bool) int {
 	if dir == "" {
 		dir = osName + "-" + release
 		if edition != "" {
@@ -256,6 +256,9 @@ func main() {
 					dir = os.Args[i+1]
 				case "--arch":
 					arch = os.Args[i+1]
+				case "--cloud-init":
+					cloudInitFlag = true
+					i--
 				}
 				i++
 			} else {
@@ -282,6 +285,7 @@ func main() {
 		os.Exit(2)
 	}
 	var osName, release, edition, image, iso, dir, arch string
+	cloudInit := false
 	for i := 2; i < len(os.Args); i++ {
 		v := ""
 		if i+1 < len(os.Args) {
@@ -302,6 +306,9 @@ func main() {
 			dir = v
 		case "--arch":
 			arch = v
+		case "--cloud-init":
+			cloudInit = true
+			i--
 		default:
 			continue
 		}
@@ -312,7 +319,7 @@ func main() {
 		os.Exit(2)
 	}
 	_ = filepath.Separator
-	os.Exit(mkconf(osName, release, edition, image, iso, dir, arch))
+	os.Exit(mkconf(osName, release, edition, image, iso, dir, arch, cloudInit))
 }
 
 // fetch: web_get/check_hash parity — download url -> dest via a .part
@@ -389,6 +396,8 @@ func fetch(url, dest, wantSHA string) int {
 // tool, fetch the checksum file, fetch+verify the image, then mkconf.
 // quickget-catalog is our own Go binary; zsync delegates to the
 // external zsync binary only for .zsync sources (Bash zsync_get).
+var cloudInitFlag bool
+
 func getOS(osName, release, edition, dir, arch string) int {
 	cat, err := exec.LookPath("quickget-catalog")
 	if err != nil {
@@ -462,5 +471,70 @@ func getOS(osName, release, edition, dir, arch string) int {
 	} else if fetch(url, image, sha) != 0 {
 		return 1
 	}
-	return mkconf(osName, release, edition, filepath.Base(image), "", dir, arch)
+	return mkconf(osName, release, edition, filepath.Base(image), "", dir, arch, cloudInitFlag)
+}
+
+// genSeedISO: gen_seed_iso parity — write user-data + meta-data and
+// build a NoCloud seed.iso via the first available tool
+// (cloud-localds > genisoimage > xorrisofs > mkisofs), then append
+// seed="..." to the conf.
+func genSeedISO(vmPath, confFile string) int {
+	userName := os.Getenv("USER")
+	if userName == "" {
+		userName = "quickemu"
+	}
+	sshKey := ""
+	for _, k := range []string{"id_ed25519.pub", "id_rsa.pub"} {
+		if b, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".ssh", k)); err == nil {
+			sshKey = strings.TrimSpace(string(b))
+			break
+		}
+	}
+	userData := filepath.Join(vmPath, "user-data")
+	var ud strings.Builder
+	ud.WriteString("#cloud-config\nhostname: " + vmPath + "\nmanage_etc_hosts: true\nusers:\n  - name: " + userName +
+		"\n    sudo: ALL=(ALL) NOPASSWD:ALL\n    groups: sudo\n    shell: /bin/bash\n    lock_passwd: false\n    plain_text_passwd: quickemu\n")
+	if sshKey != "" {
+		ud.WriteString("    ssh_authorized_keys:\n      - " + sshKey + "\n")
+	}
+	ud.WriteString("ssh_pwauth: true\npackage_update: true\n")
+	if err := os.WriteFile(userData, []byte(ud.String()), 0644); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	metaData := filepath.Join(vmPath, "meta-data")
+	if _, err := os.Stat(metaData); err != nil {
+		os.WriteFile(metaData, []byte("instance-id: "+vmPath+"\nlocal-hostname: "+vmPath+"\n"), 0644)
+	}
+	seed := filepath.Join(vmPath, "seed.iso")
+	type tool struct {
+		name string
+		args []string
+	}
+	candidates := []tool{
+		{"cloud-localds", []string{seed, userData, metaData}},
+		{"genisoimage", []string{"-output", seed, "-volid", "cidata", "-joliet", "-rock", userData, metaData}},
+		{"xorrisofs", []string{"-output", seed, "-volid", "cidata", "-joliet", "-rock", userData, metaData}},
+		{"mkisofs", []string{"-output", seed, "-volid", "cidata", "-joliet", "-rock", userData, metaData}},
+	}
+	built := false
+	for _, t := range candidates {
+		if bin, err := exec.LookPath(t.name); err == nil {
+			if exec.Command(bin, t.args...).Run() == nil {
+				built = true
+				break
+			}
+		}
+	}
+	if !built {
+		fmt.Fprintln(os.Stderr, "ERROR! No tool to build seed.iso (need cloud-localds, genisoimage, xorrisofs or mkisofs).")
+		return 1
+	}
+	if _, err := os.Stat(seed); err == nil {
+		f, _ := os.OpenFile(confFile, os.O_APPEND|os.O_WRONLY, 0644)
+		fmt.Fprintf(f, "seed=\"%s\"\n", seed)
+		f.Close()
+		fmt.Println(" - NoCloud seed.iso created (user: " + userName + ", password: quickemu)")
+	}
+	return 0
 }
