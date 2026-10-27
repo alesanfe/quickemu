@@ -41,9 +41,18 @@ or `.toml` — the configure_* pipeline of launch.sh + vm.sh:
 - `--run` spawns QEMU with pidfile/identity/cleanup watcher;
   `--validate` checks the conf (guest_os [a-z0-9-]+ like Bash)
 
-Remaining: `--run` end-to-end boot verification vs Bash, extra_nics,
-vhost-user-fs (virtiofsd), SPICE unix-socket/TCP-remote variants,
-port_forwards array syntax details, monitor_cmd hooks.
+Also covered: `extra_nics`/`extra_macs` arrays (user|restrict|passt|
+bridge:<iface>, per-NIC netdev ids + unknown-entry warning), virtiofs
+via standalone virtiofsd (memory-backend-file + vhost-user-fs-pci,
+daemon spawned on `--run`, 9p fallback), SPICE endpoint variants
+(spice-app `gl=`, spice local `unix=on,addr=<sock>`, spice remote and
+headless `port=,addr=` with 5930-5939 auto-alloc, `access` conf key
+standing in for `--access`), TOML arrays flattened to bash-array
+literals for `confList`.
+
+Remaining: `--run` end-to-end boot verification vs Bash,
+port_forwards array syntax details, monitor_cmd hooks, `access` is a
+CLI flag in Bash (mapped to a conf key in Go).
 
 ## Verification
 

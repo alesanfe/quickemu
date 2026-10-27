@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -65,6 +66,19 @@ func main() {
 	}
 	dir := filepath.Dir(os.Args[1])
 	resolvePublic(conf)
+
+	// virtiofs decision happens before arg assembly (start_virtiofsd):
+	// linux guest + resolved PUBLIC + no ISO + daemon available. On
+	// --run the daemon is actually spawned now; a failed start falls
+	// back to 9p. Plan mode just checks the binary resolves.
+	runMode := len(os.Args) > 2 && os.Args[2] == "--run"
+	if conf.get("guest_os", "") == "linux" && conf["_public"] != "" && conf.get("iso", "") == "" {
+		if bin, err := exec.LookPath("virtiofsd"); err == nil {
+			if !runMode || startVirtiofsd(bin, conf) {
+				conf["_virtiofsd"] = "1"
+			}
+		}
+	}
 	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	osName := conf.get("guest_os", "linux")
 	arch := conf.get("arch", "x86_64")
@@ -218,6 +232,13 @@ func parseTomlConf(path string) Conf {
 			}
 		case int64, float64:
 			c[k] = fmt.Sprintf("%v", x)
+		case []any:
+			// TOML array -> bash-array literal so confList parses both.
+			parts := make([]string, 0, len(x))
+			for _, e := range x {
+				parts = append(parts, fmt.Sprintf("%q", fmt.Sprint(e)))
+			}
+			c[k] = "(" + strings.Join(parts, " ") + ")"
 		default:
 			fmt.Fprintf(os.Stderr, "WARNING! Ignoring nested TOML key %q (flat config model).\n", k)
 		}

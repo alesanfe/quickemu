@@ -59,3 +59,34 @@ func runQEMU(confPath string, args []string) error {
 	fmt.Printf(" - Process: Started %s (%d)\n", name, pid)
 	return nil
 }
+
+// startVirtiofsd: spawn the standalone virtiofsd before QEMU and poll
+// for its socket (start_virtiofsd parity). The caller falls back to 9p
+// when this returns false.
+func startVirtiofsd(bin string, c Conf) bool {
+	sock := filepath.Join(c["_vmdir"], c["_vmname"]+".virtiofsd-sock")
+	os.Remove(sock)
+	logF, _ := os.OpenFile(filepath.Join(c["_vmdir"], c["_vmname"]+".log"),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	defer logF.Close()
+	cmd := exec.Command(bin,
+		"--socket-path="+sock,
+		"--shared-dir="+c["_public"],
+		"--announce-submounts",
+		fmt.Sprintf("--translate-uid=squash-guest:0:%d:65536", os.Getuid()),
+		fmt.Sprintf("--translate-gid=squash-guest:0:%d:65536", os.Getgid()))
+	if logF != nil {
+		cmd.Stdout, cmd.Stderr = logF, logF
+	}
+	if err := cmd.Start(); err != nil {
+		return false
+	}
+	for i := 0; i < 20; i++ {
+		if st, err := os.Stat(sock); err == nil && st.Mode()&os.ModeSocket != 0 {
+			return true
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	cmd.Process.Kill()
+	return false
+}

@@ -208,6 +208,18 @@ func fileshareArgs(c Conf, dir string) []string {
 	if len(tag) > 31 {
 		tag = tag[:31]
 	}
+	// virtiofs preferred over 9p (vm_boot_fileshare): _virtiofsd is set
+	// in main when the guest is linux, no ISO is attached, and the
+	// daemon is running (--run) or merely resolvable (plan mode).
+	if c["_virtiofsd"] == "1" {
+		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".virtiofsd-sock"
+		return []string{
+			"-object", "memory-backend-file,id=mem,size=" + c.get("ram", "4G") + ",mem-path=/dev/shm,share=on",
+			"-numa", "node,memdev=mem",
+			"-chardev", "socket,id=char0,path=" + sock,
+			"-device", "vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=" + tag,
+		}
+	}
 	return []string{
 		"-fsdev", "local,id=fsdev0,path=" + pub + ",security_model=mapped-xattr",
 		"-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=" + tag,

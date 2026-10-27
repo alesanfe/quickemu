@@ -132,14 +132,15 @@ func networkArgs(c Conf, t OsTuning) []string {
 	if m := c.get("macaddr", c.get("mac_addr", "")); m != "" && net != "none" {
 		mac = ",mac=" + m
 	}
+	var a []string
 	switch net {
 	case "none":
-		return []string{"-nic", "none"}
+		a = []string{"-nic", "none"}
 	case "restrict":
-		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
+		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "user,hostname=" + vm + ",restrict=y,id=nic"}
 	case "passt":
-		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
+		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "passt,id=nic"}
 	case "":
 		// user mode: hostfwd appended to the user netdev.
@@ -157,13 +158,56 @@ func networkArgs(c Conf, t OsTuning) []string {
 		if pub := c["_public"]; pub != "" {
 			fwd += ",smb=" + pub // Samba share on the user netdev
 		}
-		return []string{"-device", t.NetDevice + ",netdev=nic" + mac,
+		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "user,hostname=" + vm + fwd + ",id=nic"}
 	default:
 		// bridge mode: network value IS the interface name
 		helper, _ := exec.LookPath("qemu-bridge-helper")
-		return []string{"-nic", "bridge,br=" + net + ",helper=" + helper + ",model=" + t.NetDevice + mac}
+		a = []string{"-nic", "bridge,br=" + net + ",helper=" + helper + ",model=" + t.NetDevice + mac}
 	}
+
+	// Secondary NICs (vm.sh extra_nics): user|restrict|passt|bridge:<iface>,
+	// optional parallel extra_macs[i] — one netdev id nicN per entry.
+	macs := confList(c, "extra_macs")
+	for i, en := range confList(c, "extra_nics") {
+		if en == "" {
+			continue
+		}
+		emac := ""
+		if i < len(macs) && macs[i] != "" {
+			emac = ",mac=" + macs[i]
+		}
+		switch {
+		case strings.HasPrefix(en, "bridge:"):
+			helper, _ := exec.LookPath("qemu-bridge-helper")
+			a = append(a, "-nic", "bridge,br="+strings.TrimPrefix(en, "bridge:")+",helper="+helper+",model="+t.NetDevice+emac)
+		case en == "user" || en == "restrict" || en == "passt":
+			id := fmt.Sprintf("nic%d", i)
+			a = append(a, "-device", t.NetDevice+",netdev="+id+emac,
+				"-netdev", en+",id="+id)
+		default:
+			fmt.Fprintf(os.Stderr, " - WARNING! extra_nics[%d] '%s' unknown (user|restrict|bridge:<iface>); skipping.\n", i, en)
+		}
+	}
+	return a
+}
+
+// confList parses a bash/TOML array conf value: `("a" "b")`, `[a,b]`
+// flattened upstream, or a plain space-separated list.
+func confList(c Conf, key string) []string {
+	v := strings.TrimSpace(c.get(key, ""))
+	if v == "" {
+		return nil
+	}
+	v = strings.TrimPrefix(v, "(")
+	v = strings.TrimSuffix(v, ")")
+	var out []string
+	for _, f := range strings.Fields(v) {
+		if f = strings.Trim(f, `"'`); f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // portArgs: SSH/SPICE port forwarding — configure_ports. Allocates
