@@ -325,14 +325,15 @@ function get_elementary() {
         7.1) STAMP=".20230926rc";;
         8.0) STAMP=".20241122rc";;
         8.1)
-            STAMP="-amd64.20251211"
-            HASH="eee6cad081664717681bec767fbfe1aa1fd920938fedad6c83b41fd341e8f306"
+            STAMP="-amd64.20260219"
             ;;
     esac
 
     local ISO="elementaryos-${RELEASE}-stable${STAMP}.iso"
-    local URL="https://ams3.dl.elementary.io/download"
-    echo "${URL}/$(date +%s | base64)/${ISO} ${HASH}"
+    # elementary moved its CDN from ams3.dl.elementary.io to dl.elementaryos.org
+    local URL="https://dl.elementaryos.org"
+    echo "${URL}/$(date +%s | tr -d "
+" | base64)/${ISO} ${HASH}"
 }
 
 
