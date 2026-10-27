@@ -6,20 +6,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 )
 
-var validOS = map[string]bool{
-	"linux": true, "windows": true, "macos": true, "bsd": true, "android": true, "kolibrios": true, "reactos": true, "haiku": true,
-}
+// guestOSRe: Bash guest_os_param_check accepts any [a-z0-9-]+ token —
+// no catalog membership check. Empty warns and assumes linux heuristics.
+var guestOSRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 
 func validateConf(c Conf, confPath string) []string {
 	var errs []string
 	gos := c.get("guest_os", "")
 	if gos == "" {
-		errs = append(errs, "guest_os required")
-	} else if !validOS[strings.ToLower(gos)] {
-		errs = append(errs, "guest_os '"+gos+"' not in known set")
+		fmt.Fprintf(os.Stderr, "WARNING! guest_os is not set in %s; assuming 'linux' heuristics.\n", confPath)
+	} else if !guestOSRe.MatchString(gos) {
+		errs = append(errs, "'"+gos+"' is not a valid guest_os (expected [a-z0-9-]+)")
 	}
 	if c.get("cpu_cores", "") != "" {
 		var n int
