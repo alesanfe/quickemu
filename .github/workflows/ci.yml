@@ -21,6 +21,9 @@ jobs:
       - name: Record quality metrics
         if: always()
         run: bash tools/record-metrics.sh ci_run=true
+      - name: Metrics trend gate (CMMI-4)
+        if: always()
+        run: bash tools/metrics-trend.sh
       - name: Upload metrics history
         uses: actions/upload-artifact@v4
         if: always()
