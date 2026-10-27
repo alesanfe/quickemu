@@ -72,17 +72,42 @@ dispatches every action to a Go backend tool:
 - filesystem ops → `quickemu-vm`
 - journal ops → `quickemu-ops`
 - `--format json` emits the v1 envelope on vm.status / vm.list
+- `--doctor` (doctor_vm parity), `--delete-plan`, `--ignore-msrs-always`
 
-Still Bash-only CLI surface (documented residual): doctor, plugins,
+Still Bash-only CLI surface (documented residual): plugins,
 shortcuts, vfio-scan, migrate-conf, inspect-conf, inventory, events,
 autostart, backup-verify/restore/prune, trash-restore/empty,
-delete-disk, delete-plan, snapshot-info/tree/verify, viewer/vnc/
+delete-disk, snapshot-info/tree/verify, viewer/vnc/
 spice-console, telnet monitor/serial attach, --echo/--export/--import.
+
+## quickget pipeline (quickget-cli + quickget-vm)
+
+- `quickget-vm get <os>` — catalog url → fetch (.part resume + sha256)
+  → `imageNormalize` (batocera resize, easyos/openfyde qcow2, redoxos
+  zstd, freedos/kolibrios/reactos unpack) → `mkconf`
+- `mkconf` — full guest_os/image-type table + per-OS tweaks +
+  disk-image overrides (.qcow2/.vmdk/.raw/.img/.vdi) + `--cloud-init`
+  seed + `--unattended` (ubuntu-server subiquity autoinstall)
+- `customconf` — `--create-config` parity: local path or URL input,
+  OS detect by filename, retail Win ISO auto-unattend,
+  `--disable-unattended`
+- `getUbuntu`/`getUbuntu-server` — SHA256SUMS/MD5SUMS resolution,
+  launchpad daily codename, `zsync` delta download (curl fallback),
+  `OS-devel.iso` naming
+- `getWindows` — full Mido flow: workstation (software-download API,
+  session permit, mdt.js w/rticks, SKU table, product links, Sentinel
+  block messaging) and server (evalcenter fwlink scrape + culture/
+  country map); virtio-win.iso + `unattendedWindows` (37-locale XML
+  template, qxldod w10-only, mkisofs unattended.iso)
+- `getMacos` — Apple osrecovery session → InstallationPayload →
+  RecoveryImage.dmg+chunklist (AssetToken headers) → chunkcheck →
+  dmg→raw convert → pinned OSX-KVM OpenCore/OVMF fetch → mkconf
+- `quickreport` — host probes + redaction + output file
 
 ## Verification
 
 ```bash
-tools/build-go.sh        # builds all 8 binaries
+tools/build-go.sh        # builds all 14 binaries
 tools/run-go-tests.sh    # go test -race -cover per package
 tools/compare-backends.sh  # zero divergences on extracted subsystems
 ```

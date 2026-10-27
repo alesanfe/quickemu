@@ -431,6 +431,19 @@ func fetch(url, dest, wantSHA string) int {
 var cloudInitFlag, noConf, unattendedFlag bool
 
 func getOS(osName, release, edition, dir, arch string) int {
+	// Custom pipelines that bypass create_vm in Bash (cli/main.sh):
+	// macos recovery flow, ubuntu SHA256SUMS flow, windows Mido flow.
+	switch {
+	case osName == "macos":
+		return getMacos(release, dir, arch)
+	case osName == "ubuntu-server":
+		return getUbuntu(osName, release, dir, arch)
+	case strings.Contains(osName, "ubuntu"):
+		return getUbuntu(osName, release, dir, arch)
+	case osName == "windows" || osName == "windows-server":
+		// For windows, the positional 'edition' is the I18N language.
+		return getWindows(osName, release, edition, dir, arch)
+	}
 	cat, err := exec.LookPath("quickget-catalog")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "get: quickget-catalog not on PATH")

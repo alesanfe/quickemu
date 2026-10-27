@@ -1,0 +1,203 @@
+// ubuntu.go: get_ubuntu + get_ubuntu-server + zsync_get parity —
+// SHA256SUMS/MD5SUMS resolution, daily-live codename discovery and
+// zsync-delta downloads with curl fallback.
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+func fetchString(url string) (string, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	return string(b), err
+}
+
+func webCheck(url string) bool {
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return false
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false
+	}
+	resp.Body.Close()
+	return resp.StatusCode >= 200 && resp.StatusCode < 400
+}
+
+// ubuntuDailyCodename: first launchpad series name (newest-first)
+// whose daily-live SHA256SUMS exists on cdimage.
+func ubuntuDailyCodename(osName string) string {
+	body, err := fetchString("https://api.launchpad.net/devel/ubuntu/series")
+	if err != nil {
+		return ""
+	}
+	var j struct {
+		Entries []struct {
+			Name string `json:"name"`
+		} `json:"entries"`
+	}
+	if json.Unmarshal([]byte(body), &j) != nil {
+		return ""
+	}
+	for _, e := range j.Entries {
+		url := "https://cdimage.ubuntu.com/" + osName + "/" + e.Name + "/daily-live/current/SHA256SUMS"
+		if webCheck(url) {
+			return e.Name
+		}
+	}
+	return ""
+}
+
+// sumsPick mirrors the grep/cut pipeline: filter lines matching any of
+// namePats + arch + "iso" (excluding +mac), take the last, split into
+// hash+filename. md5Field selects the filename column (MD5SUMS uses
+// `hash *file` on f2 for desktop, f3 for server).
+func sumsPick(body string, namePats []string, arch string, md5Field int) (iso, hash string) {
+	var line string
+	for _, l := range strings.Split(body, "\n") {
+		if !strings.Contains(l, "iso") || strings.Contains(l, "+mac") {
+			continue
+		}
+		ok := len(namePats) == 0
+		for _, p := range namePats {
+			if strings.Contains(l, p) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			continue
+		}
+		if arch != "" && !strings.Contains(l, arch) {
+			continue
+		}
+		line = l
+	}
+	if line == "" {
+		return "", ""
+	}
+	f := strings.Fields(line)
+	if len(f) < 2 {
+		return "", ""
+	}
+	file := strings.TrimPrefix(f[len(f)-1], "*")
+	if md5Field == 3 && len(f) >= 3 {
+		file = strings.TrimPrefix(f[2], "*")
+	}
+	return file, f[0]
+}
+
+// zsyncGet: zsync_get parity — prefer the zsync delta downloader on
+// the forced-http .zsync URL, fall back to plain fetch when absent.
+func zsyncGet(url, dir, out string) int {
+	if out == "" {
+		out = filepath.Base(url)
+	}
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Unable to create directory %s\n", dir)
+		return 1
+	}
+	if z, err := exec.LookPath("zsync"); err == nil {
+		fmt.Printf("Downloading %s from %s\n", out, url)
+		zu := strings.Replace(url, "https", "http", 1) + ".zsync"
+		cmd := exec.Command(z, zu, "-i", filepath.Join(dir, out), "-o", filepath.Join(dir, out))
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if cmd.Run() != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s\n", zu)
+			return 1
+		}
+		os.Remove(filepath.Join(dir, out) + ".zs-old")
+		return 0
+	}
+	fmt.Fprintln(os.Stderr, "INFO: zsync not found, falling back to curl")
+	return fetch(url, filepath.Join(dir, out), "")
+}
+
+// getUbuntu covers get_ubuntu + get_ubuntu-server: resolution of the
+// release URL (daily-live, arm64 cdimage, releases mirror), SUMS
+// parsing, zsync for daily/dvd, then the conf.
+func getUbuntu(osName, release, dir, arch string) int {
+	if arch == "" {
+		arch = "amd64"
+	}
+	isServer := osName == "ubuntu-server"
+	isDaily := strings.HasPrefix(release, "daily") || release == "dvd"
+	var url string
+	switch {
+	case isDaily:
+		codename := ubuntuDailyCodename(osName)
+		if codename == "" {
+			fmt.Fprintf(os.Stderr, "%s %s is currently unavailable. Please select other OS/Release combination\n", osName, release)
+			return 1
+		}
+		url = "https://cdimage.ubuntu.com/" + osName + "/" + codename + "/daily-live/current"
+		dir = osName + "-" + release
+	case osName == "ubuntu" && arch == "arm64":
+		url = "https://cdimage.ubuntu.com/releases/" + release + "/release"
+	case osName == "ubuntu":
+		url = "https://releases.ubuntu.com/" + release
+	default:
+		url = "https://cdimage.ubuntu.com/" + osName + "/releases/" + release + "/release"
+	}
+	if dir == "" {
+		dir = osName + "-" + release
+	}
+	if isServer {
+		if arch == "arm64" {
+			url = "https://cdimage.ubuntu.com/releases/" + release + "/release"
+		} else if !isDaily {
+			url = "https://releases.ubuntu.com/" + release
+		}
+	}
+	// SUMS parsing — desktop picks desktop|dvd|install lines, server
+	// picks live-server (or server for 14*/16*).
+	namePats := []string{"desktop", "dvd", "install"}
+	md5Field := 2
+	if isServer {
+		namePats = []string{"live-server"}
+		md5Field = 3
+		if strings.HasPrefix(release, "14") || strings.HasPrefix(release, "16") {
+			namePats = []string{"server"}
+		}
+	}
+	var iso, hash string
+	if body, err := fetchString(url + "/SHA256SUMS"); err == nil {
+		iso, hash = sumsPick(body, namePats, arch, 0)
+	} else if body, err := fetchString(url + "/MD5SUMS"); err == nil {
+		iso, hash = sumsPick(body, namePats, arch, md5Field)
+	}
+	if iso == "" || hash == "" {
+		fmt.Fprintf(os.Stderr, "%s %s is currently unavailable. Please select other OS/Release combination\n", osName, release)
+		return 1
+	}
+	if isDaily {
+		if zsyncGet(url+"/"+iso, dir, osName+"-devel.iso") != 0 {
+			return 1
+		}
+		return mkconf(osName, release, "", osName+"-devel.iso", "", dir, arch, cloudInitFlag)
+	}
+	if fetch(url+"/"+iso, filepath.Join(dir, iso), hash) != 0 {
+		return 1
+	}
+	return mkconf(osName, release, "", iso, "", dir, arch, cloudInitFlag)
+}

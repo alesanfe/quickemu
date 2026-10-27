@@ -19,7 +19,7 @@ OS_KERNEL=$(uname -s)
 # --format json emits the structured envelope; default is the human
 # report. All output passes through qr_redact (HOME/user/host/IP/MAC/
 # credentialed-URL scrubbing).
-if [ "${1:-}" = "--format=json" ] || [ "${1:-}" = "--format" -a "${2:-}" = "json" ]; then
+if [ "${1:-}" = "--format=json" ] || { [ "${1:-}" = "--format" ] && [ "${2:-}" = "json" ]; }; then
     quick_report_json | tee quickreport.json
 else
     clear
