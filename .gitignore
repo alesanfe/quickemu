@@ -52,3 +52,5 @@ tools/quickemu-launch/quickemu-launch
 tools/quickemu-vm/quickemu-vm
 tools/quickget-catalog/quickget-catalog
 tools/quickget-vm/quickget-vm
+tools/quickget-cli/quickget
+tools/quickget-vm/vm
