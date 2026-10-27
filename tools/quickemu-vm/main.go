@@ -116,6 +116,34 @@ func main() {
 			die("MOVE_FAILED", err.Error())
 		}
 		ok(fmt.Sprintf("{\"moved\":%q}", dst))
+	case "profile":
+		if len(args) < 3 {
+			die("INVALID_ARGS", "profile needs a name")
+		}
+		p, err := ProfileDefaults(args[2])
+		if err != nil {
+			die("UNKNOWN_PROFILE", err.Error())
+		}
+		j, _ := json.Marshal(p)
+		ok(string(j))
+	case "network-preset":
+		if len(args) < 3 {
+			die("INVALID_ARGS", "network-preset needs a name")
+		}
+		v, err := NetworkPreset(args[2])
+		if err != nil {
+			die("UNKNOWN_PRESET", err.Error())
+		}
+		ok(fmt.Sprintf("{\"network\":%q}", v))
+	case "linked-clone":
+		if len(args) < 4 {
+			die("INVALID_ARGS", "linked-clone needs src dst")
+		}
+		cmd := execCommand("qemu-img", "create", "-f", "qcow2", "-b", args[2], "-F", "qcow2", args[3])
+		if err := cmd.Run(); err != nil {
+			die("LINKED_CLONE_FAILED", err.Error())
+		}
+		ok(fmt.Sprintf("{\"linkedClone\":%q}", args[3]))
 	case "snapshot-create", "snapshot-apply", "snapshot-delete":
 		// qemu-img snapshot -c/-a/-d <tag> <disk> — same as vm.sh.
 		if len(args) < 3 {
@@ -181,4 +209,35 @@ func confDisk(dir string) string {
 
 func execCommand(name string, args ...string) *exec.Cmd {
 	return exec.Command(name, args...)
+}
+
+// ProfileDefaults mirrors vm_profile_defaults — conf overrides per preset.
+func ProfileDefaults(name string) (map[string]string, error) {
+	profiles := map[string]map[string]string{
+		"windows-gaming": {"guest_os": "windows", "ram": "8G", "cpu_cores": "6", "video": "virtio-vga-gl"},
+		"linux-desktop":  {"guest_os": "linux", "ram": "4G", "cpu_cores": "4"},
+		"server":         {"guest_os": "linux", "ram": "4G", "display": "none", "network": "user"},
+		"minimal":        {"guest_os": "linux", "ram": "512M", "cpu_cores": "1"},
+		"ci":             {"guest_os": "linux", "ram": "2G", "display": "none", "network": "none"},
+	}
+	p, ok := profiles[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown profile %q", name)
+	}
+	return p, nil
+}
+
+// NetworkPreset mirrors vm_network_preset — maps preset name to network= value.
+func NetworkPreset(name string) (string, error) {
+	switch name {
+	case "nat", "user":
+		return "user", nil
+	case "bridge":
+		return "bridge", nil
+	case "hostonly":
+		return "host", nil
+	case "isolated", "none":
+		return "none", nil
+	}
+	return "", fmt.Errorf("unknown preset %q", name)
 }

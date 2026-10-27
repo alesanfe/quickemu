@@ -256,3 +256,66 @@ func Hotunplug(sock, devid string) error {
 	}
 	return nil
 }
+
+// SendKeys mirrors send_keys/vm_send_key_combo: sends a key combo via
+// the human monitor ("sendkey ctrl-alt-f" style).
+func SendKeys(monSock, combo string) error {
+	if combo == "" {
+		return fmt.Errorf("empty combo")
+	}
+	// normalize "ctrl+alt+f1" -> "ctrl-alt-f1" (monitor syntax)
+	key := strings.ReplaceAll(combo, "+", "-")
+	_, err := SendCmd(monSock, "sendkey "+key)
+	return err
+}
+
+// TypeText mirrors type_text: sendkey each character (with shift for
+// uppercase/punct) at ~30cps, matching the Bash pacing.
+func TypeText(monSock, text string) error {
+	for _, ch := range text {
+		key := ""
+		switch ch {
+		case ' ':
+			key = "spc"
+		case '\n':
+			key = "ret"
+		case '\t':
+			key = "tab"
+		case '.':
+			key = "dot"
+		case ',':
+			key = "comma"
+		case '-':
+			key = "minus"
+		case '=':
+			key = "equal"
+		case '/':
+			key = "slash"
+		case ':':
+			key = "shift-semicolon"
+		default:
+			if ch >= 'A' && ch <= 'Z' {
+				key = "shift-" + string(ch+32)
+			} else if ch >= 'a' && ch <= 'z' || ch >= '0' && ch <= '9' {
+				key = string(ch)
+			}
+		}
+		if key == "" {
+			continue
+		}
+		if _, err := SendCmd(monSock, "sendkey "+key); err != nil {
+			return err
+		}
+		time.Sleep(33 * time.Millisecond) // ~30 chars/sec
+	}
+	return nil
+}
+
+// Screenshot mirrors screenshot_vm: QMP screendump to a PPM file.
+func Screenshot(sock, out string) error {
+	q := fmt.Sprintf(`{"execute":"screendump","arguments":{"filename":%q}}`, out)
+	if rc := runExecute(sock, q, 5*time.Second); rc != 0 {
+		return fmt.Errorf("screendump failed")
+	}
+	return nil
+}
