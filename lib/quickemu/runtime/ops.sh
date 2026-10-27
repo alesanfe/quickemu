@@ -123,3 +123,39 @@ op_recover() {
         fi
     done
 }
+
+# op_rollback: per-type compensation for a failed/cancelled operation.
+# Reads the op's state file and undoes its effects where safe to do so.
+# Returns 0 when compensation completed (or was a no-op), 1 on irrecoverable.
+op_rollback() {
+    local f type vm d
+    f="$(op_dir)/${1}.json"
+    [ -f "${f}" ] || return 1
+    type=$(grep -o '"type":"[^"]*"' "${f}" | cut -d'"' -f4)
+    vm=$(grep -o '"vm":"[^"]*"' "${f}" | cut -d'"' -f4)
+    d="${VMDIR}"
+    case "${type}" in
+        download)
+            # Remove partial .part + any temp download artifacts
+            rm -f "${d}/"*.part "${d}/"*.zsync* "${d}/"*.tmp 2>/dev/null || true
+            ;;
+        import|export)
+            # Remove the temp staging dir created by import/export
+            rm -rf "${d}/.import-"* "${d}/.export-"* 2>/dev/null || true
+            ;;
+        clone|rename)
+            # Partial clone/rename — remove the destination if it's incomplete
+            [ -d "${d}/.partial-"* ] && rm -rf "${d}/.partial-"* 2>/dev/null || true
+            ;;
+        delete)
+            # Move .trash back into place if present and destination missing
+            [ -d "${d}/.trash" ] && [ ! -e "${d}/vm" ] && mv "${d}/.trash" "${d}/vm" 2>/dev/null || true
+            ;;
+        compact|snapshot)
+            # Discard temp disk artifacts
+            rm -f "${d}/"*.tmp.qcow2 "${d}/"*.compact-* 2>/dev/null || true
+            ;;
+        *) :;;  # unknown op — nothing to undo
+    esac
+    op_fail "${1}" "OPERATION_ROLLBACK" "rolled back ${type} effects"
+}
