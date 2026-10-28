@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -492,8 +493,8 @@ func metricRecord(kvs []string) int {
 
 func countSpecs(r string) int {
 	n := 0
-	filepath.Walk(r, func(p string, info os.FileInfo, err error) error {
-		if err == nil && !info.IsDir() &&
+	filepath.WalkDir(r, func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() &&
 			(strings.HasSuffix(p, "_spec.sh") || strings.HasSuffix(p, "_test.go")) &&
 			!strings.Contains(p, string(filepath.Separator)+"vendor"+string(filepath.Separator)) &&
 			!strings.Contains(p, "shellspec-") {

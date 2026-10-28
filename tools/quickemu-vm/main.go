@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -106,7 +107,7 @@ func deletePlanItems(dir string) []string {
 	if conf != "" {
 		items = append(items, rel(conf))
 	}
-	filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+	filepath.WalkDir(dir, func(p string, _ fs.DirEntry, err error) error {
 		if err != nil || p == dir {
 			return nil
 		}
@@ -166,8 +167,8 @@ func deletePlanDependents(dir string) []string {
 	if _, err := exec.LookPath("qemu-img"); err != nil {
 		return out
 	}
-	filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err != nil || !strings.HasSuffix(p, ".qcow2") || info.IsDir() {
+	filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || !strings.HasSuffix(p, ".qcow2") || d.IsDir() {
 			return nil
 		}
 		b, err := exec.Command("qemu-img", "info", "--output=json", p).Output()

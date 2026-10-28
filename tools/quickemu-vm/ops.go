@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,12 +64,12 @@ func exportVm(dir, out string) int {
 	members = append(members, name+".conf")
 	vdir := filepath.Join(parent, name)
 	if st, err := os.Stat(vdir); err == nil && st.IsDir() {
-		filepath.Walk(vdir, func(p string, fi os.FileInfo, err error) error {
-			if err != nil || fi.IsDir() {
+		filepath.WalkDir(vdir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
 				return nil
 			}
 			rel, _ := filepath.Rel(parent, p)
-			if !isRuntimeArtifact(fi.Name()) {
+			if !isRuntimeArtifact(d.Name()) {
 				members = append(members, filepath.ToSlash(rel))
 			}
 			return nil

@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -18,14 +19,15 @@ func tarGz(src, dst string) error {
 	defer gz.Close()
 	tw := tar.NewWriter(gz)
 	defer tw.Close()
-	return filepath.Walk(src, func(p string, info os.FileInfo, err error) error {
+	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || p == src {
 			return err
 		}
 		rel, _ := filepath.Rel(src, p)
-		if info.IsDir() {
+		if d.IsDir() {
 			return nil
 		}
+		info, _ := d.Info()
 		h, _ := tar.FileInfoHeader(info, "")
 		h.Name = rel
 		tw.WriteHeader(h)
@@ -40,13 +42,14 @@ func tarGz(src, dst string) error {
 }
 
 func cpDir(src, dst string) error {
-	return filepath.Walk(src, func(p string, info os.FileInfo, err error) error {
+	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		rel, _ := filepath.Rel(src, p)
 		t := filepath.Join(dst, rel)
-		if info.IsDir() {
+		info, _ := d.Info()
+		if d.IsDir() {
 			return os.MkdirAll(t, info.Mode())
 		}
 		return cpFile(p, t, info.Mode())

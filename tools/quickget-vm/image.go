@@ -12,6 +12,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -586,8 +587,8 @@ func unattendedWindows(vmPath, driverDir, i18n string) int {
 	fmt.Println("Making unattended.iso")
 	iso := filepath.Join(vmPath, "unattended.iso")
 	files := map[string]string{}
-	err := filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
-		if err != nil || fi.IsDir() {
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
 			return err
 		}
 		rel, _ := filepath.Rel(dir, p)
