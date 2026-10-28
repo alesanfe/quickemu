@@ -228,7 +228,14 @@ func createConfig(vmPath, input string) int {
 	}
 	base := filepath.Base(input)
 	if filepath.Dir(input) != vmPath {
-		os.Rename(input, filepath.Join(vmPath, base))
+		if err := os.Rename(input, filepath.Join(vmPath, base)); err != nil {
+			// cross-device: copy+remove fallback
+			if cp := copyFile(input, filepath.Join(vmPath, base)); cp != nil {
+				fmt.Println(cp)
+				return 1
+			}
+			os.Remove(input)
+		}
 	}
 	guest := "linux"
 	switch {

@@ -672,7 +672,9 @@ func trashRestore(name string) int {
 		return 1
 	}
 	if st, err := os.Stat(srcDir); err == nil && st.IsDir() {
-		os.Rename(srcDir, filepath.Join(confDir, name))
+		if err := os.Rename(srcDir, filepath.Join(confDir, name)); err != nil {
+			die("RESTORE_FAILED", err.Error())
+		}
 	}
 	if err := os.Rename(srcConf, filepath.Join(confDir, name+".conf")); err != nil {
 		die("RESTORE_FAILED", err.Error())

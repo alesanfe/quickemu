@@ -50,19 +50,23 @@ func auth(next http.HandlerFunc) http.HandlerFunc {
 func main() {
 	var listen = "127.0.0.1:8490"
 	for i := 1; i < len(os.Args); i++ {
-		switch os.Args[i] {
-		case "--listen":
+		fl := os.Args[i]
+		switch fl {
+		case "--listen", "--unix", "--data-dir", "--token":
+			if i+1 >= len(os.Args) {
+				fmt.Fprintln(os.Stderr, fl+" needs a value")
+				os.Exit(2)
+			}
+			v := os.Args[i+1]
 			i++
-			listen = os.Args[i]
-		case "--unix":
-			i++
-			listen = os.Args[i]
-		case "--data-dir":
-			i++
-			dataDir = os.Args[i]
-		case "--token":
-			i++
-			token = os.Args[i]
+			switch fl {
+			case "--listen", "--unix":
+				listen = v
+			case "--data-dir":
+				dataDir = v
+			case "--token":
+				token = v
+			}
 		}
 	}
 	ln, err := openListener(listen)
@@ -149,8 +153,8 @@ func newMux() *http.ServeMux {
 			ops := make([]any, 0, len(ents))
 			for _, e := range ents {
 				var v any
-				if b, err := os.ReadFile(e); err == nil {
-					json.Unmarshal(b, &v)
+				if b, err := os.ReadFile(e); err == nil &&
+					json.Unmarshal(b, &v) == nil {
 					ops = append(ops, v)
 				}
 			}

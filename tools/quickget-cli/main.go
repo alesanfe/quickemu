@@ -79,7 +79,10 @@ func loadInfo() map[string]InfoEntry {
 		return map[string]InfoEntry{}
 	}
 	var f infoFile
-	json.Unmarshal(b, &f)
+	if err := json.Unmarshal(b, &f); err != nil {
+		fmt.Fprintf(os.Stderr, "info: parse: %v\n", err)
+		os.Exit(1)
+	}
 	return f.Entries
 }
 
@@ -281,8 +284,9 @@ func actOpenHomepage(osName string) int {
 	}
 	for _, opener := range []string{"xdg-open", "sensible-browser", "x-www-browser", "gnome-open"} {
 		if bin, err := exec.LookPath(opener); err == nil {
-			exec.Command(bin, inf.Homepage).Start()
-			return 0
+			if err := exec.Command(bin, inf.Homepage).Start(); err == nil {
+				return 0
+			}
 		}
 	}
 	fmt.Println(inf.Homepage)

@@ -780,7 +780,11 @@ func startViewer(get func(string) string) {
 		args = append(args, strings.Fields(vea)...)
 	}
 	cmd := exec.Command(bin, args...)
-	cmd.Start() // detached — viewer outlives the CLI process
+	// detached — viewer outlives the CLI process; a spawn failure
+	// must not be silent (the VM still runs, just headless).
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING! could not start %s: %v\n", viewer, err)
+	}
 }
 
 // actSpiceConsole: spice-console parity target — attach the configured

@@ -359,3 +359,20 @@ func extractArchive(format, file, vmPath, imageType string) string {
 	}
 	return file
 }
+
+// copyFile: EXDEV fallback for os.Rename when the input image lives on
+// a different filesystem than the VM dir.
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}

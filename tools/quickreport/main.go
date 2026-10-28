@@ -305,7 +305,10 @@ func captureStdout(fn func(), file string) (rc int) {
 	out := qrRedact(buf.String())
 	fmt.Print(out)
 	if file != "" {
-		os.WriteFile(file, []byte(out), 0644)
+		if err := os.WriteFile(file, []byte(out), 0644); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! cannot write %s: %v\n", file, err)
+			return 1
+		}
 	}
 	return rc
 }

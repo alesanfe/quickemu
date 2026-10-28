@@ -125,8 +125,9 @@ func isoExtractBootfiles(iso, out, prefix string) bool {
 		} {
 			data, err := exec.Command(i, "-i", iso, "-x", pair[0]).Output()
 			if err == nil && len(data) > 0 {
-				os.WriteFile(pair[1], data, 0644)
-				done = true
+				if os.WriteFile(pair[1], data, 0644) == nil {
+					done = true
+				}
 			}
 		}
 	}

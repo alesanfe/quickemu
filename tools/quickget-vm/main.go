@@ -632,7 +632,10 @@ func genSeedISO(vmPath, confFile string) int {
 	}
 	metaData := filepath.Join(vmPath, "meta-data")
 	if _, err := os.Stat(metaData); err != nil {
-		os.WriteFile(metaData, []byte("instance-id: "+vmPath+"\nlocal-hostname: "+vmPath+"\n"), 0644)
+		if err := os.WriteFile(metaData, []byte("instance-id: "+vmPath+"\nlocal-hostname: "+vmPath+"\n"), 0644); err != nil {
+			fmt.Println(err)
+			return 1
+		}
 	}
 	seed := filepath.Join(vmPath, "seed.iso")
 	// cloud-localds parity: a cidata seed ISO is just an ISO9660 image

@@ -90,7 +90,7 @@ func run() int {
 	sums := map[string]string{} // name -> expected sha256 (from .sha256 file)
 	entries := 0
 	var total int64
-	var files []string
+	var files []struct{ name, sum string }
 
 	// First pass for verify; for extract we stream into dest.
 	for {
@@ -172,7 +172,7 @@ func run() int {
 			return die("ARCHIVE_BAD", "short read on "+h.Name)
 		}
 		cname := filepath.ToSlash(filepath.Clean(h.Name))
-		files = append(files, cname+"="+hex.EncodeToString(h256.Sum(nil)))
+		files = append(files, struct{ name, sum string }{cname, hex.EncodeToString(h256.Sum(nil))})
 	}
 	if !haveMan {
 		return die("MANIFEST_MISSING", "quickvm-manifest.json absent")
@@ -183,16 +183,15 @@ func run() int {
 	mismatch := 0
 	seen := map[string]bool{}
 	for _, fm := range files {
-		name, sum, _ := strings.Cut(fm, "=")
-		if seen[name] {
-			return die("MANIFEST_DUP", "duplicate member path "+name)
+		if seen[fm.name] {
+			return die("MANIFEST_DUP", "duplicate member path "+fm.name)
 		}
-		seen[name] = true
-		want, declared := sums[name]
+		seen[fm.name] = true
+		want, declared := sums[fm.name]
 		if !declared { // tolerate manifests that key by basename
-			want, declared = sums[filepath.Base(name)]
+			want, declared = sums[filepath.Base(fm.name)]
 		}
-		if declared && want != sum {
+		if declared && want != fm.sum {
 			mismatch++
 		}
 	}

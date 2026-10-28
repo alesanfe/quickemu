@@ -95,6 +95,7 @@ var (
 	reProductOpt = regexp.MustCompile(`<option value="([0-9]+)">Windows`)
 	reMdtW       = regexp.MustCompile(`[?&]w=([A-F0-9]+)`)
 	reMdtRticks  = regexp.MustCompile(`rticks="?\+?([0-9]+)`)
+	reFwLink     = regexp.MustCompile(`https://go\.microsoft\.com/fwlink/p/\?LinkID=[0-9]+&clcid=0x[0-9a-z]+&culture=[^&"']+&country=[^&"']+`)
 )
 
 // downloadWindowsWorkstation: consumer Windows 10/11 ISO via the
@@ -241,8 +242,12 @@ func downloadWindowsServer(release, i18n, vmPath, entType string) (string, error
 		cc = c
 	}
 	fmt.Println(" - Getting download link..")
-	rx := regexp.MustCompile(fmt.Sprintf(`https://go\.microsoft\.com/fwlink/p/\?LinkID=[0-9]+&clcid=0x[0-9a-z]+&culture=%s&country=%s`, cc[0], cc[1]))
-	links := rx.FindAllString(page, -1)
+	var links []string
+	for _, l := range reFwLink.FindAllString(page, -1) {
+		if strings.Contains(l, "culture="+cc[0]+"&country="+cc[1]) {
+			links = append(links, l)
+		}
+	}
 	if len(links) == 0 {
 		return "", fmt.Errorf("windows server download page gave us no download link")
 	}
