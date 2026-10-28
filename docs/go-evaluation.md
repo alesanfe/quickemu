@@ -96,3 +96,4 @@ in `quickemu-cli/main.go` size; everything else is peripheral.
 | Date | Commit | Note |
 |---|---|---|
 | 2026-10-28 | `507bd4b` | Initial evaluation — Strong overall; backlog derived into P0–P3 tasks |
+| 2026-10-28 | `571b0fe` | **Re-evaluation: A** — God-file split (cli 2376→713), structural QMP, exec seams everywhere (4 direct sites left, harness-only), API auth hardened (throttle/bind/token-file/constant-time), KVM ioctl probe (`KVM_GET_API_VERSION` — WSL device-EPERM fixed), schema-validated envelopes, adversarial lock/network matrix, metrics automated (`qedev metrics structure`: 17k/12.6k LOC, ratio 0.74, 417 tests, 0 go.work drift). Remaining: darwin CI, optional split of ops.go/scrape.go (>1k LOC, cohesive domains) |
