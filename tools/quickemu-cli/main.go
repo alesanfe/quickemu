@@ -782,7 +782,7 @@ func startViewer(get func(string) string) {
 	if vea := get("viewer_extra_args"); vea != "" {
 		args = append(args, strings.Fields(vea)...)
 	}
-	cmd := exec.Command(bin, args...)
+	cmd := execCommand(bin, args...)
 	// detached — viewer outlives the CLI process; a spawn failure
 	// must not be silent (the VM still runs, just headless).
 	if err := cmd.Start(); err != nil {
@@ -848,9 +848,9 @@ func actVNC() int {
 		if bin, err := exec.LookPath(cand); err == nil {
 			var c *exec.Cmd
 			if cand == "remote-viewer" {
-				c = exec.Command(bin, "vnc://"+host+":"+port)
+				c = execCommand(bin, "vnc://"+host+":"+port)
 			} else {
-				c = exec.Command(bin, host+"::"+port)
+				c = execCommand(bin, host+"::"+port)
 			}
 			fmt.Println(" - VNC:      attaching " + cand + " to " + host + ":" + port)
 			c.Start()
@@ -887,7 +887,7 @@ func actPublicDir() int {
 		fmt.Println(" - Public:   " + pub) // no file manager — still give the path
 		return 0
 	}
-	exec.Command(bin, pub).Start()
+	execCommand(bin, pub).Start()
 	fmt.Println(" - Public:   " + pub)
 	return 0
 }
@@ -1141,7 +1141,7 @@ func actIgnoreMSRsAlways() int {
 	if b, err := os.ReadFile("/etc/modprobe.d/kvm-quickemu.conf"); err == nil && strings.Contains(string(b), "ignore_msrs=Y") {
 		return 0 // already enabled (initramfs rebuilt previously)
 	}
-	sh := exec.Command("sudo", "tee", "/etc/modprobe.d/kvm-quickemu.conf")
+	sh := execCommand("sudo", "tee", "/etc/modprobe.d/kvm-quickemu.conf")
 	sh.Stdin = strings.NewReader("options kvm ignore_msrs=Y\n")
 	sh.Stdout, sh.Stderr = os.Stdout, os.Stderr
 	if err := sh.Run(); err != nil {
@@ -1149,9 +1149,9 @@ func actIgnoreMSRsAlways() int {
 	}
 	switch {
 	case toolExists("update-initramfs"):
-		return rc(exec.Command("sudo", "update-initramfs", "-k", "all", "-u").Run())
+		return rc(execCommand("sudo", "update-initramfs", "-k", "all", "-u").Run())
 	case toolExists("mkinitcpio"):
-		return rc(exec.Command("sudo", "mkinitcpio", "-P").Run())
+		return rc(execCommand("sudo", "mkinitcpio", "-P").Run())
 	default:
 		fmt.Fprintln(os.Stderr, "ERROR! User does not have update-initramfs or mkinitcpio installed, please find out respective utility to update/regenrate intiramfs.")
 		fmt.Fprintln(os.Stderr, "Run respective command for rebuilding initramfs: 'sudo update-initramfs -k all -u'(debian) or 'sudo mkinitcpio -P'(arch)")
@@ -1546,7 +1546,7 @@ func actHostInfo() int {
 	}
 	qemuVer := ""
 	if q, err := exec.LookPath("qemu-system-x86_64"); err == nil {
-		if out, err := exec.Command(q, "--version").Output(); err == nil {
+		if out, err := execCommand(q, "--version").Output(); err == nil {
 			qemuVer = strings.TrimSpace(strings.SplitN(string(out), "\n", 2)[0])
 		}
 	}
@@ -1790,7 +1790,7 @@ func actPlugin(name string, pargs []string) int {
 		}
 		return 1
 	}
-	cmd := exec.Command(bin, pargs...)
+	cmd := execCommand(bin, pargs...)
 	cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
 	cmd.Env = append(os.Environ(),
 		"VMDIR="+vmdir(), "VMNAME="+vmname(),

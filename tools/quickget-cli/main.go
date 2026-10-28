@@ -103,7 +103,7 @@ func tool(name string, args ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	out, err := exec.Command(bin, args...).CombinedOutput()
+	out, err := execCommand(bin, args...).CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }
 
@@ -113,7 +113,7 @@ func runPassthru(name string, args ...string) int {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		return 1
 	}
-	cmd := exec.Command(bin, args...)
+	cmd := execCommand(bin, args...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	if err := cmd.Run(); err != nil {
 		return 1
@@ -284,7 +284,7 @@ func actOpenHomepage(osName string) int {
 	}
 	for _, opener := range []string{"xdg-open", "sensible-browser", "x-www-browser", "gnome-open"} {
 		if bin, err := exec.LookPath(opener); err == nil {
-			if err := exec.Command(bin, inf.Homepage).Start(); err == nil {
+			if err := execCommand(bin, inf.Homepage).Start(); err == nil {
 				return 0
 			}
 		}

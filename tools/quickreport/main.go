@@ -18,7 +18,7 @@ import (
 
 func cmdOut(name string, args ...string) string {
 	if bin, err := exec.LookPath(name); err == nil {
-		if out, err := exec.Command(bin, args...).Output(); err == nil {
+		if out, err := execCommand(bin, args...).Output(); err == nil {
 			return strings.TrimSpace(string(out))
 		}
 	}

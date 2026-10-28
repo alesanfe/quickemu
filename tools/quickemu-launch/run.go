@@ -51,7 +51,7 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 		return err
 	}
 	defer logF.Close()
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := execCommand(args[0], args[1:]...)
 	cmd.Stdout = logF
 	cmd.Stderr = logF
 	detach(cmd)
@@ -83,7 +83,7 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 	// separate session performs the cleanup when the guest dies —
 	// Bash's disowned `while kill -0 $VM_PID` watcher. Re-exec self.
 	if self, err := os.Executable(); err == nil {
-		reaper := exec.Command(self, "--reap",
+		reaper := execCommand(self, "--reap",
 			fmt.Sprint(pid), dir, name, fmt.Sprint(os.Getpid()))
 		reaper.Stdout, reaper.Stderr = logF, logF
 		detach(reaper)
@@ -177,7 +177,7 @@ func startVirtiofsd(bin string, c Conf) bool {
 	logF, _ := os.OpenFile(filepath.Join(dir, name+".log"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	defer logF.Close()
-	cmd := exec.Command(bin,
+	cmd := execCommand(bin,
 		"--socket-path="+sock,
 		"--shared-dir="+c["_public"],
 		"--announce-submounts",
@@ -224,7 +224,7 @@ func startSwtpm(c Conf) bool {
 	logF, _ := os.OpenFile(filepath.Join(dir, name+".log"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	defer logF.Close()
-	cmd := exec.Command(bin, "socket",
+	cmd := execCommand(bin, "socket",
 		"--ctrl", "type=unixio,path="+sock,
 		"--terminate",
 		"--tpmstate", "dir="+dir,

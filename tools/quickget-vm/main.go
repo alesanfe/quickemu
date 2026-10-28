@@ -501,7 +501,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 		}
 		args = append(args, arch)
 	}
-	out, err := exec.Command(cat, args...).Output()
+	out, err := execCommand(cat, args...).Output()
 	if err != nil {
 		fmt.Printf("get: url resolution failed for %s %s %s\n", osName, release, edition)
 		return 1
@@ -551,7 +551,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 	// never the control file itself.
 	if strings.HasSuffix(url, ".zsync") {
 		if z, err := exec.LookPath("zsync"); err == nil {
-			cmd := exec.Command(z, "-o", image, url)
+			cmd := execCommand(z, "-o", image, url)
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 			if cmd.Run() != nil {
 				return 1

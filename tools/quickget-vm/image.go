@@ -15,6 +15,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -113,17 +114,17 @@ func isoExtractBootfiles(iso, out, prefix string) bool {
 	upper := strings.ToUpper(prefix)
 	done := false
 	if b, err := exec.LookPath("bsdtar"); err == nil {
-		done = exec.Command(b, "-C", out, "-xf", iso,
+		done = execCommand(b, "-C", out, "-xf", iso,
 			prefix+"/vmlinuz", prefix+"/initrd").Run() == nil
 	} else if z, err := exec.LookPath("7z"); err == nil {
-		done = exec.Command(z, "e", "-o"+out, iso,
+		done = execCommand(z, "e", "-o"+out, iso,
 			prefix+"/vmlinuz", prefix+"/initrd").Run() == nil
 	} else if i, err := exec.LookPath("isoinfo"); err == nil {
 		for _, pair := range [][2]string{
 			{"/" + upper + "/VMLINUZ.;1", out + "/vmlinuz"},
 			{"/" + upper + "/INITRD.;1", out + "/initrd"},
 		} {
-			data, err := exec.Command(i, "-i", iso, "-x", pair[0]).Output()
+			data, err := execCommand(i, "-i", iso, "-x", pair[0]).Output()
 			if err == nil && len(data) > 0 {
 				if os.WriteFile(pair[1], data, 0644) == nil {
 					done = true
@@ -397,7 +398,7 @@ func run(name string, args ...string) error {
 	if err != nil {
 		return err
 	}
-	return exec.Command(bin, args...).Run()
+	return execCommand(bin, args...).Run()
 }
 
 // decompressGZ/XZ/Zstd/BZ2 + extractZip: pure-Go decompressors so the
@@ -635,6 +636,11 @@ func writeISO9660(out, volid string, files map[string]string) error {
 	}
 	slices.Sort(names)
 	for _, name := range names {
+		if dir := path.Dir(name); dir != "/" && dir != "." {
+			if err := fs.Mkdir(dir); err != nil {
+				return err
+			}
+		}
 		fh, err := fs.OpenFile(name, os.O_CREATE|os.O_RDWR)
 		if err != nil {
 			return err

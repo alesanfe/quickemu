@@ -127,7 +127,7 @@ func cocoaGLES() bool {
 	if err != nil {
 		return false
 	}
-	out, _ := exec.Command(qemu, "-display", "cocoa,gl=es", "-M", "none").CombinedOutput()
+	out, _ := execCommand(qemu, "-display", "cocoa,gl=es", "-M", "none").CombinedOutput()
 	s := string(out)
 	if !strings.Contains(strings.ToLower(s), "opengl support was not enabled") && !strings.Contains(s, "does not accept") {
 		return true // QEMU accepted gl=es
@@ -195,7 +195,7 @@ func audioDriver() string {
 	}
 	// Bash also gates on the QEMU build supporting the driver
 	// (-audio-help lists driver=pa/pipewire when compiled in).
-	drvs, _ := exec.Command("qemu-system-x86_64", "-audio-help").Output()
+	drvs, _ := execCommand("qemu-system-x86_64", "-audio-help").Output()
 	supported := string(drvs)
 	if _, err := os.Stat(filepath.Join(rt, "pipewire-0")); err == nil &&
 		strings.Contains(supported, "driver=pipewire") {

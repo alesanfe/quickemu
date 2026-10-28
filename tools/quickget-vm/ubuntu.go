@@ -83,7 +83,7 @@ func zsyncGet(url, dir, out string) int {
 	if z, err := exec.LookPath("zsync"); err == nil {
 		fmt.Printf("Downloading %s from %s\n", out, url)
 		zu := zsyncURL(url)
-		cmd := exec.Command(z, zu, "-i", filepath.Join(dir, out), "-o", filepath.Join(dir, out))
+		cmd := execCommand(z, zu, "-i", filepath.Join(dir, out), "-o", filepath.Join(dir, out))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if cmd.Run() != nil {
 			fmt.Printf("ERROR! Failed to download %s\n", zu)

@@ -171,7 +171,7 @@ func deletePlanDependents(dir string) []string {
 		if err != nil || !strings.HasSuffix(p, ".qcow2") || d.IsDir() {
 			return nil
 		}
-		b, err := exec.Command("qemu-img", "info", "--output=json", p).Output()
+		b, err := execCommand("qemu-img", "info", "--output=json", p).Output()
 		if err != nil {
 			return nil
 		}
@@ -657,9 +657,10 @@ func confDisk(dir string) string {
 	return ""
 }
 
-func execCommand(name string, args ...string) *exec.Cmd {
-	return exec.Command(name, args...)
-}
+// Command construction seam (ADR-0009): tests substitute stubs to
+// observe/fake subprocesses. Restore via t.Cleanup; never t.Parallel
+// while a stub is installed.
+var execCommand = exec.Command
 
 // ProfileDefaults mirrors vm_profile_defaults — conf overrides per preset.
 func ProfileDefaults(name string) (map[string]string, error) {

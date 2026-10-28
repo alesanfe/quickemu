@@ -213,7 +213,7 @@ func getMacos(release, dir, arch string) int {
 		}
 		if qimg, err := exec.LookPath("qemu-img"); err == nil {
 			fmt.Println(" - Converting RecoveryImage.dmg")
-			if err := exec.Command(qimg, "convert", dmg, "-O", "raw", img).Run(); err != nil {
+			if err := execCommand(qimg, "convert", dmg, "-O", "raw", img).Run(); err != nil {
 				fmt.Fprintf(os.Stderr, "WARNING: qemu-img convert failed: %v\n", err)
 			}
 		}

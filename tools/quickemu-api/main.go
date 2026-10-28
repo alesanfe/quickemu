@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -37,7 +36,7 @@ func runCmd(name string, args ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	out, err := exec.Command(bin, args...).CombinedOutput()
+	out, err := execCommand(bin, args...).CombinedOutput()
 	return string(out), err
 }
 

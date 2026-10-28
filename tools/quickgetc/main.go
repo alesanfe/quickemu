@@ -274,7 +274,7 @@ func openHomepage(cat []OSEntry, osName string) int {
 	}
 	for _, b := range []string{"xdg-open", "sensible-browser", "x-www-browser", "gnome-open"} {
 		if bin, err := exec.LookPath(b); err == nil {
-			exec.Command(bin, e.Homepage).Start()
+			execCommand(bin, e.Homepage).Start()
 			return 0
 		}
 	}

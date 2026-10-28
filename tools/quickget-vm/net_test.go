@@ -21,14 +21,27 @@ func stubProbe(t *testing.T, bodies map[string]string) {
 	old := httpProbe
 	httpProbe = &http.Client{Transport: rtFunc(func(r *http.Request) (*http.Response, error) {
 		body := "notfound"
+		reqURL := r.URL
 		for k, v := range bodies {
 			if strings.Contains(r.URL.String(), k) {
 				body = v
 				break
 			}
 		}
+		// "→<url>" body prefix simulates a redirect: the response's
+		// Request.URL differs from the requested one.
+		if strings.HasPrefix(body, "→") {
+			if u, err := r.URL.Parse(strings.TrimPrefix(body, "→")); err == nil {
+				reqURL = u
+				body = ""
+			}
+		}
+		hdr := make(http.Header)
+		if strings.Contains(r.URL.Host, "osrecovery") || strings.Contains(r.URL.Host, "oscdn") {
+			hdr.Set("Set-Cookie", "session=sess-abc123")
+		}
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)),
-			Header: make(http.Header), Request: r}, nil
+			Header: hdr, Request: &http.Request{Method: r.Method, URL: reqURL}}, nil
 	})}
 	t.Cleanup(func() { httpProbe = old })
 }

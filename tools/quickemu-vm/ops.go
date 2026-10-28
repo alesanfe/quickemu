@@ -367,9 +367,9 @@ func cloneVm(dir, name string, full bool) int {
 		}
 		var cerr error
 		if full {
-			cerr = exec.Command(qi, "convert", "-O", fmt_, srcAbs, dst).Run()
+			cerr = execCommand(qi, "convert", "-O", fmt_, srcAbs, dst).Run()
 		} else {
-			cerr = exec.Command(qi, "create", "-f", "qcow2", "-b", srcAbs, "-F", fmt_, dst).Run()
+			cerr = execCommand(qi, "create", "-f", "qcow2", "-b", srcAbs, "-F", fmt_, dst).Run()
 		}
 		if cerr != nil {
 			rollback()
@@ -417,10 +417,10 @@ func autostartCreate(name, confPath string) int {
 		die("AUTOSTART_FAILED", err.Error())
 	}
 	if s, err := exec.LookPath("systemctl"); err == nil {
-		if err := exec.Command(s, "--user", "daemon-reload").Run(); err != nil {
+		if err := execCommand(s, "--user", "daemon-reload").Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "WARNING: daemon-reload: %v\n", err)
 		}
-		if err := exec.Command(s, "--user", "enable", "quickemu-"+name+".service").Run(); err != nil {
+		if err := execCommand(s, "--user", "enable", "quickemu-"+name+".service").Run(); err != nil {
 			fmt.Fprintf(os.Stderr, "WARNING: autostart not enabled: %v\n", err)
 		}
 	}
@@ -739,7 +739,7 @@ func snapshotInfo(dir string) int {
 	if err != nil {
 		die("NO_QEMU_IMG", "qemu-img not found")
 	}
-	cmd := exec.Command(qi, "info", disk)
+	cmd := execCommand(qi, "info", disk)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	return exitCode(cmd.Run())
 }
@@ -751,7 +751,7 @@ func snapshotListJSON(dir, vmName string) int {
 	snaps := "[]"
 	if disk != "" {
 		if qi, err := exec.LookPath("qemu-img"); err == nil {
-			out, err := exec.Command(qi, "info", "--output=json", disk).Output()
+			out, err := execCommand(qi, "info", "--output=json", disk).Output()
 			if err == nil {
 				var j struct {
 					Snapshots []map[string]any `json:"snapshots"`
@@ -938,7 +938,7 @@ func snapshotCreateExternal(dir, tag, desc, confPath string) int {
 	if f := confGet(dir, "disk_format"); f != "" {
 		fmt_ = f
 	}
-	if exec.Command(qi, "create", "-f", "qcow2", "-b", disk, "-F", fmt_, overlay).Run() != nil {
+	if execCommand(qi, "create", "-f", "qcow2", "-b", disk, "-F", fmt_, overlay).Run() != nil {
 		fmt.Fprintf(os.Stderr, "ERROR! qemu-img failed to create %s.\n", overlay)
 		return 1
 	}
@@ -1007,7 +1007,7 @@ func snapshotVerify(dir string) int {
 			continue
 		}
 		if s.Parent != "" {
-			out, err := exec.Command("qemu-img", "info", s.File).Output()
+			out, err := execCommand("qemu-img", "info", s.File).Output()
 			actual := ""
 			if err == nil {
 				for _, l := range strings.Split(string(out), "\n") {
@@ -1052,7 +1052,7 @@ func snapshotConsolidate(dir, tag string) int {
 	if err != nil {
 		die("NO_QEMU_IMG", "qemu-img not found")
 	}
-	if exec.Command(qi, "commit", node.File).Run() != nil {
+	if execCommand(qi, "commit", node.File).Run() != nil {
 		die("CONSOLIDATE_FAILED", "qemu-img commit failed")
 	}
 	os.Remove(node.File)
