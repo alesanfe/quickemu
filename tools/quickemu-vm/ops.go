@@ -57,6 +57,20 @@ func vmRunningDir(dir, name string) bool {
 	return c == name || c == short || strings.HasPrefix(c, "qemu")
 }
 
+// vmStoppedOrDie: shared VM_MUST_BE_STOPPED guard for every op that
+// hands the VM disk to qemu-img — resize/compact/consolidate corrupt
+// a live image exactly the way snapshot -c does (write races and, in
+// compact's case, an atomic rename under the running guest).
+func vmStoppedOrDie(dir, verb string) {
+	name := filepath.Base(dir)
+	if c := vmConfPath(dir); c != "" {
+		name = strings.TrimSuffix(filepath.Base(c), ".conf")
+	}
+	if vmRunningDir(dir, name) {
+		die("VM_MUST_BE_STOPPED", "Stop "+name+" before "+verb+".")
+	}
+}
+
 // deleteDisk: remove the VM disk + EFI vars + shortcut when the VM is
 // stopped (delete_disk parity).
 func deleteDisk(dir, pidFile string) int {

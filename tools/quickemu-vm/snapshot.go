@@ -243,6 +243,9 @@ func snapshotConsolidate(dir, tag string) int {
 	if node == nil {
 		die("SNAPSHOT_CONFLICT", "external snapshot '"+tag+"' not found")
 	}
+	// qemu-img commit on a live chain corrupts the backing file —
+	// same guard as the internal snapshot ops.
+	vmStoppedOrDie(dir, "consolidating snapshots")
 	qi, err := exec.LookPath("qemu-img")
 	if err != nil {
 		die("NO_QEMU_IMG", "qemu-img not found")

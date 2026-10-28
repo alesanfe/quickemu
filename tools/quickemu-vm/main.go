@@ -356,6 +356,7 @@ func run() int {
 			fmt.Fprintln(os.Stderr, "ERROR! '--disk-resize' needs a size (e.g. 32G).")
 			return 1
 		}
+		vmStoppedOrDie(dir, "resizing its disk")
 		disk := confDisk(dir)
 		if _, err := os.Stat(disk); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
@@ -370,6 +371,7 @@ func run() int {
 		okMap(map[string]any{"resized": disk, "size": args[2]})
 	case "compact":
 		// disk_compact: qemu-img convert to .compact then atomic swap.
+		vmStoppedOrDie(dir, "compacting its disk")
 		disk := confDisk(dir)
 		if _, err := os.Stat(disk); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
@@ -487,6 +489,10 @@ func run() int {
 		if name == "" {
 			die("INVALID_ARGS", "rename needs a new name")
 		}
+		// Renaming a live VM moves the pidfile/sockets out from under
+		// the running guest — liveness tracking then reports stopped
+		// and the next disk op can run unguarded.
+		vmStoppedOrDie(dir, "renaming it")
 		dst := filepath.Join(filepath.Dir(dir), name)
 		if err := os.Rename(dir, dst); err != nil {
 			die("RENAME_FAILED", err.Error())
@@ -508,6 +514,9 @@ func run() int {
 		if dst == "" {
 			die("INVALID_ARGS", "move needs a destination dir")
 		}
+		// Copying a live VM dir duplicates stale pidfiles/sockets —
+		// the copy claims to be running and the source keeps mutating.
+		vmStoppedOrDie(dir, "moving it")
 		if err := cpDir(dir, dst); err != nil {
 			die("MOVE_FAILED", err.Error())
 		}

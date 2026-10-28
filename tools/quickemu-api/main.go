@@ -49,13 +49,18 @@ func write(w http.ResponseWriter, code int, v any) {
 }
 
 const (
-	authFailMax    = 10
-	authFailWindow = time.Minute
+	authFailMax      = 10
+	authFailWindow   = time.Minute
+	authFailMaxHosts = 4096
 )
 
 // authThrottle returns false once addr has burned through its
 // failed-auth allowance for the current window — an exposed daemon
-// must not serve as an unbounded token-guessing oracle.
+// must not serve as an unbounded token-guessing oracle. The table is
+// capped so an attacker spraying source IPs cannot grow the daemon's
+// memory without bound: expired windows are swept at the cap, and a
+// still-full table denies the new entry rather than evicting an
+// in-progress record.
 func authThrottle(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -63,6 +68,19 @@ func authThrottle(addr string) bool {
 	}
 	authMu.Lock()
 	defer authMu.Unlock()
+	if len(authFails) >= authFailMaxHosts {
+		if _, known := authFails[host]; !known {
+			now := time.Now()
+			for h, fr := range authFails {
+				if now.After(fr.until) {
+					delete(authFails, h)
+				}
+			}
+			if len(authFails) >= authFailMaxHosts {
+				return false
+			}
+		}
+	}
 	fr, ok := authFails[host]
 	if !ok || time.Now().After(fr.until) {
 		authFails[host] = &failRec{n: 1, until: time.Now().Add(authFailWindow)}

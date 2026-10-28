@@ -78,6 +78,28 @@ func TestAuthThrottle(t *testing.T) {
 	}
 }
 
+// The throttle table must stay bounded: a sprayed source-IP set on an
+// exposed daemon must not grow process memory without limit.
+func TestAuthThrottleTableBounded(t *testing.T) {
+	authMu.Lock()
+	authFails = map[string]*failRec{}
+	authMu.Unlock()
+	t.Cleanup(func() {
+		authMu.Lock()
+		authFails = map[string]*failRec{}
+		authMu.Unlock()
+	})
+	for i := 0; i < 3*authFailMaxHosts; i++ {
+		authThrottle(fmt.Sprintf("10.%d.%d.%d:9", i>>16&0xff, i>>8&0xff, i&0xff))
+	}
+	authMu.Lock()
+	n := len(authFails)
+	authMu.Unlock()
+	if n > authFailMaxHosts {
+		t.Fatalf("throttle table holds %d unique hosts — unbounded growth on an exposed daemon", n)
+	}
+}
+
 // Rotation window: old+new tokens both valid until the old one is
 // removed — clients migrate without an insecure gap.
 func TestTokenRotation(t *testing.T) {
