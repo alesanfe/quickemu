@@ -2,6 +2,8 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -171,10 +173,19 @@ func TestLaunchDryRunSpice(t *testing.T) {
 		t.Fatal("bad vnc_listen should fail")
 	}
 	// telnet attach: conf says serial=telnet; telnetAttach dials a
-	// real listener.
-	os.WriteFile(vmConf, []byte("serial=\"telnet\"\nserial_telnet_host=\"127.0.0.1\"\nserial_telnet_port=\"9\"\n"), 0o644)
+	// real listener. Reserve-then-release a loopback port so it is
+	// guaranteed closed — a success return is then a genuine bug,
+	// not an environment artifact.
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Skip("no loopback")
+	}
+	dead := l.Addr().(*net.TCPAddr).Port
+	l.Close()
+	os.WriteFile(vmConf, []byte("serial=\"telnet\"\nserial_telnet_host=\"127.0.0.1\"\nserial_telnet_port=\""+
+		fmt.Sprint(dead)+"\"\n"), 0o644)
 	if rc := actTelnet("serial"); rc == 0 {
-		t.Log("telnet attach unexpectedly ok")
+		t.Error("telnet attach succeeded on a closed port")
 	}
 	// public_dir opens via stub xdg-open.
 	pub := filepath.Join(vd, "pub")

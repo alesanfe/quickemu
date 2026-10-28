@@ -147,10 +147,18 @@ func TestOpLifecycle(t *testing.T) {
 	if _, rc = runTool(t, "status", "--vmdir", dir, "--id", id); rc != 0 {
 		t.Fatalf("status rc=%d", rc)
 	}
-	// recover/rollback on clean dir → graceful.
-	_, _ = runTool(t, "recover", "--vmdir", dir)
-	_, _ = runTool(t, "rollback", "--vmdir", dir)
-	_, _ = runTool(t, "prune", "--vmdir", dir)
+	// recover/rollback/prune on clean dir → deterministic contract.
+	if out, rc = runTool(t, "recover", "--vmdir", dir); rc != 0 ||
+		!strings.Contains(out, `"reaped":0`) {
+		t.Fatalf("recover rc=%d out=%q", rc, out)
+	}
+	if _, rc = runTool(t, "rollback", "--vmdir", dir); rc == 0 {
+		t.Fatal("rollback without --id must fail")
+	}
+	if out, rc = runTool(t, "prune", "--vmdir", dir); rc != 0 ||
+		!strings.Contains(out, `"pruned":0`) {
+		t.Fatalf("prune rc=%d out=%q", rc, out)
+	}
 }
 
 func TestFlagHelper(t *testing.T) {

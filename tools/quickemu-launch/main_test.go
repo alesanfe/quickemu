@@ -148,7 +148,10 @@ display="none"
 serial="telnet"
 serial_telnet_port="6660"
 `)
-	out, _ = launch(t, nil, conf3, "--dry-run")
+	out, rc = launch(t, nil, conf3, "--dry-run")
+	if rc != 0 {
+		t.Fatalf("dry-run rc=%d", rc)
+	}
 	if !strings.Contains(out, "telnet") {
 		t.Fatalf("telnet serial missing:\n%s", out)
 	}

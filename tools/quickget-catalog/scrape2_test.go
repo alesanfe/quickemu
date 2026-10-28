@@ -197,8 +197,11 @@ func TestScrapeReleasesAndEditions(t *testing.T) {
 	if e := scrapeEditions("x", ""); e != nil {
 		t.Fatal("empty release → nil")
 	}
-	if _, err := ubuntuDailyCodename("ubuntu"); err == nil {
-		// offline → error is fine, but no panic
-		t.Log("ubuntuDailyCodename ok")
+	if name, err := ubuntuDailyCodename("ubuntu"); err == nil {
+		// offline → error is fine, but a success must return a
+		// non-empty codename — not just "did not panic".
+		if name == "" {
+			t.Error("ubuntuDailyCodename succeeded with empty codename")
+		}
 	}
 }

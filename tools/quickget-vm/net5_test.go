@@ -31,7 +31,9 @@ func TestCheckChunklistErrors(t *testing.T) {
 	os.WriteFile(cl, append([]byte("CNKL"), make([]byte, 64)...), 0o644)
 	dmg := filepath.Join(dir, "b.dmg")
 	os.WriteFile(dmg, []byte("data"), 0o644)
-	_ = checkChunklist(dmg, cl)
+	if err := checkChunklist(dmg, cl); err == nil {
+		t.Error("truncated chunklist must error")
+	}
 }
 
 func TestGetMacosCachedImg(t *testing.T) {

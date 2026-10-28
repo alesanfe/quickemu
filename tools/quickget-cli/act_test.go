@@ -141,11 +141,16 @@ func TestActGetAndOpen(t *testing.T) {
 		t.Fatalf("trust gate rc=%d", rc)
 	}
 	minTrust = old
-	// D/E trust warning paths.
+	// D/E trust warning paths — the gate warns but does not block;
+	// the stub-env flow then fails downstream → deterministic rc 1.
 	t.Setenv("QC_TRUST", "D")
-	_ = actGet("alpine", "3.19", "virt", true)
+	if rc := actGet("alpine", "3.19", "virt", true); rc != 1 {
+		t.Fatalf("trust D rc=%d", rc)
+	}
 	t.Setenv("QC_TRUST", "E")
-	_ = actGet("alpine", "3.19", "virt", true)
+	if rc := actGet("alpine", "3.19", "virt", true); rc != 1 {
+		t.Fatalf("trust E rc=%d", rc)
+	}
 	t.Setenv("QC_TRUST", "A")
 	// openHomepage: stub xdg-open.
 	stub := t.TempDir()

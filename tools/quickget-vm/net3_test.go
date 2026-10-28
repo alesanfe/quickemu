@@ -114,8 +114,11 @@ func TestIsoExtractPaths(t *testing.T) {
 	os.WriteFile(filepath.Join(stub, "isoinfo"),
 		[]byte("#!/bin/sh\necho DATA\n"), 0o755)
 	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// Non-ISO + stub isoinfo → the fallback path accepts it.
 	out3 := t.TempDir()
-	_ = isoExtractBootfiles(bad, out3, "casper")
+	if !isoExtractBootfiles(bad, out3, "casper") {
+		t.Error("isoinfo fallback should extract")
+	}
 }
 
 func TestNormalizeCompressed(t *testing.T) {

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -95,8 +96,15 @@ func TestInspectAndMigrate(t *testing.T) {
 	vmConf = old
 	dryRunFlag = true
 	defer func() { dryRunFlag = false }()
-	// No toml tool on PATH → exercises the fallback branch.
-	_ = actMigrateConf()
+	// Without a toml tool on PATH the dry-run diff can't render →
+	// rc 1; with the tool present it renders → rc 0.
+	if _, err := exec.LookPath("quickemu-toml"); err != nil {
+		if rc := actMigrateConf(); rc != 1 {
+			t.Fatalf("migrate (no tool) rc=%d", rc)
+		}
+	} else if rc := actMigrateConf(); rc != 0 {
+		t.Fatalf("migrate (tool) rc=%d", rc)
+	}
 }
 
 func TestEventsAndQEEvent(t *testing.T) {
@@ -154,7 +162,10 @@ func TestInventoryStatsCaps(t *testing.T) {
 	if rc := actCapabilities(); rc != 0 {
 		t.Fatalf("caps rc=%d", rc)
 	}
-	_ = actHostInfo()
+	// host-info always emits the envelope and succeeds.
+	if rc := actHostInfo(); rc != 0 {
+		t.Fatalf("hostinfo rc=%d", rc)
+	}
 }
 
 func TestPluginsAndSnapshotDispatch(t *testing.T) {

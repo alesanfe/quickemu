@@ -173,11 +173,10 @@ func TestGetMacos(t *testing.T) {
 	if rc := getMacos("nope", filepath.Join(dir, "m"), "amd64"); rc != 1 {
 		t.Fatal("unknown release should fail")
 	}
-	// a real release row — rc depends on flow completion; coverage is
-	// the goal (any rc acceptable, must not hang/panic).
+	// Every real release row — rc varies per board/flow, coverage is
+	// the goal (must not hang/panic).
 	for rel := range macBoards {
 		_ = getMacos(rel, filepath.Join(dir, rel), "amd64")
-		break
 	}
 }
 
@@ -193,16 +192,34 @@ func TestGetWindows(t *testing.T) {
 	}
 	// valid flow — downloadWindowsWorkstation hits stubProbe; even a
 	// parse failure continues to conf generation.
-	_ = getWindows("windows", "11", "English International",
-		filepath.Join(dir, "w2"), "amd64")
-	_ = getWindows("windows-server", "2022", "",
-		filepath.Join(dir, "w3"), "amd64")
+	// With fetchers+probe stubbed the flow completes → rc 0.
+	if rc := getWindows("windows", "11", "English International",
+		filepath.Join(dir, "w2"), "amd64"); rc != 0 {
+		t.Fatalf("getWindows rc=%d", rc)
+	}
+	if rc := getWindows("windows-server", "2022", "",
+		filepath.Join(dir, "w3"), "amd64"); rc != 0 {
+		t.Fatalf("getWindows-server rc=%d", rc)
+	}
 }
 
 func TestUnattendedAndAutoinstall(t *testing.T) {
 	dir := t.TempDir()
-	// unattendedWindows writes autounattend.xml + builds the ISO.
-	_ = unattendedWindows(dir, "w11", "English International")
+	// unattendedWindows writes autounattend.xml before downloading
+	// drivers — the XML artifact is deterministic even when the
+	// driver fetch is not.
+	unattendedWindows(dir, "w11", "English International")
+	xml, err := os.ReadFile(filepath.Join(dir, "unattended",
+		"autounattend.xml"))
+	if err != nil {
+		t.Fatalf("autounattend.xml not written: %v", err)
+	}
+	// "English International" → en-GB/0809 per winCultures — and no
+	// template placeholder may survive the substitution.
+	if !strings.Contains(string(xml), "en-GB") ||
+		strings.Contains(string(xml), "${CULTURE}") {
+		t.Error("autounattend.xml culture substitution broken")
+	}
 	// genUbuntuAutoinstall: seed ISO + autoinstall conf.
 	iso := filepath.Join(dir, "u.iso")
 	os.WriteFile(iso, []byte("x"), 0o644)
@@ -210,7 +227,10 @@ func TestUnattendedAndAutoinstall(t *testing.T) {
 	os.WriteFile(conf, []byte("guest_os=\"linux\"\n"), 0o644)
 	t.Setenv("USER", "tester")
 	t.Setenv("HOME", dir)
-	_ = genUbuntuAutoinstall(dir, iso, conf)
+	// "x" is not an ISO → bootfile extraction must fail → rc 1.
+	if rc := genUbuntuAutoinstall(dir, iso, conf); rc != 1 {
+		t.Fatalf("autoinstall on non-ISO rc=%d", rc)
+	}
 }
 
 func TestIsoExtractPure(t *testing.T) {

@@ -32,8 +32,10 @@ func TestRootAndModules(t *testing.T) {
 	if !found {
 		t.Fatalf("dev module not listed: %v", mods)
 	}
-	if !isMain(r) == true { // repo root is not a main package
-		_ = isMain(r)
+	// The repo root must not be a main package — asserting the
+	// invariant, not just exercising the predicate.
+	if isMain(r) {
+		t.Error("repo root resolved as a main package")
 	}
 }
 
@@ -66,9 +68,11 @@ func TestCounters(t *testing.T) {
 	if n := countCatalogOS(r); n <= 0 {
 		t.Fatalf("countCatalogOS %d", n)
 	}
-	// goCoverage sums coverprofile files when present; at minimum it
-	// must not panic on a tree without them.
-	_ = goCoverage(t.TempDir())
+	// goCoverage on a tree with no modules reports zero, not a
+	// panic or garbage value.
+	if got := goCoverage(t.TempDir()); got != "0%" {
+		t.Fatalf("goCoverage on empty tree = %q", got)
+	}
 }
 
 func TestMetricRecord(t *testing.T) {
