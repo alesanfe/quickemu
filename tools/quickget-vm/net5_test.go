@@ -83,10 +83,26 @@ func TestFetchOnceRangeEdge(t *testing.T) {
 	}))
 	defer srv.Close()
 	dir := t.TempDir()
-	// pre-staged .part + server 416 → fetchOnce fails, retries exhaust.
+	// pre-staged .part + server 416 → already complete, no SHA given.
 	os.WriteFile(filepath.Join(dir, "f.part"), payload[:4], 0o644)
-	if rc := fetchOnce(srv.URL+"/f", filepath.Join(dir, "f.part"), ""); rc != 1 {
-		t.Fatal("416 should fail")
+	if rc := fetchOnce(srv.URL+"/f", filepath.Join(dir, "f.part"), ""); rc != 0 {
+		t.Fatal("416 with staged .part should be already-complete")
+	}
+	// 416 + wrong SHA → verify still rejects and drops the .part.
+	os.WriteFile(filepath.Join(dir, "g.part"), payload[:4], 0o644)
+	if rc := fetchOnce(srv.URL+"/g", filepath.Join(dir, "g.part"), "deadbeef"); rc != 1 {
+		t.Fatal("416 with bad SHA should fail")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "g.part")); !os.IsNotExist(err) {
+		t.Fatal("bad .part should be removed on checksum mismatch")
+	}
+	// 416 without a staged file → still an error.
+	srv416 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(416)
+	}))
+	defer srv416.Close()
+	if rc := fetchOnce(srv416.URL+"/h", filepath.Join(dir, "h.part"), ""); rc != 1 {
+		t.Fatal("416 with no .part should fail")
 	}
 	// server ignores Range → restart from scratch.
 	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

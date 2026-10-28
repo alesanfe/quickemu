@@ -416,6 +416,12 @@ func fetchOnce(url, part, wantSHA string) int {
 		return 1
 	}
 	defer resp.Body.Close()
+	// 416 with a staged file means the local .part is already at/past
+	// the remote size — treat as complete and let the SHA verify below
+	// decide correctness (curl parity: a finished .part resumes to done).
+	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && have > 0 {
+		return fetchVerify(part, wantSHA)
+	}
 	if resp.StatusCode >= 400 {
 		fmt.Printf("download failed: HTTP %d\n", resp.StatusCode)
 		return 1
@@ -441,25 +447,33 @@ func fetchOnce(url, part, wantSHA string) int {
 		return 1
 	}
 	f.Close()
-	if wantSHA != "" {
-		f, err := os.Open(part)
-		if err != nil {
-			fmt.Println(err)
-			return 1
-		}
-		h := sha256.New()
-		_, err = io.Copy(h, f)
-		f.Close()
-		if err != nil {
-			fmt.Println(err)
-			return 1
-		}
-		sum := fmt.Sprintf("%x", h.Sum(nil))
-		if !strings.EqualFold(sum, wantSHA) {
-			os.Remove(part)
-			fmt.Printf("checksum mismatch: got %s want %s\n", sum, wantSHA)
-			return 1
-		}
+	return fetchVerify(part, wantSHA)
+}
+
+// fetchVerify: sha256-check the staged .part (streaming — multi-GB
+// images never enter memory) and drop it on mismatch. Called after a
+// completed body and on the 416 already-complete path.
+func fetchVerify(part, wantSHA string) int {
+	if wantSHA == "" {
+		return 0
+	}
+	f, err := os.Open(part)
+	if err != nil {
+		fmt.Println(err)
+		return 1
+	}
+	h := sha256.New()
+	_, err = io.Copy(h, f)
+	f.Close()
+	if err != nil {
+		fmt.Println(err)
+		return 1
+	}
+	sum := fmt.Sprintf("%x", h.Sum(nil))
+	if !strings.EqualFold(sum, wantSHA) {
+		os.Remove(part)
+		fmt.Printf("checksum mismatch: got %s want %s\n", sum, wantSHA)
+		return 1
 	}
 	return 0
 }
