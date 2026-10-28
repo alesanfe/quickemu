@@ -1561,11 +1561,7 @@ func actHostInfo() int {
 	}
 	freeKb := int64(0)
 	var st syscall.Statfs_t
-	dataDir := os.Getenv("XDG_DATA_HOME")
-	if dataDir == "" {
-		dataDir = filepath.Join(os.Getenv("HOME"), ".local", "share")
-	}
-	if syscall.Statfs(dataDir, &st) == nil {
+	if syscall.Statfs(qelib.XDGData(), &st) == nil {
 		freeKb = int64(st.Bavail) * int64(st.Bsize) / 1024
 	}
 	kernel := unameFields("-s -r")

@@ -73,10 +73,7 @@ func populateCache() []OSEntry {
 			}
 		}
 	}
-	cacheDir := os.Getenv("XDG_CACHE_HOME")
-	if cacheDir == "" {
-		cacheDir = filepath.Join(os.Getenv("HOME"), ".cache")
-	}
+	cacheDir := qelib.XDGCache()
 	// A plain quickget_data.json next to the cache is an authoritative
 	// override (offline catalogs, pinned datasets, tests) — it skips
 	// both the download and the zstd decode entirely.

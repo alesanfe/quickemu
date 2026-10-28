@@ -59,6 +59,22 @@ func XDGData() string {
 	return filepath.Join(os.Getenv("HOME"), ".local", "share")
 }
 
+// XDGCache resolves $XDG_CACHE_HOME with the ~/.cache fallback.
+func XDGCache() string {
+	if v := os.Getenv("XDG_CACHE_HOME"); v != "" {
+		return v
+	}
+	return filepath.Join(os.Getenv("HOME"), ".cache")
+}
+
+// XDGConfig resolves $XDG_CONFIG_HOME with the ~/.config fallback.
+func XDGConfig() string {
+	if v := os.Getenv("XDG_CONFIG_HOME"); v != "" {
+		return v
+	}
+	return filepath.Join(os.Getenv("HOME"), ".config")
+}
+
 // PciAttr reads a sysfs attribute of a PCI device.
 func PciAttr(dev, attr string) string {
 	b, err := os.ReadFile(filepath.Join("/sys/bus/pci/devices", dev, attr))

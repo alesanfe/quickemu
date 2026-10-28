@@ -390,10 +390,7 @@ func launcherPath() string {
 }
 
 func autostartCreate(name, confPath string) int {
-	unitDir := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user")
-	if x := os.Getenv("XDG_CONFIG_HOME"); x != "" {
-		unitDir = filepath.Join(x, "systemd", "user")
-	}
+	unitDir := filepath.Join(qelib.XDGConfig(), "systemd", "user")
 	os.MkdirAll(unitDir, 0755)
 	unit := filepath.Join(unitDir, "quickemu-"+name+".service")
 	self, _ := filepath.EvalSymlinks(launcherPath())
@@ -423,7 +420,7 @@ func autostartCreate(name, confPath string) int {
 
 // shortcutCreate/Delete: .desktop file management.
 func shortcutCreate(name, conf, opts string) int {
-	dir := filepath.Join(os.Getenv("HOME"), ".local", "share", "applications")
+	dir := filepath.Join(qelib.XDGData(), "applications")
 	os.MkdirAll(dir, 0755)
 	file := filepath.Join(dir, name+".desktop")
 	body := "[Desktop Entry]\nVersion=1.0\nType=Application\nTerminal=false\n" +
@@ -438,7 +435,7 @@ func shortcutCreate(name, conf, opts string) int {
 }
 
 func shortcutDelete(name string) {
-	file := filepath.Join(os.Getenv("HOME"), ".local", "share", "applications", name+".desktop")
+	file := filepath.Join(qelib.XDGData(), "applications", name+".desktop")
 	if _, err := os.Stat(file); err == nil {
 		os.Remove(file)
 		info(" - Deleted " + file)

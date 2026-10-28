@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // xdgUserDir resolves an XDG user dir natively — same source as the
@@ -12,10 +14,7 @@ import (
 // ~/.config/user-dirs.dirs), honouring enabled=false in
 // user-dirs.conf. Removes the subprocess dependency.
 func xdgUserDir(name string) string {
-	cfg := os.Getenv("XDG_CONFIG_HOME")
-	if cfg == "" {
-		cfg = filepath.Join(os.Getenv("HOME"), ".config")
-	}
+	cfg := qelib.XDGConfig()
 	if b, err := os.ReadFile(filepath.Join(cfg, "user-dirs.conf")); err == nil && strings.Contains(string(b), "enabled=False") {
 		return ""
 	}
