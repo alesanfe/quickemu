@@ -146,7 +146,10 @@ func run(dir, name string, env []string, args ...string) error {
 	cmd := execCommand(name, args...)
 	cmd.Dir = dir
 	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
+		if cmd.Env == nil {
+			cmd.Env = os.Environ() // seam may have pre-set Env — keep it
+		}
+		cmd.Env = append(cmd.Env, env...)
 	}
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 	return cmd.Run()
