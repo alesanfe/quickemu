@@ -581,9 +581,9 @@ func main() {
 	case "snapshot-list":
 		sdir := filepath.Join(dir, ".snapshots")
 		ents, _ := filepath.Glob(filepath.Join(sdir, "*.json"))
-		var snaps []map[string]interface{}
+		var snaps []map[string]any
 		for _, e := range ents {
-			var s map[string]interface{}
+			var s map[string]any
 			if b, err := os.ReadFile(e); err == nil && json.Unmarshal(b, &s) == nil {
 				snaps = append(snaps, s)
 			}

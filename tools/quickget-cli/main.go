@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
@@ -173,7 +173,7 @@ func csvRows(cat []Entry, info map[string]InfoEntry) [][]string {
 		}
 	}
 	// sort -s -t',' -k2,2: stable sort by column 2 (OS).
-	sort.SliceStable(rows, func(i, j int) bool { return rows[i][1] < rows[j][1] })
+	slices.SortStableFunc(rows, func(a, b []string) int { return strings.Compare(a[1], b[1]) })
 	return rows
 }
 
@@ -242,7 +242,7 @@ func actUpdate(osName string) int {
 			local = append(local, d)
 		}
 	}
-	sort.Strings(local)
+	slices.Sort(local)
 	if len(local) == 0 {
 		fmt.Println("No local " + osName + " VM directories found.")
 		return 0

@@ -66,7 +66,7 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 	}
 	// publish instance identity (same JSON contract as vm_instance_publish)
 	rt := filepath.Join(dir, name+".runtime.json")
-	rtJSON, _ := json.Marshal(map[string]interface{}{
+	rtJSON, _ := json.Marshal(map[string]any{
 		"pid": pid, "name": name, "startedAt": time.Now().UTC().Format(time.RFC3339),
 		"qmp": filepath.Join(dir, name+"-qmp.socket"),
 	})

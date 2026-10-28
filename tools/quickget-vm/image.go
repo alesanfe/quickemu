@@ -16,7 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/bodgit/sevenzip"
@@ -631,7 +631,7 @@ func writeISO9660(out, volid string, files map[string]string) error {
 	for k := range files {
 		names = append(names, k)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		fh, err := fs.OpenFile(name, os.O_CREATE|os.O_RDWR)
 		if err != nil {

@@ -7,7 +7,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -232,6 +232,6 @@ func allSourceURLs(r Release) []string {
 			}
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }

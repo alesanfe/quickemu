@@ -2,11 +2,12 @@
 package qelib
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 // HostArch returns the normalized quickemu guest arch name for the
@@ -39,19 +40,15 @@ func MemMB(s string) int {
 	return n * mult
 }
 
-// HostFreeMemMB: MemAvailable from /proc/meminfo (host_free_mem_mb).
+// HostFreeMemMB: host_free_mem_mb — available memory via gopsutil,
+// so macOS and the BSDs report real values, not only Linux
+// /proc/meminfo.
 func HostFreeMemMB() int {
-	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
-		for _, l := range strings.Split(string(b), "\n") {
-			if strings.HasPrefix(l, "MemAvailable:") {
-				var kb int
-				if _, err := fmt.Sscanf(l, "MemAvailable: %d kB", &kb); err == nil {
-					return kb / 1024
-				}
-			}
-		}
+	v, err := mem.VirtualMemory()
+	if err != nil {
+		return 0
 	}
-	return 0
+	return int(v.Available / (1024 * 1024))
 }
 
 // XDGData resolves $XDG_DATA_HOME with the ~/.local/share fallback.

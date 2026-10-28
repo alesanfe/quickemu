@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/jaypipes/pcidb"
@@ -57,7 +57,7 @@ func pciGPUs() []string {
 		}
 		out = append(out, line)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

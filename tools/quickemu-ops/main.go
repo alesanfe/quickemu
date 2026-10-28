@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"syscall"
 	"time"
 
@@ -171,7 +171,7 @@ func main() {
 		os.Exit(runWatch(dir))
 	case "list":
 		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
-		sort.Strings(ents)
+		slices.Sort(ents)
 		ops := make([]json.RawMessage, 0, len(ents))
 		for _, e := range ents {
 			ops = append(ops, json.RawMessage(must(e)))
@@ -197,7 +197,7 @@ func main() {
 		keep := 10
 		fmt.Sscanf(flag(args, "--keep"), "%d", &keep)
 		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
-		sort.Strings(ents)
+		slices.Sort(ents)
 		for i := 0; i < len(ents)-keep; i++ {
 			os.Remove(ents[i])
 		}
@@ -298,13 +298,6 @@ func must(p string) []byte {
 	b, err := os.ReadFile(p)
 	if err != nil {
 		die("OPERATION_NOT_FOUND", p)
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
 	}
 	return b
 }

@@ -1,10 +1,11 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/jaypipes/pcidb"
 
@@ -58,7 +59,7 @@ func pciGPUDevices() []pciGPUDevice {
 			className, cls[2:6], vendor, product, vhex, dhex)
 		out = append(out, pciGPUDevice{PCI: e.Name(), Name: name, Driver: drv})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].PCI < out[j].PCI })
+	slices.SortFunc(out, func(a, b pciGPUDevice) int { return cmp.Compare(a.PCI, b.PCI) })
 	return out
 }
 

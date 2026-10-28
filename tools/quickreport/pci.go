@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/jaypipes/pcidb"
@@ -35,7 +35,7 @@ func pciGPUNames() []string {
 		}
 		out = append(out, strings.TrimSpace(vendor+" "+product))
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

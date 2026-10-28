@@ -13,7 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -73,7 +73,7 @@ func exportVm(dir, out string) int {
 			return nil
 		})
 	}
-	sort.Strings(members[1:])
+	slices.Sort(members[1:])
 	if out == "" {
 		out = name + ".quickvm.tar.gz"
 	}
@@ -487,13 +487,13 @@ func backupPrune(dir string, keep int) int {
 	bdir := backupDir(dir)
 	m, _ := filepath.Glob(filepath.Join(bdir, "*.quickvm.tar.gz"))
 	// newest-first by modtime
-	sort.Slice(m, func(i, j int) bool {
-		si, _ := os.Stat(m[i])
-		sj, _ := os.Stat(m[j])
-		if si == nil || sj == nil {
-			return m[i] > m[j]
+	slices.SortFunc(m, func(a, b string) int {
+		sa, _ := os.Stat(a)
+		sb, _ := os.Stat(b)
+		if sa == nil || sb == nil {
+			return strings.Compare(b, a)
 		}
-		return si.ModTime().After(sj.ModTime())
+		return sb.ModTime().Compare(sa.ModTime())
 	})
 	for i, f := range m {
 		if i >= keep {
@@ -735,12 +735,12 @@ func snapshotListJSON(dir, vmName string) int {
 			out, err := exec.Command(qi, "info", "--output=json", disk).Output()
 			if err == nil {
 				var j struct {
-					Snapshots []map[string]interface{} `json:"snapshots"`
+					Snapshots []map[string]any `json:"snapshots"`
 				}
 				if json.Unmarshal(out, &j) == nil && j.Snapshots != nil {
-					var norm []map[string]interface{}
+					var norm []map[string]any
 					for _, s := range j.Snapshots {
-						norm = append(norm, map[string]interface{}{
+						norm = append(norm, map[string]any{
 							"id":            s["id"],
 							"name":          s["name"],
 							"date":          num(s["date-sec"]) + num(s["date-nsec"])/1e9,
@@ -757,7 +757,7 @@ func snapshotListJSON(dir, vmName string) int {
 	return 0
 }
 
-func num(v interface{}) float64 {
+func num(v any) float64 {
 	switch n := v.(type) {
 	case float64:
 		return n
