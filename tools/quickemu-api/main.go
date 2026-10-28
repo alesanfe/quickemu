@@ -126,8 +126,10 @@ func isLocalBind(listen string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
+var exitFn = os.Exit
+
 func main() {
-	var listen = "127.0.0.1:8490"
+	listen := "127.0.0.1:8490"
 	var allowExposed bool
 	for i := 1; i < len(os.Args); i++ {
 		fl := os.Args[i]
@@ -137,7 +139,8 @@ func main() {
 		case "--listen", "--unix", "--data-dir", "--token", "--token-file":
 			if i+1 >= len(os.Args) {
 				fmt.Fprintln(os.Stderr, fl+" needs a value")
-				os.Exit(2)
+				exitFn(2)
+				return
 			}
 			v := os.Args[i+1]
 			i++
@@ -152,7 +155,8 @@ func main() {
 				t, err := readTokenFile(v)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, "token-file:", err)
-					os.Exit(1)
+					exitFn(1)
+					return
 				}
 				token = t
 			}
@@ -161,21 +165,31 @@ func main() {
 	// A token under 16 chars is brute-forceable — reject at startup.
 	if token != "" && len(token) < 16 {
 		fmt.Fprintln(os.Stderr, "--token must be at least 16 characters")
-		os.Exit(1)
+		exitFn(1)
+		return
 	}
 	// Loopback-only without a token is the safe default; anything
 	// exposed to the network requires auth unless explicitly waived.
 	if token == "" && !allowExposed && !isLocalBind(listen) {
 		fmt.Fprintln(os.Stderr, "refusing to bind "+listen+" without a token (set --insecure-allow-exposed to override)")
-		os.Exit(1)
+		exitFn(1)
+		return
 	}
 	ln, err := openListener(listen)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "listen:", err)
-		os.Exit(1)
+		exitFn(1)
+		return
 	}
+	if !serveAPI(ln, listen) {
+		return
+	}
+}
+
+var serveAPI = func(ln net.Listener, listen string) bool {
 	fmt.Println("quickemu-api listening on", listen)
 	http.Serve(ln, newMux())
+	return true
 }
 
 // openListener binds a unix socket (paths starting with /) or TCP
