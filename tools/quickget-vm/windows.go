@@ -78,7 +78,13 @@ func msGet(url string, max int64, referer string) (string, error) {
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
-	b, err := io.ReadAll(io.LimitReader(resp.Body, max))
+	// max<=0 means no cap (the GetProductDownloadLinks call relies on
+	// it) — LimitReader(0) would silently return an empty body.
+	var r io.Reader = resp.Body
+	if max > 0 {
+		r = io.LimitReader(r, max)
+	}
+	b, err := io.ReadAll(r)
 	return string(b), err
 }
 
@@ -272,7 +278,10 @@ func downloadWindowsServer(release, i18n, vmPath, entType string) (string, error
 		link = link[:1024]
 	}
 	// Follow redirect for a useful log line (HEAD effective URL).
-	req, _ := http.NewRequest("HEAD", link, nil)
+	req, err := http.NewRequest("HEAD", link, nil)
+	if err != nil {
+		return "", err
+	}
 	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return "", err

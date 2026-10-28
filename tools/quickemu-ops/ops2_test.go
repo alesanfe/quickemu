@@ -96,10 +96,9 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 func TestRunWatchStreams(t *testing.T) {
 	dir := t.TempDir()
 	r, w, _ := os.Pipe()
-	old := os.Stdout
-	os.Stdout = w
-	defer func() { os.Stdout = old }()
-	go runWatch(dir)
+	// runWatch takes the writer explicitly — reassigning os.Stdout
+	// would race with the leaked watch goroutine's fmt.Fprint reads.
+	go runWatch(dir, w)
 	// Let fsnotify arm, then drop an op file.
 	time.Sleep(300 * time.Millisecond)
 	os.WriteFile(filepath.Join(dir, "op1.json"),

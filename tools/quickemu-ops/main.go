@@ -189,7 +189,7 @@ func run() int {
 		checkID(id)
 		fmt.Println(string(must(filepath.Join(dir, id+".json"))))
 	case "watch":
-		return runWatch(dir)
+		return runWatch(dir, os.Stdout)
 	case "list":
 		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 		slices.Sort(ents)

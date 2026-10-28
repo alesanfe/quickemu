@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,7 +12,10 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-func runWatch(dir string) int {
+// runWatch streams op-file changes to out — parameterized so tests do
+// not race on the os.Stdout global with the still-running watcher
+// goroutine (the watch loop runs until killed by design).
+func runWatch(dir string, out io.Writer) int {
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		// Fallback: poll mtimes every 500ms when notify isn't available
@@ -24,7 +28,7 @@ func runWatch(dir string) int {
 					if t, ok := seen[e]; !ok || st.ModTime().After(t) {
 						seen[e] = st.ModTime()
 						b, _ := os.ReadFile(e)
-						fmt.Print(string(b))
+						fmt.Fprint(out, string(b))
 					}
 				}
 			}
@@ -44,7 +48,7 @@ func runWatch(dir string) int {
 			if ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) != 0 &&
 				filepath.Ext(ev.Name) == ".json" {
 				if b, err := os.ReadFile(ev.Name); err == nil {
-					fmt.Print(string(b))
+					fmt.Fprint(out, string(b))
 				}
 			}
 		case err, ok := <-w.Errors:
