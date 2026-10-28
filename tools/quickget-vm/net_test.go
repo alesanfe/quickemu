@@ -218,6 +218,7 @@ func TestIsoExtractPure(t *testing.T) {
 	iso := buildISO(t, map[string]string{
 		"boot/vmlinuz": "k", "boot/initrd": "i"})
 	out := filepath.Join(dir, "out")
+	os.MkdirAll(out, 0o755)
 	ok := isoExtractPure(iso, out, "boot")
 	if !ok {
 		t.Fatal("isoExtractPure failed")

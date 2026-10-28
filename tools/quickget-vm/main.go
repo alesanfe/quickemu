@@ -144,8 +144,10 @@ func osTweaks(osName, release, edition string) []string {
 	return t
 }
 
+var goArch = runtime.GOARCH
+
 func hostArch() string {
-	if runtime.GOARCH == "arm64" {
+	if goArch == "arm64" {
 		return "arm64"
 	}
 	return "x86_64"

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
+	"golang.org/x/sys/unix"
 )
 
 // hostSMT reports whether the host has SMT/hyperthreading on —
@@ -21,16 +22,20 @@ func hostSMT() bool {
 	return err == nil && strings.TrimSpace(string(b)) == "on"
 }
 
-// hostHasKVM: writable /dev/kvm AND vmx|svm in cpuinfo — same as
-// Bash host_has_kvm + the VT-x/SVM requirement in configure_cpu.
+// hostHasKVM probes /dev/kvm the way QEMU does: open + the
+// KVM_GET_API_VERSION ioctl (0xAE00). A writable device alone is NOT
+// sufficient — WSL2 can present /dev/kvm while every ioctl fails
+// EPERM (observed after WSL reboots; QEMU then dies instantly).
+// The vmx/svm cpuinfo requirement is separate: enforced at --run via
+// hostHasFlag.
 func hostHasKVM() bool {
 	f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0)
 	if err != nil {
 		return false
 	}
-	f.Close()
-	b, err := os.ReadFile("/proc/cpuinfo")
-	return err == nil && (strings.Contains(string(b), " vmx") || strings.Contains(string(b), " svm"))
+	defer f.Close()
+	v, err := unix.IoctlGetInt(int(f.Fd()), 0xAE00)
+	return err == nil && v > 0
 }
 
 // hasKVM is the accel-gate seam (ADR-0009): tests stub it to cover
