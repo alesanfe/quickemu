@@ -128,7 +128,9 @@ func run() int {
 				rec += " " + strconv.FormatInt(time.Now().Unix()+ls, 10)
 			}
 		}
-		os.WriteFile(f, []byte(rec), 0o600)
+		if err := os.WriteFile(f, []byte(rec), 0o600); err != nil {
+			return die("PORT_PERSIST", err.Error())
+		}
 		return ok(map[string]any{"port": port})
 	case "release":
 		os.Remove(filepath.Join(reg, port))

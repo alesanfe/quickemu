@@ -144,14 +144,15 @@ func TestCmdMetrics(t *testing.T) {
 		t.Fatalf("unknown rc=%d", rc)
 	}
 	stubExec(t, "abc123", 0)
+	t.Setenv("QEDEV_HISTORY", filepath.Join(t.TempDir(), "history.jsonl"))
 	if rc := cmdMetrics([]string{"chaoss"}); rc != 0 {
 		t.Fatalf("chaoss rc=%d", rc)
 	}
 	if rc := cmdMetrics([]string{"record"}); rc != 0 {
 		t.Fatalf("record rc=%d", rc)
 	}
-	// trend reads the real repo history.jsonl — rc 1 means a regression
-	// was detected in recorded metrics, which is legitimate output.
+	// trend reads the temp history via QEDEV_HISTORY — rc 1 means a
+	// regression was detected in recorded metrics, which is legitimate.
 	if rc := cmdMetrics([]string{"trend"}); rc != 0 && rc != 1 {
 		t.Fatalf("trend rc=%d", rc)
 	}

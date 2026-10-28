@@ -5,6 +5,7 @@
 //	qedev check                  vet + test (-race when gcc exists) + build, all modules
 //	qedev test                   go test -race -cover per module
 //	qedev specs                  run the Go spec suite (tools/qespec)
+//	qedev quality [--full]       single root gate: gofmt + check [+ specs] + coverage summary
 //	qedev metrics chaoss         CHAOSS snapshot from git history
 //	qedev metrics record [k=v..] append a record to docs/quality/history.jsonl
 //	qedev metrics trend          report trends; exits 1 on regression
@@ -60,6 +61,8 @@ func main() {
 		rc = cmdTest()
 	case "specs":
 		rc = cmdSpecs()
+	case "quality":
+		rc = cmdQuality(os.Args[2:])
 	case "metrics":
 		rc = cmdMetrics(os.Args[2:])
 	case "probe":
@@ -246,6 +249,57 @@ func cmdSpecs() int {
 		return 1
 	}
 	return errRc(run(d, goTool(), nil, "test", "-timeout", "15m", "-v", "./..."))
+}
+
+// cmdQuality is the single root gate a developer (and CI) runs:
+// gofmt check -> per-module vet/test(-race)/build [+ qespec in --full]
+// -> coverage summary. Fast mode skips the QEMU-backed suite so a
+// pre-commit run stays under a minute.
+func cmdQuality(args []string) int {
+	full := slices.Contains(args, "--full")
+	r := root()
+	rc := 0
+	fmt.Println("== gofmt")
+	out, err := execCommand("gofmt", "-l", filepath.Join(r, "tools")).Output()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "gofmt failed:", err)
+		rc = 1
+	} else if strings.TrimSpace(string(out)) != "" {
+		fmt.Fprintf(os.Stderr, "unformatted files:\n%s\n", out)
+		rc = 1
+	}
+	fmt.Println("== check (vet + test + build per module)")
+	if cmdCheck() != 0 {
+		rc = 1
+	}
+	if full {
+		fmt.Println("== specs (qespec)")
+		if cmdSpecs() != 0 {
+			rc = 1
+		}
+	} else {
+		fmt.Println("== specs skipped (fast mode; --full runs qespec)")
+	}
+	fmt.Println("== coverage")
+	for _, d := range modules(r) {
+		cmd := execCommand(goTool(), "test", "-cover", "./...")
+		cmd.Dir = d
+		b, _ := cmd.Output()
+		for _, l := range strings.Split(string(b), "\n") {
+			// Match only go's own "coverage: N% of statements" summary —
+			// test stdout may print lines containing the substring too.
+			if i := strings.Index(l, "coverage: "); i >= 0 &&
+				strings.HasSuffix(strings.TrimSpace(l), "of statements") {
+				fmt.Printf("%-26s %s\n", filepath.Base(d), strings.TrimSpace(l[i:]))
+			}
+		}
+	}
+	if rc == 0 {
+		fmt.Println("quality: PASS")
+	} else {
+		fmt.Fprintln(os.Stderr, "quality: FAIL")
+	}
+	return rc
 }
 
 func errRc(err error) int {
@@ -476,7 +530,12 @@ func metricRecord(kvs []string) int {
 			rec[kv[:i]] = kv[i+1:]
 		}
 	}
+	// QEDEV_HISTORY overrides the series path — tests must not append
+	// fake records (stubbed git data) to the real history.jsonl.
 	out := filepath.Join(r, "docs", "quality", "history.jsonl")
+	if p := os.Getenv("QEDEV_HISTORY"); p != "" {
+		out = p
+	}
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 		return 1
 	}
@@ -546,7 +605,11 @@ var growMetrics = map[string]bool{
 
 func metricTrend() int {
 	r := root()
-	f, err := os.Open(filepath.Join(r, "docs", "quality", "history.jsonl"))
+	path := filepath.Join(r, "docs", "quality", "history.jsonl")
+	if p := os.Getenv("QEDEV_HISTORY"); p != "" {
+		path = p
+	}
+	f, err := os.Open(path)
 	if err != nil {
 		fmt.Println("no history yet")
 		return 0

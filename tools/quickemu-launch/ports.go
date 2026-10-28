@@ -75,9 +75,16 @@ func portRegistryTaken(port int) bool {
 
 func portRegistryReserve(port, vmPid int, instance, vmname string) {
 	reg := portRegistry()
-	os.MkdirAll(reg, 0755)
-	os.WriteFile(filepath.Join(reg, fmt.Sprint(port)),
-		[]byte(fmt.Sprintf("%d %d %s %s\n", vmPid, time.Now().Unix(), instance, vmname)), 0644)
+	if err := os.MkdirAll(reg, 0755); err != nil {
+		fmt.Fprintln(os.Stderr, "port registry:", err)
+		return
+	}
+	// An unrecorded reservation is a double-allocation waiting to
+	// happen — never report success silently.
+	if err := os.WriteFile(filepath.Join(reg, fmt.Sprint(port)),
+		[]byte(fmt.Sprintf("%d %d %s %s\n", vmPid, time.Now().Unix(), instance, vmname)), 0644); err != nil {
+		fmt.Fprintln(os.Stderr, "port registry: cannot record port "+fmt.Sprint(port)+":", err)
+	}
 }
 
 // portRegistryRelease: drop every reservation owned by pid —

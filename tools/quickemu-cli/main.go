@@ -150,7 +150,10 @@ func alive(pid int) bool { return qelib.Alive(pid) }
 // reclaim. Bash defaults VM_LOCK_TRIES=1: one attempt, then LOCK_BUSY.
 func vmLockAcquire() bool {
 	lockDir := filepath.Join(vmdir(), vmname()+".lock")
-	os.MkdirAll(vmdir(), 0755)
+	if err := os.MkdirAll(vmdir(), 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Cannot create VM dir %s: %v\n", vmdir(), err)
+		return false
+	}
 	tries := 1
 	if t := os.Getenv("VM_LOCK_TRIES"); t != "" {
 		if n, err := strconv.Atoi(t); err == nil && n > 0 {
@@ -1277,8 +1280,9 @@ func qeDoctor(fix bool) {
 				if rest != "" {
 					rest += "\n"
 				}
-				os.WriteFile(ev, []byte(rest), 0644)
-				findings = append(findings, "fixed:dropped-truncated-event")
+				if os.WriteFile(ev, []byte(rest), 0644) == nil {
+					findings = append(findings, "fixed:dropped-truncated-event")
+				}
 			}
 		}
 	}
@@ -1303,8 +1307,9 @@ func qeDoctor(fix bool) {
 		findings = append(findings, "orphan-operation:"+op)
 		if fix {
 			s := stateRe.ReplaceAllString(string(b), `"state":"interrupted"`)
-			os.WriteFile(op, []byte(s), 0644)
-			findings = append(findings, "fixed:marked-interrupted")
+			if os.WriteFile(op, []byte(s), 0644) == nil {
+				findings = append(findings, "fixed:marked-interrupted")
+			}
 		}
 	}
 

@@ -11,6 +11,16 @@ tasks:
     cmds:
       - go run ./tools/dev check
 
+  quality:
+    desc: Single root gate — gofmt + vet + tests(-race) + build + coverage (fast)
+    cmds:
+      - go run ./tools/dev quality
+
+  quality-full:
+    desc: Full gate — quality + qespec suite (real QEMU)
+    cmds:
+      - go run ./tools/dev quality --full
+
   test:
     desc: Go spec suite (tools/qespec)
     cmds:

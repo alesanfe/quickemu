@@ -291,7 +291,9 @@ func rbCompensate(dir, typ string) {
 		vm := filepath.Join(filepath.Dir(dir), "vm")
 		if _, err := os.Stat(trash); err == nil {
 			if _, err := os.Stat(vm); os.IsNotExist(err) {
-				os.Rename(trash, vm)
+				if err := os.Rename(trash, vm); err != nil {
+					fmt.Fprintln(os.Stderr, "rollback: trash restore:", err)
+				}
 			}
 		}
 	case "compact", "snapshot":

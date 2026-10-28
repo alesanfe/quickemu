@@ -1,5 +1,16 @@
 # ADR 0001: Bash backend — kept, with measurable extraction triggers
 
+## Status: SUPERSEDED
+
+The triggers below fired (concurrency, portability and performance
+thresholds) and extraction proceeded phase by phase exactly as planned
+here — the Go backend in `tools/` is now canonical for all entries
+(`bin/quickemu`, `bin/quickget`, `bin/quickgetc`, `bin/quickreport`).
+This record stays for the decision history; ADR 0003+ describe the
+resulting architecture.
+
+## Original record
+
 ## Context
 
 Quickemu is a Bash wrapper around QEMU. Hardening this cycle (instance

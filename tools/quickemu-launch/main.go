@@ -89,7 +89,10 @@ func main() {
 	}
 	dir := filepath.Dir(os.Args[1])
 	vmdir := conf["_vmdir"]
-	os.MkdirAll(vmdir, 0o755)
+	if err := os.MkdirAll(vmdir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Cannot create VM dir %s: %v\n", vmdir, err)
+		os.Exit(1)
+	}
 	resolvePublic(conf)
 
 	// virtiofs decision happens before arg assembly (start_virtiofsd):

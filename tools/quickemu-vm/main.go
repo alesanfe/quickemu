@@ -465,7 +465,9 @@ func run() int {
 				mb, _ := json.Marshal(map[string]any{
 					"vm": name, "trashedAt": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 					"originConfDir": filepath.Dir(conf)})
-				os.WriteFile(filepath.Join(slot, "trash-meta.json"), mb, 0644)
+				if err := os.WriteFile(filepath.Join(slot, "trash-meta.json"), mb, 0644); err != nil {
+					die("DELETE_FAILED", "trash-meta: "+err.Error())
+				}
 				info(" - Moved " + name + " to trash (" + slot + "); restore with --trash-restore " + name)
 			} else {
 				os.RemoveAll(dir)
@@ -493,7 +495,9 @@ func run() int {
 		if conf != "" {
 			b, _ := os.ReadFile(conf)
 			b = []byte(strings.ReplaceAll(string(b), "vm_name=\""+filepath.Base(dir)+"\"", "vm_name=\""+name+"\""))
-			os.WriteFile(conf, b, 0644)
+			if err := os.WriteFile(conf, b, 0644); err != nil {
+				die("RENAME_FAILED", "conf update: "+err.Error())
+			}
 		}
 		okMap(map[string]any{"renamed": dst})
 	case "move":
