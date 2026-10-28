@@ -90,12 +90,9 @@ func TestGetMacosFlow(t *testing.T) {
 		"RecoveryImage": "https://oscdn.apple.com/x.dmg expires-dmg https://oscdn.apple.com/x.chunklist expires-cl",
 	})
 	dir := t.TempDir()
-	var rel string
-	for r := range macBoards {
-		rel = r
-		break
-	}
-	rc := getMacos(rel, filepath.Join(dir, "mac"), "amd64")
+	// Fixed board — map iteration picks a random one and a board-
+	// specific regression would flake instead of failing deterministically.
+	rc := getMacos("ventura", filepath.Join(dir, "mac"), "amd64")
 	if rc != 0 {
 		t.Fatalf("getMacos rc=%d", rc)
 	}

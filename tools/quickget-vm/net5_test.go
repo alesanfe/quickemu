@@ -45,12 +45,8 @@ func TestGetMacosCachedImg(t *testing.T) {
 	os.MkdirAll(dir, 0o755)
 	// Pre-existing RecoveryImage.img → skips the whole download.
 	os.WriteFile(filepath.Join(dir, "RecoveryImage.img"), []byte("img"), 0o644)
-	var rel string
-	for r := range macBoards {
-		rel = r
-		break
-	}
-	if rc := getMacos(rel, dir, "amd64"); rc != 0 {
+	// Fixed board — see TestGetMacosFlow for why not a map-picked one.
+	if rc := getMacos("ventura", dir, "amd64"); rc != 0 {
 		t.Fatalf("cached-img getMacos rc=%d", rc)
 	}
 }
