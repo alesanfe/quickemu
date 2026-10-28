@@ -109,6 +109,12 @@ func run() int {
 			fmt.Fprintf(os.Stderr, "market: %s not found\n", args[1])
 			return 1
 		}
+		// A catalog (possibly remote via MARKET_CATALOG) is not a
+		// trust boundary for filenames — keep the install inside dir.
+		if strings.ContainsAny(args[1], `/\`) || strings.Contains(args[1], "..") {
+			fmt.Fprintln(os.Stderr, "market: unsafe template name")
+			return 1
+		}
 		out := filepath.Join(dir, args[1]+".conf")
 		if err := writeConf(out, tp.Conf); err != nil {
 			fmt.Fprintf(os.Stderr, "market: %v\n", err)

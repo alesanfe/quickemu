@@ -71,8 +71,8 @@ func run() int {
 		}
 		uid := -1
 		for _, l := range strings.Split(string(st), "\n") {
-			if strings.HasPrefix(l, "Uid:") {
-				fmt.Sscanf(strings.Fields(l)[1], "%d", &uid)
+			if f := strings.Fields(l); len(f) > 1 && f[0] == "Uid:" {
+				fmt.Sscanf(f[1], "%d", &uid)
 			}
 		}
 		if uid != wantUID {

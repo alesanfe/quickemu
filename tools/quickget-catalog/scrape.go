@@ -802,7 +802,7 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 			return "", "", fmt.Errorf("vanillaos: no iso for %s", release)
 		}
 		sha := ""
-		if b, err := fetchString(strings.Replace(iso, ".iso", ".sha256.txt", 1)); err == nil {
+		if b, err := fetchString(strings.TrimSuffix(iso, ".iso") + ".sha256.txt"); err == nil {
 			if f := strings.Fields(b); len(f) > 0 {
 				sha = f[0]
 			}

@@ -23,7 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -39,6 +39,10 @@ var entries = map[string]string{
 
 // noBin are modules whose binaries never ship to bin/.
 var noBin = map[string]bool{"dev": true, "qespec": true}
+
+// execCommand is the subprocess seam — tests substitute fake
+// quickget/git/go executables via PATH or stub commands.
+var execCommand = exec.Command
 
 func main() {
 	if len(os.Args) < 2 {
@@ -126,20 +130,20 @@ func modules(r string) []string {
 			out = append(out, d)
 		}
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
 // isMain reports whether the module's root package is a main package.
 func isMain(dir string) bool {
-	cmd := exec.Command(goTool(), "list", "-f", "{{.Name}}", ".")
+	cmd := execCommand(goTool(), "list", "-f", "{{.Name}}", ".")
 	cmd.Dir = dir
 	b, err := cmd.Output()
 	return err == nil && strings.TrimSpace(string(b)) == "main"
 }
 
 func run(dir, name string, env []string, args ...string) error {
-	cmd := exec.Command(name, args...)
+	cmd := execCommand(name, args...)
 	cmd.Dir = dir
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
@@ -261,7 +265,7 @@ func cmdProbe() int {
 	r := root()
 	fail := 0
 	for _, name := range probeOSes {
-		cmd := exec.Command(filepath.Join(r, "bin", "quickget"), "--check", name)
+		cmd := execCommand(filepath.Join(r, "bin", "quickget"), "--check", name)
 		if err := cmd.Run(); err != nil {
 			fmt.Printf("FAIL %s\n", name)
 			fail = 1
@@ -274,7 +278,7 @@ func cmdProbe() int {
 // a non-empty JSON array (no python3 needed anymore).
 func cmdCheckCatalog() int {
 	r := root()
-	out, err := exec.Command(filepath.Join(r, "bin", "quickget"), "--list-json").Output()
+	out, err := execCommand(filepath.Join(r, "bin", "quickget"), "--list-json").Output()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "check-catalog: quickget --list-json failed")
 		return 1
@@ -332,7 +336,7 @@ func cmdSbom(args []string) int {
 			f.Close()
 		}
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	type comp struct {
 		Type string `json:"type"`
 		Name string `json:"name"`
@@ -405,7 +409,7 @@ func cmdMetrics(args []string) int {
 }
 
 func git(args ...string) string {
-	out, err := exec.Command("git", args...).Output()
+	out, err := execCommand("git", args...).Output()
 	if err != nil {
 		return ""
 	}
@@ -498,7 +502,7 @@ func countSpecs(r string) int {
 }
 
 func countCatalogOS(r string) int {
-	out, err := exec.Command(filepath.Join(r, "bin", "quickget"), "--list").Output()
+	out, err := execCommand(filepath.Join(r, "bin", "quickget"), "--list").Output()
 	if err != nil {
 		return 0
 	}
@@ -513,7 +517,7 @@ func countCatalogOS(r string) int {
 func goCoverage(r string) string {
 	var sum, n float64
 	for _, d := range modules(r) {
-		cmd := exec.Command(goTool(), "test", "-cover", "./...")
+		cmd := execCommand(goTool(), "test", "-cover", "./...")
 		cmd.Dir = d
 		out, _ := cmd.Output()
 		for _, l := range strings.Split(string(out), "\n") {
@@ -576,7 +580,7 @@ func metricTrend() int {
 	for k := range series {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, k := range keys {
 		vs := series[k]
 		first, last := vs[0], vs[len(vs)-1]

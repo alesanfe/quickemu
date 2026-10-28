@@ -32,8 +32,11 @@ import (
 const (
 	cacheFile = "quickget_data.json.zst"
 	cacheJSON = "quickget_data.json"
-	cacheURL  = "https://github.com/lj3954/quickget_configs/releases/download/daily/quickget_data.json.zst"
 )
+
+// cacheURL is a var so tests can point the daily-catalog download at a
+// fixture server (same seam as checkClient elsewhere).
+var cacheURL = "https://github.com/lj3954/quickget_configs/releases/download/daily/quickget_data.json.zst"
 
 // HTTP clients come from qelib — same transport policy everywhere:
 // probes die in 30s, downloads bound dial+header but stream

@@ -13,6 +13,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/klauspost/compress/zstd"
 	"testing"
 )
 
@@ -36,6 +38,7 @@ func TestMainArgs(t *testing.T) {
 	os.WriteFile(fixture, b, 0o600)
 	t.Setenv("QUICKGETC_CATALOG", fixture)
 	t.Setenv("XDG_CACHE_HOME", dir)
+	t.Setenv("QGC_WORK", t.TempDir())
 
 	cases := []struct {
 		name string
@@ -57,6 +60,16 @@ func TestMainArgs(t *testing.T) {
 		{"arch-missing", []string{"--arch"}, 1, "architecture"},
 		{"config-short", []string{"--create-config"}, 1, ""},
 		{"open-missing-arg", []string{"--open-homepage"}, 1, "OS"},
+		{"pos-no-rel", []string{"alpine"}, 1, ""},
+		{"pos-missing-rel", []string{"alpine", "9.9"}, 1, "not a supported release"},
+		{"pos-ok", []string{"alpine", "3.19"}, 0, ""},
+		{"pos-mixed-edition", []string{"alpine", "3.20"}, 0, ""},
+		{"pos-unknown-os", []string{"zzz", "1"}, 1, "not a supported OS"},
+		{"pos-extra-edition", []string{"alpine", "3.19", "x"}, 1, "does not require"},
+		{"arch-valid", []string{"--arch", "aarch64", "--list"}, 0, "alpine"},
+		{"arch-bad", []string{"--arch", "mips", "--list"}, 1, ""},
+		{"arch-riscv", []string{"-a", "riscv64", "--list-csv"}, 0, "alpine"},
+		{"download-pos", []string{"--download", "alpine", "3.19"}, 0, ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -74,6 +87,9 @@ func TestMainArgs(t *testing.T) {
 func runToolEnv(t *testing.T, extra []string, args ...string) (string, string, int) {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	if w := os.Getenv("QGC_WORK"); w != "" {
+		cmd.Dir = w
+	}
 	cmd.Env = append(os.Environ(), append(extra, "QE_HELPER=1",
 		"QGC_HELPER_ARGS="+strings.Join(args, "\x1f"))...)
 	var out, errBuf strings.Builder
@@ -300,6 +316,32 @@ func TestCreateVMWebSource(t *testing.T) {
 	entry3 := &Release{Release: "3.20", ISO: []Source{{Custom: "x"}}}
 	if rc := createVM(e, entry3, filepath.Join(dir, "v3")); rc != 1 {
 		t.Fatalf("custom rc=%d", rc)
+	}
+}
+
+func TestPopulateCacheDownload(t *testing.T) {
+	b, _ := json.Marshal(catFixture())
+	var buf strings.Builder
+	zw, _ := zstd.NewWriter(&buf)
+	zw.Write(b)
+	zw.Close()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(buf.String()))
+	}))
+	defer srv.Close()
+	dir := t.TempDir()
+	t.Setenv("QUICKGETC_CATALOG", "")
+	t.Setenv("XDG_CACHE_HOME", dir)
+	old := cacheURL
+	cacheURL = srv.URL + "/q.zst"
+	defer func() { cacheURL = old }()
+	cat := populateCache()
+	if len(cat) != 2 || cat[0].Name != "alpine" {
+		t.Fatalf("populateCache %v", cat)
+	}
+	// Second call hits the fresh on-disk cache.
+	if len(populateCache()) != 2 {
+		t.Fatal("cached read failed")
 	}
 }
 

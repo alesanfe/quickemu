@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -377,8 +378,9 @@ func actListVMs() int {
 			gos := "linux"
 			if b, err := os.ReadFile(f); err == nil {
 				for _, l := range strings.Split(string(b), "\n") {
-					if strings.HasPrefix(l, "guest_os") {
-						gos = strings.Trim(strings.SplitN(l, "=", 2)[1], `"' `)
+					if kv := strings.SplitN(l, "=", 2); len(kv) == 2 &&
+						strings.TrimSpace(kv[0]) == "guest_os" {
+						gos = strings.Trim(strings.TrimSpace(kv[1]), `"' `)
 					}
 				}
 			}
@@ -1383,7 +1385,28 @@ func actDoctor() int {
 	return 0
 }
 
+// confKV caches the parsed conf keyed on path+mtime+size — ~10
+// call sites per command no longer re-read and re-parse the file
+// each time, while an on-disk change is still picked up.
+var confKVCache = struct {
+	sync.Mutex
+	path    string
+	modTime int64
+	size    int64
+	m       map[string]string
+}{}
+
 func confKV() map[string]string {
+	confKVCache.Lock()
+	defer confKVCache.Unlock()
+	var mt, sz int64
+	if st, err := os.Stat(vmConf); err == nil {
+		mt, sz = st.ModTime().UnixNano(), st.Size()
+	}
+	if confKVCache.path == vmConf && confKVCache.modTime == mt &&
+		confKVCache.size == sz && confKVCache.m != nil {
+		return confKVCache.m
+	}
 	m := map[string]string{}
 	if b, err := os.ReadFile(vmConf); err == nil {
 		for _, l := range strings.Split(string(b), "\n") {
@@ -1392,6 +1415,7 @@ func confKV() map[string]string {
 			}
 		}
 	}
+	confKVCache.path, confKVCache.modTime, confKVCache.size, confKVCache.m = vmConf, mt, sz, m
 	return m
 }
 
@@ -1867,6 +1891,9 @@ func hotplugPersist(kind, val string) {
 		fmt.Fprintf(os.Stderr, "WARNING: could not persist %s %s: %v\n", kind, val, err)
 		return
 	}
+	confKVCache.Lock()
+	confKVCache.path = "" // conf changed on disk — next confKV reparses
+	confKVCache.Unlock()
 	fmt.Println(" - Persisted " + kind + " " + val + " into " + vmConf + " (applies next boot).")
 }
 

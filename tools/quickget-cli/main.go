@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -27,7 +28,11 @@ var (
 )
 
 func hostArch() string {
-	// Normalised quickget arch names.
+	// Normalised quickget arch names (amd64/arm64, not QEMU's
+	// x86_64/aarch64) — a hardcoded amd64 picked x86 URLs on ARM hosts.
+	if runtime.GOARCH == "arm64" {
+		return "arm64"
+	}
 	return "amd64"
 }
 
