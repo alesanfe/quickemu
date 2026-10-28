@@ -25,8 +25,11 @@ func TestEntrypointOpsParity(t *testing.T) {
 
 	cli := Run(t, "quickemu", nil, "--vm", conf, "--op-status", "no-such-op", "--format", "json")
 	goR := Run(t, "quickemu-ops", nil, "status", "--vmdir", d, "no-such-op")
+	// Empty output is itself a contract break — fail, don't skip:
+	// a backend that emits nothing produces a false pass otherwise.
 	if cli.Stdout == "" || goR.Stdout == "" {
-		t.Skip("one side emitted nothing")
+		t.Fatalf("empty envelope — cli %d bytes, ops %d bytes",
+			len(cli.Stdout), len(goR.Stdout))
 	}
 	for name, r := range map[string]Result{"cli": cli, "ops": goR} {
 		m := r.JSON(t)

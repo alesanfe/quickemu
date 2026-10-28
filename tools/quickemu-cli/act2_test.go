@@ -225,16 +225,25 @@ func TestEmitAndSendPaths(t *testing.T) {
 
 	// actType/actSendKeys/actScreenshot exercise hmp→qmp→missing tool.
 	old := extra["type"]
+	// Contract: monitor actions on a VM that is not running must
+	// report failure — hmp cannot reach a monitor that does not
+	// exist, so every action returns non-zero.
 	extra["type"] = "Az -"
-	_ = actType()
+	if rc := actType(); rc == 0 {
+		t.Errorf("actType succeeded with no running VM")
+	}
 	extra["type"] = old
 	old = extra["send-keys"]
 	extra["send-keys"] = "ret"
-	_ = actSendKeys()
+	if rc := actSendKeys(); rc == 0 {
+		t.Errorf("actSendKeys succeeded with no running VM")
+	}
 	extra["send-keys"] = old
 	old = extra["screenshot"]
 	extra["screenshot"] = ""
-	_ = actScreenshot()
+	if rc := actScreenshot(); rc == 0 {
+		t.Errorf("actScreenshot succeeded with no running VM")
+	}
 	extra["screenshot"] = old
 }
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -305,7 +306,24 @@ func TestDoctorBranches(t *testing.T) {
 }
 
 func TestStartViewerVariants(t *testing.T) {
-	stubTools(t)
+	d := stubTools(t)
+	// Marker stubs record their argv so the detached launches can be
+	// asserted — the spawn is async, so poll for the log line.
+	log := filepath.Join(d, "viewer.log")
+	for _, b := range []string{"spicy", "remote-viewer"} {
+		os.WriteFile(filepath.Join(d, b),
+			[]byte("#!/bin/sh\necho \""+b+" $@\" >> \""+log+"\"\n"), 0o755)
+	}
+	waitLog := func(want string) {
+		t.Helper()
+		for i := 0; i < 50; i++ {
+			if b, _ := os.ReadFile(log); strings.Contains(string(b), want) {
+				return
+			}
+			time.Sleep(40 * time.Millisecond)
+		}
+		t.Fatalf("viewer log never contained %q", want)
+	}
 	vd := withConf(t, "")
 	get := func(m map[string]string) func(string) string {
 		return func(k string) string { return m[k] }
@@ -314,23 +332,36 @@ func TestStartViewerVariants(t *testing.T) {
 	os.WriteFile(filepath.Join(vd, vmname()+".spice"),
 		[]byte("/tmp/spice.sock\n"), 0o644)
 	startViewer(get(map[string]string{"viewer": "spicy", "display": "spice"}))
+	waitLog("spicy --uri=spice+unix:///tmp/spice.sock")
 	startViewer(get(map[string]string{"viewer": "remote-viewer", "display": "spice"}))
+	waitLog("remote-viewer spice+unix:///tmp/spice.sock")
 	// port in .spice.
 	os.WriteFile(filepath.Join(vd, vmname()+".spice"), []byte("5931\n"), 0o644)
 	startViewer(get(map[string]string{"viewer": "spicy", "display": "spice"}))
+	waitLog("spicy --port 5931")
 	startViewer(get(map[string]string{"viewer": "remote-viewer", "display": "spice"}))
+	waitLog("remote-viewer spice://localhost:5931")
 	// no .spice: local access socket path, remote access port, plus
 	// macos/fullscreen/extra-args/shared-dir branches.
 	os.Remove(filepath.Join(vd, vmname()+".spice"))
 	startViewer(get(map[string]string{"viewer": "spicy", "display": "spice",
 		"access": "local"}))
+	waitLog("spice+unix://" + filepath.Join(vd, vmname()+".sock"))
 	startViewer(get(map[string]string{"viewer": "remote-viewer", "display": "spice",
 		"access": "remote", "spice_port": "5932"}))
+	waitLog("remote-viewer spice://localhost:5932")
 	startViewer(get(map[string]string{"viewer": "spicy", "display": "spice",
 		"guest_os": "macos", "fullscreen": "on", "public_dir": "/tmp",
 		"viewer_extra_args": "--foo bar"}))
-	// viewer not on PATH → silent return.
-	startViewer(get(map[string]string{"viewer": "spicy", "display": "spice"}))
+	waitLog("--foo bar")
+	// viewer not on PATH → silent return (asserted: no new log line).
+	before, _ := os.ReadFile(log)
+	startViewer(get(map[string]string{"viewer": "no-such-viewer", "display": "spice"}))
+	time.Sleep(150 * time.Millisecond)
+	after, _ := os.ReadFile(log)
+	if len(after) != len(before) {
+		t.Error("missing viewer should not spawn")
+	}
 }
 
 func TestIgnoreMSRs(t *testing.T) {
@@ -338,5 +369,13 @@ func TestIgnoreMSRs(t *testing.T) {
 	d := t.TempDir()
 	os.WriteFile(filepath.Join(d, "sudo"), []byte("#!/bin/sh\nexit 1\n"), 0o755)
 	t.Setenv("PATH", d+string(os.PathListSeparator)+os.Getenv("PATH"))
-	_ = actIgnoreMSRsAlways() // rc depends on host modprobe.d presence
+	// Deterministic per host state: an already-enabled config returns
+	// 0; anything else hits the failing sudo stub → 1.
+	want := 1
+	if conf, _ := os.ReadFile("/etc/modprobe.d/kvm-quickemu.conf"); strings.Contains(string(conf), "ignore_msrs=Y") {
+		want = 0
+	}
+	if rc := actIgnoreMSRsAlways(); rc != want {
+		t.Errorf("actIgnoreMSRsAlways rc=%d want %d", rc, want)
+	}
 }

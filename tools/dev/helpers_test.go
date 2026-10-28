@@ -78,7 +78,19 @@ func TestMetricRecord(t *testing.T) {
 		t.Skip("chdir")
 	}
 	defer os.Chdir(old)
-	// metricRecord should append/create the metrics store without a
-	// repo — exercise whatever it does locally.
-	_ = metricRecord([]string{"coverage=1.5", "specs=10"})
+	// metricRecord appends one JSON line per record — assert the
+	// store exists and carries the values we passed.
+	hist := filepath.Join(dir, "hist.jsonl")
+	t.Setenv("QEDEV_HISTORY", hist)
+	if rc := metricRecord([]string{"coverage=1.5", "specs=10"}); rc != 0 {
+		t.Fatalf("metricRecord rc=%d", rc)
+	}
+	b, err := os.ReadFile(hist)
+	if err != nil {
+		t.Fatalf("history not written: %v", err)
+	}
+	if !strings.Contains(string(b), "coverage") ||
+		!strings.Contains(string(b), "1.5") {
+		t.Fatalf("record missing values: %s", b)
+	}
 }
