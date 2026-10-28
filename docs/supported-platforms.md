@@ -16,7 +16,6 @@
 - **WSL2** — works with limitations:
   - No KVM → TCG (slower); nested-virt possible on Windows 11 +
     `wsl --set-version` + enabled nestedVirtualization
-  - `jq` CRLF handling fixed in v-next (`validate.sh` `tr -d '\r\n'`)
   - NTFS-mounted workspaces have POSIX-permission caveats
   - sockets work, but Windows-side process inspection doesn't
 

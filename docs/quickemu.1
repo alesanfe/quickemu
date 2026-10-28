@@ -340,8 +340,9 @@ Episode 30 \- Quickemu Rising From the Bashes
 .PP
 \  Linux Matters Podcast
 .PP
-When installing from source, you will need to install the following
-requirements manually:
+Quickemu is a compiled Go binary \(em it has \f[B]no interpreter or shell
+requirements\f[R] (no bash, jq, curl, python3 or socat).
+You only need the QEMU ecosystem it orchestrates:
 .IP \(bu 2
 \c
 .UR https://www.qemu.org/
@@ -351,120 +352,49 @@ QEMU
 support\f[R]
 .IP \(bu 2
 \c
-.UR https://www.gnu.org/software/bash/
-bash
-.UE \c
-\ (\f[I]4.0 or newer\f[R])
-.IP \(bu 2
-\c
-.UR https://www.gnu.org/software/coreutils/
-Coreutils
-.UE \c
-.IP \(bu 2
-\c
-.UR https://curl.se/
-curl
-.UE \c
-.IP \(bu 2
-\c
 .UR https://github.com/tianocore/edk2
 EDK II
 .UE \c
-.IP \(bu 2
-\c
-.UR https://www.gnu.org/software/gawk/
-gawk
-.UE \c
-.IP \(bu 2
-\c
-.UR https://www.gnu.org/software/grep/
-grep
-.UE \c
-.IP \(bu 2
-\c
-.UR https://gitlab.freedesktop.org/mesa/demos
-glxinfo
-.UE \c
-.IP \(bu 2
-\c
-.UR https://stedolan.github.io/jq/
-jq
-.UE \c
-.IP \(bu 2
-\c
-.UR https://wiki.linuxfoundation.org/lsb/start
-LSB
-.UE \c
-.IP \(bu 2
-\c
-.UR https://github.com/pciutils/pciutils
-pciutils
-.UE \c
-.IP \(bu 2
-\c
-.UR https://gitlab.com/procps-ng/procps
-procps
-.UE \c
-.IP \(bu 2
-\c
-.UR https://www.python.org/
-python3
-.UE \c
-.IP \(bu 2
-\c
-.UR http://cdrtools.sourceforge.net/private/cdrecord.html
-mkisofs
-.UE \c
-.IP \(bu 2
-\c
-.UR https://github.com/gregkh/usbutils
-usbutils
-.UE \c
-.IP \(bu 2
-\c
-.UR https://github.com/karelzak/util-linux
-util\-linux
-.UE \c
-; including \f[CR]uuidgen\f[R]
-.IP \(bu 2
-\c
-.UR https://www.gnu.org/software/sed/
-sed
-.UE \c
-.IP \(bu 2
-\c
-.UR http://www.dest-unreach.org/socat/
-socat
-.UE \c
-.IP \(bu 2
-\c
-.UR https://gitlab.freedesktop.org/spice/spice-gtk
-spicy
-.UE \c
+\ (UEFI/OVMF firmware)
 .IP \(bu 2
 \c
 .UR https://github.com/stefanberger/swtpm
 swtpm
 .UE \c
+\ (TPM 2.0 emulation)
+.IP \(bu 2
+\c
+.UR http://zsync.moria.org.uk/
+zsync
+.UE \c
+\ (delta-synced downloads)
+.IP \(bu 2
+\c
+.UR https://gitlab.com/virtio-fs/virtiofsd
+virtiofsd
+.UE \c
+\ (VirtFS directory sharing)
+.IP \(bu 2
+\c
+.UR https://www.samba.org/
+samba
+.UE \c
+\ (SMB file sharing)
+.IP \(bu 2
+\c
+.UR https://gitlab.freedesktop.org/spice/spice-gtk
+spicy
+.UE \c
+\ / \f[CR]remote-viewer\f[R] (SPICE viewer)
+.IP \(bu 2
+\f[CR]qemu-bridge-helper\f[R] (bridged networking, shipped with QEMU)
 .IP \(bu 2
 \c
 .UR https://www.freedesktop.org/wiki/Software/xdg-user-dirs/
 xdg\-user\-dirs
 .UE \c
 .IP \(bu 2
-\c
-.UR https://gitlab.freedesktop.org/xorg/app/xrandr
-xrandr
-.UE \c
-.IP \(bu 2
-\c
-.UR http://zsync.moria.org.uk/
-zsync
-.UE \c
-.IP \(bu 2
-\c
-.UR http://www.info-zip.org/UnZip.html
-unzip
+\f[CR]ssh\f[R] client (\f[CR]--ssh-access\f[R] attach)
 .UE \c
 .PP
 For Ubuntu, Debian, Fedora, Arch and NixOS hosts the native packaging or
@@ -490,14 +420,14 @@ These should be handled by dependencies in Trixie and later.
 For earlier versions (and their derivatives):
 .IP
 .EX
-sudo apt\-get install bash coreutils curl genisoimage grep jq mesa\-utils ovmf pciutils procps python3 qemu sed socat spice\-client\-gtk swtpm\-tools unzip usbutils util\-linux xdg\-user\-dirs xrandr zsync 
+sudo apt\-get install ovmf qemu\-utils qemu\-system\-x86 qemu\-system\-gui samba spice\-client\-gtk swtpm\-tools virtiofsd xdg\-user\-dirs zsync
 .EE
 .SS Install requirements on Fedora hosts
 These are handled natively for Fedora 41 on.
 For earlier versions:
 .IP
 .EX
-sudo dnf install bash coreutils curl edk2\-tools genisoimage grep jq mesa\-demos pciutils procps python3 qemu sed socat spice\-gtk\-tools swtpm unzip usbutils util\-linux uuidgen\-runtime xdg\-user\-dirs xrandr zsync
+sudo dnf install edk2\-tools qemu samba spice\-gtk\-tools swtpm virtiofsd xdg\-user\-dirs zsync
 .EE
 .SS Install requirements on Gentoo
 Please note that you may have to use \f[CR]sys\-firmware/edk2\-ovmf\f[R]
@@ -506,33 +436,19 @@ your system is configured.
 .IP
 .EX
 sudo emerge \-\-ask \-\-noreplace app\-emulation/qemu \(rs
- app\-shells/bash \(rs
- sys\-apps/coreutils \(rs
- net\-misc/curl \(rs
  sys\-firmware/edk2\-ovmf\-bin \(rs
- sys\-apps/gawk \(rs
- sys\-apps/grep \(rs
- x11\-apps/mesa\-progs \(rs
- app\-misc/jq \(rs
- sys\-apps/pciutils \(rs
- sys\-process/procps \(rs
- app\-cdr/cdrtools \(rs
- sys\-apps/usbutils \(rs
- sys\-apps/util\-linux \(rs
- sys\-apps/sed \(rs
- net\-misc/socat \(rs
+ net\-fs/samba \(rs
  app\-emulation/spice \(rs
  app\-crypt/swtpm \(rs
+ app\-emulation/virtiofsd \(rs
  x11\-misc/xdg\-user\-dirs \(rs
- x11\-apps/xrandr \(rs
- net\-misc/zsync \(rs
- app\-arch/unzip
+ net\-misc/zsync
 .EE
 .SS Install requirements on macOS hosts
 Install the Quickemu requirements using brew:
 .IP
 .EX
-brew install bash cdrtools coreutils jq python3 qemu usbutils samba socat swtpm zsync
+brew install qemu samba swtpm zsync
 .EE
 .PP
 Now clone the project:

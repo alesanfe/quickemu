@@ -14,7 +14,7 @@ body:
     id: env
     attributes:
       label: Host environment
-      placeholder: e.g. Ubuntu 24.04, QEMU 9.0, bash 5.2, WSL2
+      placeholder: e.g. Ubuntu 24.04, QEMU 9.0, go 1.25, WSL2
     validations:
       required: true
   - type: textarea

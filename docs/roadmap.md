@@ -18,7 +18,7 @@
 ## Next milestones
 
 ### Phase 2 (target 8.2)
-- Coverage instrumentation (bash + go) with quality gates
+- Coverage instrumentation (go) with quality gates
 - Full platform matrix (Linux/macOS/WSL2 + multi-QEMU)
 - Journal-based recovery + rollback
 - Golden tests Bash ↔ Go

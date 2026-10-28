@@ -41,7 +41,7 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 		pre = "swtpm socket --ctrl type=unixio,path=" + filepath.Join(dir, name+".swtpm-sock") +
 			" --terminate --tpmstate dir=" + dir + " --tpm2 &\n"
 	}
-	scriptBody := "#!/usr/bin/env bash\n" + pre + strings.Join(args, " \\\n    ") + " 2>/dev/null\n"
+	scriptBody := "#!/bin/sh\n" + pre + strings.Join(args, " \\\n    ") + " 2>/dev/null\n"
 	os.WriteFile(script, []byte(scriptBody), 0755)
 	logPath := filepath.Join(dir, name+".log")
 	logF, err := os.Create(logPath)

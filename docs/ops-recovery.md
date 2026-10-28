@@ -2,7 +2,7 @@
 
 ## Journal layout
 
-`ops.sh` already persists per-operation state:
+`quickemu-ops` persists per-operation state:
 
 ```
 <vmdir>/.ops/<operationId>.json

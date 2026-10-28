@@ -329,35 +329,21 @@ Bashes](https://linuxmatters.sh/30).
 
 </div>
 
-When installing from source, you will need to install the following
-requirements manually:
+Quickemu is a compiled Go binary — it has **no interpreter or shell
+requirements** (no bash, jq, curl, python3 or socat). When installing
+from source, you only need the QEMU ecosystem it orchestrates:
 
 - [QEMU](https://www.qemu.org/) (*6.0.0 or newer*) **with GTK, SDL,
-  SPICE & VirtFS support**
-- [bash](https://www.gnu.org/software/bash/) (*4.0 or newer*)
-- [Coreutils](https://www.gnu.org/software/coreutils/)
-- [curl](https://curl.se/)
-- [EDK II](https://github.com/tianocore/edk2)
-- [gawk](https://www.gnu.org/software/gawk/)
-- [grep](https://www.gnu.org/software/grep/)
-- [glxinfo](https://gitlab.freedesktop.org/mesa/demos)
-- [jq](https://stedolan.github.io/jq/)
-- [LSB](https://wiki.linuxfoundation.org/lsb/start)
-- [pciutils](https://github.com/pciutils/pciutils)
-- [procps](https://gitlab.com/procps-ng/procps)
-- [python3](https://www.python.org/)
-- [mkisofs](http://cdrtools.sourceforge.net/private/cdrecord.html)
-- [usbutils](https://github.com/gregkh/usbutils)
-- [util-linux](https://github.com/karelzak/util-linux); including
-  `uuidgen`
-- [sed](https://www.gnu.org/software/sed/)
-- [socat](http://www.dest-unreach.org/socat/)
-- [spicy](https://gitlab.freedesktop.org/spice/spice-gtk)
-- [swtpm](https://github.com/stefanberger/swtpm)
-- [xdg-user-dirs](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/)
-- [xrandr](https://gitlab.freedesktop.org/xorg/app/xrandr)
-- [zsync](http://zsync.moria.org.uk/)
-- [unzip](http://www.info-zip.org/UnZip.html)
+  SPICE & VirtFS support**, plus `qemu-img` (`qemu-utils`)
+- [EDK II](https://github.com/tianocore/edk2) — UEFI/OVMF firmware
+- [swtpm](https://github.com/stefanberger/swtpm) — TPM 2.0 emulation
+- [zsync](http://zsync.moria.org.uk/) — delta-synced downloads
+- [virtiofsd](https://gitlab.com/virtio-fs/virtiofsd) — VirtFS directory sharing
+- [samba](https://www.samba.org/) — SMB-based file sharing (`-net user,smb`)
+- [spicy](https://gitlab.freedesktop.org/spice/spice-gtk) / `remote-viewer` — SPICE viewer
+- `qemu-bridge-helper` — bridged networking (usually shipped with QEMU)
+- [xdg-user-dirs](https://www.freedesktop.org/wiki/Software/xdg-user-dirs/) — default download dirs
+- `ssh` client — `--ssh-access` attach
 
 For Ubuntu, Debian, Fedora, Arch and NixOS hosts the native packaging or
 [ppa](https://launchpad.net/~flexiondotorg/+archive/ubuntu/quickemu),
@@ -375,7 +361,7 @@ These should be handled by dependencies in Trixie and later. For earlier
 versions (and their derivatives):
 
 ``` shell
-sudo apt-get install bash coreutils curl genisoimage grep jq mesa-utils ovmf pciutils procps python3 qemu sed socat spice-client-gtk swtpm-tools unzip usbutils util-linux xdg-user-dirs xrandr zsync
+sudo apt-get install ovmf qemu-utils qemu-system-x86 qemu-system-gui samba spice-client-gtk swtpm-tools virtiofsd xdg-user-dirs zsync
 ```
 
 #### Install requirements on Fedora hosts
@@ -383,7 +369,7 @@ sudo apt-get install bash coreutils curl genisoimage grep jq mesa-utils ovmf pci
 These are handled natively for Fedora 41 on. For earlier versions:
 
 ``` shell
-sudo dnf install bash coreutils curl edk2-tools genisoimage grep jq mesa-demos pciutils procps python3 qemu sed socat spice-gtk-tools swtpm unzip usbutils util-linux uuidgen-runtime xdg-user-dirs xrandr zsync
+sudo dnf install edk2-tools qemu samba spice-gtk-tools swtpm virtiofsd xdg-user-dirs zsync
 ```
 
 ### Install requirements on Gentoo
@@ -394,27 +380,13 @@ configured.
 
 ``` shell
 sudo emerge --ask --noreplace app-emulation/qemu \
- app-shells/bash \
- sys-apps/coreutils \
- net-misc/curl \
  sys-firmware/edk2-ovmf-bin \
- sys-apps/gawk \
- sys-apps/grep \
- x11-apps/mesa-progs \
- app-misc/jq \
- sys-apps/pciutils \
- sys-process/procps \
- app-cdr/cdrtools \
- sys-apps/usbutils \
- sys-apps/util-linux \
- sys-apps/sed \
- net-misc/socat \
+ net-fs/samba \
  app-emulation/spice \
  app-crypt/swtpm \
+ app-emulation/virtiofsd \
  x11-misc/xdg-user-dirs \
- x11-apps/xrandr \
- net-misc/zsync \
- app-arch/unzip
+ net-misc/zsync
 ```
 
 #### Install requirements on macOS hosts
@@ -422,7 +394,7 @@ sudo emerge --ask --noreplace app-emulation/qemu \
 Install the Quickemu requirements using brew:
 
 ``` shell
-brew install bash cdrtools coreutils jq python3 qemu usbutils samba socat swtpm zsync
+brew install qemu samba swtpm zsync
 ```
 
 Now clone the project:
