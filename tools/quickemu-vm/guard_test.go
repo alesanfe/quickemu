@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"syscall"
 	"testing"
 )
 
@@ -165,5 +166,43 @@ func TestMoveOnRunningVMIsRefused(t *testing.T) {
 	}
 	if _, err := os.Stat(dst); err == nil {
 		t.Fatal("live VM copied by refused move")
+	}
+}
+
+// The XDG trash and the VM dir can live on different mounts —
+// rename(2) fails EXDEV there and the delete aborts with the VM left
+// behind. mv semantics demand a copy+remove fallback.
+func TestMoveAnyCrossDeviceFallback(t *testing.T) {
+	src := t.TempDir()
+	os.WriteFile(filepath.Join(src, "a.txt"), []byte("aa"), 0o600)
+	os.MkdirAll(filepath.Join(src, "sub"), 0o755)
+	os.WriteFile(filepath.Join(src, "sub", "b.txt"), []byte("bb"), 0o600)
+	dst := filepath.Join(t.TempDir(), "dst")
+
+	old := fsRename
+	fsRename = func(o, n string) error {
+		return &os.LinkError{Op: "rename", Old: o, New: n, Err: syscall.EXDEV}
+	}
+	t.Cleanup(func() { fsRename = old })
+
+	if err := moveAny(src, dst); err != nil {
+		t.Fatalf("cross-device move failed: %v", err)
+	}
+	if _, err := os.Stat(src); !os.IsNotExist(err) {
+		t.Fatal("source left behind after fallback move")
+	}
+	if b, _ := os.ReadFile(filepath.Join(dst, "sub", "b.txt")); string(b) != "bb" {
+		t.Fatal("nested content lost in fallback move")
+	}
+
+	// A plain file moves the same way (conf travels beside the dir).
+	f := filepath.Join(t.TempDir(), "vm.conf")
+	os.WriteFile(f, []byte("conf"), 0o600)
+	fd := filepath.Join(t.TempDir(), "vm.conf")
+	if err := moveAny(f, fd); err != nil {
+		t.Fatalf("file fallback: %v", err)
+	}
+	if b, _ := os.ReadFile(fd); string(b) != "conf" {
+		t.Fatal("file content lost in fallback move")
 	}
 }

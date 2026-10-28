@@ -458,10 +458,10 @@ func run() int {
 				if err := os.MkdirAll(filepath.Join(slot, "vm"), 0755); err != nil {
 					die("DELETE_FAILED", err.Error())
 				}
-				if err := os.Rename(dir, filepath.Join(slot, "vm", filepath.Base(dir))); err != nil {
+				if err := moveAny(dir, filepath.Join(slot, "vm", filepath.Base(dir))); err != nil {
 					die("DELETE_FAILED", "Could not move "+dir+" to trash.")
 				}
-				if err := os.Rename(conf, filepath.Join(slot, "vm", filepath.Base(conf))); err != nil {
+				if err := moveAny(conf, filepath.Join(slot, "vm", filepath.Base(conf))); err != nil {
 					die("DELETE_FAILED", "Could not move "+conf+" to trash.")
 				}
 				mb, _ := json.Marshal(map[string]any{

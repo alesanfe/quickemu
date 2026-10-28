@@ -91,8 +91,12 @@ func snapMetaWrite(dir string, arr []snapMeta) {
 		arr = []snapMeta{}
 	}
 	b, _ := json.Marshal(arr)
-	if os.WriteFile(tmp, append(b, '\n'), 0644) == nil {
-		os.Rename(tmp, snapMetaFile(dir))
+	if err := os.WriteFile(tmp, append(b, '\n'), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could not write %s: %v\n", tmp, err)
+		return
+	}
+	if err := os.Rename(tmp, snapMetaFile(dir)); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could not update %s: %v\n", snapMetaFile(dir), err)
 	}
 }
 

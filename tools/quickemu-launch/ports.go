@@ -155,5 +155,7 @@ func spiceRecord(dir, vmname, val string, runMode bool) {
 	if !runMode {
 		return
 	}
-	os.WriteFile(filepath.Join(dir, vmname+".spice"), []byte(val+"\n"), 0644)
+	if err := os.WriteFile(filepath.Join(dir, vmname+".spice"), []byte(val+"\n"), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could not write spice record: %v\n", err)
+	}
 }

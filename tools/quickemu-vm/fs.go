@@ -3,11 +3,44 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"syscall"
 )
+
+// fsRename is a seam for tests (ADR-0009): moveAny must be exercised
+// against an injected cross-device failure without needing a second
+// mount on the host.
+var fsRename = os.Rename
+
+// moveAny moves src to dst like `mv`: rename when possible, and a
+// copy+remove fallback when the two paths live on different
+// filesystems (EXDEV). The VM dir and the XDG trash can absolutely
+// sit on different mounts — a delete-to-trash that only knows
+// rename(2) fails there.
+func moveAny(src, dst string) error {
+	err := fsRename(src, dst)
+	if err == nil || !errors.Is(err, syscall.EXDEV) {
+		return err
+	}
+	st, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	if st.IsDir() {
+		if err := cpDir(src, dst); err != nil {
+			return err
+		}
+		return os.RemoveAll(src)
+	}
+	if err := cpFile(src, dst, st.Mode()); err != nil {
+		return err
+	}
+	return os.Remove(src)
+}
 
 func tarGz(src, dst string) error {
 	out, err := os.Create(dst)
