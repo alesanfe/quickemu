@@ -147,8 +147,12 @@ func run() int {
 		files = append(files, cname+"="+hex.EncodeToString(sum[:]))
 		if sub == "extract" && dest != "" {
 			out := filepath.Join(dest, h.Name)
-			os.MkdirAll(filepath.Dir(out), 0o755)
-			os.WriteFile(out, body, 0o600)
+			if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+				return die("EXTRACT_FAIL", err.Error())
+			}
+			if err := os.WriteFile(out, body, 0o600); err != nil {
+				return die("EXTRACT_FAIL", err.Error())
+			}
 		}
 	}
 	if !haveMan {

@@ -61,7 +61,10 @@ func loadCatalog() []Entry {
 		os.Exit(1)
 	}
 	var c catalogFile
-	json.Unmarshal(b, &c)
+	if err := json.Unmarshal(b, &c); err != nil {
+		fmt.Fprintf(os.Stderr, "catalog: parse: %v\n", err)
+		os.Exit(1)
+	}
 	return c.Entries
 }
 

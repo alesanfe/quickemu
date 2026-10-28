@@ -168,6 +168,35 @@ func TestEndpoints(t *testing.T) {
 	resp2.Body.Close()
 }
 
+func TestOpenListener(t *testing.T) {
+	// TCP on an ephemeral port.
+	ln, err := openListener("127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("tcp %v", err)
+	}
+	ln.Close()
+	// TCP bind failure (bad address).
+	if _, err := openListener("256.256.256.256:1"); err == nil {
+		t.Fatal("bad addr must fail")
+	}
+	// Unix socket bind + chmod.
+	sock := filepath.Join(t.TempDir(), "api.sock")
+	ln, err = openListener(sock)
+	if err != nil {
+		t.Fatalf("unix %v", err)
+	}
+	// Second bind on the live socket must be refused.
+	if _, err := openListener(sock); err == nil {
+		t.Fatal("live socket steal must fail")
+	}
+	ln.Close()
+	// Stale socket file (listener gone) → unlinked and rebound.
+	if ln, err = openListener(sock); err != nil {
+		t.Fatalf("rebind stale %v", err)
+	}
+	ln.Close()
+}
+
 func TestVmCmdErrors(t *testing.T) {
 	// Nonexistent socket/tool must surface an error, not panic.
 	old := dataDir
@@ -175,5 +204,21 @@ func TestVmCmdErrors(t *testing.T) {
 	defer func() { dataDir = old }()
 	if _, err := vmCmd("novm", "status"); err == nil {
 		t.Fatal("expected vmCmd error for missing vm")
+	}
+	// With stub tools on PATH the command dispatch resolves and runs.
+	bin := t.TempDir()
+	for _, n := range []string{"quickemu-qmp", "quickemu-launch", "quickemu-cli"} {
+		os.WriteFile(filepath.Join(bin, n),
+			[]byte("#!/bin/sh\necho ran-$0\n"), 0o755)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for _, c := range []string{"start", "shutdown", "pause", "resume",
+		"stop", "kill", "reset"} {
+		out, err := vmCmd("a", c)
+		// The stub runs → output captured; unknown branches return
+		// an explicit error rather than nil.
+		if out == "" && err == nil {
+			t.Fatalf("vmCmd(%q) empty", c)
+		}
 	}
 }

@@ -177,10 +177,24 @@ func vmLockAcquire() bool {
 		// then retry the mkdir immediately — a reclaimed lock is
 		// ours to take, not a reason to fail this attempt.
 		if b, err := os.ReadFile(filepath.Join(lockDir, "pid")); err == nil {
-			if owner, _ := strconv.Atoi(strings.TrimSpace(string(b))); owner > 0 && !alive(owner) {
+			owner, _ := strconv.Atoi(strings.TrimSpace(string(b)))
+			switch {
+			case owner > 0 && !alive(owner):
+				// Dead owner — safe to reclaim.
 				os.RemoveAll(lockDir)
 				if err := os.Mkdir(lockDir, 0755); err == nil && writeOwner() {
 					return true
+				}
+			case owner <= 0:
+				// Corrupt/torn pid write — reclaim only once the
+				// lock is old enough that the writer cannot be
+				// mid-creation (same 2s window as a missing file).
+				if st, serr := os.Stat(lockDir); serr == nil &&
+					time.Since(st.ModTime()) > 2*time.Second {
+					os.RemoveAll(lockDir)
+					if err := os.Mkdir(lockDir, 0755); err == nil && writeOwner() {
+						return true
+					}
 				}
 			}
 		} else if st, err := os.Stat(lockDir); err == nil &&
@@ -391,7 +405,9 @@ func actListVMs() int {
 func actPause() int {
 	out, err := qmp("stop")
 	if err == nil {
-		os.WriteFile(filepath.Join(vmdir(), vmname()+".paused"), nil, 0644)
+		if werr := os.WriteFile(filepath.Join(vmdir(), vmname()+".paused"), nil, 0644); werr != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: paused but marker write failed: %v\n", werr)
+		}
 		fmt.Println(" - " + vmname() + " paused.")
 	}
 	fmt.Print(out)
@@ -508,16 +524,13 @@ func actSendKeys() int {
 
 func actType() int {
 	for _, ch := range extra["type"] {
-		k := string(ch)
-		switch {
-		case ch >= 'A' && ch <= 'Z':
-			k = "shift-" + strings.ToLower(k)
-		case ch == ' ':
-			k = "spc"
-		case ch == '-':
-			k = "minus"
+		k := qelib.SendkeyName(ch)
+		if k == "" {
+			continue
 		}
-		hmp("sendkey " + k)
+		if _, err := hmp("sendkey " + k); err != nil {
+			return rc(err)
+		}
 		time.Sleep(60 * time.Millisecond)
 	}
 	return 0
@@ -933,7 +946,10 @@ func applyOverrides() string {
 		}
 	}
 	tmp := filepath.Join(vmdir(), "."+vmname()+".cli.conf")
-	os.WriteFile(tmp, []byte(c), 0644)
+	if err := os.WriteFile(tmp, []byte(c), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: override conf write failed (%v) — launching without overrides\n", err)
+		return vmConf
+	}
 	return tmp
 }
 
@@ -1844,28 +1860,13 @@ func actHotunplug() int {
 }
 
 // hotplugPersist: append the device to the conf so it reattaches on
-// next boot (--persist parity with monitor.sh).
+// next boot (--persist parity with monitor.sh). Shared with
+// quickemu-qmp via qelib — a single implementation for the splice.
 func hotplugPersist(kind, val string) {
-	b, err := os.ReadFile(vmConf)
-	if err != nil {
+	if err := qelib.HotplugPersist(vmConf, kind, val); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could not persist %s %s: %v\n", kind, val, err)
 		return
 	}
-	var key, kv string
-	switch kind {
-	case "usb":
-		key, kv = "usb_devices", fmt.Sprintf("%q", val)
-	default:
-		key, kv = "extra_disks", fmt.Sprintf("%q", val)
-	}
-	c := string(b)
-	if strings.Contains(c, key+"=") {
-		// append to existing array
-		re := regexp.MustCompile(key + `=\(([^)]*)\)`)
-		c = re.ReplaceAllString(c, key+"=($1 "+kv+")")
-	} else {
-		c += key + "=(" + kv + ")\n"
-	}
-	os.WriteFile(vmConf, []byte(c), 0644)
 	fmt.Println(" - Persisted " + kind + " " + val + " into " + vmConf + " (applies next boot).")
 }
 

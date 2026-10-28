@@ -65,29 +65,33 @@ func main() {
 			token = os.Args[i]
 		}
 	}
-	var ln net.Listener
-	var err error
-	if strings.HasPrefix(listen, "/") {
-		// Refuse to steal a live socket: if it answers, a daemon is
-		// already bound — unlinking it would orphan its listener.
-		if c, derr := net.DialTimeout("unix", listen, 500*time.Millisecond); derr == nil {
-			c.Close()
-			fmt.Fprintln(os.Stderr, "listen: socket already in use:", listen)
-			os.Exit(1)
-		}
-		os.Remove(listen)
-		if ln, err = net.Listen("unix", listen); err == nil {
-			os.Chmod(listen, 0600)
-		}
-	} else {
-		ln, err = net.Listen("tcp", listen)
-	}
+	ln, err := openListener(listen)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "listen:", err)
 		os.Exit(1)
 	}
 	fmt.Println("quickemu-api listening on", listen)
 	http.Serve(ln, newMux())
+}
+
+// openListener binds a unix socket (paths starting with /) or TCP
+// address, refusing to steal a live unix socket.
+func openListener(listen string) (net.Listener, error) {
+	if strings.HasPrefix(listen, "/") {
+		// Refuse to steal a live socket: if it answers, a daemon is
+		// already bound — unlinking it would orphan its listener.
+		if c, derr := net.DialTimeout("unix", listen, 500*time.Millisecond); derr == nil {
+			c.Close()
+			return nil, fmt.Errorf("socket already in use: %s", listen)
+		}
+		os.Remove(listen)
+		ln, err := net.Listen("unix", listen)
+		if err == nil {
+			os.Chmod(listen, 0600)
+		}
+		return ln, err
+	}
+	return net.Listen("tcp", listen)
 }
 
 func newMux() *http.ServeMux {
@@ -207,7 +211,7 @@ func vmCmd(vm, cmd string) (string, error) {
 	case "pause":
 		out, err := qmp("stop")
 		if err == nil {
-			os.WriteFile(filepath.Join(dir, vm+".paused"), nil, 0644)
+			err = os.WriteFile(filepath.Join(dir, vm+".paused"), nil, 0644)
 		}
 		return out, err
 	case "resume":

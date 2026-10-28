@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"syscall"
@@ -407,8 +408,12 @@ func autostartCreate(name, confPath string) int {
 		die("AUTOSTART_FAILED", err.Error())
 	}
 	if s, err := exec.LookPath("systemctl"); err == nil {
-		exec.Command(s, "--user", "daemon-reload").Run()
-		exec.Command(s, "--user", "enable", "quickemu-"+name+".service").Run()
+		if err := exec.Command(s, "--user", "daemon-reload").Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: daemon-reload: %v\n", err)
+		}
+		if err := exec.Command(s, "--user", "enable", "quickemu-"+name+".service").Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: autostart not enabled: %v\n", err)
+		}
 	}
 	info(" - Autostart unit written: " + unit)
 	info("             Start now with: systemctl --user start quickemu-" + name + ".service")
@@ -855,7 +860,13 @@ func snapMetaRead(dir string) []snapMeta {
 		return nil
 	}
 	var arr []snapMeta
-	json.Unmarshal(b, &arr)
+	if err := json.Unmarshal(b, &arr); err != nil {
+		// Corrupt metadata must not silently reset the snapshot
+		// registry — preserve the bytes for manual recovery.
+		os.WriteFile(snapMetaFile(dir)+".corrupt", b, 0o600)
+		fmt.Fprintf(os.Stderr, "WARNING: snapshots.json corrupt (%v) — saved to .corrupt\n", err)
+		return nil
+	}
 	return arr
 }
 
@@ -872,6 +883,10 @@ func snapMetaWrite(dir string, arr []snapMeta) {
 
 // snapshotCreateExternal: qcow2 overlay backed by the current disk,
 // repoint conf disk_img at the overlay, register metadata.
+// snapTagRe allowlists snapshot tags — they land in overlay
+// filenames and inside the conf's disk_img="..." string.
+var snapTagRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
 func snapshotCreateExternal(dir, tag, desc, confPath string) int {
 	if tag == "" {
 		fmt.Fprintln(os.Stderr, "ERROR! No snapshot tag.")
@@ -890,6 +905,11 @@ func snapshotCreateExternal(dir, tag, desc, confPath string) int {
 	name := filepath.Base(dir)
 	if c := vmConfPath(dir); c != "" {
 		name = strings.TrimSuffix(filepath.Base(c), ".conf")
+	}
+	// tag lands in the overlay filename AND inside the conf's
+	// disk_img="..." — allowlist a filename-safe charset.
+	if !snapTagRe.MatchString(tag) {
+		die("INVALID_ARGS", "snapshot tag must match [A-Za-z0-9._-]+")
 	}
 	overlay := filepath.Join(dir, name+"-"+tag+".qcow2")
 	if _, err := os.Stat(overlay); err == nil {
@@ -915,7 +935,10 @@ func snapshotCreateExternal(dir, tag, desc, confPath string) int {
 			if b, err := os.ReadFile(confPath); err == nil {
 				old := `disk_img="` + raw + `"`
 				if strings.Contains(string(b), old) {
-					os.WriteFile(confPath, []byte(strings.Replace(string(b), old, `disk_img="`+overlay+`"`, 1)), 0644)
+					nc := strings.Replace(string(b), old, `disk_img="`+overlay+`"`, 1)
+					if err := os.WriteFile(confPath, []byte(nc), 0644); err != nil {
+						fmt.Fprintf(os.Stderr, "WARNING: conf repoint failed: %v — disk_img still points at the parent\n", err)
+					}
 				}
 			}
 		}

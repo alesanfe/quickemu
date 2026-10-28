@@ -42,7 +42,9 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 			" --terminate --tpmstate dir=" + dir + " --tpm2 &\n"
 	}
 	scriptBody := "#!/bin/sh\n" + pre + strings.Join(args, " \\\n    ") + " 2>/dev/null\n"
-	os.WriteFile(script, []byte(scriptBody), 0755)
+	if err := os.WriteFile(script, []byte(scriptBody), 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: launch script %s: %v\n", script, err)
+	}
 	logPath := filepath.Join(dir, name+".log")
 	logF, err := os.Create(logPath)
 	if err != nil {
@@ -57,6 +59,10 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 		return err
 	}
 	pid := cmd.Process.Pid
+	// Reap in background — without Wait() a dead QEMU stays a zombie
+	// and kill(pid,0) still succeeds, so the liveness probe below
+	// would report "Started" for a guest that already crashed.
+	go cmd.Wait()
 	// wait 250ms — if it died, print the log and fail (bash parity)
 	time.Sleep(250 * time.Millisecond)
 	if err := syscall.Kill(pid, 0); err != nil {
@@ -70,7 +76,9 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 		"pid": pid, "name": name, "startedAt": time.Now().UTC().Format(time.RFC3339),
 		"qmp": filepath.Join(dir, name+"-qmp.socket"),
 	})
-	os.WriteFile(rt, rtJSON, 0644)
+	if err := os.WriteFile(rt, rtJSON, 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: runtime.json write failed: %v — API/CLI state will show stopped\n", err)
+	}
 	// Detached reaper: quickemu exits right after spawning QEMU, so a
 	// separate session performs the cleanup when the guest dies —
 	// Bash's disowned `while kill -0 $VM_PID` watcher. Re-exec self.
@@ -184,8 +192,13 @@ func startVirtiofsd(bin string, c Conf) bool {
 	}
 	for i := 0; i < 20; i++ {
 		if st, err := os.Stat(sock); err == nil && st.Mode()&os.ModeSocket != 0 {
-			os.WriteFile(filepath.Join(dir, name+".virtiofsd-pid"),
-				[]byte(fmt.Sprint(cmd.Process.Pid)), 0644)
+			if err := os.WriteFile(filepath.Join(dir, name+".virtiofsd-pid"),
+				[]byte(fmt.Sprint(cmd.Process.Pid)), 0644); err != nil {
+				// Without the pidfile the reaper cannot kill the
+				// daemon at cleanup — fail rather than leak it.
+				cmd.Process.Kill()
+				return false
+			}
 			fmt.Printf(" - virtiofsd: %s (%d)\n", sock, cmd.Process.Pid)
 			return true
 		}
@@ -223,8 +236,11 @@ func startSwtpm(c Conf) bool {
 	if err := cmd.Start(); err != nil {
 		return false
 	}
-	os.WriteFile(filepath.Join(dir, name+".swtpm-pid"),
-		[]byte(fmt.Sprint(cmd.Process.Pid)), 0644)
+	if err := os.WriteFile(filepath.Join(dir, name+".swtpm-pid"),
+		[]byte(fmt.Sprint(cmd.Process.Pid)), 0644); err != nil {
+		cmd.Process.Kill()
+		return false
+	}
 	for i := 0; i < 10; i++ {
 		if st, err := os.Stat(sock); err == nil && st.Mode()&os.ModeSocket != 0 {
 			fmt.Printf(" - TPM:      %s (%d)\n", sock, cmd.Process.Pid)

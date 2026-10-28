@@ -96,8 +96,13 @@ func FinalURL(u string) (string, error) {
 
 // UbuntuDailyCodename returns the first (newest-first) launchpad
 // series name whose daily-live SHA256SUMS exists on cdimage.
+// Injectable seams for offline testing (same pattern as checkClient
+// in quickget-catalog).
+var httpFetch = FetchString
+var httpProbeURL = WebCheck
+
 func UbuntuDailyCodename(osName string) (string, error) {
-	body, err := FetchString("https://api.launchpad.net/devel/ubuntu/series", 4<<20)
+	body, err := httpFetch("https://api.launchpad.net/devel/ubuntu/series", 4<<20)
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +115,7 @@ func UbuntuDailyCodename(osName string) (string, error) {
 		return "", fmt.Errorf("launchpad parse")
 	}
 	for _, e := range j.Entries {
-		if WebCheck(fmt.Sprintf("https://cdimage.ubuntu.com/%s/%s/daily-live/current/SHA256SUMS", osName, e.Name), nil) {
+		if httpProbeURL(fmt.Sprintf("https://cdimage.ubuntu.com/%s/%s/daily-live/current/SHA256SUMS", osName, e.Name), nil) {
 			return e.Name, nil
 		}
 	}

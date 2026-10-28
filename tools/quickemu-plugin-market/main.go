@@ -69,11 +69,13 @@ func writeConf(path, conf string) error {
 	return os.WriteFile(path, []byte(strings.TrimRight(conf, "\n")+"\n"), 0o644)
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	args := os.Args[1:]
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-plugin-market {list|show NAME|install NAME [DIR]}")
-		os.Exit(2)
+		return 2
 	}
 	c := load()
 	switch args[0] {
@@ -84,19 +86,19 @@ func main() {
 	case "show":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "usage: show NAME")
-			os.Exit(2)
+			return 2
 		}
 		tp := find(c, args[1])
 		if tp == nil {
 			fmt.Fprintf(os.Stderr, "market: %s not found\n", args[1])
-			os.Exit(1)
+			return 1
 		}
 		b, _ := json.Marshal(tp)
 		fmt.Println(string(b))
 	case "install":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "usage: install NAME [DIR]")
-			os.Exit(2)
+			return 2
 		}
 		dir := "."
 		if len(args) > 2 {
@@ -105,16 +107,17 @@ func main() {
 		tp := find(c, args[1])
 		if tp == nil {
 			fmt.Fprintf(os.Stderr, "market: %s not found\n", args[1])
-			os.Exit(1)
+			return 1
 		}
 		out := filepath.Join(dir, args[1]+".conf")
 		if err := writeConf(out, tp.Conf); err != nil {
 			fmt.Fprintf(os.Stderr, "market: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 		fmt.Printf("installed %s\n", out)
 	default:
 		fmt.Fprintln(os.Stderr, "usage: quickemu-plugin-market {list|show NAME|install NAME [DIR]}")
-		os.Exit(2)
+		return 2
 	}
+	return 0
 }
