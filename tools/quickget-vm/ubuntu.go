@@ -114,7 +114,8 @@ func getUbuntu(osName, release, dir, arch string) int {
 			return 1
 		}
 		url = "https://cdimage.ubuntu.com/" + osName + "/" + codename + "/daily-live/current"
-		dir = osName + "-" + release
+		// keep the caller's dir — the dir=="" fallback below already
+		// derives osName-release when none was given.
 	case osName == "ubuntu" && arch == "arm64":
 		url = "https://cdimage.ubuntu.com/releases/" + release + "/release"
 	case osName == "ubuntu":

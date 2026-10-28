@@ -13,9 +13,10 @@ import (
 func stubQemuImg(t *testing.T) {
 	t.Helper()
 	d := t.TempDir()
-	// qemu-img stub: on "convert", create the -O target (last arg).
+	// qemu-img stub: create touches the FILE arg (second-to-last for
+	// create/resize … FILE SIZE), convert touches the last (-O dst).
 	os.WriteFile(filepath.Join(d, "qemu-img"),
-		[]byte("#!/bin/sh\nfor a; do last=$a; done; touch \"$last\"\nexit 0\n"), 0o755)
+		[]byte("#!/bin/sh\nprev=\"\"; last=\"\"\nfor a; do prev=$last; last=$a; done\ncase \"$1\" in create|resize) touch \"$prev\";; convert) touch \"$last\";; esac\nexit 0\n"), 0o755)
 	t.Setenv("PATH", d+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
