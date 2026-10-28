@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 type Conf map[string]string
@@ -147,6 +149,24 @@ func main() {
 	case arch != hostArch(), hypervisor != "":
 		accel = "tcg"
 		baseModel = "qemu64"
+	}
+	// Accelerator reality-check for the kvm default: macOS accelerates
+	// via hvf (there is no /dev/kvm), and a Linux host without the
+	// device — WSL1, containers, VT-x off — used to emit accel=kvm
+	// and fail inside QEMU. Fall back to TCG with a visible warning.
+	switch {
+	case accel != "kvm":
+		// user override or already downgraded — keep.
+	case runtime.GOOS == "darwin":
+		accel = "hvf"
+	case !hasKVM():
+		accel = "tcg"
+		if qelib.IsWSL() {
+			fmt.Fprintln(os.Stderr, "WARNING! WSL without /dev/kvm — using slow TCG emulation.")
+			fmt.Fprintln(os.Stderr, "         KVM on WSL2 needs nested virtualization; WSL1 has no KVM.")
+		} else {
+			fmt.Fprintln(os.Stderr, "WARNING! /dev/kvm unavailable — using slow TCG emulation.")
+		}
 	}
 	// User-forced TCG on a native x86 guest also drops to qemu64 —
 	// the `host` CPU model exists only under KVM (configure_cpu).

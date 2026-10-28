@@ -75,6 +75,21 @@ func XDGConfig() string {
 	return filepath.Join(os.Getenv("HOME"), ".config")
 }
 
+// ProcOSRelease is a fixture seam: tests point it at a canned
+// osrelease file (or "" to simulate unreadable procfs).
+var ProcOSRelease = "/proc/sys/kernel/osrelease"
+
+// IsWSL reports Windows Subsystem for Linux: WSL_DISTRO_NAME /
+// WSL_INTEROP env, or "microsoft" in the kernel release string.
+// WSL1 never exposes /dev/kvm; WSL2 needs nested virtualization.
+func IsWSL() bool {
+	if os.Getenv("WSL_DISTRO_NAME") != "" || os.Getenv("WSL_INTEROP") != "" {
+		return true
+	}
+	b, err := os.ReadFile(ProcOSRelease)
+	return err == nil && strings.Contains(strings.ToLower(string(b)), "microsoft")
+}
+
 // PciAttr reads a sysfs attribute of a PCI device.
 func PciAttr(dev, attr string) string {
 	b, err := os.ReadFile(filepath.Join("/sys/bus/pci/devices", dev, attr))

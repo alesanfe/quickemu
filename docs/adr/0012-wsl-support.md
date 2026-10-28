@@ -10,11 +10,15 @@ WSL reboot), and WSL1 has no KVM at all. Treating "linux" as
 diagnostic.
 
 ## Decision
-WSL is a **detected, experimental** platform: `quickemu-launch` warns
-and requires `accel="tcg"` (env `QEMU_ACCEL=tcg`) rather than assuming
-KVM works. Detection is via `/proc/sys/kernel/osrelease` containing
-"WSL"/"microsoft". TCG runs show a performance warning instead of the
-cryptic QEMU ioctl failure.
+WSL is a **detected, experimental** platform. `qelib.IsWSL` detects it
+via `WSL_DISTRO_NAME`/`WSL_INTEROP` or "microsoft" in
+`/proc/sys/kernel/osrelease` (fixture-seamed as `qelib.ProcOSRelease`).
+
+`quickemu-launch` reality-checks the `accel=kvm` default against the
+host: on Darwin it resolves to `hvf`; when `/dev/kvm` is unusable
+(WSL1, containers, VT-x off) it falls back to TCG and prints a
+warning — WSL hosts get a hint about nested virtualization instead of
+an opaque QEMU ioctl failure. `QEMU_ACCEL`/`qemu_accel` still override.
 
 ## Alternatives
 - Officially supported — rejected: KVM quality depends on the Windows

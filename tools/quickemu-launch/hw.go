@@ -33,6 +33,11 @@ func hostHasKVM() bool {
 	return err == nil && (strings.Contains(string(b), " vmx") || strings.Contains(string(b), " svm"))
 }
 
+// hasKVM is the accel-gate seam (ADR-0009): tests stub it to cover
+// both device-present and device-absent hosts without needing real
+// /dev/kvm access.
+var hasKVM = hostHasKVM
+
 func hostNCores() int {
 	// get_nproc parity — Go's runtime equivalent of `nproc`.
 	return runtime.NumCPU()

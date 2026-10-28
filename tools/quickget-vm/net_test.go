@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -19,12 +20,20 @@ func (f rtFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r)
 func stubProbe(t *testing.T, bodies map[string]string) {
 	t.Helper()
 	old := httpProbe
+	// Longest key first: map iteration order is random, and an URL
+	// matching two overlapping keys must resolve deterministically
+	// to the most specific matcher.
+	keys := make([]string, 0, len(bodies))
+	for k := range bodies {
+		keys = append(keys, k)
+	}
+	slices.SortFunc(keys, func(a, b string) int { return len(b) - len(a) })
 	httpProbe = &http.Client{Transport: rtFunc(func(r *http.Request) (*http.Response, error) {
 		body := "notfound"
 		reqURL := r.URL
-		for k, v := range bodies {
+		for _, k := range keys {
 			if strings.Contains(r.URL.String(), k) {
-				body = v
+				body = bodies[k]
 				break
 			}
 		}
@@ -206,12 +215,8 @@ func TestUnattendedAndAutoinstall(t *testing.T) {
 
 func TestIsoExtractPure(t *testing.T) {
 	dir := t.TempDir()
-	iso := filepath.Join(dir, "s.iso")
-	// build a real ISO9660 with vmlinuz/initrd under boot/.
-	if err := writeISO9660(iso, "test", map[string]string{
-		"BOOT/VMLINUZ.": "k", "BOOT/INITRD.": "i"}); err != nil {
-		t.Skip("writeISO9660: " + err.Error())
-	}
+	iso := buildISO(t, map[string]string{
+		"boot/vmlinuz": "k", "boot/initrd": "i"})
 	out := filepath.Join(dir, "out")
 	ok := isoExtractPure(iso, out, "boot")
 	if !ok {
