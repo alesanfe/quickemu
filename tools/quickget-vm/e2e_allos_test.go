@@ -95,27 +95,15 @@ func TestDownloadEveryOSThenDelete(t *testing.T) {
 
 	base := t.TempDir()
 	var done, failed []string
-	for _, e := range entries {
-		if len(e.Releases) == 0 {
-			continue
-		}
-		rel, ed := e.Releases[0], ""
-		if len(e.Editions) > 0 {
-			ed = e.Editions[0]
-		}
-		vmDir := filepath.Join(base, e.OS+"-"+rel)
+	// runOne executes the full pipeline for a single OS×release×edition
+	// combo and returns the produced conf bytes.
+	runOne := func(e catEntry, rel, ed, vmDir string) (int, []byte) {
 		var rc int
 		switch {
 		case strings.Contains(e.OS, "ubuntu"):
 			// SUMS resolution stubbed; release URLs hardcode ubuntu.com.
 			// execCommand→true makes the real zsync binary a no-op so
 			// daily-live releases also complete offline.
-			for _, r := range e.Releases { // prefer a non-daily release
-				if !strings.HasPrefix(r, "daily") && r != "dvd" {
-					rel = r
-					break
-				}
-			}
 			isServer := e.OS == "ubuntu-server"
 			pat := "desktop"
 			if isServer {
@@ -132,19 +120,6 @@ func TestDownloadEveryOSThenDelete(t *testing.T) {
 			rc = getOS(e.OS, rel, "", vmDir, "amd64")
 			fetchString, fetch, execCommand = oldFs, realFetch, oldEC
 		case e.OS == "macos":
-			rel = ""
-			for _, r := range e.Releases { // release must exist in macBoards
-				if _, ok := macBoards[r]; ok {
-					rel = r
-					break
-				}
-			}
-			if rel == "" {
-				for r := range macBoards {
-					rel = r
-					break
-				}
-			}
 			stubProbe(t, map[string]string{
 				"RecoveryImage": "https://oscdn.apple.com/x.dmg expires-dmg https://oscdn.apple.com/x.chunklist expires-cl",
 			})
@@ -159,56 +134,86 @@ func TestDownloadEveryOSThenDelete(t *testing.T) {
 					"evalcenter": `<a href="https://go.microsoft.com/fwlink/p/?LinkID=111&clcid=0x409&culture=en-us&country=US">a</a>`,
 					"fwlink":     "→https://dl.example.com/win-srv.iso",
 				})
-				rc = getOS("windows-server", "2022", "", vmDir, "amd64")
+				rc = getOS("windows-server", rel, ed, vmDir, "amd64")
 			} else {
 				stubProbe(t, map[string]string{
-					"software-download/windows": `<option value="1234">Windows 11`,
+					"software-download/windows": `<option value="1234">Windows ` + rel,
 					"mdt.js":                    `?w=ABCDEF&rticks="+123456"`,
 					"getskuinformation":         `{"Skus":[{"Id":1234,"LocalizedLanguage":"English International"}]}`,
 					"GetProductDownloadLinks":   `{"ProductDownloadOptions":[{"Uri":"https://dl.microsoft.com/a/b/win-x64.iso?q=1"}]}`,
 				})
-				rc = getOS("windows", "11", "", vmDir, "amd64")
+				rc = getOS("windows", rel, "", vmDir, "amd64")
 			}
 			fetch = realFetch
 		default:
 			rc = getOS(e.OS, rel, ed, vmDir, "amd64")
 		}
-		// Verify artifacts, then delete the VM before the next one —
-		// mirrors the requested download → verify → delete cadence.
-		conf := vmDir + ".conf"
-		confB, _ := os.ReadFile(conf)
-		if rc != 0 || len(confB) == 0 {
-			failed = append(failed, e.OS+"@"+rel)
-			os.RemoveAll(vmDir)
-			os.Remove(conf)
-			continue
-		}
-		if _, err := os.Stat(vmDir); err != nil {
-			failed = append(failed, e.OS+"@"+rel+"(no dir)")
-			os.Remove(conf)
-			continue
-		}
-		done = append(done, e.OS)
-		if err := os.RemoveAll(vmDir); err != nil {
-			t.Fatalf("delete %s: %v", e.OS, err)
-		}
-		os.Remove(conf)
+		confB, _ := os.ReadFile(vmDir + ".conf")
+		return rc, confB
 	}
-	t.Logf("downloaded+deleted %d OSes; failures: %v", len(done), failed)
+	for _, e := range entries {
+		rels := e.Releases
+		if len(rels) == 0 {
+			// pureos/rockylinux/slitaz: releases resolve via live
+			// scrape at runtime — "latest" stands in offline.
+			rels = []string{"latest"}
+		}
+		eds := e.Editions
+		if len(eds) == 0 {
+			eds = []string{""}
+		}
+		for _, rel := range rels {
+			// macos releases must exist in macBoards.
+			if e.OS == "macos" {
+				if _, ok := macBoards[rel]; !ok {
+					continue
+				}
+			}
+			for _, ed := range eds {
+				// windows: the "edition" positional is the i18n
+				// language — the fixture only supports the default.
+				runEd := ed
+				if e.OS == "windows" || e.OS == "windows-server" {
+					runEd = ""
+				}
+				vmDir := filepath.Join(base, e.OS+"-"+rel+ed)
+				rc, confB := runOne(e, rel, runEd, vmDir)
+				conf := vmDir + ".conf"
+				if rc != 0 || len(confB) == 0 {
+					failed = append(failed, e.OS+"@"+rel+"/"+ed)
+					os.RemoveAll(vmDir)
+					os.Remove(conf)
+					continue
+				}
+				if _, err := os.Stat(vmDir); err != nil {
+					failed = append(failed, e.OS+"@"+rel+"/"+ed+"(no dir)")
+					os.Remove(conf)
+					continue
+				}
+				done = append(done, e.OS+"@"+rel+"/"+ed)
+				if err := os.RemoveAll(vmDir); err != nil {
+					t.Fatalf("delete %s: %v", e.OS, err)
+				}
+				os.Remove(conf)
+			}
+		}
+	}
+	t.Logf("downloaded+deleted %d OS images; failures: %v", len(done), failed)
 	if len(done) == 0 {
 		t.Fatal("no OS downloaded successfully")
 	}
-	// Hard floor: every catalog OS must download, verify and delete.
+	// Hard floor: every catalog OS×release×edition must download,
+	// verify and delete.
 	for _, e := range entries {
 		ok := false
 		for _, d := range done {
-			if d == e.OS {
+			if strings.HasPrefix(d, e.OS+"@") {
 				ok = true
 				break
 			}
 		}
-		if !ok && len(e.Releases) > 0 {
-			t.Errorf("generic OS %s did not complete", e.OS)
+		if !ok {
+			t.Errorf("OS %s did not complete", e.OS)
 		}
 	}
 }
