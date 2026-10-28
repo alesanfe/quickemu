@@ -80,7 +80,7 @@ func TestGetOSPipeline(t *testing.T) {
 	// stub quickget-catalog printing "url hashurl".
 	stub := t.TempDir()
 	os.WriteFile(filepath.Join(stub, "quickget-catalog"),
-		[]byte("#!/bin/sh\necho '"+srv.URL+"/img.iso "+srv.URL+"/SHA256SUMS" + "'\n"), 0o755)
+		[]byte("#!/bin/sh\necho '"+srv.URL+"/img.iso "+srv.URL+"/SHA256SUMS"+"'\n"), 0o755)
 	// no zsync on PATH → .zsync URLs fall back to plain fetch.
 	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
 
