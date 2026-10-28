@@ -36,7 +36,7 @@ import (
 
 // finalURL: web_redirect parity — follow redirects and return the
 // resolved URL (used to name URL-sourced images).
-func finalURL(url string) string {
+var finalURL = func(url string) string {
 	if u, err := qelib.FinalURL(url); err == nil && u != "" {
 		return u
 	}

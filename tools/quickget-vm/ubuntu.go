@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-func fetchString(url string) (string, error) { return qelib.FetchString(url, 16<<20) }
+var fetchString = func(url string) (string, error) { return qelib.FetchString(url, 16<<20) }
 
-func webCheck(url string) bool { return qelib.WebCheck(url, nil) }
+var webCheck = func(url string) bool { return qelib.WebCheck(url, nil) }
 
 // ubuntuDailyCodename: first launchpad series name (newest-first)
 // whose daily-live SHA256SUMS exists on cdimage.

@@ -210,7 +210,7 @@ func run() int {
 		case "completed", "failed", "cancelled":
 			die("OP_FINISHED", "operation already finished")
 		}
-		if o.WorkerPid > 0 && syscall.Kill(o.WorkerPid, 0) == nil {
+		if o.WorkerPid > 0 && qelib.Alive(o.WorkerPid) {
 			syscall.Kill(o.WorkerPid, syscall.SIGTERM)
 			o.State = "cancelRequested" // worker confirms via set/cancelled
 			writeOp(dir, o)
@@ -238,7 +238,7 @@ func run() int {
 			if o.State != "queued" && o.State != "running" {
 				continue
 			}
-			if o.WorkerPid > 0 && syscall.Kill(o.WorkerPid, 0) == nil {
+			if o.WorkerPid > 0 && qelib.Alive(o.WorkerPid) {
 				continue
 			}
 			o.State = "failed"

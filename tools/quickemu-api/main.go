@@ -172,7 +172,7 @@ func newMux() *http.ServeMux {
 			VM  string `json:"vm"`
 			Cmd string `json:"cmd"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil ||
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&req); err != nil ||
 			strings.Contains(req.VM, "..") ||
 			strings.ContainsAny(req.VM, "/\\") || !safeCmds[req.Cmd] {
 			write(w, 400, map[string]any{"errors": []any{map[string]any{"code": "INVALID_ARGUMENT"}}})
