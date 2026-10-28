@@ -3,7 +3,9 @@
 package main
 
 import (
+	"crypto/md5"
 	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -126,5 +128,29 @@ func TestGenSeedISO(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(conf); !strings.Contains(string(b), "seed=") {
 		t.Fatal("conf lacks seed=")
+	}
+}
+
+// fetchVerify accepts sha256/md5/sha512 by digest length (canaima md5,
+// mageia sha512); rejects mismatches.
+func TestFetchVerifyAlgos(t *testing.T) {
+	payload := []byte("digest-algo-probe")
+	f := filepath.Join(t.TempDir(), "p.iso")
+	if err := os.WriteFile(f, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if rc := fetchVerify(f, fmt.Sprintf("%x", md5.Sum(payload))); rc != 0 {
+		t.Fatal("md5 verify")
+	}
+	if rc := fetchVerify(f, fmt.Sprintf("%x", sha512.Sum512(payload))); rc != 0 {
+		t.Fatal("sha512 verify")
+	}
+	if rc := fetchVerify(f, fmt.Sprintf("%x", sha256.Sum256(payload))); rc != 0 {
+		t.Fatal("sha256 verify")
+	}
+	bad := filepath.Join(t.TempDir(), "b.iso")
+	os.WriteFile(bad, payload, 0o644)
+	if rc := fetchVerify(bad, strings.Repeat("0", 32)); rc != 1 {
+		t.Fatal("md5 mismatch must fail")
 	}
 }

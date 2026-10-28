@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -462,6 +463,22 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u + "/" + iso, sha, nil
+	case "crunchbang++":
+		// get_crunchbang++: GH releases API (CBPP/cbpp), first amd64
+		// browser_download_url matching the release; no hash upstream.
+		body, err := fetchString("https://api.github.com/repos/CBPP/cbpp/releases")
+		if err != nil {
+			return "", "", err
+		}
+		for _, m := range matchAll(body, `"browser_download_url": ?"([^"]+)"`) {
+			if !strings.Contains(m, "amd64") {
+				continue
+			}
+			if release == "" || release == "latest" || strings.Contains(m, "cbpp-"+release+"-") {
+				return m, "", nil
+			}
+		}
+		return "", "", fmt.Errorf("crunchbang++: no amd64 iso for %s", release)
 	case "debian":
 		// get_debian: archive base; current release → debian-cd; netinst
 		// rewrites -live/hybrid→cd; arm64 is netinst-only.
@@ -871,6 +888,274 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u + "/" + iso, sha, nil
+	case "altlinux":
+		// get_altlinux: official FTP mirror, per-edition naming.
+		base := "https://ftp.altlinux.org/pub/distributions/ALTLinux/images/p" + release + "/" + edition + "/x86_64"
+		iso := map[string]string{
+			"workstation": "alt-workstation-11.2-x86_64.iso",
+			"simply":      "slinux-11.1-x86_64.iso",
+			"server":      "alt-server-11.1-x86_64.iso",
+			"education":   "alt-education-11.2-x86_64.iso",
+		}[edition]
+		if edition == "kworkstation" {
+			iso = "alt-kworkstation-11-live-x86_64.iso"
+			base = "https://ftp.altlinux.org/pub/distributions/ALTLinux/images/p" + release + "/kworkstation"
+		}
+		if iso == "" {
+			return "", "", fmt.Errorf("altlinux: no iso for edition %s", edition)
+		}
+		return base + "/" + iso, "", nil
+	case "blankon":
+		return "https://jahitan.blankonlinux.id/releases/current/blankon-sinambung-26.09-verbeek-amd64.iso", "", nil
+	case "bosslinux":
+		return "https://sourceforge.net/projects/archiveos/files/b/boss/boss-8.0-amd64-DVD-301019.iso/download", "", nil
+	case "canaima":
+		// get_canaima: CNTI download host; 8.4 carries a pinned md5.
+		if release == "9.0" {
+			return "https://descargas.softwarelibre.gob.ve/canaima/iso/wakupe/canaima-9.0-" + edition + "-beta_amd64.iso", "", nil
+		}
+		return "https://descargas.softwarelibre.gob.ve/canaima/iso/kavanayen/canaima-8.4-1-ISO-FULL_amd64.iso", "99c1820f7412d9b20cf81843f898ec1c", nil
+	case "educaandos":
+		// get_educaandos: cica.es mirror, per-release filename.
+		iso := map[string]string{
+			"v2":               "EducaAndosV2-offline.iso",
+			"20.04-2021122201": "educaandos-20.04-2021122201.iso",
+			"20.04-2021060801": "educaandos-20.04-instalador-centros-2021060801.iso",
+			"20.04-2024013001": "educaandos-20.04-instalador-centros-2024013001.iso",
+			"20.04-20241107":   "educaandos-20.04-instalador-centros-20241107.iso",
+			"20.04-2025021001": "educaandos-20.04-instalador-centros-2025021001.iso",
+		}[release]
+		if iso == "" {
+			iso = "educaandos-20.04-instalador-centros.iso"
+		}
+		return "http://guadalinex-edu.cica.es/centros/" + iso, "", nil
+	case "esfera":
+		return "https://archive.org/download/guadalinex-v9-32B/esfera-live-" + release + ".iso", "", nil
+	case "fedora":
+		// get_fedora: releases.json select by variant/subvariant/arch/version.
+		farch := "x86_64"
+		if arch == "arm64" {
+			farch = "aarch64"
+		}
+		variant := edition
+		switch edition {
+		case "Server", "Kinoite", "Onyx", "Silverblue", "Sericea", "Workstation", "KDE":
+		default:
+			variant = "Spins"
+		}
+		if n, _ := strconv.Atoi(strings.TrimSuffix(release, "_Beta")); variant == "KDE" && n < 42 {
+			variant = "Spins"
+		}
+		rel := strings.ReplaceAll(release, "_", " ")
+		body, err := fetchString("https://getfedora.org/releases.json")
+		if err != nil {
+			return "", "", err
+		}
+		var builds []struct {
+			Variant, Subvariant, Arch, Version, Link, Sha256 string
+		}
+		if err := json.Unmarshal([]byte(body), &builds); err != nil {
+			return "", "", err
+		}
+		for _, b := range builds {
+			if (b.Variant == variant || b.Variant == edition) &&
+				b.Subvariant == edition && b.Arch == farch &&
+				b.Version == rel && strings.HasSuffix(b.Link, ".iso") {
+				return b.Link, b.Sha256, nil
+			}
+		}
+		return "", "", fmt.Errorf("fedora: no iso for %s %s %s", release, edition, arch)
+	case "fedoracore":
+		iso := "FC" + release + "-i386-disc1.iso"
+		if release == "1" {
+			iso = "yarrow-i386-disc1.iso"
+		}
+		return "https://archives.fedoraproject.org/pub/archive/fedora/linux/core/" + release + "/i386/iso/" + iso, "", nil
+	case "gecos":
+		iso := "GECOS-v2-32B-latest.iso"
+		if edition == "lite" {
+			iso = "GECOS-v2-lite-32B-20141017.iso"
+		}
+		return "https://archive.org/download/guadalinex-v9-32B/" + iso, "", nil
+	case "kurumin":
+		iso := "kurumin-ng_" + release + ".iso"
+		if release == "7.0" {
+			iso = "kurumin-7.0.iso"
+			if edition == "light" {
+				iso = "kurumin-light-7.0.iso"
+			}
+		}
+		return "https://sourceforge.net/projects/archiveos/files/k/kurumin/" + iso + "/download", "", nil
+	case "lernstick":
+		iso := "lernstick_debian" + release + "_" + edition + "_latest.iso"
+		if edition == "exam" {
+			iso = "lernstick_pruefungsumgebung_debian" + release + "_latest.iso"
+		}
+		return "https://releases.lernstick.ch/" + iso, "", nil
+	case "life":
+		iso := "Life-" + release + ".amd64.iso"
+		if release == "22.04" {
+			iso = "Li-f-e-22.04.3.amd64.iso"
+		}
+		return "https://sourceforge.net/projects/cyberorg-home/files/Li-f-e/" + iso + "/download", "", nil
+	case "lliurex":
+		base := "http://lliurex.net/isos/" + release
+		iso := "LliureX-home-desktop_" + release + "_latest.iso"
+		switch release {
+		case "23":
+			iso = "LliureX-" + edition + "_64bits_23_latest.iso"
+		case "21.07":
+			if e := map[string]string{
+				"desktop-fp": "LliureX-desktop-fp_64bits_21_20220406.iso",
+				"client-fp":  "LliureX-client-fp_64bits_21_20220406.iso",
+				"server-fp":  "LliureX-server-fp_64bits_21_20220406.iso",
+			}[edition]; e != "" {
+				iso = e
+			} else {
+				iso = "LliureX-" + edition + "_64bits_21_20220406.iso"
+			}
+			base = "http://lliurex.net/isos/21.07_64bits/20220406"
+		case "19.07":
+			if e := map[string]string{
+				"escriptori-fp": "lliurex-Escriptori-fp_64bits_19_latest.iso",
+				"client-fp":     "lliurex-Client-fp_64bits_19_latest.iso",
+				"servidor-fp":   "lliurex-Servidor-fp_64bits_19_latest.iso",
+			}[edition]; e != "" {
+				iso = e
+			} else {
+				iso = "lliurex-" + edition + "_64bits_19_latest.iso"
+			}
+			base = "http://lliurex.net/isos/19.07_64bits"
+		case "16.06":
+			iso = "lliurex-" + edition + "_64bits_16_latest.iso"
+			base = "http://lliurex.net/isos/16.06_64bits"
+		}
+		return base + "/" + iso, "", nil
+	case "mageia":
+		// get_mageia: downloads page 'click here' href → iso; .sha512 sidecar.
+		body, err := fetchString("https://www.mageia.org/en/downloads/get/?q=Mageia-" + release + "-Live-" + edition + "-x86_64.iso")
+		if err != nil {
+			return "", "", err
+		}
+		iso := ""
+		for _, m := range matchAll(body, `href="([^"]*\.iso)"`) {
+			iso = m
+			break
+		}
+		if iso == "" {
+			return "", "", fmt.Errorf("mageia: no live iso for %s %s", release, edition)
+		}
+		sha := ""
+		if b, err := fetchString(iso + ".sha512"); err == nil {
+			if f := strings.Fields(b); len(f) > 0 {
+				sha = f[0]
+			}
+		}
+		return iso, sha, nil
+	case "mangaka":
+		return "https://archive.org/download/linux-mangaka/linux-mangaka-" + release + "-v2.iso", "", nil
+	case "metamorphose":
+		return "https://sourceforge.net/projects/metamorphose/files/MetamorphosePuma/Metamorphose_8.5.7-Panther-x64.iso/download", "", nil
+	case "nova":
+		return "https://sourceforge.net/projects/archiveos/files/n/nova/nova-" + edition + "-" + release + "-amd64.iso/download", "", nil
+	case "openkylin":
+		iso := "openKylin-Desktop-V3.0-20260918.1-x86_64.iso"
+		if edition == "server" {
+			iso = "openKylin-Server-V3.0-20260916-x86_64.iso"
+		}
+		return "https://cdimage.openkylin.top/3.0/" + iso, "", nil
+	case "plan9":
+		iso := "plan9-" + release + ".iso"
+		if release == "4e" {
+			iso = "plan9-4e-latest.iso"
+		}
+		return "https://archive.org/download/plan9isosUS/" + iso, "", nil
+	case "popos":
+		// get_popos: api.pop-os.org JSON {url, sha_sum}.
+		body, err := fetchString("https://api.pop-os.org/builds/" + release + "/" + edition)
+		if err != nil {
+			return "", "", err
+		}
+		var v struct {
+			URL    string `json:"url"`
+			ShaSum string `json:"sha_sum"`
+		}
+		if err := json.Unmarshal([]byte(body), &v); err != nil || v.URL == "" {
+			return "", "", fmt.Errorf("popos: no build for %s %s", release, edition)
+		}
+		return v.URL, v.ShaSum, nil
+	case "rebornos":
+		// get_rebornos: meta.cdn JSON {url, md5}.
+		body, err := fetchString("https://meta.cdn.soulharsh007.dev/RebornOS-ISO?format=json")
+		if err != nil {
+			return "", "", err
+		}
+		var v struct {
+			URL, Md5 string
+		}
+		if err := json.Unmarshal([]byte(body), &v); err != nil || v.URL == "" {
+			return "", "", fmt.Errorf("rebornos: no iso metadata")
+		}
+		return v.URL, v.Md5, nil
+	case "securityonion":
+		// get_securityonion: GH releases latest tag → download host ISO.
+		body, err := fetchString("https://api.github.com/repos/Security-Onion-Solutions/securityonion/releases/latest")
+		if err != nil {
+			return "", "", err
+		}
+		ver := ""
+		if m := regexp.MustCompile(`"tag_name": ?"([^"]+)"`).FindStringSubmatch(body); len(m) > 1 {
+			ver = m[1]
+		}
+		if ver == "" {
+			return "", "", fmt.Errorf("securityonion: no release tag")
+		}
+		return "https://download.securityonion.net/file/securityonion/securityonion-" + ver + ".iso", "", nil
+	case "tails":
+		// get_tails: latest.json installations[0] iso target-files[0].
+		body, err := fetchString("https://tails.boum.org/install/v2/Tails/amd64/" + release + "/latest.json")
+		if err != nil {
+			return "", "", err
+		}
+		var j struct {
+			Installations []struct {
+				Paths []struct {
+					Type  string `json:"type"`
+					Files []struct {
+						URL, Sha256 string
+					} `json:"target-files"`
+				} `json:"installation-paths"`
+			} `json:"installations"`
+		}
+		if err := json.Unmarshal([]byte(body), &j); err != nil {
+			return "", "", err
+		}
+		for _, inst := range j.Installations {
+			for _, p := range inst.Paths {
+				if p.Type == "iso" && len(p.Files) > 0 {
+					return p.Files[0].URL, p.Files[0].Sha256, nil
+				}
+			}
+		}
+		return "", "", fmt.Errorf("tails: no iso in latest.json for %s", release)
+	case "uwuntu":
+		return "https://archive.org/download/uw-untu-22.10-desktop-amd-64_202212/UwUntu-22.10-desktop-amd64.iso", "", nil
+	case "wifislax":
+		// get_wifislax: archive.org items, per-release iso+item.
+		iso, item := "wifislax-4-10-1-final.iso", "wifislax-4-10-1-final_202406"
+		switch release {
+		case "4.12":
+			iso, item = "wifislax-4-12-final%20%5BPIXIESCRIPT%5D.iso", "wifislax-4-9-final"
+		case "4.11.1":
+			iso, item = "Wifislax-4.11.1.iso", "Wifislax4.11.1"
+		case "4.9":
+			iso, item = "wifislax-4-9-final.iso", "wifislax-4-9-final"
+		case "4.7.2":
+			iso, item = "wifislax-4-7-2-final.iso", "wifislax-4-9-final"
+		case "4.3":
+			iso, item = "wifislax-4-3-fin.iso", "wifislax-4-3-fin"
+		}
+		return "https://archive.org/download/" + item + "/" + iso, "", nil
 	default:
 		return "", "", fmt.Errorf("scrape not implemented for %s", osName)
 	}

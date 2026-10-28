@@ -75,7 +75,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "alt-workstation-11.2-x86_64.iso"
+   "scrape": true
   },
   {
    "os": "amogos",
@@ -308,7 +308,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "blankon-sinambung-26.09-verbeek-amd64.iso"
+   "scrape": true
   },
   {
    "os": "blendos",
@@ -363,7 +363,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "boss-8.0-amd64-DVD-301019.iso"
+   "scrape": true
   },
   {
    "os": "bunsenlabs",
@@ -416,7 +416,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "canaima-9.0-%EDITION%-beta_amd64.iso"
+   "scrape": true
   },
   {
    "os": "centos-stream",
@@ -464,7 +464,7 @@
    "arch": [
     "amd64"
    ],
-   "hash_url": "https://api.github.com/repos/CBPP/cbpp/releases"
+   "scrape": true
   },
   {
    "os": "debian",
@@ -622,7 +622,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "educaandos-20.04-instalador-centros.iso"
+   "scrape": true
   },
   {
    "os": "elementary",
@@ -698,7 +698,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "esfera-live-%RELEASE%.iso"
+   "scrape": true
   },
   {
    "os": "fedora",
@@ -733,7 +733,7 @@
     "amd64",
     "arm64"
    ],
-   "hash_url": "https://getfedora.org/releases.json"
+   "scrape": true
   },
   {
    "os": "fedoracore",
@@ -749,7 +749,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "FC%RELEASE%-i386-disc1.iso"
+   "scrape": true
   },
   {
    "os": "freebsd",
@@ -820,7 +820,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "GECOS-v2-32B-latest.iso"
+   "scrape": true
   },
   {
    "os": "gentoo",
@@ -1115,7 +1115,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "kurumin-ng_%RELEASE%.iso"
+   "scrape": true
   },
   {
    "os": "lernstick",
@@ -1130,7 +1130,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "lernstick_debian%RELEASE%_%EDITION%_latest.iso"
+   "scrape": true
   },
   {
    "os": "life",
@@ -1142,7 +1142,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "Life-%RELEASE%.amd64.iso"
+   "scrape": true
   },
   {
    "os": "linkat",
@@ -1211,7 +1211,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "LliureX-home-desktop_%RELEASE%_latest.iso"
+   "scrape": true
   },
   {
    "os": "lmde",
@@ -1290,7 +1290,7 @@
    "arch": [
     "amd64"
    ],
-   "hash_url": "%ISO%.sha512"
+   "scrape": true
   },
   {
    "os": "mangaka",
@@ -1301,7 +1301,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "linux-mangaka-%RELEASE%-v2.iso"
+   "scrape": true
   },
   {
    "os": "manjaro",
@@ -1347,7 +1347,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "Metamorphose_8.5.7-Panther-x64.iso"
+   "scrape": true
   },
   {
    "os": "midnightbsd",
@@ -1503,7 +1503,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "nova-%EDITION%-%RELEASE%-amd64.iso"
+   "scrape": true
   },
   {
    "os": "nst",
@@ -1642,7 +1642,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "openKylin-Server-V3.0-20260916-x86_64.iso"
+   "scrape": true
   },
   {
    "os": "openmandriva",
@@ -1867,7 +1867,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "plan9-%RELEASE%.iso"
+   "scrape": true
   },
   {
    "os": "ponyos",
@@ -1899,7 +1899,7 @@
    "arch": [
     "amd64"
    ],
-   "hash_url": "https://api.pop-os.org/builds/%RELEASE%/%EDITION%"
+   "scrape": true
   },
   {
    "os": "porteus",
@@ -2044,7 +2044,7 @@
    "arch": [
     "amd64"
    ],
-   "hash_url": "https://meta.cdn.soulharsh007.dev/RebornOS-ISO?format=json"
+   "scrape": true
   },
   {
    "os": "recreomatic",
@@ -2118,7 +2118,7 @@
    "arch": [
     "amd64"
    ],
-   "hash_url": "https://api.github.com/repos/Security-Onion-Solutions/securityonion/releases/latest"
+   "scrape": true
   },
   {
    "os": "siduction",
@@ -2324,7 +2324,7 @@
    "arch": [
     "amd64"
    ],
-   "hash_url": "https://tails.boum.org/install/v2/Tails/amd64/%RELEASE%/latest.json"
+   "scrape": true
   },
   {
    "os": "templeos",
@@ -2566,7 +2566,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "UwUntu-22.10-desktop-amd64.iso"
+   "scrape": true
   },
   {
    "os": "vanillaos",
@@ -2672,7 +2672,7 @@
    "arch": [
     "amd64"
    ],
-   "iso": "wifislax-4-10-1-final.iso"
+   "scrape": true
   },
   {
    "os": "windows",

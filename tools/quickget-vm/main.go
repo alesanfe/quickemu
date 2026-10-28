@@ -9,8 +9,11 @@
 package main
 
 import (
+	"crypto/md5"
 	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
 	neturl "net/url"
@@ -462,7 +465,15 @@ func fetchVerify(part, wantSHA string) int {
 		fmt.Println(err)
 		return 1
 	}
-	h := sha256.New()
+	// Digest length picks the algorithm: 32-hex md5 (canaima/
+	// rebornos), 64-hex sha256, 128-hex sha512 (mageia, debian).
+	var h hash.Hash = sha256.New()
+	switch len(wantSHA) {
+	case 32:
+		h = md5.New()
+	case 128:
+		h = sha512.New()
+	}
 	_, err = io.Copy(h, f)
 	f.Close()
 	if err != nil {
@@ -543,9 +554,14 @@ func getOS(osName, release, edition, dir, arch string) int {
 		return 1
 	}
 	image := filepath.Join(dir, filepath.Base(url))
-	// checksum verification: fetch the hash file and grep the line for
-	// this image's basename (check_hash parity — SHA256SUMS format).
+	// checksum verification: the catalog's second field is either a
+	// checksum-file URL (fetched then greps the image basename, the
+	// SHA256SUMS format) or the expected digest itself.
 	sha := ""
+	if hashURL != "" && !strings.HasPrefix(hashURL, "http") {
+		sha = hashURL
+		hashURL = ""
+	}
 	if hashURL != "" {
 		hf := filepath.Join(dir, ".hashsums")
 		if fetch(hashURL, hf, "") == 0 {
