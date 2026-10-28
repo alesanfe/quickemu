@@ -8,6 +8,7 @@
 //	qedev quality [--full]       single root gate: gofmt + check [+ specs] + coverage summary
 //	qedev metrics chaoss         CHAOSS snapshot from git history
 //	qedev metrics record [k=v..] append a record to docs/quality/history.jsonl
+//	qedev metrics structure      structural counts: LOC, tests, execs, deps
 //	qedev metrics trend          report trends; exits 1 on regression
 //	qedev probe                  nightly quickget --check against upstream sources
 //	qedev check-catalog          validate bin/quickget --list-json emits valid JSON
@@ -19,6 +20,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -452,7 +454,7 @@ func cmdReleaseNotes() int {
 
 func cmdMetrics(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: qedev metrics chaoss|record|trend [k=v...]")
+		fmt.Fprintln(os.Stderr, "usage: qedev metrics chaoss|record|trend|structure [k=v...]")
 		return 2
 	}
 	switch args[0] {
@@ -462,6 +464,8 @@ func cmdMetrics(args []string) int {
 		return metricRecord(args[1:])
 	case "trend":
 		return metricTrend()
+	case "structure":
+		return metricStructure()
 	}
 	return 2
 }
@@ -596,6 +600,112 @@ func goCoverage(r string) string {
 		return "0%"
 	}
 	return fmt.Sprintf("%.0f%%", sum/n)
+}
+
+// metricStructure walks the tree and reports structural counts:
+// prod/test LOC, test funcs, exec sites, seams, deps, oversized
+// files, and modules missing from go.work. Read-only; reproducible.
+func metricStructure() int {
+	r := root()
+	sep := string(filepath.Separator)
+	skip := func(rel string) bool {
+		return rel == "vendor" || strings.HasPrefix(rel, "vendor"+sep) ||
+			strings.Contains(rel, sep+".git"+sep) ||
+			strings.Contains(rel, sep+"node_modules"+sep)
+	}
+	locP, locT, tests, execCalls, seamVars := 0, 0, 0, 0, 0
+	deps := map[string]int{}
+	big := []string{}
+	mods := []string{}
+	filepath.WalkDir(r, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(r, p)
+		rel = filepath.ToSlash(rel)
+		if d.IsDir() {
+			if d.Name() == "vendor" || d.Name() == ".git" || d.Name() == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if skip(rel) {
+			return nil
+		}
+		switch {
+		case d.Name() == "go.mod":
+			mods = append(mods, filepath.Dir(rel))
+			b, e := os.ReadFile(p)
+			if e == nil {
+				inReq := false
+				for _, l := range strings.Split(string(b), "\n") {
+					l = strings.TrimSpace(l)
+					if l == "require (" {
+						inReq = true
+						continue
+					}
+					if l == ")" {
+						inReq = false
+					}
+					if strings.HasPrefix(l, "require ") && !strings.Contains(l, "(") {
+						deps[strings.Fields(l)[1]]++
+					} else if inReq && l != "" {
+						deps[strings.Fields(l)[0]]++
+					}
+				}
+			}
+		case strings.HasSuffix(d.Name(), ".go"):
+			b, e := os.ReadFile(p)
+			if e != nil {
+				return nil
+			}
+			n := bytes.Count(b, []byte("\n")) + 1
+			if strings.HasSuffix(d.Name(), "_test.go") {
+				locT += n
+				tests += bytes.Count(b, []byte("\nfunc Test"))
+			} else {
+				locP += n
+				execCalls += bytes.Count(b, []byte("exec.Command("))
+				seamVars += bytes.Count(b, []byte("var execCommand"))
+				if n > 500 {
+					big = append(big, fmt.Sprintf("%s:%d", rel, n))
+				}
+			}
+		}
+		return nil
+	})
+	// Workspace drift: module dirs not listed in go.work's use blocks.
+	missing := []string{}
+	if wb, err := os.ReadFile(filepath.Join(r, "go.work")); err == nil {
+		for _, m := range mods {
+			if m != "." && !strings.Contains(string(wb), "./"+filepath.ToSlash(m)) {
+				missing = append(missing, filepath.ToSlash(m))
+			}
+		}
+	}
+	ratio := 0.0
+	if locP > 0 {
+		ratio = float64(locT) / float64(locP)
+	}
+	out := map[string]any{
+		"tool":      "qedev metrics structure",
+		"timestamp": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"metrics": map[string]any{
+			"loc_product":            locP,
+			"loc_test":               locT,
+			"test_product_ratio":     fmt.Sprintf("%.2f", ratio),
+			"test_funcs":             tests,
+			"exec_command_sites":     execCalls,
+			"exec_command_seam_vars": seamVars,
+			"go_modules":             len(mods),
+			"modules_outside_work":   missing,
+			"dep_require_refs":       len(deps),
+			"files_over_500_loc":     big,
+		},
+	}
+	b, _ := json.MarshalIndent(out, "", "  ")
+	fmt.Println(string(b))
+	return 0
 }
 
 var growMetrics = map[string]bool{

@@ -94,6 +94,20 @@ func TestDLClientRedirectCap(t *testing.T) {
 	}
 }
 
+// A body cut short of its declared Content-Length must surface an
+// error — silently accepting a truncated SUMS/catalog response would
+// corrupt downstream parsing (LimitReader only caps the top).
+func TestFetchStringTruncatedBody(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "1000000")
+		w.Write([]byte("short"))
+	}))
+	defer srv.Close()
+	if _, err := FetchString(srv.URL, 1<<20); err == nil {
+		t.Fatal("truncated declared-length body must error")
+	}
+}
+
 func TestFinalURL(t *testing.T) {
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

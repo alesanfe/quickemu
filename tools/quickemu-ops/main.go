@@ -93,7 +93,9 @@ func writeOp(dir string, o *Op) {
 	o.save(dir)
 }
 
-func main() { os.Exit(run()) }
+var exitFn = os.Exit
+
+func main() { exitFn(run()) }
 
 func run() int {
 	os.Args = qelib.NormArgs(os.Args)
