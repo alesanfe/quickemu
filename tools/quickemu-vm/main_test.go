@@ -62,7 +62,7 @@ func mkVM(t *testing.T, name string) (parent, dir string) {
 }
 
 func TestExportImportRoundtrip(t *testing.T) {
-	parent, dir := mkVM(t, "vm1")
+	_, dir := mkVM(t, "vm1")
 	out := filepath.Join(t.TempDir(), "vm1.quickvm.tar.gz")
 	o, rc := runTool(t, nil, "export", dir, out)
 	if rc != 0 {
@@ -96,12 +96,15 @@ func TestBackupLifecycle(t *testing.T) {
 	if o, rc := runTool(t, nil, "backup-verify", dir, ents[0]); rc != 0 {
 		t.Fatalf("verify rc=%d %s", rc, o)
 	}
-	if o, rc := runTool(t, nil, "backup-prune", dir, "0"); rc != 0 {
+	// keep<=0 falls back to 5 — seed a second backup and prune to 1.
+	os.WriteFile(filepath.Join(bk, "2000-01-01-old.quickvm.tar.gz"),
+		[]byte("x"), 0o600)
+	if o, rc := runTool(t, nil, "backup-prune", dir, "1"); rc != 0 {
 		t.Fatalf("prune rc=%d %s", rc, o)
 	}
 	ents, _ = filepath.Glob(filepath.Join(bk, "*.tar.gz"))
-	if len(ents) != 0 {
-		t.Fatal("prune must remove all backups")
+	if len(ents) != 1 {
+		t.Fatalf("prune must keep 1, have %d", len(ents))
 	}
 }
 
@@ -119,12 +122,15 @@ func TestDeletePlan(t *testing.T) {
 }
 
 func TestCloneLinked(t *testing.T) {
-	_, dir := mkVM(t, "src")
-	o, rc := runTool(t, nil, "clone", dir, "dst")
+	parent, dir := mkVM(t, "src")
+	// No disk_img → "config only" path (qemu-img paths covered by e2e).
+	os.WriteFile(filepath.Join(parent, "src.conf"),
+		[]byte("guest_os=\"linux\"\n"), 0o600)
+	env := []string{"QE_VMCONF=" + filepath.Join(parent, "src.conf")}
+	o, rc := runTool(t, env, "clone", dir, "dst")
 	if rc != 0 {
 		t.Fatalf("clone rc=%d %s", rc, o)
 	}
-	parent := filepath.Dir(dir)
 	if _, err := os.Stat(filepath.Join(parent, "dst.conf")); err != nil {
 		t.Fatal("clone must write dst.conf")
 	}

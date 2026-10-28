@@ -195,22 +195,13 @@ func quickReport() int {
 	for _, g := range gpus {
 		fmt.Println(" -" + g)
 	}
-	if v := cmdOut("curl", "--version"); v != "" {
-		lines := strings.Split(v, "\n")
-		fmt.Printf("%s\n            curl %s\n%s\n", sep, strings.Fields(lines[0])[1], sep)
-		libs := ""
-		if i := strings.Index(lines[0], ")"); i >= 0 {
-			libs = lines[0][i+1:]
+	fmt.Println(sep + "\n            Companion tools\n" + sep)
+	for _, tool := range []string{"qemu-img", "zsync", "swtpm", "virtiofsd"} {
+		status := "missing"
+		if _, err := exec.LookPath(tool); err == nil {
+			status = "present"
 		}
-		fmt.Printf("Libraries:%s\n", libs)
-		if len(lines) > 2 {
-			fmt.Printf("Protocols:%s\n", cutAfter(lines[2], ":"))
-		}
-		if len(lines) > 3 {
-			fmt.Printf("Features: %s\n", cutAfter(lines[3], ":"))
-		}
-	} else {
-		fmt.Println(sep + "\n            curl missing\n" + sep)
+		fmt.Printf(" - %-12s %s\n", tool, status)
 	}
 	qarch := probeQemuArch()
 	qemu := "qemu-system-" + qarch
@@ -242,13 +233,17 @@ func quickReportJSON() int {
 	if _, err := exec.LookPath("qemu-system-" + qarch); err == nil {
 		qver = cmdOut("qemu-system-"+qarch, "--version")
 	}
-	_, hasCurl := exec.LookPath("curl")
+	tools := map[string]bool{}
+	for _, tool := range []string{"qemu-img", "zsync", "swtpm", "virtiofsd"} {
+		_, err := exec.LookPath(tool)
+		tools[tool] = err == nil
+	}
 	b, _ := json.Marshal(map[string]any{
 		"schemaVersion": 1, "command": "host.report", "success": true,
 		"data": map[string]any{
 			"os": probeOSName(), "kernel": uname("-sr"), "arch": uname("-m"),
 			"quickemu": probeQuickemu(), "qemu": firstLine(qver),
-			"curl": hasCurl == nil},
+			"tools": tools},
 		"warnings": []any{}, "errors": []any{},
 		"meta": map[string]any{"redacted": true}})
 	fmt.Println(qrRedact(string(b)))
