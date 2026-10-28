@@ -1,4 +1,4 @@
-# ADR 0001: Bash backend — kept, with measurable extraction triggers
+# ADR 0015: Bash backend — kept, with measurable extraction triggers
 
 ## Status: SUPERSEDED
 
