@@ -137,7 +137,7 @@ func TestFromConfEmitsOrderedTOML(t *testing.T) {
 	}
 	for _, want := range []string{
 		"# Migrated", "formatVersion = 1",
-		`guest_os = "windows"`, `ssh_port = "2222"`, `display = "sdl\\"x"`} {
+		`guest_os = "windows"`, `ssh_port = "2222"`, `display = "sdl\\\"x"`} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in\n%s", want, out)
 		}

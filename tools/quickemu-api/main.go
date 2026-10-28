@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
@@ -94,9 +95,17 @@ func main() {
 				write(w, 200, map[string]any{"data": map[string]any{"state": "stopped"}})
 				return
 			}
-			var v any
+			var v struct {
+				Pid int `json:"pid"`
+			}
 			json.Unmarshal(b, &v)
-			write(w, 200, map[string]any{"data": map[string]any{"state": "running", "runtime": v}})
+			// runtime.json alone is not proof — a hard host crash
+			// leaves it behind; report stopped for a dead owner.
+			if v.Pid <= 0 || !qelib.Alive(v.Pid) {
+				write(w, 200, map[string]any{"data": map[string]any{"state": "stopped"}})
+				return
+			}
+			write(w, 200, map[string]any{"data": map[string]any{"state": "running", "runtime": json.RawMessage(b)}})
 		case "ops":
 			ents, _ := filepath.Glob(filepath.Join(dataDir, "vms", vm, "ops", "*.json"))
 			ops := make([]any, 0, len(ents))
@@ -144,9 +153,17 @@ func main() {
 	var ln net.Listener
 	var err error
 	if strings.HasPrefix(listen, "/") {
+		// Refuse to steal a live socket: if it answers, a daemon is
+		// already bound — unlinking it would orphan its listener.
+		if c, derr := net.DialTimeout("unix", listen, 500*time.Millisecond); derr == nil {
+			c.Close()
+			fmt.Fprintln(os.Stderr, "listen: socket already in use:", listen)
+			os.Exit(1)
+		}
 		os.Remove(listen)
-		ln, err = net.Listen("unix", listen)
-		os.Chmod(listen, 0600)
+		if ln, err = net.Listen("unix", listen); err == nil {
+			os.Chmod(listen, 0600)
+		}
 	} else {
 		ln, err = net.Listen("tcp", listen)
 	}

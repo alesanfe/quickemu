@@ -77,6 +77,9 @@ func fromConf(file string) int {
 	fmt.Println()
 	for _, k := range tomlKeyOrder {
 		if v, ok := kv[k]; ok && v != "" {
+			// Escape \ first (then ") — a Windows path like C:\vms\x
+			// is invalid TOML unescaped (\v, \x are not TOML escapes).
+			v = strings.ReplaceAll(v, `\`, `\\`)
 			fmt.Printf("%s = \"%s\"\n", k, strings.ReplaceAll(v, `"`, `\"`))
 		}
 	}

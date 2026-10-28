@@ -5,13 +5,14 @@ import (
 	"io"
 	"net"
 	"os"
+	"time"
 )
 
 // telnetAttach runs a minimal RFC-854 client against QEMU's
 // telnet: monitor/serial endpoints — strips inbound IAC negotiation,
 // doubles outbound 0xFF. Replaces the external `telnet` binary.
 func telnetAttach(host, port string) int {
-	c, err := net.Dial("tcp", net.JoinHostPort(host, port))
+	c, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 5*time.Second)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ERROR! "+err.Error())
 		return 1
@@ -70,8 +71,8 @@ func telnetCopy(w io.Writer, r io.Reader) {
 					state = 0
 				case b == sb:
 					state = 2
-				case b >= se && b <= 0xFB:
-					state = 0 // 2-byte commands (SE/AO/IP/…) — SE alone means malformed, treat as data-end
+				case b >= se && b < 0xFB:
+					state = 0 // 2-byte commands (SE..GA 0xF0-0xFA) — WILL/WONT/DO/DONT (0xFB+) take an option byte
 				default:
 					state = 4 // WILL/DO/DONT/WONT — skip option byte
 				}

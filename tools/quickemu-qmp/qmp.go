@@ -322,6 +322,58 @@ func TypeText(monSock, text string) error {
 			key = "slash"
 		case ':':
 			key = "shift-semicolon"
+		case ';':
+			key = "semicolon"
+		case '\'':
+			key = "apostrophe"
+		case '"':
+			key = "shift-apostrophe"
+		case '[':
+			key = "bracket_left"
+		case ']':
+			key = "bracket_right"
+		case '\\':
+			key = "backslash"
+		case '`':
+			key = "grave_accent"
+		case '!':
+			key = "shift-1"
+		case '@':
+			key = "shift-2"
+		case '#':
+			key = "shift-3"
+		case '$':
+			key = "shift-4"
+		case '%':
+			key = "shift-5"
+		case '^':
+			key = "shift-6"
+		case '&':
+			key = "shift-7"
+		case '*':
+			key = "shift-8"
+		case '(':
+			key = "shift-9"
+		case ')':
+			key = "shift-0"
+		case '_':
+			key = "shift-minus"
+		case '+':
+			key = "shift-equal"
+		case '{':
+			key = "shift-bracket_left"
+		case '}':
+			key = "shift-bracket_right"
+		case '|':
+			key = "shift-backslash"
+		case '~':
+			key = "shift-grave_accent"
+		case '<':
+			key = "shift-comma"
+		case '>':
+			key = "shift-dot"
+		case '?':
+			key = "shift-slash"
 		default:
 			if ch >= 'A' && ch <= 'Z' {
 				key = "shift-" + string(ch+32)
@@ -363,22 +415,25 @@ func HotplugPersist(confPath, kind, val string) error {
 	}
 	s := string(b)
 	if strings.HasSuffix(confPath, ".toml") {
-		re := regexp.MustCompile(`(?m)^` + key + `\s*=\s*\[(.*)\]`)
-		if m := re.FindStringSubmatch(s); m != nil {
-			inner := strings.TrimSpace(m[1])
+		// (?s) lets the array span lines; ReplaceAllStringFunc keeps
+		// $ sequences in the value literal (ReplaceAllString would
+		// expand them as group references and corrupt the conf).
+		re := regexp.MustCompile(`(?ms)^` + key + `\s*=\s*\[(.*?)\]`)
+		if m := re.FindStringSubmatchIndex(s); m != nil {
+			inner := strings.TrimSpace(s[m[2]:m[3]])
 			rep := `, "` + val + `"]`
 			if inner == "" {
 				rep = `"` + val + `"]`
 			}
-			s = re.ReplaceAllString(s, key+` = [`+inner+rep)
+			s = s[:m[0]] + key + ` = [` + inner + rep + s[m[1]:]
 		} else {
 			s += key + ` = ["` + val + `"]` + "\n"
 		}
 	} else {
-		re := regexp.MustCompile(key + `=\((.*)\)`)
-		if m := re.FindStringSubmatch(s); m != nil {
-			inner := m[1]
-			s = re.ReplaceAllString(s, key+`=(`+inner+` "`+val+`")`)
+		re := regexp.MustCompile(`(?ms)` + key + `=\((.*?)\)`)
+		if m := re.FindStringSubmatchIndex(s); m != nil {
+			inner := s[m[2]:m[3]]
+			s = s[:m[0]] + key + `=(` + inner + ` "` + val + `")` + s[m[1]:]
 		} else {
 			s += key + `=("` + val + `")` + "\n"
 		}

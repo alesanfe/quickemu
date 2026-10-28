@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"syscall"
 	"time"
 
@@ -37,7 +38,18 @@ func die(code, msg string) { qelib.Fail(qelib.CmdName("ops"), "quickemu-ops/"+ve
 
 func opsDir(vmdir string) string { return filepath.Join(vmdir, "ops") }
 
+// checkID rejects operation ids that could escape the ops dir —
+// --id is joined into a filesystem path, so separators and .. must
+// never reach filepath.Join.
+func checkID(id string) {
+	if id == "" || strings.Contains(id, "..") ||
+		strings.ContainsAny(id, `/\`) {
+		die("INVALID_ARGS", "bad operation id")
+	}
+}
+
 func load(dir, id string) *Op {
+	checkID(id)
 	b, err := os.ReadFile(filepath.Join(dir, id+".json"))
 	if err != nil {
 		die("OPERATION_NOT_FOUND", "unknown operation "+id)
@@ -59,13 +71,18 @@ func (o *Op) save(dir string) {
 		die("OP_PERSIST", err.Error())
 	}
 	defer f.Cleanup()
+	// die() calls os.Exit — deferred cleanup would never run, so the
+	// temp file is removed explicitly on every failure path.
 	if _, err := f.Write(append(b, '\n')); err != nil {
+		f.Cleanup()
 		die("OP_PERSIST", err.Error())
 	}
 	if err := f.Sync(); err != nil {
+		f.Cleanup()
 		die("OP_PERSIST", err.Error())
 	}
 	if err := f.CloseAtomicallyReplace(); err != nil {
+		f.Cleanup()
 		die("OP_PERSIST", err.Error())
 	}
 }
@@ -168,7 +185,9 @@ func run() int {
 		o.Error = json.RawMessage(b)
 		writeOp(dir, o)
 	case "status":
-		fmt.Println(string(must(filepath.Join(dir, flag(args, "--id")+".json"))))
+		id := flag(args, "--id")
+		checkID(id)
+		fmt.Println(string(must(filepath.Join(dir, id+".json"))))
 	case "watch":
 		return runWatch(dir)
 	case "list":
@@ -176,7 +195,11 @@ func run() int {
 		slices.Sort(ents)
 		ops := make([]json.RawMessage, 0, len(ents))
 		for _, e := range ents {
-			ops = append(ops, json.RawMessage(must(e)))
+			// TOCTOU: an op file may be pruned between glob and read —
+			// skip it instead of killing the whole list.
+			if b, err := os.ReadFile(e); err == nil {
+				ops = append(ops, json.RawMessage(b))
+			}
 		}
 		b, _ := json.Marshal(map[string]any{"operations": ops})
 		fmt.Println(string(b))
@@ -226,9 +249,7 @@ func run() int {
 		fmt.Printf("{\"reaped\":%d}\n", reaped)
 	case "rollback":
 		id := flag(args, "--id")
-		if id == "" {
-			die("INVALID_ARGS", "--id required")
-		}
+		checkID(id)
 		var o Op
 		if json.Unmarshal(must(filepath.Join(dir, id+".json")), &o) != nil {
 			die("OPERATION_NOT_FOUND", id)

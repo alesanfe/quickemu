@@ -74,7 +74,9 @@ func zsyncGet(url, dir, out string) int {
 	}
 	if z, err := exec.LookPath("zsync"); err == nil {
 		fmt.Printf("Downloading %s from %s\n", out, url)
-		zu := strings.Replace(url, "https", "http", 1) + ".zsync"
+		// Downgrade the scheme only — a path segment containing
+		// "https" must not be rewritten.
+		zu := "http://" + strings.TrimPrefix(url, "https://") + ".zsync"
 		cmd := exec.Command(z, zu, "-i", filepath.Join(dir, out), "-o", filepath.Join(dir, out))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if cmd.Run() != nil {
@@ -84,7 +86,7 @@ func zsyncGet(url, dir, out string) int {
 		os.Remove(filepath.Join(dir, out) + ".zs-old")
 		return 0
 	}
-	fmt.Println("INFO: zsync not found, falling back to curl")
+	fmt.Println("INFO: zsync not found, falling back to direct download")
 	return fetch(url, filepath.Join(dir, out), "")
 }
 

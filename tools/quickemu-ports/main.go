@@ -40,7 +40,8 @@ func stale(meta string) bool { // "pid ts instance [lease]" -> owner dead or lea
 	}
 	p, _ := strconv.Atoi(f[0])
 	// EPERM = alive: a foreign owner's lease must never be reclaimed.
-	return p > 0 && !qelib.Alive(p)
+	// An unparseable/zero pid is a corrupt record — stale, not alive.
+	return p <= 0 || !qelib.Alive(p)
 }
 
 func lock(reg string) func() {

@@ -75,16 +75,18 @@ func infoPath() string {
 	return filepath.Join(filepath.Dir(catalogPath()), "info.json")
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	args := os.Args[1:]
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "usage: quickget-catalog <list|releases|editions|arch|url|check|info|info-json|trust> <os> [release] [edition] [arch]")
-		os.Exit(2)
+		return 2
 	}
 	cat, err := loadCatalog(catalogPath())
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "catalog: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 	switch args[0] {
 	case "list":
@@ -96,7 +98,7 @@ func main() {
 		// releases_<os>() resolved dynamically (pureos/rockylinux/slitaz).
 		e := find(cat, args[1])
 		if e == nil {
-			os.Exit(1)
+			return 1
 		}
 		rels := e.Releases
 		if len(rels) == 0 {
@@ -108,11 +110,11 @@ func main() {
 		// OSes whose editions_<os>() depends on the release (blackarch).
 		e := find(cat, args[1])
 		if e == nil {
-			os.Exit(1)
+			return 1
 		}
 		if len(e.Editions) > 0 {
 			fmt.Println(strings.Join(e.Editions, " "))
-			return
+			return 0
 		}
 		release := ""
 		if len(args) > 2 {
@@ -124,7 +126,7 @@ func main() {
 	case "arch":
 		e := find(cat, args[1])
 		if e == nil {
-			os.Exit(1)
+			return 1
 		}
 		if len(e.Arch) == 0 {
 			fmt.Println("amd64")
@@ -134,7 +136,7 @@ func main() {
 	case "url":
 		e := find(cat, args[1])
 		if e == nil {
-			os.Exit(1)
+			return 1
 		}
 		release, edition, arch := "", "", "amd64"
 		if len(args) > 2 {
@@ -152,14 +154,14 @@ func main() {
 			full, hash, err := scrape(e.OS, release, edition, arch)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "scrape:%s %v\n", e.OS, err)
-				os.Exit(3)
+				return 3
 			}
 			out := full
 			if hash != "" {
 				out = full + " " + hash
 			}
 			fmt.Println(out)
-			return
+			return 0
 		}
 		full, hash := resolveURL(e, release, edition, arch)
 		out := full
@@ -173,7 +175,7 @@ func main() {
 		// fallback (presigned URLs reject HEAD).
 		e := find(cat, args[1])
 		if e == nil {
-			os.Exit(1)
+			return 1
 		}
 		release, edition, arch := "", "", "amd64"
 		if len(args) > 2 {
@@ -191,14 +193,14 @@ func main() {
 		}
 		if !archSupported(e, arch) {
 			fmt.Printf("%s: %-35s (not available for %s)\n", "SKIP", label, arch)
-			return
+			return 0
 		}
 		full := ""
 		if e.Scrape {
 			f, _, err := scrape(e.OS, release, edition, arch)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "scrape:%s %v\n", e.OS, err)
-				os.Exit(3)
+				return 3
 			}
 			full = f
 		} else {
@@ -214,18 +216,18 @@ func main() {
 		info, err := loadInfo(infoPath())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "info: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 		inf, ok := info[args[1]]
 		if !ok {
-			os.Exit(1)
+			return 1
 		}
 		fmt.Printf("%s|%s|%s|%s\n", inf.Name, inf.Credentials, inf.Homepage, inf.Info)
 	case "info-json":
 		info, err := loadInfo(infoPath())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "info: %v\n", err)
-			os.Exit(1)
+			return 1
 		}
 		b, _ := json.Marshal(info[args[1]])
 		fmt.Println(string(b))
@@ -233,7 +235,7 @@ func main() {
 		e := find(cat, args[1])
 		if e == nil {
 			fmt.Println("E")
-			return
+			return 0
 		}
 		// A = checksum-signed, B = hash-verified, C = plain https, D = http/mirror, E = unknown
 		if strings.Contains(e.URL, "releases.ubuntu.com") || strings.Contains(e.URL, "fedoraproject.org") {
@@ -245,6 +247,7 @@ func main() {
 		}
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", args[0])
-		os.Exit(2)
+		return 2
 	}
+	return 0
 }

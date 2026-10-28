@@ -10,8 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // portRegistry: ${QE_PORT_REGISTRY:-$(qe_runtime_dir)/ports} —
@@ -32,14 +33,18 @@ func portRegistryLock() bool {
 	os.MkdirAll(reg, 0755)
 	for tries := 0; tries < 25; tries++ {
 		if err := os.Mkdir(lock, 0755); err == nil {
-			os.WriteFile(filepath.Join(lock, "pid"),
-				[]byte(fmt.Sprint(os.Getpid())), 0644)
+			if os.WriteFile(filepath.Join(lock, "pid"),
+				[]byte(fmt.Sprint(os.Getpid())), 0644) != nil {
+				os.RemoveAll(lock) // no anonymous locks — they are
+				continue           // reclaimable by the next acquirer
+			}
 			return true
 		}
 		if b, err := os.ReadFile(filepath.Join(lock, "pid")); err == nil {
 			pid := 0
 			fmt.Sscanf(string(b), "%d", &pid)
-			if pid > 0 && syscall.Kill(pid, 0) != nil {
+			// EPERM-aware: a foreign user's lock is alive, never stolen.
+			if pid > 0 && !qelib.Alive(pid) {
 				os.RemoveAll(lock) // stale lock owner — reclaim
 				continue
 			}
@@ -61,7 +66,7 @@ func portRegistryTaken(port int) bool {
 	}
 	pid := 0
 	fmt.Sscanf(string(b), "%d", &pid)
-	if pid > 0 && syscall.Kill(pid, 0) == nil {
+	if pid > 0 && qelib.Alive(pid) {
 		return true
 	}
 	os.Remove(f)

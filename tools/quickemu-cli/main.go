@@ -156,11 +156,22 @@ func vmLockAcquire() bool {
 			tries = n
 		}
 	}
+	writeOwner := func() bool {
+		// A lock without a readable owner is reclaimable by the next
+		// acquirer — on write failure drop the lock rather than hold
+		// an anonymous one.
+		if os.WriteFile(filepath.Join(lockDir, "pid"),
+			[]byte(strconv.Itoa(os.Getpid())), 0644) != nil {
+			os.RemoveAll(lockDir)
+			return false
+		}
+		return true
+	}
 	for i := 0; i < tries; i++ {
 		if err := os.Mkdir(lockDir, 0755); err == nil {
-			os.WriteFile(filepath.Join(lockDir, "pid"),
-				[]byte(strconv.Itoa(os.Getpid())), 0644)
-			return true
+			if writeOwner() {
+				return true
+			}
 		}
 		// Reclaim a dead writer (crash-safe, like Bash's kill -0 check)
 		// then retry the mkdir immediately — a reclaimed lock is
@@ -168,9 +179,7 @@ func vmLockAcquire() bool {
 		if b, err := os.ReadFile(filepath.Join(lockDir, "pid")); err == nil {
 			if owner, _ := strconv.Atoi(strings.TrimSpace(string(b))); owner > 0 && !alive(owner) {
 				os.RemoveAll(lockDir)
-				if err := os.Mkdir(lockDir, 0755); err == nil {
-					os.WriteFile(filepath.Join(lockDir, "pid"),
-						[]byte(strconv.Itoa(os.Getpid())), 0644)
+				if err := os.Mkdir(lockDir, 0755); err == nil && writeOwner() {
 					return true
 				}
 			}
@@ -179,9 +188,7 @@ func vmLockAcquire() bool {
 			// Pid-less lock older than ~2s: crash remnant between
 			// mkdir and the pid write.
 			os.RemoveAll(lockDir)
-			if err := os.Mkdir(lockDir, 0755); err == nil {
-				os.WriteFile(filepath.Join(lockDir, "pid"),
-					[]byte(strconv.Itoa(os.Getpid())), 0644)
+			if err := os.Mkdir(lockDir, 0755); err == nil && writeOwner() {
 				return true
 			}
 		}
@@ -1616,15 +1623,11 @@ func actStats() int {
 }
 
 // actInspectConf: inspect_conf parity — read the conf WITHOUT
-// executing it (conf files are bash; foreign confs must be inspected).
+// executing it (confs are data to Go; foreign confs must be inspected).
 func actInspectConf() int {
-	f := vmConf
-	if f == "" && len(os.Args) > 0 {
-		f = ""
-	}
-	b, err := os.ReadFile(f)
+	b, err := os.ReadFile(vmConf)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", f)
+		fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", vmConf)
 		return 1
 	}
 	keys := map[string]bool{}

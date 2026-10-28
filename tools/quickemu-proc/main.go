@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/prometheus/procfs"
 	"github.com/shirou/gopsutil/v4/process"
@@ -60,8 +59,8 @@ func run() int {
 		return emit(false, nil, "PID_INVALID")
 	}
 	data := map[string]any{"pid": pid}
-	// 1) alive
-	if err := syscall.Kill(pid, 0); err != nil {
+	// 1) alive — EPERM-aware: a foreign-owned process is alive, not dead.
+	if !qelib.Alive(pid) {
 		return emit(false, data, "PROCESS_DEAD")
 	}
 	// 2) uid from /proc/<pid>/status
