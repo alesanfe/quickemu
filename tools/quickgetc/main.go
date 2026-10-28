@@ -9,8 +9,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 const version = "0.1.0"
@@ -20,12 +21,7 @@ var (
 	operation = "" // "", download, config, show, test
 )
 
-func hostArch() string {
-	if runtime.GOARCH == "arm64" {
-		return "aarch64"
-	}
-	return "x86_64"
-}
+func hostArch() string { return qelib.HostArch() }
 
 func setArch(a string) string {
 	switch a {

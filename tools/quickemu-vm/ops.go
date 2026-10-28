@@ -17,6 +17,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // runtimeExts: artifacts excluded from exports/delete-plans.
@@ -117,7 +119,7 @@ func exportVm(dir, out string) int {
 	return 0
 }
 
-func vmVersion() string { return "5.0.0" }
+func vmVersion() string { return qelib.QEVersion }
 
 // importVm: safe extract of a .quickvm.tar.gz into the cwd —
 // anti-bomb limits, path whitelist, manifest/checksum verification.

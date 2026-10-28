@@ -2,11 +2,9 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
-	"net/http"
+	"github.com/alesanfe/quickemu/tools/qelib"
 	"os"
-	"time"
 )
 
 type InfoEntry struct {
@@ -45,33 +43,8 @@ func archSupported(e *Entry, arch string) bool {
 	return false
 }
 
-var checkClient = &http.Client{Timeout: 30 * time.Second}
+var checkClient = qelib.ProbeClient
 
 // webCheck mirrors web_check(): HEAD with redirects first, then a
 // single-byte ranged GET fallback for presigned URLs that reject HEAD.
-func webCheck(url string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
-	if err != nil {
-		return false
-	}
-	resp, err := checkClient.Do(req)
-	if err == nil {
-		resp.Body.Close()
-		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-			return true
-		}
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return false
-	}
-	req.Header.Set("Range", "bytes=0-0")
-	resp, err = checkClient.Do(req)
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 400
-}
+func webCheck(url string) bool { return qelib.WebCheck(url, nil) }

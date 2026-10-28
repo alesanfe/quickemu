@@ -12,14 +12,12 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/bodgit/sevenzip"
 	"github.com/diskfs/go-diskfs"
@@ -31,24 +29,17 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // finalURL: web_redirect parity — follow redirects and return the
 // resolved URL (used to name URL-sourced images).
 func finalURL(url string) string {
-	c := &http.Client{Timeout: 30 * time.Second, Transport: httpTransport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 10 {
-				return http.ErrUseLastResponse
-			}
-			return nil
-		}}
-	resp, err := c.Head(url)
-	if err != nil {
-		return url
+	if u, err := qelib.FinalURL(url); err == nil && u != "" {
+		return u
 	}
-	defer resp.Body.Close()
-	return resp.Request.URL.String()
+	return url
 }
 
 // isoExtractPure: pure-Go ISO9660 walk — finds prefix/vmlinuz and

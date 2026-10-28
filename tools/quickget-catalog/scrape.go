@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // scrape resolves URL+hash for scrape-type OSes. Each case mirrors its
@@ -1051,24 +1053,7 @@ func getUbuntuFlavour(osName, release, arch string, server bool) (string, string
 // ubuntuDailyCodename mirrors ubuntu_daily_codename: launchpad series
 // newest-first; first name whose daily-live SHA256SUMS exists.
 func ubuntuDailyCodename(osName string) (string, error) {
-	body, err := fetchString("https://api.launchpad.net/devel/ubuntu/series")
-	if err != nil {
-		return "", err
-	}
-	var j struct {
-		Entries []struct {
-			Name string `json:"name"`
-		} `json:"entries"`
-	}
-	if json.Unmarshal([]byte(body), &j) != nil {
-		return "", fmt.Errorf("launchpad parse")
-	}
-	for _, e := range j.Entries {
-		if webCheck(fmt.Sprintf("https://cdimage.ubuntu.com/%s/%s/daily-live/current/SHA256SUMS", osName, e.Name)) {
-			return e.Name, nil
-		}
-	}
-	return "", nil
+	return qelib.UbuntuDailyCodename(osName)
 }
 
 // matchAll returns all capture-group-1 matches of re in body.

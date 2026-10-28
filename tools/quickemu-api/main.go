@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	dataDir = env("XDG_DATA_HOME", os.Getenv("HOME")+"/.local/share") + "/quickemu"
+	dataDir = qelib.XDGData() + "/quickemu"
 	token   string
 )
 

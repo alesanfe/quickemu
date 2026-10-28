@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // hostSMT reports whether the host has SMT/hyperthreading on —
@@ -309,12 +311,7 @@ func firstFreePort(p string, lo, hi int) string {
 }
 
 // hostArch maps GOARCH to the qemu arch token (x86_64|aarch64).
-func hostArch() string {
-	if runtime.GOARCH == "arm64" {
-		return "aarch64"
-	}
-	return "x86_64"
-}
+func hostArch() string { return qelib.HostArch() }
 
 // hostHypervisor: DMI sys_vendor detection — qemu/virtualbox mean we
 // are inside a VM (Bash MANUFACTURER case in configure_cpu).

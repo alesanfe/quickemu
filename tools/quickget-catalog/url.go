@@ -5,38 +5,16 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"net/http"
+	"github.com/alesanfe/quickemu/tools/qelib"
 	"regexp"
 	"strings"
-	"time"
 )
 
 // fetchString GETs a URL and returns the body (bounded). Mirrors web_pipe.
-func fetchString(u string) (string, error) {
-	c := &http.Client{Timeout: 30 * time.Second}
-	r, err := c.Get(u)
-	if err != nil {
-		return "", err
-	}
-	defer r.Body.Close()
-	if r.StatusCode != 200 {
-		return "", fmt.Errorf("http %d", r.StatusCode)
-	}
-	b, err := io.ReadAll(io.LimitReader(r.Body, 4<<20))
-	return string(b), err
-}
+func fetchString(u string) (string, error) { return qelib.FetchString(u, 4<<20) }
 
 // finalURL resolves the last redirect target (web_redirect parity).
-func finalURL(u string) (string, error) {
-	c := &http.Client{Timeout: 30 * time.Second}
-	r, err := c.Get(u)
-	if err != nil {
-		return "", err
-	}
-	r.Body.Close()
-	return r.Request.URL.String(), nil
-}
+func finalURL(u string) (string, error) { return qelib.FinalURL(u) }
 
 // findLine greps the body for lines matching re and returns the first,
 // extracting group `field` (1-indexed) or the whole match when field==0.

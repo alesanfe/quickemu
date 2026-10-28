@@ -12,7 +12,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	neturl "net/url"
 	"os"
@@ -25,28 +24,12 @@ import (
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
-// HTTP clients: curl --connect-timeout/--max-time parity — probes die
-// in 30s, downloads bound dial+header but stream unbounded.
+// HTTP clients come from qelib -- same transport policy everywhere:
+// probes die in 30s, downloads bound dial+header but stream
+// unbounded, redirect scheme-guard + cap (curl parity).
 var (
-	httpProbe = &http.Client{Timeout: 30 * time.Second, Transport: httpTransport}
-	httpDL    = &http.Client{Transport: httpTransport,
-		// proto-redir =http,https parity: redirects may never leave
-		// the http(s) schemes (blocks redirect -> file:// etc.) and
-		// are bounded like curl --max-redirs.
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 10 {
-				return fmt.Errorf("too many redirects")
-			}
-			if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-				return fmt.Errorf("redirect to disallowed scheme %q", req.URL.Scheme)
-			}
-			return nil
-		}}
-	httpTransport = &http.Transport{
-		DialContext:           (&net.Dialer{Timeout: 15 * time.Second}).DialContext,
-		TLSHandshakeTimeout:   15 * time.Second,
-		ResponseHeaderTimeout: 30 * time.Second,
-	}
+	httpProbe = qelib.ProbeClient
+	httpDL    = qelib.DLClient
 )
 
 // guestFor: the OS -> guest_os/IMAGE_TYPE case table.

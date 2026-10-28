@@ -25,7 +25,7 @@ func portRegistry() string {
 }
 
 // portRegistryLock: mkdir spin-lock with dead-owner reclaim — 25
-// tries × 200ms like _port_registry_lock.
+// tries — 200ms like _port_registry_lock.
 func portRegistryLock() bool {
 	reg := portRegistry()
 	lock := reg + ".lock"

@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,6 +25,8 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 const (
@@ -34,16 +35,12 @@ const (
 	cacheURL  = "https://github.com/lj3954/quickget_configs/releases/download/daily/quickget_data.json.zst"
 )
 
-// HTTP clients: curl --connect-timeout/--max-time parity — probes die
-// in 30s, downloads bound dial+header but stream unbounded.
+// HTTP clients come from qelib — same transport policy everywhere:
+// probes die in 30s, downloads bound dial+header but stream
+// unbounded, redirect scheme-guard + cap (curl parity).
 var (
-	httpProbe     = &http.Client{Timeout: 30 * time.Second, Transport: httpTransport}
-	httpDL        = &http.Client{Transport: httpTransport}
-	httpTransport = &http.Transport{
-		DialContext:           (&net.Dialer{Timeout: 15 * time.Second}).DialContext,
-		TLSHandshakeTimeout:   15 * time.Second,
-		ResponseHeaderTimeout: 30 * time.Second,
-	}
+	httpProbe = qelib.ProbeClient
+	httpDL    = qelib.DLClient
 )
 
 const qgcUA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
@@ -202,21 +199,13 @@ func webRedirect(url string) string {
 	return url
 }
 
-// webCheck: HEAD reachability probe.
+// webCheck: reachability probe (HEAD, GET-range fallback inside).
 func webCheck(url string, headers [][2]string) bool {
-	req, err := http.NewRequest("HEAD", url, nil)
-	if err != nil {
-		return false
+	h := map[string]string{}
+	for _, kv := range headers {
+		h[kv[0]] = kv[1]
 	}
-	for _, h := range headers {
-		req.Header.Set(h[0], h[1])
-	}
-	resp, err := httpProbe.Do(req)
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 400
+	return qelib.WebCheck(url, h)
 }
 
 // checkHash: guess the hash algorithm by hex length and verify —

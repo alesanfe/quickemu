@@ -56,6 +56,17 @@ type QEError struct {
 	Retryable bool   `json:"retryable"`
 }
 
+// QMPCmd marshals a QMP {"execute":...} command object; arguments is
+// omitted when nil.
+func QMPCmd(execute string, args map[string]any) string {
+	m := map[string]any{"execute": execute}
+	if args != nil {
+		m["arguments"] = args
+	}
+	b, _ := json.Marshal(m)
+	return string(b)
+}
+
 // CmdName derives the envelope command field: "<tool>.<action>" from
 // argv[1] (post-NormArgs), falling back to the bare tool name.
 func CmdName(tool string) string {

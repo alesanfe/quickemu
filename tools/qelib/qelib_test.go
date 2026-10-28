@@ -40,6 +40,30 @@ func TestFindTool(t *testing.T) {
 	}
 }
 
+func TestMemMB(t *testing.T) {
+	for in, want := range map[string]int{"4G": 4096, "512M": 512, "256K": 0, "128": 128, "junk": 0, "": 0} {
+		if got := MemMB(in); got != want {
+			t.Fatalf("MemMB(%q) = %d, want %d", in, got, want)
+		}
+	}
+}
+
+func TestHostArch(t *testing.T) {
+	if a := HostArch(); a != "x86_64" && a != "aarch64" {
+		t.Fatalf("HostArch = %q", a)
+	}
+}
+
+func TestQMPCmd(t *testing.T) {
+	if got := QMPCmd("query-status", nil); got != `{"execute":"query-status"}` {
+		t.Fatalf("QMPCmd nil = %s", got)
+	}
+	got := QMPCmd("device_add", map[string]any{"driver": "usb-host", "id": "x"})
+	if got != `{"arguments":{"driver":"usb-host","id":"x"},"execute":"device_add"}` {
+		t.Fatalf("QMPCmd args = %s", got)
+	}
+}
+
 func TestCmdName(t *testing.T) {
 	os.Args = []string{"prog", "reserve"}
 	if got := CmdName("ports"); got != "ports.reserve" {

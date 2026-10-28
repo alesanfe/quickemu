@@ -4,68 +4,23 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"github.com/alesanfe/quickemu/tools/qelib"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-func fetchString(url string) (string, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := httpProbe.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("HTTP %d", resp.StatusCode)
-	}
-	b, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
-	return string(b), err
-}
+func fetchString(url string) (string, error) { return qelib.FetchString(url, 16<<20) }
 
-func webCheck(url string) bool {
-	req, err := http.NewRequest("HEAD", url, nil)
-	if err != nil {
-		return false
-	}
-	resp, err := httpProbe.Do(req)
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	return resp.StatusCode >= 200 && resp.StatusCode < 400
-}
+func webCheck(url string) bool { return qelib.WebCheck(url, nil) }
 
 // ubuntuDailyCodename: first launchpad series name (newest-first)
 // whose daily-live SHA256SUMS exists on cdimage.
 func ubuntuDailyCodename(osName string) string {
-	body, err := fetchString("https://api.launchpad.net/devel/ubuntu/series")
-	if err != nil {
-		return ""
-	}
-	var j struct {
-		Entries []struct {
-			Name string `json:"name"`
-		} `json:"entries"`
-	}
-	if json.Unmarshal([]byte(body), &j) != nil {
-		return ""
-	}
-	for _, e := range j.Entries {
-		url := "https://cdimage.ubuntu.com/" + osName + "/" + e.Name + "/daily-live/current/SHA256SUMS"
-		if webCheck(url) {
-			return e.Name
-		}
-	}
-	return ""
+	name, _ := qelib.UbuntuDailyCodename(osName)
+	return name
 }
 
 // sumsPick mirrors the grep/cut pipeline: filter lines matching any of

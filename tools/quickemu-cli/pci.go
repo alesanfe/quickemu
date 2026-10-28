@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/jaypipes/pcidb"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // pciGPUs enumerates display-class PCI devices via sysfs + the pci.ids
@@ -60,14 +61,6 @@ func pciGPUs() []string {
 	return out
 }
 
-func pciAttr(dev, attr string) string {
-	b, err := os.ReadFile(filepath.Join("/sys/bus/pci/devices", dev, attr))
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(b))
-}
+func pciAttr(dev, attr string) string { return qelib.PciAttr(dev, attr) }
 
-func pciHex(dev, attr string) string {
-	return strings.TrimPrefix(pciAttr(dev, attr), "0x")
-}
+func pciHex(dev, attr string) string { return qelib.PciHex(dev, attr) }

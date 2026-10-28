@@ -6,7 +6,7 @@ Describe 'adversarial: download layer defenses (go)'
         The status should be success
     End
     It 'redirects cannot leave http+https schemes'
-        When run bash -c 'grep -q "redirect to disallowed scheme" tools/quickget-vm/main.go'
+        When run bash -c 'grep -q "redirect to disallowed scheme" tools/qelib/http.go && grep -q "qelib.DLClient" tools/quickget-vm/main.go'
         The status should be success
     End
     It 'download retries are bounded'
@@ -14,7 +14,7 @@ Describe 'adversarial: download layer defenses (go)'
         The status should be success
     End
     It 'web_check has a HEAD->GET range fallback for signed URLs'
-        When run bash -c 'grep -q "bytes=0-0" tools/quickget-catalog/info.go && grep -q "MethodHead" tools/quickget-catalog/info.go'
+        When run bash -c 'grep -q "bytes=0-0" tools/qelib/http.go && grep -q "MethodHead" tools/qelib/http.go'
         The status should be success
     End
     It 'downloads resume rather than restart partial files'

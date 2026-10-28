@@ -283,7 +283,7 @@ func actOpenHomepage(osName string) int {
 	return 0
 }
 
-// combinations returns release×edition pairs to iterate for --url/--check
+// combinations returns release—edition pairs to iterate for --url/--check
 // (test_all parity: no release → all releases; editions expanded when the
 // OS has them and none was given; windows → language list).
 func combinations(e *Entry, release, edition string) [][2]string {
@@ -675,7 +675,7 @@ func main() {
 		case "--update", "-update":
 			op = "update"
 		case "--version", "-version":
-			fmt.Println("5.0.0")
+			fmt.Println(qelib.QEVersion)
 			return
 		case "--help", "-help", "--h", "-h":
 			usage()

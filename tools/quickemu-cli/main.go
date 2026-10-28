@@ -277,7 +277,7 @@ func runtimeCleanup() {
 // emitEnvelope: full v1 contract envelope — {schemaVersion, command,
 // success, data, warnings, errors, meta{quickemuVersion,timestamp,
 // operationId?}} — identical shape to qe_emit.
-const qeVersion = "5.0.0"
+const qeVersion = qelib.QEVersion
 
 func emitEnvelope(cmd string, success bool, data any, errors any) {
 	qelib.Emit(cmd, "quickemu-cli/"+qeVersion, success, data, errors)
@@ -1377,39 +1377,10 @@ func fileExists(p string) bool {
 	return err == nil
 }
 
-func memMB(s string) int {
-	s = strings.TrimSpace(s)
-	mult := 1
-	if strings.HasSuffix(s, "G") {
-		mult, s = 1024, s[:len(s)-1]
-	} else if strings.HasSuffix(s, "M") {
-		s = s[:len(s)-1]
-	} else if strings.HasSuffix(s, "K") {
-		s = s[:len(s)-1]
-		mult = 0 // <1M
-	}
-	n := 0
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return 0
-		}
-		n = n*10 + int(r-'0')
-	}
-	return n * mult
-}
+func memMB(s string) int { return qelib.MemMB(s) }
 
-func hostFreeMemMB() int {
-	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
-		for _, l := range strings.Split(string(b), "\n") {
-			if strings.HasPrefix(l, "MemAvailable:") {
-				var kb int
-				fmt.Sscanf(l, "MemAvailable: %d kB", &kb)
-				return kb / 1024
-			}
-		}
-	}
-	return 0
-}
+// hostFreeMemMB: MemAvailable from /proc/meminfo (host_free_mem_mb).
+func hostFreeMemMB() int { return qelib.HostFreeMemMB() }
 
 // ---------- additional actions (options.sh parity round 2) ----------
 
@@ -1478,7 +1449,7 @@ func actSnapshotCmd() int {
 // keep in sync with schemas/v1/capabilities.schema.json).
 func actCapabilities() int {
 	emitOK("capabilities", map[string]any{
-		"applicationVersion": "5.0.0",
+		"applicationVersion": qeVersion,
 		"capabilities": map[string]bool{
 			"structuredCatalog": true, "structuredStatus": true, "listVms": true,
 			"snapshots": true, "structuredSnapshots": true, "monitorCommands": true,
@@ -1568,10 +1539,7 @@ func actHostInfo() int {
 // actInventory: --inventory — the global VM registry at
 // $XDG_DATA_HOME/quickemu/vms.json.
 func actInventory() int {
-	db := filepath.Join(os.Getenv("HOME"), ".local", "share", "quickemu", "vms.json")
-	if x := os.Getenv("XDG_DATA_HOME"); x != "" {
-		db = filepath.Join(x, "quickemu", "vms.json")
-	}
+	db := filepath.Join(qelib.XDGData(), "quickemu", "vms.json")
 	b, err := os.ReadFile(db)
 	if err != nil {
 		if outFmt == "json" {
@@ -1796,12 +1764,7 @@ func jsonStr(m map[string]any) string {
 // qmpCmd marshals a QMP execute envelope — shared helper so embedded
 // ids/filenames are escaped by encoding/json, not hand-rolled Sprintf.
 func qmpCmd(execute string, args map[string]any) string {
-	m := map[string]any{"execute": execute}
-	if args != nil {
-		m["arguments"] = args
-	}
-	b, _ := json.Marshal(m)
-	return string(b)
+	return qelib.QMPCmd(execute, args)
 }
 
 // actHotplugUSB: vm_hotplug_usb parity — usb-host device_add.
@@ -2030,7 +1993,7 @@ func main() {
 			usage()
 			return
 		case "--version":
-			fmt.Println("5.0.0")
+			fmt.Println(qeVersion)
 			return
 		case "--vm":
 			vmConf = val()

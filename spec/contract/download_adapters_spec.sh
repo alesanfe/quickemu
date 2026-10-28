@@ -7,7 +7,7 @@ Describe 'contract: download adapters (go)'
         The status should be success
     End
     It 'downloads are bounded by dial/header timeouts'
-        When run bash -c 'grep -q "ResponseHeaderTimeout" tools/quickget-vm/main.go && grep -q "DialContext" tools/quickget-vm/main.go'
+        When run bash -c 'grep -q "ResponseHeaderTimeout" tools/qelib/http.go && grep -q "DialContext" tools/qelib/http.go && grep -q "qelib.DLClient" tools/quickget-vm/main.go'
         The status should be success
     End
     It 'zsync adapter exists for rsync-capable releases'
@@ -15,7 +15,7 @@ Describe 'contract: download adapters (go)'
         The status should be success
     End
     It 'redirect resolution is bounded'
-        When run bash -c 'grep -q "too many redirects" tools/quickget-vm/main.go'
+        When run bash -c 'grep -q "too many redirects" tools/qelib/http.go && grep -q "qelib.DLClient" tools/quickget-vm/main.go'
         The status should be success
     End
     It 'temp output then atomic rename (no partial final files)'

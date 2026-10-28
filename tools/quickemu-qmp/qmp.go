@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // QMP client: connect -> read greeting -> qmp_capabilities -> command.
@@ -232,8 +234,7 @@ func SendCmd(path, cmd string) (string, error) {
 // qmpCmd marshals a QMP execute envelope — replaces hand-built
 // fmt.Sprintf JSON (proper escaping of embedded filenames/ids).
 func qmpCmd(execute string, args map[string]any) string {
-	b, _ := json.Marshal(map[string]any{"execute": execute, "arguments": args})
-	return string(b)
+	return qelib.QMPCmd(execute, args)
 }
 
 // HotplugUSB mirrors vm_hotplug_usb: QMP device_add usb-host with hex

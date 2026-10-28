@@ -596,12 +596,7 @@ func main() {
 	}
 }
 
-func xdgData() string {
-	if v := os.Getenv("XDG_DATA_HOME"); v != "" {
-		return v
-	}
-	return filepath.Join(os.Getenv("HOME"), ".local", "share")
-}
+func xdgData() string { return qelib.XDGData() }
 
 // confGet: read a bare key="value" line from the VM's .conf.
 func confGet(dir, key string) string {
