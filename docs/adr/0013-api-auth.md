@@ -32,3 +32,12 @@ start/stop/kill to the LAN.
 
 ## Review when
 Multi-client or remote deployments become a supported target.
+
+## Addendum (rotation + scope decisions)
+- `--token`/`--token-file` are repeatable → old+new coexist during a
+  rotation window; no insecure gap. All candidates are compared in
+  constant time per entry.
+- Scopes/mTLS/per-client tokens were evaluated and rejected for the
+  localhost+LAN design point: they add a real key-management surface
+  for a daemon whose threat model is "local + optional LAN". Reverse
+  proxy deployments should terminate auth at the proxy instead.

@@ -27,9 +27,9 @@ func TestWriteJSON(t *testing.T) {
 }
 
 func TestAuth(t *testing.T) {
-	old := token
-	token = "sekrit"
-	defer func() { token = old }()
+	old := tokens
+	tokens = []string{"sekrit"}
+	defer func() { tokens = old }()
 
 	ok := auth(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
@@ -56,7 +56,7 @@ func TestAuth(t *testing.T) {
 		t.Fatalf("bad token %d", rec.Code)
 	}
 	// Empty token config → open (no auth) path.
-	token = ""
+	tokens = nil
 	rec = httptest.NewRecorder()
 	ok.ServeHTTP(rec, httptest.NewRequest("GET", "/v1/vms", nil))
 	if rec.Code != 204 {
@@ -69,7 +69,7 @@ func TestEndpoints(t *testing.T) {
 	old := dataDir
 	dataDir = dir
 	defer func() { dataDir = old }()
-	token = "" // read-only mode
+	tokens = nil // read-only mode
 	srv := httptest.NewServer(newMux())
 	defer srv.Close()
 
@@ -155,8 +155,8 @@ func TestEndpoints(t *testing.T) {
 		t.Fatalf("no-token write %d", c)
 	}
 	// With token → vmCmd fails (no quickemu), but the write is allowed.
-	token = "t"
-	defer func() { token = "" }()
+	tokens = []string{"t"}
+	defer func() { tokens = nil }()
 	r, _ := http.NewRequest("POST", srv.URL+"/v1/vm-cmd/a",
 		strings.NewReader(`{"vm":"a","cmd":"start"}`))
 	r.Header.Set("Authorization", "Bearer t")

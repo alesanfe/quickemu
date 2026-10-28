@@ -11,7 +11,8 @@ import (
 func runMain(t *testing.T, args ...string) (rc int, served bool) {
 	t.Helper()
 	oldExit, oldServe, oldArgs := exitFn, serveAPI, os.Args
-	oldToken, oldData := token, dataDir
+	oldToken, oldData := tokens, dataDir
+	tokens = nil // each runMain is a fresh process parse — no bleed
 	exitFn = func(c int) { rc = c }
 	serveAPI = func(ln net.Listener, listen string) bool {
 		served = true
@@ -21,7 +22,7 @@ func runMain(t *testing.T, args ...string) (rc int, served bool) {
 	os.Args = append([]string{"quickemu-api"}, args...)
 	t.Cleanup(func() {
 		exitFn, serveAPI, os.Args = oldExit, oldServe, oldArgs
-		token, dataDir = oldToken, oldData
+		tokens, dataDir = oldToken, oldData
 	})
 	main()
 	return rc, served

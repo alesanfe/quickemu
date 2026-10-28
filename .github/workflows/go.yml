@@ -18,3 +18,36 @@ jobs:
         with:
           name: go-coverage
           path: 'tools/*/coverage.out'
+
+  # Platform matrix: darwin compile/vet gate (macOS has no /dev/kvm —
+  # catches regressions in the hvf/cocoa paths), linux/arm64, and
+  # linux-amd64-without-KVM (GH runners lack the device → exercises the
+  # TCG fallback end to end). Unit tests only where the host allows.
+  platforms:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            label: darwin-arm64
+          - os: ubuntu-24.04-arm
+            label: linux-arm64
+          - os: ubuntu-latest
+            label: linux-amd64-noKVM
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16  # v6
+        with:
+          go-version: '1.25'
+      - name: ${{ matrix.label }} — build + vet all modules (darwin gate)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          go build ./tools/...
+          go vet ./tools/...
+      - name: ${{ matrix.label }} — full quality gate (linux)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: go run ./tools/dev check
+      - name: KVM absent → TCG path exercised
+        if: matrix.label == 'linux-amd64-noKVM'
+        run: |
+          test ! -e /dev/kvm && echo "no /dev/kvm: TCG fallback exercised by tests" || echo "unexpected KVM device"

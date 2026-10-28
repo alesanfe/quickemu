@@ -12,9 +12,9 @@ import (
 
 func withToken(t *testing.T, tok string) {
 	t.Helper()
-	old, oldFails := token, authFails
-	token, authFails = tok, map[string]*failRec{}
-	t.Cleanup(func() { token, authFails = old, oldFails })
+	old, oldFails := tokens, authFails
+	tokens, authFails = []string{tok}, map[string]*failRec{}
+	t.Cleanup(func() { tokens, authFails = old, oldFails })
 }
 
 func req() *httptest.ResponseRecorder { return httptest.NewRecorder() }
@@ -75,6 +75,24 @@ func TestAuthThrottle(t *testing.T) {
 	}
 	if rec := r(); rec.Code != 429 {
 		t.Fatalf("throttled attempt: %d, want 429", rec.Code)
+	}
+}
+
+// Rotation window: old+new tokens both valid until the old one is
+// removed — clients migrate without an insecure gap.
+func TestTokenRotation(t *testing.T) {
+	withToken(t, "old-token-00000000")
+	tokens = append(tokens, "new-token-00000000")
+	h := auth(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
+	for _, tok := range []string{"old-token-00000000", "new-token-00000000"} {
+		r := httptest.NewRequest("GET", "/v1/vms", nil)
+		r.RemoteAddr = "10.9.9.9:1"
+		r.Header.Set("Authorization", "Bearer "+tok)
+		rec := req()
+		h.ServeHTTP(rec, r)
+		if rec.Code != 200 {
+			t.Fatalf("%s: %d", tok, rec.Code)
+		}
 	}
 }
 

@@ -687,9 +687,27 @@ func metricStructure() int {
 	if locP > 0 {
 		ratio = float64(locT) / float64(locP)
 	}
+	// Advisory thresholds — warn but don't fail (per backlog: not
+	// blocking until the series matures).
+	warns := []string{}
+	if ratio < 0.5 {
+		warns = append(warns, fmt.Sprintf("test/product ratio %.2f below 0.50", ratio))
+	}
+	if execCalls > 10 {
+		warns = append(warns, fmt.Sprintf("%d direct exec.Command sites (seam coverage should keep this low)", execCalls))
+	}
+	if len(missing) > 0 {
+		warns = append(warns, fmt.Sprintf("%d modules outside go.work", len(missing)))
+	}
+	for _, f := range big {
+		if n, _ := strconv.Atoi(f[strings.LastIndex(f, ":")+1:]); n > 1500 {
+			warns = append(warns, f+" exceeds 1500 LOC — candidate for domain split")
+		}
+	}
 	out := map[string]any{
 		"tool":      "qedev metrics structure",
 		"timestamp": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"warnings":  warns,
 		"metrics": map[string]any{
 			"loc_product":            locP,
 			"loc_test":               locT,

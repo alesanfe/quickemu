@@ -20,7 +20,9 @@ import (
 
 var (
 	dataDir = qelib.XDGData() + "/quickemu"
-	token   string
+	// tokens accepts multiple bearer tokens — rotation runs old+new
+	// together during the window; a single --token is just a 1-list.
+	tokens []string
 
 	authMu    sync.Mutex
 	authFails = map[string]*failRec{}
@@ -70,16 +72,28 @@ func authThrottle(addr string) bool {
 	return fr.n <= authFailMax
 }
 
+// tokenMatch runs the candidate against every accepted token in
+// constant time per entry — no early-exit on the first match.
+func tokenMatch(given string) bool {
+	ok := false
+	for _, t := range tokens {
+		if subtle.ConstantTimeCompare([]byte(given), []byte(t)) == 1 {
+			ok = true
+		}
+	}
+	return ok
+}
+
 func auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if token == "" {
+		if len(tokens) == 0 {
 			next(w, r)
 			return
 		}
 		// Constant-time compare keeps the token's length/content out
 		// of timing side channels; CutPrefix enforces the scheme.
 		given, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if !ok || subtle.ConstantTimeCompare([]byte(given), []byte(token)) != 1 {
+		if !ok || !tokenMatch(given) {
 			if !authThrottle(r.RemoteAddr) {
 				write(w, 429, map[string]any{"errors": []any{map[string]any{"code": "AUTH_THROTTLED"}}})
 				return
@@ -150,7 +164,8 @@ func main() {
 			case "--data-dir":
 				dataDir = v
 			case "--token":
-				token = v
+				// repeatable: --token old --token new during rotation
+				tokens = append(tokens, v)
 			case "--token-file":
 				t, err := readTokenFile(v)
 				if err != nil {
@@ -158,19 +173,21 @@ func main() {
 					exitFn(1)
 					return
 				}
-				token = t
+				tokens = append(tokens, t)
 			}
 		}
 	}
 	// A token under 16 chars is brute-forceable — reject at startup.
-	if token != "" && len(token) < 16 {
-		fmt.Fprintln(os.Stderr, "--token must be at least 16 characters")
-		exitFn(1)
-		return
+	for _, t := range tokens {
+		if len(t) < 16 {
+			fmt.Fprintln(os.Stderr, "--token must be at least 16 characters")
+			exitFn(1)
+			return
+		}
 	}
 	// Loopback-only without a token is the safe default; anything
 	// exposed to the network requires auth unless explicitly waived.
-	if token == "" && !allowExposed && !isLocalBind(listen) {
+	if len(tokens) == 0 && !allowExposed && !isLocalBind(listen) {
 		fmt.Fprintln(os.Stderr, "refusing to bind "+listen+" without a token (set --insecure-allow-exposed to override)")
 		exitFn(1)
 		return
@@ -296,7 +313,7 @@ func newMux() *http.ServeMux {
 			write(w, 400, map[string]any{"errors": []any{map[string]any{"code": "INVALID_ARGUMENT"}}})
 			return
 		}
-		if token == "" { // write endpoints require the token to be configured
+		if len(tokens) == 0 { // write endpoints require the token to be configured
 			write(w, 403, map[string]any{"errors": []any{map[string]any{"code": "WRITE_DISABLED"}}})
 			return
 		}
