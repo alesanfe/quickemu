@@ -146,7 +146,10 @@ func macFetch(url, dest, token string) int {
 		return 1
 	}
 	defer f.Close()
-	io.Copy(f, resp.Body)
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		fmt.Println(err)
+		return 1
+	}
 	return 0
 }
 
