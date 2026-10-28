@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -73,30 +74,56 @@ func TestPlatformMatrix(t *testing.T) {
 // ---- contract/property_invariants_spec.sh ----
 
 func TestPropertyInvariants(t *testing.T) {
-	// Ephemeral-range sanity on the allocator inputs.
-	for i := 0; i < 200; i++ {
-		p := 10000 + rand.Intn(55000)
-		if p < 1024 || p > 65535 {
-			t.Fatalf("port %d out of range", p)
+	// Allocator invariants against the REAL implementation: `find`
+	// must only return ports inside the requested range and must
+	// never hand out a port already reserved in the registry. (The
+	// previous version asserted these properties over generated
+	// random numbers — a tautology that could never fail.)
+	reg := t.TempDir()
+	seen := map[string]bool{}
+	for i := 0; i < 20; i++ {
+		r := Run(t, "quickemu-ports", nil, "find",
+			"--registry", reg, "--lo", "49152", "--hi", "49192")
+		if !r.OK() {
+			t.Fatalf("find failed rc=%d: %s", r.Code, r.Combined())
+		}
+		p := strings.TrimSpace(r.Stdout)
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 49152 || n > 49192 {
+			t.Fatalf("find returned out-of-range port %q", p)
+		}
+		if seen[p] {
+			t.Fatalf("find handed out reserved port %s", p)
+		}
+		seen[p] = true
+		// Reserve through the tool: the next find must skip it.
+		rsv := Run(t, "quickemu-ports", nil, "reserve",
+			"--registry", reg, "--port", p,
+			"--pid", strconv.Itoa(os.Getpid()))
+		if !rsv.OK() {
+			t.Fatalf("reserve %s failed rc=%d: %s", p, rsv.Code, rsv.Combined())
 		}
 	}
-	// Sequential allocations never collide.
-	prev := -1
-	for i := 0; i < 200; i++ {
-		p := 49152 + i
-		if p == prev {
-			t.Fatal("collision")
+	// A fully-reserved range must fail loudly — PORT_RANGE_EXHAUSTED,
+	// not a silent wrap or an invented port.
+	full := t.TempDir()
+	for p := 49152; p <= 49156; p++ {
+		rsv := Run(t, "quickemu-ports", nil, "reserve",
+			"--registry", full, "--port", strconv.Itoa(p),
+			"--pid", strconv.Itoa(os.Getpid()))
+		if !rsv.OK() {
+			t.Fatalf("reserve %d failed: %s", p, rsv.Combined())
 		}
-		prev = p
+	}
+	r := Run(t, "quickemu-ports", nil, "find",
+		"--registry", full, "--lo", "49152", "--hi", "49156")
+	if r.OK() || !strings.Contains(r.Combined(), "PORT_RANGE_EXHAUSTED") {
+		t.Fatalf("exhausted range rc=%d out=%q", r.Code, r.Combined())
 	}
 	// Realpath confinement must exist in the delete/import plan.
 	src := SourceFile(t, "tools/quickemu-vm/main.go")
 	if !strings.Contains(src, "EvalSymlinks") || !strings.Contains(src, "filepath.Rel") {
 		t.Error("path confinement guards absent")
-	}
-	// Expired deadlines are never executable.
-	if time.Now().Unix()-3600 >= time.Now().Unix() {
-		t.Fatal("deadline logic inverted")
 	}
 }
 
