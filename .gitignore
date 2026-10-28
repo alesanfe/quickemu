@@ -91,3 +91,4 @@ tools/*/vm
 tools/dev/dev
 tools/qespec/qespec
 tools/*/coverage.out
+tools/quickemu-plugin-market/quickemu-plugin-market
