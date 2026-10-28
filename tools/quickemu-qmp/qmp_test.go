@@ -115,21 +115,88 @@ func TestEnvelopeShape(t *testing.T) {
 
 // Allowlist contract (qmp_adversarial_spec.sh parity): the structured
 // channel is fail-closed — mutation commands are denied unless
-// QUICKEMU_QMP_RAW=1.
+// QUICKEMU_QMP_RAW=1. Matching is structural: the parsed name must be
+// an exact allowlist hit or a family prefix — substring inclusion in
+// any position does not authorize.
 func TestCommandAllowlist(t *testing.T) {
 	t.Setenv("QUICKEMU_QMP_RAW", "")
+	allow := func(name string) bool {
+		return qmpCommandAllowed(map[string]any{"execute": name})
+	}
 	for _, denied := range []string{"device_add", "blockdev-add", "x-exit", "chardev-add"} {
-		if qmpCommandAllowed(denied) {
+		if allow(denied) {
 			t.Errorf("%q must be denied without QUICKEMU_QMP_RAW", denied)
 		}
 	}
 	for _, ok := range []string{"query-status", "query-block", "screendump", "system_powerdown", "human-monitor-command"} {
-		if !qmpCommandAllowed(ok) {
+		if !allow(ok) {
 			t.Errorf("%q must be allowed", ok)
 		}
 	}
 	t.Setenv("QUICKEMU_QMP_RAW", "1")
-	if !qmpCommandAllowed("device_add") {
+	if !allow("device_add") {
 		t.Error("QUICKEMU_QMP_RAW=1 must bypass the allowlist")
+	}
+}
+
+// Substring-bypass adversarial cases: an allowed name embedded in a
+// hostile identifier must not authorize it.
+func TestCommandAllowlistAdversarial(t *testing.T) {
+	t.Setenv("QUICKEMU_QMP_RAW", "")
+	allow := func(name string) bool {
+		return qmpCommandAllowed(map[string]any{"execute": name})
+	}
+	denied := []string{
+		// allowed substring embedded / prefixed / suffixed.
+		// ("query-status-quit" is NOT a bypass: it is a query-* family
+		// name — read-only by convention and QEMU rejects unknown
+		// query-* members anyway.)
+		"xquery-status", "not-stop", "stopx",
+		"cont-inue", "pre-drive-backup", "drive-backupx",
+		"screendump2", "block-dirty-bitmapX",
+		// charset violations — not command identifiers at all
+		"", "STOP", "stop now", "query status", "-query-x",
+		"query-\nquit", "human-monitor-command\x00", "query-*",
+	}
+	for _, d := range denied {
+		if allow(d) {
+			t.Errorf("%q must be denied (substring bypass)", d)
+		}
+	}
+	// family members allowed
+	for _, ok := range []string{
+		"query-status", "query-blockstats", "query-new-member-2077",
+		"block-dirty-bitmap-add", "block-dirty-bitmap-remove",
+		"block-dirty-bitmap-clear", "block-dirty-bitmap-enable",
+	} {
+		if !allow(ok) {
+			t.Errorf("%q must be allowed (family prefix)", ok)
+		}
+	}
+}
+
+// Envelope shape: extra top-level keys, wrong types and missing
+// execute are denied fail-closed.
+func TestCommandAllowlistEnvelope(t *testing.T) {
+	t.Setenv("QUICKEMU_QMP_RAW", "")
+	denied := []map[string]any{
+		{}, // no execute
+		{"execute": "query-status", "evil": true},                               // unknown key
+		{"execute": "query-status", "control": map[string]any{"enable": "oob"}}, // OOB channel
+		{"execute": 42}, // wrong type
+		{"execute": "query-status", "arguments": "x"}, // args ok shape-wise
+	}
+	// arguments may be any JSON — the last case is legitimate QMP
+	// ({execute, arguments}); fix expectation for it separately.
+	for i, c := range denied[:len(denied)-1] {
+		if qmpCommandAllowed(c) {
+			t.Errorf("case %d (%v) must be denied", i, c)
+		}
+	}
+	if !qmpCommandAllowed(map[string]any{"execute": "query-status", "arguments": map[string]any{"x": 1}}) {
+		t.Error("execute+arguments is a valid envelope")
+	}
+	if !qmpCommandAllowed(map[string]any{"execute": "query-status", "id": "req-1"}) {
+		t.Error("id is part of the QMP spec and must be allowed")
 	}
 }

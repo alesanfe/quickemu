@@ -69,17 +69,46 @@ func (q *qmpConn) write(cmd map[string]any) error {
 	return err
 }
 
+// qmpNameRe: QEMU command names are lowercase words joined by '-' or
+// '_' — anything else isn't a command identifier and never reaches
+// the allowlist.
+var qmpNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
+
+// qmpAllowedExact are single commands; qmpAllowedPrefix are QEMU
+// families (new query-*/block-dirty-bitmap-* members appear per
+// release). Names that merely *contain* one of these as a substring
+// are denied — matching is on the parsed name, never on the payload.
+var qmpAllowedExact = map[string]bool{
+	"screendump": true, "system_powerdown": true, "system_wakeup": true,
+	"stop": true, "cont": true, "block-dirty-bitmap": true,
+	"drive-backup": true, "human-monitor-command": true,
+}
+var qmpAllowedPrefix = []string{"query-", "block-dirty-bitmap-"}
+
 // qmpCommandAllowed: qmp_command_allowed parity — the structured
 // channel is fail-closed to read-only/graceful commands; raw QMP
-// requires QUICKEMU_QMP_RAW=1 (same env var as Bash).
-func qmpCommandAllowed(name string) bool {
+// requires QUICKEMU_QMP_RAW=1 (same env var as Bash). The check is
+// structural: only the QMP envelope keys (execute/arguments/id) may
+// be present, and the name must match the allowlist exactly or by
+// family prefix — substring inclusion is not authorization.
+func qmpCommandAllowed(cmd map[string]any) bool {
 	if os.Getenv("QUICKEMU_QMP_RAW") == "1" {
 		return true
 	}
-	for _, p := range []string{"query-", "screendump", "system_powerdown",
-		"system_wakeup", "stop", "cont", "block-dirty-bitmap",
-		"drive-backup", "human-monitor-command"} {
-		if strings.Contains(name, p) {
+	for k := range cmd {
+		if k != "execute" && k != "arguments" && k != "id" {
+			return false
+		}
+	}
+	name, ok := cmd["execute"].(string)
+	if !ok || !qmpNameRe.MatchString(name) {
+		return false
+	}
+	if qmpAllowedExact[name] {
+		return true
+	}
+	for _, p := range qmpAllowedPrefix {
+		if strings.HasPrefix(name, p) {
 			return true
 		}
 	}
@@ -91,7 +120,8 @@ func runExecute(socket, command string, timeout time.Duration) int {
 	if err := json.Unmarshal([]byte(command), &cmd); err != nil {
 		return emit("qmp.execute", nil, "QMP_BAD_COMMAND", "command is not valid QMP JSON: "+err.Error())
 	}
-	if name, _ := cmd["execute"].(string); name != "" && !qmpCommandAllowed(name) {
+	if !qmpCommandAllowed(cmd) {
+		name, _ := cmd["execute"].(string)
 		return emit("qmp.execute", nil, "QMP_DENIED",
 			"command '"+name+"' is not on the allowlist (set QUICKEMU_QMP_RAW=1 to send raw QMP)")
 	}
