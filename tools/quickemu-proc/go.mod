@@ -17,3 +17,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 )
+
+require github.com/alesanfe/quickemu/tools/qelib v0.0.0
+
+replace github.com/alesanfe/quickemu/tools/qelib => ../qelib

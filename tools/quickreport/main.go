@@ -70,11 +70,17 @@ func probeMemoryGB() string {
 		}
 		return ""
 	}
-	// free --giga -h: first numeric token, strip trailing G.
-	out := cmdOut("free", "--giga", "-h")
-	for _, f := range strings.Fields(out) {
-		if f[0] >= '0' && f[0] <= '9' {
-			return strings.TrimSuffix(f, "G")
+	// /proc/meminfo MemTotal — same source `free` reads, no subprocess.
+	// free --giga reports SI GB (1e9 B), so: kib * 1024 / 1e9.
+	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(l, "MemTotal:") {
+				if f := strings.Fields(l); len(f) >= 2 {
+					if kb, err := strconv.ParseInt(f[1], 10, 64); err == nil {
+						return strconv.FormatInt(kb*1024/1_000_000_000, 10)
+					}
+				}
+			}
 		}
 	}
 	return ""

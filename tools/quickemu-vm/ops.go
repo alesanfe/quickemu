@@ -105,7 +105,7 @@ func exportVm(dir, out string) int {
 	mb, _ := json.Marshal(map[string]any{
 		"formatVersion": 1, "quickemuVersion": vmVersion(),
 		"createdAt": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		"vm": name, "checksums": "quickvm-checksums.sha256"})
+		"vm":        name, "checksums": "quickvm-checksums.sha256"})
 	manifest := string(mb) + "\n"
 	tw.WriteHeader(&tar.Header{Name: "quickvm-manifest.json", Mode: 0644, Size: int64(len(manifest))})
 	tw.Write([]byte(manifest))
@@ -681,7 +681,7 @@ func vfioScan(gpuPassthrough string) int {
 				ready = "true"
 			}
 			dj = append(dj, map[string]any{"pci": d.PCI, "name": d.Name,
-			"driver": d.Driver, "vfioReady": ready == "true"})
+				"driver": d.Driver, "vfioReady": ready == "true"})
 		}
 		okMap(map[string]any{"iommu": iommu, "iommuGroups": groups,
 			"configuredPassthrough": gpuPassthrough, "devices": dj})

@@ -13,8 +13,14 @@ Versioning follows the structured-contract version in `schemas/v1/`.
   internals suite (`spec/unit/`); behavior coverage moved to Go unit
   tests + public-contract specs. No `QUICKEMU_BACKEND` switch remains.
 - Runtime deps dropped: `curl`, `jq`, `python3`, `genisoimage`,
-  `uuid-runtime`, `unzip` (replaced by `net/http`, `encoding/json`,
-  `math/big` RSA verify, `diskfs`, `archive/zip`).
+  `uuid-runtime`, `unzip`, `socat` (replaced by `net/http`,
+  `encoding/json`, `math/big` RSA verify, `diskfs`, `archive/zip`,
+  native QMP client). `socat` remains a dev/test-only tool for the
+  qemu_boot e2e spec.
+- New `tools/qelib` shared module: canonical v1 envelope
+  (Emit/EmitOK/Fail), `NormArgs`, EPERM-aware `Alive` and
+  `FindTool`/`Tool` sibling resolution — now used by every tool,
+  replacing six ad-hoc envelope/arg-normalization copies.
 
 ### Added
 - SECURITY.md, CODE_OF_CONDUCT.md, threat-model, supported-platforms,

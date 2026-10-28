@@ -13,7 +13,8 @@ import (
 // pciGPUs enumerates display-class PCI devices via sysfs + the pci.ids
 // database (pcidb), replacing the `lspci -Dnn` subprocess. Returned
 // lines match lspci -Dnn output shape:
-//   0000:01:00.0 VGA compatible controller [0300]: Vendor Product [10de:1b81] (rev a1)
+//
+//	0000:01:00.0 VGA compatible controller [0300]: Vendor Product [10de:1b81] (rev a1)
 func pciGPUs() []string {
 	ents, err := os.ReadDir("/sys/bus/pci/devices")
 	if err != nil {

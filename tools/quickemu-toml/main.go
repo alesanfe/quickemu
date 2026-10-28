@@ -4,24 +4,20 @@
 package main
 
 import (
-	"strings"
-	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
-func die(c, m string) {
-	b, _ := json.Marshal(map[string]any{"schemaVersion": 1, "success": false,
-		"errors": []map[string]string{{"code": c, "message": m}}})
-	fmt.Println(string(b))
-	os.Exit(1)
-}
+const version = "0.1.0"
+
+func die(c, m string) { qelib.Fail("toml.parse", "quickemu-toml/"+version, c, m) }
 func ok(d any) {
-	b, _ := json.Marshal(map[string]any{"schemaVersion": 1, "command": "toml.parse",
-		"success": true, "data": d})
-	fmt.Println(string(b))
+	qelib.EmitOK("toml.parse", "quickemu-toml/"+version, d)
 	os.Exit(0)
 }
 
@@ -84,7 +80,7 @@ func fromConf(file string) int {
 }
 
 func main() {
-	os.Args = normArgs(os.Args)
+	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 3 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-toml <parse|validate|get|from-conf> --file <f> [--key k]")
 		os.Exit(2)
@@ -130,17 +126,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", sub)
 		os.Exit(2)
 	}
-}
-// normArgs expands GNU-style --flag=value into --flag value so the
-// positional pair parsers stay uniform (pflag parity without the dep).
-func normArgs(a []string) []string {
-	out := make([]string, 0, len(a)+4)
-	for _, s := range a {
-		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
-			out = append(out, s[:i], s[i+1:])
-		} else {
-			out = append(out, s)
-		}
-	}
-	return out
 }

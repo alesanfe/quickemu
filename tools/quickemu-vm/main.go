@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // die: qe_die parity — JSON mode emits the error envelope on stdout;
@@ -22,20 +24,23 @@ func die(code, msg string) {
 		fmt.Fprintln(os.Stderr, "ERROR! "+msg)
 		os.Exit(1)
 	}
-	emit(map[string]any{"success": false, "data": nil,
-		"errors": []map[string]any{{"code": code, "message": msg,
-			"severity": "error", "retryable": false}}})
-	os.Exit(1)
+	qelib.Fail(opCmd, "quickemu-vm/"+vmVersion(), code, msg)
 }
 
 func ok(data string) {
-	emit(map[string]any{"success": true, "errors": []any{}, "data": json.RawMessage(data)})
+	if !outputJSON {
+		return
+	}
+	qelib.EmitOK(opCmd, "quickemu-vm/"+vmVersion(), json.RawMessage(data))
 }
 
 // okMap: typed variant of ok — data is marshalled by encoding/json
 // instead of hand-built with fmt.Sprintf.
 func okMap(data map[string]any) {
-	emit(map[string]any{"success": true, "errors": []any{}, "data": data})
+	if !outputJSON {
+		return
+	}
+	qelib.EmitOK(opCmd, "quickemu-vm/"+vmVersion(), data)
 }
 
 // info/infof: qe_info parity — human progress lines print only in
@@ -55,29 +60,10 @@ func infof(f string, a ...any) {
 // e.g. vm.delete-plan, vm.trash.list). Set in main() per dispatch.
 var opCmd = ""
 
-// emit: single envelope writer — the full v1 contract
-// {schemaVersion, command, success, data, warnings, errors, meta}.
-// qe_emit parity: only emits when OUTPUT_FORMAT=json; in text mode
-// ops already printed their human lines.
-func emit(m map[string]any) {
-	if !outputJSON {
-		return
-	}
-	out := map[string]any{
-		"schemaVersion": 1,
-		"command":       opCmd,
-		"warnings":      []any{},
-		"meta": map[string]any{
-			"quickemuVersion": "5.0.0",
-			"timestamp":       time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		},
-	}
-	for k, v := range m {
-		out[k] = v
-	}
-	b, _ := json.Marshal(out)
-	fmt.Println(string(b))
-}
+// Emission goes through qelib's canonical envelope
+// {schemaVersion, command, success, data, warnings, errors, meta};
+// qe_emit parity: nothing is printed unless OUTPUT_FORMAT=json — in
+// text mode ops already printed their human lines.
 
 func vmConfPath(dir string) string {
 	// QE_VMCONF: the caller (quickemu-cli) knows exactly which conf the

@@ -73,6 +73,7 @@ tools/quickgetc/quickgetc
 tools/*/coverage.out
 tools/quickget-cli/quickget-cli
 # stray short-name binaries from `go build` in module dirs
+tools/*/qelib
 tools/*/api
 tools/*/archive
 tools/*/catalog

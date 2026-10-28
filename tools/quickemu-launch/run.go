@@ -13,6 +13,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // detach puts the child in its own session — the Bash `&` + `disown`
@@ -128,9 +130,9 @@ func reapVM(pid int, dir, name string) {
 	os.RemoveAll(filepath.Join(dir, name+".lock.shared"))
 }
 
-func alivePid(pid int) bool {
-	return pid > 0 && syscall.Kill(pid, 0) == nil
-}
+// alivePid: EPERM-aware liveness — a foreign-owned daemon counts as
+// alive (its pidfile must not be cleaned up from under it).
+func alivePid(pid int) bool { return qelib.Alive(pid) }
 
 // stopDaemon: stop_virtiofsd/stop_swtpm parity — read the recorded
 // pidfile, verify /proc comm matches (PID-reuse guard), TERM then KILL.

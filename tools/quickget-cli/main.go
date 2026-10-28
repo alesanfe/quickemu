@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 var (
@@ -84,25 +86,8 @@ func findEntry(cat []Entry, name string) *Entry {
 	return nil
 }
 
-// findTool resolves a sibling Go tool: PATH first, then next to this
-// executable, then the dev-tree layout ../<name>/<name>.
-func findTool(name string) (string, error) {
-	if bin, err := exec.LookPath(name); err == nil {
-		return bin, nil
-	}
-	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		for _, p := range []string{
-			filepath.Join(dir, name),
-			filepath.Join(dir, "..", name, name),
-		} {
-			if st, err := os.Stat(p); err == nil && st.Mode()&0111 != 0 {
-				return p, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("%s: not on PATH", name)
-}
+// findTool resolves a sibling Go tool (PATH → exe dir → dev-tree).
+func findTool(name string) (string, error) { return qelib.FindTool(name) }
 
 func tool(name string, args ...string) (string, error) {
 	bin, err := findTool(name)

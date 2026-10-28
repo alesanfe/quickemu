@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 var (
@@ -20,7 +22,11 @@ var (
 )
 
 func runCmd(name string, args ...string) (string, error) {
-	out, err := exec.Command(name, args...).CombinedOutput()
+	bin, err := qelib.FindTool(name)
+	if err != nil {
+		return "", err
+	}
+	out, err := exec.Command(bin, args...).CombinedOutput()
 	return string(out), err
 }
 

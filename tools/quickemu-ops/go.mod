@@ -14,3 +14,7 @@ require (
 	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 )
+
+require github.com/alesanfe/quickemu/tools/qelib v0.0.0
+
+replace github.com/alesanfe/quickemu/tools/qelib => ../qelib

@@ -19,8 +19,11 @@ mkShell {
         qemu_full
         swtpm
         samba
-        socat
         zsync
+        # spec tooling (not a runtime dep): QMP socket probing in
+        # qemu_boot_spec, jq for schema assertions.
+        socat
+        jq
         pciutils
         procps
         util-linux

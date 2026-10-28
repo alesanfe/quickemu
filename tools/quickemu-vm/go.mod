@@ -6,3 +6,7 @@ require (
 	github.com/jaypipes/pcidb v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.0.0 // indirect
 )
+
+require github.com/alesanfe/quickemu/tools/qelib v0.0.0
+
+replace github.com/alesanfe/quickemu/tools/qelib => ../qelib

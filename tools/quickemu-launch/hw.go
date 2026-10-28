@@ -276,8 +276,8 @@ func confList(c Conf, key string) []string {
 	return out
 }
 
-// portArgs: SSH/SPICE port forwarding — configure_ports. Allocates
-// ports when not specified (delegates to quickemu-ports).
+// portArgs: SSH/SPICE port forwarding — configure_ports. Allocation
+// is native (firstFreePort + portsRecord writes the registry file).
 func portArgs(c Conf, dir string) []string {
 	var a []string
 	ssh := c.get("ssh_port", "")

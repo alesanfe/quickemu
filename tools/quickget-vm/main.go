@@ -13,14 +13,16 @@ import (
 	"fmt"
 	"io"
 	"net"
-	neturl "net/url"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // HTTP clients: curl --connect-timeout/--max-time parity — probes die
@@ -490,7 +492,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 		// For windows, the positional 'edition' is the I18N language.
 		return getWindows(osName, release, edition, dir, arch)
 	}
-	cat, err := exec.LookPath("quickget-catalog")
+	cat, err := qelib.FindTool("quickget-catalog")
 	if err != nil {
 		fmt.Println("get: quickget-catalog not on PATH")
 		return 1

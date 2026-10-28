@@ -9,12 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/google/renameio/v2"
 	"github.com/google/uuid"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 const version = "0.1.0"
@@ -32,12 +33,7 @@ type Op struct {
 	Error         json.RawMessage `json:"error"`
 }
 
-func die(code, msg string) {
-	b, _ := json.Marshal(map[string]any{"schemaVersion": 1, "success": false,
-		"errors": []map[string]string{{"code": code, "message": msg}}})
-	fmt.Println(string(b))
-	os.Exit(1)
-}
+func die(code, msg string) { qelib.Fail(qelib.CmdName("ops"), "quickemu-ops/"+version, code, msg) }
 
 func opsDir(vmdir string) string { return filepath.Join(vmdir, "ops") }
 
@@ -81,7 +77,7 @@ func writeOp(dir string, o *Op) {
 }
 
 func main() {
-	os.Args = normArgs(os.Args)
+	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 3 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-ops <new|set|done|fail|status|list|cancel|prune> --vmdir <dir> [args]")
 		os.Exit(2)
@@ -311,18 +307,4 @@ func max(a, b int) int {
 		return a
 	}
 	return b
-}
-
-// normArgs expands GNU-style --flag=value into --flag value so the
-// positional pair parsers stay uniform (pflag parity without the dep).
-func normArgs(a []string) []string {
-	out := make([]string, 0, len(a)+4)
-	for _, s := range a {
-		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
-			out = append(out, s[:i], s[i+1:])
-		} else {
-			out = append(out, s)
-		}
-	}
-	return out
 }

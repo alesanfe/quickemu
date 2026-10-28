@@ -14,21 +14,18 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
-func die(c, m string) {
-	b, _ := json.Marshal(map[string]any{"success": false,
-		"errors": []map[string]any{{"code": c, "message": m}}})
-	fmt.Println(string(b))
-	os.Exit(1)
-}
+const version = "0.1.0"
+
+func die(c, m string) { qelib.Fail(qelib.CmdName("archive"), "quickemu-archive/"+version, c, m) }
 
 // ok emits the envelope; d is a pre-marshalled JSON fragment (the
 // small fixed payloads built by callers below).
 func ok(d string) {
-	b, _ := json.Marshal(map[string]any{"success": true,
-		"data": json.RawMessage(d)})
-	fmt.Println(string(b))
+	qelib.EmitOK(qelib.CmdName("archive"), "quickemu-archive/"+version, json.RawMessage(d))
 	os.Exit(0)
 }
 
@@ -55,7 +52,7 @@ func safeMember(name string) bool {
 }
 
 func main() {
-	os.Args = normArgs(os.Args)
+	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-archive <verify|extract> --archive <tgz> [--dest <dir>]")
 		os.Exit(2)
@@ -175,17 +172,4 @@ func main() {
 	}
 	d, _ := json.Marshal(map[string]any{"members": entries, "verified": len(files)})
 	ok(string(d))
-}
-// normArgs expands GNU-style --flag=value into --flag value so the
-// positional pair parsers stay uniform (pflag parity without the dep).
-func normArgs(a []string) []string {
-	out := make([]string, 0, len(a)+4)
-	for _, s := range a {
-		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
-			out = append(out, s[:i], s[i+1:])
-		} else {
-			out = append(out, s)
-		}
-	}
-	return out
 }

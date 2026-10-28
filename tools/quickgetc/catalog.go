@@ -4,7 +4,9 @@
 package main
 
 import (
+	"encoding/csv"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 )
@@ -200,16 +202,21 @@ func equalStrs(a, b []string) bool {
 }
 
 // listCSV: Display Name,OS,Release,Option,Downloader,PNG,SVG rows.
+// encoding/csv quoting matches jq @csv (fields with commas/quotes get
+// wrapped) — plain Printf would corrupt rows.
 func listCSV(cat []OSEntry) {
-	fmt.Println("Display Name,OS,Release,Option,Downloader,PNG,SVG")
+	w := csv.NewWriter(os.Stdout)
+	w.Write([]string{"Display Name", "OS", "Release", "Option", "Downloader", "PNG", "SVG"})
 	for _, e := range cat {
 		for _, r := range e.Releases {
-			fmt.Printf("%s,%s,%s,%s,%s,%s,%s\n",
+			w.Write([]string{
 				e.PrettyName, e.Name, r.Release, r.Edition, "",
-				"https://quickemu-project.github.io/quickemu-icons/png/"+e.Name+"/"+e.Name+"-quickemu-white-pinkbg.png",
-				"https://quickemu-project.github.io/quickemu-icons/svg/"+e.Name+"/"+e.Name+"-quickemu-white-pinkbg.svg")
+				"https://quickemu-project.github.io/quickemu-icons/png/" + e.Name + "/" + e.Name + "-quickemu-white-pinkbg.png",
+				"https://quickemu-project.github.io/quickemu-icons/svg/" + e.Name + "/" + e.Name + "-quickemu-white-pinkbg.svg",
+			})
 		}
 	}
+	w.Flush()
 }
 
 // allSourceURLs: unique urls anywhere inside a release entry (the

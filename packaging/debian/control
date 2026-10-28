@@ -23,7 +23,6 @@ Depends:
  qemu-system-arm (>= 6.0) [arm64],
  qemu-system-x86 (>= 6.0),
  base-files (<< 13~) | qemu-system-modules-spice,
- socat,
  spice-client-gtk,
  swtpm,
  usbutils,

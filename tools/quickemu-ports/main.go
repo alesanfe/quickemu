@@ -4,28 +4,22 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 const version = "0.1.0"
 
-func die(c, m string) {
-	b, _ := json.Marshal(map[string]any{"success": false,
-		"errors": []map[string]any{{"code": c, "message": m}}})
-	fmt.Println(string(b))
-	os.Exit(1)
-}
+func die(c, m string) { qelib.Fail(qelib.CmdName("ports"), "quickemu-ports/"+version, c, m) }
 func ok(data map[string]any) {
-	b, _ := json.Marshal(map[string]any{"success": true, "data": data})
-	fmt.Println(string(b))
+	qelib.EmitOK(qelib.CmdName("ports"), "quickemu-ports/"+version, data)
 	os.Exit(0)
 }
 
@@ -41,7 +35,8 @@ func stale(meta string) bool { // "pid ts instance [lease]" -> owner dead or lea
 		}
 	}
 	p, _ := strconv.Atoi(f[0])
-	return p > 0 && syscall.Kill(p, 0) != nil
+	// EPERM = alive: a foreign owner's lease must never be reclaimed.
+	return p > 0 && !qelib.Alive(p)
 }
 
 func lock(reg string) func() {
@@ -62,7 +57,7 @@ func lock(reg string) func() {
 }
 
 func main() {
-	os.Args = normArgs(os.Args)
+	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-ports <reserve|release|list|check|find> --registry <dir> [--port N] [--pid P] [--instance I] [--lo N --hi N]")
 		os.Exit(2)
@@ -209,20 +204,4 @@ func main() {
 func isNum(s string) bool {
 	_, err := strconv.Atoi(s)
 	return err == nil
-}
-// normArgs expands GNU-style --flag=value into --flag value so the
-// positional pair parsers stay uniform (pflag parity without the dep).
-func normArgs(a []string) []string {
-	// Fresh backing array — in-place reuse (a[:0]) would overwrite
-	// elements the range loop hasn't read yet when an = arg splits
-	// into two, corrupting later flags.
-	out := make([]string, 0, len(a)+4)
-	for _, s := range a {
-		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
-			out = append(out, s[:i], s[i+1:])
-		} else {
-			out = append(out, s)
-		}
-	}
-	return out
 }

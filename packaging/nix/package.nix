@@ -25,15 +25,13 @@
 let
   # Runtime tools the Go backend execs: QEMU itself, its companion
   # daemons (swtpm, virtiofsd, qemu-bridge-helper via util-linux),
-  # optional accelerators (zsync delta downloads), viewers
-  # (spice-gtk/xrandr) and the socat bridge used by legacy monitor
-  # passthrough. Catalog data + schemas ship under share/quickemu.
+  # optional accelerators (zsync delta downloads) and viewers
+  # (spice-gtk/xrandr). Catalog data + schemas ship under share/quickemu.
   runtimePaths = [
     pciutils
     procps
     qemu_full
     samba
-    socat
     swtpm
     util-linux
     xrandr

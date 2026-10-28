@@ -12,6 +12,8 @@ bin/quickreport   # Diagnostics entrypoint → tools/quickreport
                   # (bin/ wrappers exec the Go binaries; they resolve
                   # packaged libexec/quickemu/ and dev-tree tools/*/)
 tools/            # Go modules — one dir per tool
+  qelib           #   shared helpers: v1 envelope, NormArgs, Alive,
+                  #   FindTool/Tool sibling resolution
   quickemu-cli    #   unified CLI: lifecycle, flags, JSON envelopes
   quickemu-launch #   QEMU arg builder + spawn/reaper (the old vm_boot)
   quickemu-vm     #   VM ops: delete/export/clone/snapshots/create-disk
@@ -143,6 +145,7 @@ fix(quickget): remove Athena OS (no longer getting updates)
 
 Runtime (exec'd by the Go tools): qemu-system-*, qemu-img, swtpm,
 virtiofsd, samba (smbd via QEMU netdev), spice-gtk, zsync, xrandr,
-usbutils, util-linux, socat (legacy monitor passthrough only)
+usbutils, util-linux. Spec tooling only: socat (QMP socket probing),
+jq (schema assertions).
 Firmware: OVMF (x86_64), AAVMF (aarch64) — `QE_FIRMWARE_DIR` override
 Linux-specific: usbutils, mesa-demos

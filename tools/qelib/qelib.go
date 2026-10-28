@@ -1,0 +1,139 @@
+// Package qelib: helpers shared by the quickemu Go tools — the
+// canonical v1 JSON envelope (schemas/v1/response.schema.json),
+// --flag=value argument normalization, EPERM-aware process liveness
+// and sibling-tool resolution.
+package qelib
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"syscall"
+	"time"
+)
+
+// QEVersion is the product version reported in meta.quickemuVersion.
+const QEVersion = "5.0.0"
+
+// NormArgs expands "--flag=value" into "--flag value" so flag.Parse
+// accepts both spellings. The output is a fresh slice — writing into
+// a[:0] would clobber unread elements.
+func NormArgs(a []string) []string {
+	out := make([]string, 0, len(a))
+	for _, s := range a {
+		if strings.HasPrefix(s, "--") {
+			if i := strings.IndexByte(s, '='); i > 0 {
+				out = append(out, s[:i], s[i+1:])
+				continue
+			}
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// Alive reports whether pid is a live process. EPERM counts as alive:
+// a process owned by another user exists even though we cannot signal
+// it — treating it as dead would let locks be stolen.
+func Alive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	err := syscall.Kill(pid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
+}
+
+// QEError is one errors[] element of the v1 envelope.
+type QEError struct {
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	Severity  string `json:"severity"`
+	Retryable bool   `json:"retryable"`
+}
+
+// CmdName derives the envelope command field: "<tool>.<action>" from
+// argv[1] (post-NormArgs), falling back to the bare tool name.
+func CmdName(tool string) string {
+	if len(os.Args) > 1 {
+		return tool + "." + os.Args[1]
+	}
+	return tool
+}
+
+// Emit prints the canonical v1 envelope: {schemaVersion, command,
+// success, data, warnings, errors, meta{quickemuVersion, timestamp,
+// operationId?}}.
+func Emit(cmd, tool string, success bool, data any, errs any) {
+	if errs == nil {
+		errs = []any{}
+	}
+	meta := map[string]any{
+		"quickemuVersion": QEVersion,
+		"tool":            tool,
+		"timestamp":       time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+	}
+	if op := os.Getenv("OPID"); op != "" {
+		meta["operationId"] = op
+	} else if op := os.Getenv("OP_ID"); op != "" {
+		meta["operationId"] = op
+	}
+	b, _ := json.Marshal(map[string]any{
+		"schemaVersion": 1, "command": cmd, "success": success,
+		"data": data, "warnings": []any{}, "errors": errs, "meta": meta,
+	})
+	fmt.Println(string(b))
+}
+
+// EmitOK prints a success envelope.
+func EmitOK(cmd, tool string, data any) { Emit(cmd, tool, true, data, []any{}) }
+
+// Fail prints an error envelope with one error[] entry and exits 1.
+func Fail(cmd, tool, code, msg string) {
+	Emit(cmd, tool, false, nil, []QEError{
+		{Code: code, Message: msg, Severity: "error", Retryable: false}})
+	os.Exit(1)
+}
+
+// FindTool resolves a sibling tool binary: PATH first, then next to
+// this executable (packaged libexec/ layout), then the dev-tree
+// layout ../<name>/<name> where each tool builds into its own dir.
+func FindTool(name string) (string, error) {
+	if bin, err := exec.LookPath(name); err == nil {
+		return bin, nil
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		for _, p := range []string{
+			filepath.Join(dir, name),
+			filepath.Join(dir, "..", name, name),
+		} {
+			if st, err := os.Stat(p); err == nil && !st.IsDir() && st.Mode()&0o111 != 0 {
+				return p, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("%s: not on PATH", name)
+}
+
+// Tool runs a sibling quickemu-* binary, capturing stdout for the
+// caller while stderr passes straight through.
+func Tool(name string, env []string, args ...string) (string, error) {
+	bin, err := FindTool(name)
+	if err != nil {
+		return "", err
+	}
+	cmd := exec.Command(bin, args...)
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	return buf.String(), err
+}

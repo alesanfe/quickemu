@@ -5,9 +5,7 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -21,6 +19,8 @@ import (
 	"time"
 
 	"golang.org/x/sys/unix"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 var (
@@ -83,32 +83,10 @@ func tool(name string, args ...string) (string, error) {
 // toolEnv: tool() with extra env vars — used to pass QUICKEMU_QMP_RAW=1
 // only to trusted internal flows (hotplug), never to user QMP calls.
 func toolEnv(name string, env []string, args ...string) (string, error) {
-	bin, err := exec.LookPath(name)
-	if err != nil {
-		// Fall back to a sibling of this binary — lets an absolute-path
-		// invocation find the helper tools even off PATH.
-		if self, e := os.Executable(); e == nil {
-			sib := filepath.Join(filepath.Dir(self), name)
-			if _, e2 := os.Stat(sib); e2 == nil {
-				bin, err = sib, nil
-			}
-		}
-	}
-	if err != nil {
-		return "", fmt.Errorf("%s: not on PATH", name)
-	}
-	cmd := exec.Command(bin, args...)
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
 	// stdout is captured for the caller; stderr passes straight through
 	// to the user — Bash subprocess semantics (ERROR! lines must stay
 	// on stderr for contract callers).
-	var buf bytes.Buffer
-	cmd.Stdout = &buf
-	cmd.Stderr = os.Stderr
-	err = cmd.Run()
-	return buf.String(), err
+	return qelib.Tool(name, env, args...)
 }
 
 // qmpRaw sends a privileged QMP command from a trusted internal flow
@@ -162,19 +140,9 @@ func readPID() int {
 	return pid
 }
 
-func alive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	err = p.Signal(syscall.Signal(0))
-	// EPERM means the process exists but belongs to another user —
-	// still alive; a foreign owner's lock must never be reclaimed.
-	return err == nil || errors.Is(err, syscall.EPERM)
-}
+// alive reports whether pid is a live process (EPERM-aware — a
+// foreign owner's lock must never be reclaimed).
+func alive(pid int) bool { return qelib.Alive(pid) }
 
 // vmLockAcquire/vmLockRelease: vm_lock_* parity — mkdir-based
 // exclusive lock at <vmdir>/<vm>.lock with a pid file for stale-owner
@@ -312,20 +280,7 @@ func runtimeCleanup() {
 const qeVersion = "5.0.0"
 
 func emitEnvelope(cmd string, success bool, data any, errors any) {
-	meta := map[string]any{
-		"quickemuVersion": qeVersion,
-		"timestamp":       time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-	}
-	if op := os.Getenv("OPID"); op != "" {
-		meta["operationId"] = op
-	} else if op := os.Getenv("OP_ID"); op != "" {
-		meta["operationId"] = op
-	}
-	b, _ := json.Marshal(map[string]any{
-		"schemaVersion": 1, "command": cmd, "success": success,
-		"data": data, "warnings": []any{}, "errors": errors, "meta": meta,
-	})
-	fmt.Println(string(b))
+	qelib.Emit(cmd, "quickemu-cli/"+qeVersion, success, data, errors)
 }
 
 func emitOK(cmd string, data any) {
@@ -1600,7 +1555,7 @@ func actHostInfo() int {
 		"kernel": kernel, "arch": unameArch(), "cpuCores": runtime.NumCPU(),
 		"memTotalKb": memTotal, "kvm": kvm, "iommu": iommu, "qemu": qemuVer,
 		"qemuAarch64": has("qemu-system-aarch64"), "qemuImg": has("qemu-img"),
-		"socat": has("socat"), "jq": has("jq"), "swtpm": has("swtpm"),
+		"swtpm": has("swtpm"),
 		"ovmf":  globAny("/usr/share/OVMF*/OVMF_CODE.fd", "/usr/share/edk2/ovmf/OVMF_CODE.fd"),
 		"aavmf": globAny("/usr/share/AAVMF*", "/usr/share/edk2/aarch64/QEMU_EFI.fd"),
 		"passt": has("passt"), "virtiofsd": has("virtiofsd"), "spicy": has("spicy"),

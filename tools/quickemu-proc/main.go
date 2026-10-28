@@ -4,7 +4,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -13,27 +12,19 @@ import (
 
 	"github.com/prometheus/procfs"
 	"github.com/shirou/gopsutil/v4/process"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 const version = "0.1.0"
 
-type rep struct {
-	SchemaVersion int      `json:"schemaVersion"`
-	Command       string   `json:"command"`
-	Success       bool     `json:"success"`
-	Data          any      `json:"data,omitempty"`
-	Errors        []string `json:"errors"`
-	Meta          string   `json:"meta"`
-}
-
 func emit(ok bool, data any, err string) int {
-	e := rep{SchemaVersion: 1, Command: "proc.verify", Success: ok,
-		Data: data, Meta: "quickemu-proc/" + version, Errors: []string{}}
+	errs := []qelib.QEError{}
 	if err != "" {
-		e.Errors = []string{err}
+		errs = []qelib.QEError{{Code: "VERIFY_FAILED", Message: err,
+			Severity: "error", Retryable: false}}
 	}
-	b, _ := json.Marshal(e)
-	fmt.Println(string(b))
+	qelib.Emit("proc.verify", "quickemu-proc/"+version, ok, data, errs)
 	if !ok {
 		return 1
 	}
@@ -42,7 +33,7 @@ func emit(ok bool, data any, err string) int {
 
 // verify --pid P [--start-time S] [--uid U] [--exe name]
 func main() {
-	os.Args = normArgs(os.Args)
+	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 || os.Args[1] != "verify" {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-proc verify --pid P [--start-time S] [--uid U] [--exe name]")
 		os.Exit(2)
@@ -137,17 +128,4 @@ func main() {
 		}
 	}
 	os.Exit(emit(true, data, ""))
-}
-// normArgs expands GNU-style --flag=value into --flag value so the
-// positional pair parsers stay uniform (pflag parity without the dep).
-func normArgs(a []string) []string {
-	out := make([]string, 0, len(a)+4)
-	for _, s := range a {
-		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
-			out = append(out, s[:i], s[i+1:])
-		} else {
-			out = append(out, s)
-		}
-	}
-	return out
 }

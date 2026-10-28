@@ -4,45 +4,23 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 const version = "0.1.0"
 
-type errObj struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-}
-
-type envelope struct {
-	SchemaVersion int      `json:"schemaVersion"`
-	Command       string   `json:"command"`
-	Success       bool     `json:"success"`
-	Data          any      `json:"data,omitempty"`
-	Warnings      []string `json:"warnings"`
-	Errors        []errObj `json:"errors"`
-	Meta          meta     `json:"meta"`
-}
-
-type meta struct {
-	Backend        string `json:"backend"`
-	BackendVersion string `json:"backendVersion"`
-}
-
 func emit(cmd string, data any, code, msg string) int {
-	env := envelope{SchemaVersion: 1, Command: cmd, Success: code == "",
-		Data: data, Warnings: []string{}, Errors: []errObj{},
-		Meta: meta{Backend: "quickemu-qmp", BackendVersion: version}}
+	errs := []qelib.QEError{}
 	if code != "" {
-		env.Errors = []errObj{{Code: code, Message: msg}}
+		errs = []qelib.QEError{{Code: code, Message: msg,
+			Severity: "error", Retryable: false}}
 	}
-	b, _ := json.Marshal(env)
-	fmt.Println(string(b))
+	qelib.Emit(cmd, "quickemu-qmp/"+version, code == "", data, errs)
 	if code != "" {
 		return 1
 	}
@@ -54,7 +32,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-qmp <execute|watch> --socket <path> [--command <json>] [--timeout 5]")
 		os.Exit(2)
 	}
-	os.Args = normArgs(os.Args)
+	os.Args = qelib.NormArgs(os.Args)
 	switch os.Args[1] {
 	case "execute":
 		fs := flag.NewFlagSet("execute", flag.ExitOnError)
@@ -82,17 +60,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", os.Args[1])
 		os.Exit(2)
 	}
-}
-
-// normArgs: --flag=value parity (see sibling helpers).
-func normArgs(a []string) []string {
-	out := make([]string, 0, len(a))
-	for _, s := range a {
-		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
-			out = append(out, s[:i], s[i+1:])
-		} else {
-			out = append(out, s)
-		}
-	}
-	return out
 }
