@@ -4,6 +4,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
@@ -20,7 +22,15 @@ import (
 var (
 	dataDir = qelib.XDGData() + "/quickemu"
 	token   string
+
+	authMu    sync.Mutex
+	authFails = map[string]*failRec{}
 )
+
+type failRec struct {
+	n     int
+	until time.Time
+}
 
 func runCmd(name string, args ...string) (string, error) {
 	bin, err := qelib.FindTool(name)
@@ -37,9 +47,44 @@ func write(w http.ResponseWriter, code int, v any) {
 	json.NewEncoder(w).Encode(v)
 }
 
+const (
+	authFailMax    = 10
+	authFailWindow = time.Minute
+)
+
+// authThrottle returns false once addr has burned through its
+// failed-auth allowance for the current window — an exposed daemon
+// must not serve as an unbounded token-guessing oracle.
+func authThrottle(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	authMu.Lock()
+	defer authMu.Unlock()
+	fr, ok := authFails[host]
+	if !ok || time.Now().After(fr.until) {
+		authFails[host] = &failRec{n: 1, until: time.Now().Add(authFailWindow)}
+		return true
+	}
+	fr.n++
+	return fr.n <= authFailMax
+}
+
 func auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if token != "" && r.Header.Get("Authorization") != "Bearer "+token {
+		if token == "" {
+			next(w, r)
+			return
+		}
+		// Constant-time compare keeps the token's length/content out
+		// of timing side channels; CutPrefix enforces the scheme.
+		given, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if !ok || subtle.ConstantTimeCompare([]byte(given), []byte(token)) != 1 {
+			if !authThrottle(r.RemoteAddr) {
+				write(w, 429, map[string]any{"errors": []any{map[string]any{"code": "AUTH_THROTTLED"}}})
+				return
+			}
 			write(w, 401, map[string]any{"errors": []any{map[string]any{"code": "UNAUTHORIZED"}}})
 			return
 		}
@@ -47,12 +92,50 @@ func auth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// readTokenFile loads the bearer token from a file, refusing modes
+// that let group/other read the secret.
+func readTokenFile(path string) (string, error) {
+	st, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if st.Mode().Perm()&0077 != 0 {
+		return "", fmt.Errorf("token file must not be group/other-accessible (mode %04o)", st.Mode().Perm())
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
+}
+
+// isLocalBind reports whether listen stays off the network: unix
+// sockets and loopback TCP addresses only (":port" binds every
+// interface and is therefore not local).
+func isLocalBind(listen string) bool {
+	if strings.HasPrefix(listen, "/") {
+		return true
+	}
+	host, _, err := net.SplitHostPort(listen)
+	if err != nil || host == "" {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func main() {
 	var listen = "127.0.0.1:8490"
+	var allowExposed bool
 	for i := 1; i < len(os.Args); i++ {
 		fl := os.Args[i]
 		switch fl {
-		case "--listen", "--unix", "--data-dir", "--token":
+		case "--insecure-allow-exposed":
+			allowExposed = true
+		case "--listen", "--unix", "--data-dir", "--token", "--token-file":
 			if i+1 >= len(os.Args) {
 				fmt.Fprintln(os.Stderr, fl+" needs a value")
 				os.Exit(2)
@@ -66,8 +149,26 @@ func main() {
 				dataDir = v
 			case "--token":
 				token = v
+			case "--token-file":
+				t, err := readTokenFile(v)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "token-file:", err)
+					os.Exit(1)
+				}
+				token = t
 			}
 		}
+	}
+	// A token under 16 chars is brute-forceable — reject at startup.
+	if token != "" && len(token) < 16 {
+		fmt.Fprintln(os.Stderr, "--token must be at least 16 characters")
+		os.Exit(1)
+	}
+	// Loopback-only without a token is the safe default; anything
+	// exposed to the network requires auth unless explicitly waived.
+	if token == "" && !allowExposed && !isLocalBind(listen) {
+		fmt.Fprintln(os.Stderr, "refusing to bind "+listen+" without a token (set --insecure-allow-exposed to override)")
+		os.Exit(1)
 	}
 	ln, err := openListener(listen)
 	if err != nil {
