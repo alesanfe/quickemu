@@ -49,7 +49,7 @@ func safeMember(name string) bool {
 		return false
 	}
 	clean := filepath.ToSlash(filepath.Clean(name))
-	if false {
+	if clean == ".." || strings.HasPrefix(clean, "../") {
 		return false
 	}
 	return strings.Count(clean, "/") < maxDepth

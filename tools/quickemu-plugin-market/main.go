@@ -63,6 +63,12 @@ func find(c catalog, name string) *template {
 	return nil
 }
 
+// writeConf normalizes the template body: exactly one trailing
+// newline so the installed .conf passes POSIX text-file checks.
+func writeConf(path, conf string) error {
+	return os.WriteFile(path, []byte(strings.TrimRight(conf, "\n")+"\n"), 0o644)
+}
+
 func main() {
 	args := os.Args[1:]
 	if len(args) < 1 {
@@ -102,7 +108,7 @@ func main() {
 			os.Exit(1)
 		}
 		out := filepath.Join(dir, args[1]+".conf")
-		if err := os.WriteFile(out, []byte(strings.TrimRight(tp.Conf, "\n")+"\n"), 0o644); err != nil {
+		if err := writeConf(out, tp.Conf); err != nil {
 			fmt.Fprintf(os.Stderr, "market: %v\n", err)
 			os.Exit(1)
 		}

@@ -65,6 +65,32 @@ func main() {
 			token = os.Args[i]
 		}
 	}
+	var ln net.Listener
+	var err error
+	if strings.HasPrefix(listen, "/") {
+		// Refuse to steal a live socket: if it answers, a daemon is
+		// already bound — unlinking it would orphan its listener.
+		if c, derr := net.DialTimeout("unix", listen, 500*time.Millisecond); derr == nil {
+			c.Close()
+			fmt.Fprintln(os.Stderr, "listen: socket already in use:", listen)
+			os.Exit(1)
+		}
+		os.Remove(listen)
+		if ln, err = net.Listen("unix", listen); err == nil {
+			os.Chmod(listen, 0600)
+		}
+	} else {
+		ln, err = net.Listen("tcp", listen)
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "listen:", err)
+		os.Exit(1)
+	}
+	fmt.Println("quickemu-api listening on", listen)
+	http.Serve(ln, newMux())
+}
+
+func newMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/vms", auth(func(w http.ResponseWriter, r *http.Request) {
 		b, err := os.ReadFile(filepath.Join(dataDir, "vms.json"))
@@ -77,6 +103,14 @@ func main() {
 		write(w, 200, map[string]any{"data": v})
 	}))
 	mux.HandleFunc("/v1/vm/", auth(func(w http.ResponseWriter, r *http.Request) {
+		// Encoded separators (%2f, %5c) decode into the path *after*
+		// routing — a vm name that smuggles one in is traversal
+		// shaping, so reject on the escaped form too.
+		ep := strings.ToLower(r.URL.EscapedPath())
+		if strings.Contains(ep, "%2f") || strings.Contains(ep, "%5c") {
+			write(w, 400, map[string]any{"errors": []any{map[string]any{"code": "INVALID_ARGUMENT"}}})
+			return
+		}
 		rest := strings.TrimPrefix(r.URL.Path, "/v1/vm/")
 		parts := strings.SplitN(rest, "/", 2)
 		vm := parts[0]
@@ -150,29 +184,7 @@ func main() {
 	mux.HandleFunc("/v1/health", func(w http.ResponseWriter, _ *http.Request) {
 		write(w, 200, map[string]any{"data": map[string]any{"ok": true}})
 	})
-	var ln net.Listener
-	var err error
-	if strings.HasPrefix(listen, "/") {
-		// Refuse to steal a live socket: if it answers, a daemon is
-		// already bound — unlinking it would orphan its listener.
-		if c, derr := net.DialTimeout("unix", listen, 500*time.Millisecond); derr == nil {
-			c.Close()
-			fmt.Fprintln(os.Stderr, "listen: socket already in use:", listen)
-			os.Exit(1)
-		}
-		os.Remove(listen)
-		if ln, err = net.Listen("unix", listen); err == nil {
-			os.Chmod(listen, 0600)
-		}
-	} else {
-		ln, err = net.Listen("tcp", listen)
-	}
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "listen:", err)
-		os.Exit(1)
-	}
-	fmt.Println("quickemu-api listening on", listen)
-	http.Serve(ln, mux)
+	return mux
 }
 
 // vmCmd dispatches whitelisted VM ops to the Go backend tools —

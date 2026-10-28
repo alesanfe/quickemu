@@ -62,6 +62,14 @@ func sumsPick(body string, namePats []string, arch string, md5Field int) (iso, h
 	return file, f[0]
 }
 
+// zsyncURL maps a release URL to its .zsync sidecar on forced-http —
+// the scheme is downgraded only; a path segment containing "https"
+// must not be rewritten.
+func zsyncURL(url string) string {
+	u := strings.TrimPrefix(strings.TrimPrefix(url, "https://"), "http://")
+	return "http://" + u + ".zsync"
+}
+
 // zsyncGet: zsync_get parity — prefer the zsync delta downloader on
 // the forced-http .zsync URL, fall back to plain fetch when absent.
 func zsyncGet(url, dir, out string) int {
@@ -74,9 +82,7 @@ func zsyncGet(url, dir, out string) int {
 	}
 	if z, err := exec.LookPath("zsync"); err == nil {
 		fmt.Printf("Downloading %s from %s\n", out, url)
-		// Downgrade the scheme only — a path segment containing
-		// "https" must not be rewritten.
-		zu := "http://" + strings.TrimPrefix(url, "https://") + ".zsync"
+		zu := zsyncURL(url)
 		cmd := exec.Command(z, zu, "-i", filepath.Join(dir, out), "-o", filepath.Join(dir, out))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if cmd.Run() != nil {

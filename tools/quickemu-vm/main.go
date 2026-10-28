@@ -110,8 +110,13 @@ func deletePlanItems(dir string) []string {
 		if err != nil || p == dir {
 			return nil
 		}
-		if excl[filepath.Ext(p)] || excl[filepath.Base(p)] {
-			return nil
+		// Ext() alone can't see compound suffixes (.runtime.json),
+		// so exclude by suffix match against the artifact list.
+		base := filepath.Base(p)
+		for e := range excl {
+			if e == filepath.Ext(p) || e == base || strings.HasSuffix(base, e) {
+				return nil
+			}
 		}
 		items = append(items, rel(p))
 		return nil
