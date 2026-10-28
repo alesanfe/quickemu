@@ -223,9 +223,9 @@ image; `quickemu-vm` emits the v1 envelope only under
 ## Verification
 
 ```bash
-tools/build-go.sh        # builds all 15 binaries
-tools/go-check.sh        # vet + test -race -coverprofile + build, all modules
-tools/run-go-tests.sh    # go test -race -cover per package
+go run ./tools/dev build   # entries → bin/, tool binaries in-place
+go run ./tools/dev check   # vet + test -race -coverprofile + build, all modules
+go run ./tools/dev test    # go test -race -cover per package
 ```
 
 E2E (real QEMU, TCG): `spec/e2e/go_cli_boot_spec.sh` boots a VM via

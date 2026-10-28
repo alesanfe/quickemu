@@ -43,9 +43,9 @@ let
     xdg-user-dirs
     virtiofsd
   ];
-  # Version lives in the canonical CLI tool (const qeVersion).
-  versionParts = builtins.split "qeVersion = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" (
-    builtins.readFile ../../tools/quickemu-cli/main.go
+  # Version lives in the shared library (qelib.QEVersion).
+  versionParts = builtins.split "QEVersion = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" (
+    builtins.readFile ../../tools/qelib/qelib.go
   );
   version = builtins.elemAt (builtins.elemAt versionParts 1) 0;
 in
@@ -71,8 +71,14 @@ stdenv.mkDerivation (finalAttrs: {
     for d in tools/*/; do
       name=$(basename "$d")
       [ -f "$d/go.mod" ] || continue
+      case "$name" in qelib|dev|qespec) continue;; esac
       (cd "$d" && go build -trimpath -ldflags "-s -w" -o "$OLDPWD/build/$name" .)
     done
+    # Public entries are the cli binaries under their canonical names.
+    cp build/quickemu-cli  build/quickemu
+    cp build/quickget-cli  build/quickget
+    cp build/quickgetc     build/quickgetc
+    cp build/quickreport   build/quickreport
     runHook postBuild
   '';
 
@@ -81,8 +87,8 @@ stdenv.mkDerivation (finalAttrs: {
 
     installManPage docs/quickget.1 docs/quickemu.1 docs/quickemu_conf.5
     install -d "$out/libexec/quickemu"
-    install -Dm755 -t "$out/libexec/quickemu" build/*
-    install -Dm755 -t "$out/bin" bin/quickemu bin/quickget bin/quickgetc bin/quickreport
+    install -Dm755 -t "$out/libexec/quickemu" build/quickemu-* build/quickget-*
+    install -Dm755 -t "$out/bin" build/quickemu build/quickget build/quickgetc build/quickreport
     install -d "$out/share/quickemu"
     cp -r schemas catalog "$out/share/quickemu/"
 

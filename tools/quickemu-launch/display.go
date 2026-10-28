@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -36,7 +37,21 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	case "vnc":
 		// vm.sh: args+=(-vnc "${vnc_listen}") — host:display pair,
 		// default 127.0.0.1:0 from bin/quickemu.
-		a = append(a, "-vnc", c.get("vnc_listen", "127.0.0.1:0"), "-display", "none")
+		listen := c.get("vnc_listen", "127.0.0.1:0")
+		a = append(a, "-vnc", listen, "-display", "none")
+		// Publish the RFB endpoint so frontends can attach a viewer:
+		// "host:display" maps onto TCP 5900+display.
+		host, disp, found := strings.Cut(listen, ":")
+		if !found {
+			host, disp = "127.0.0.1", listen
+		}
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		if n, err := strconv.Atoi(disp); err == nil {
+			portsRecord(dir, c["_vmname"],
+				fmt.Sprintf("vnc,%d,%s", 5900+n, host), c["_run"] == "1")
+		}
 	case "none":
 		a = append(a, "-display", "none")
 	case "spice":

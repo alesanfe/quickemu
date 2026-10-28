@@ -30,6 +30,10 @@ RELEASE_NOTES.md
 vm-test/
 X-Test*/
 
+# Built Go binaries land in bin/ (entries) — never commit them
+/bin/*
+!/bin/README.md
+
 # Local test/dev artifacts
 /nul
 /quickreport.txt

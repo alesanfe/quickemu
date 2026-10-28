@@ -9,8 +9,8 @@ bin/quickemu      # VM launcher entrypoint → tools/quickemu-cli
 bin/quickget      # OS downloader entrypoint → tools/quickget-cli
 bin/quickgetc     # Data-driven downloader → tools/quickgetc
 bin/quickreport   # Diagnostics entrypoint → tools/quickreport
-                  # (bin/ wrappers exec the Go binaries; they resolve
-                  # packaged libexec/quickemu/ and dev-tree tools/*/)
+                  # (bin/ entries ARE the Go binaries; siblings resolve
+                  # via qelib.FindTool: libexec/ and dev-tree tools/*/)
 tools/            # Go modules — one dir per tool
   qelib           #   shared helpers: v1 envelope, NormArgs, Alive,
                   #   FindTool/Tool sibling resolution
@@ -48,7 +48,7 @@ devshell.nix      # Development environment
 ```shell
 nix develop                    # Enter devshell with all dependencies
 direnv reload                  # Update .direnv/bin/* for testing
-bash tools/build-go.sh         # Build all Go tool binaries (required)
+go run ./tools/dev build       # Build all Go tool binaries (entries → bin/)
 ```
 
 The devshell exports `QE_FIRMWARE_DIR` so the Go launcher finds
@@ -56,11 +56,11 @@ nix-store OVMF/AAVMF firmware without patching sources.
 
 ## Build and test commands
 
-- Build Go tools: `bash tools/build-go.sh` (required before bin/ wrappers work)
-- Full Go gate (vet+test+race+coverage+build, 15 modules): `bash tools/go-check.sh`
-- Lint scripts: `shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport tools/*.sh`
+- Build Go tools: `go run ./tools/dev build` (required before bin/ entries exist)
+- Full Go gate (vet+test+race+coverage+build, all modules): `go run ./tools/dev check`
+- Lint scripts: `shellcheck -S warning tools/*.sh`
 - Run tests (ShellSpec 0.28.1 is vendored): `./shellspec-0.28.1/shellspec [spec/file.sh]` — needs `qemu-img`, `qemu-system-*`, `socat` and `python3` for full coverage; contract/quickget/quickgetc specs are hermetic via `QUICKGETC_CATALOG` overrides.
-- TOML fuzzer: `bash tools/fuzz-toml.sh`
+- TOML hostile-corpus: `go test ./tools/quickemu-toml` (was tools/fuzz-toml.sh)
 - Test quickget URLs: `./bin/quickget --check <os> [release] [edition]`
 - Test ARM64 downloads: `./bin/quickget --arch arm64 --check <os> [release] [edition]`
 - Test all architectures: `./bin/quickget --check-all-arch <os> [release] [edition]`
@@ -116,7 +116,7 @@ fix(quickget): remove Athena OS (no longer getting updates)
 
 - PR titles must match Conventional Commits format (enforced by CI)
 - Single-commit PRs: commit message must match PR title
-- Run `bash tools/go-check.sh` and `shellcheck` before submitting
+- Run `go run ./tools/dev check` and `shellcheck` before submitting
 - Test affected OS downloads with `./bin/quickget --check <os> <release>`
 
 ## CI workflows

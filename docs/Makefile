@@ -26,7 +26,7 @@ install_docs: all
 #   install -m 644 quickgui.1 $(DESTDIR)$(mandir)/man1
 
 build_go:
-	cd .. && bash tools/build-go.sh
+	cd .. && go run ./tools/dev build
 
 install_bins: build_go
 	install -d $(DESTDIR)$(bindir)

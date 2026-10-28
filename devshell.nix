@@ -59,12 +59,12 @@ mkShell {
       cp bin/$f $PWD/.direnv/bin/$f
       chmod +x $PWD/.direnv/bin/$f
     done
-    # Wrappers resolve ../tools/<t>/<t> from their own dir.
+    # Entries resolve ../tools/<t>/<t> from their own dir.
     ln -sfn "$PWD/tools" "$PWD/.direnv/tools"
     # Build the Go tools once so the wrappers work immediately.
     if command -v go >/dev/null; then
-      bash tools/build-go.sh >/dev/null 2>&1 || \
-        echo "hint: run tools/build-go.sh to build the Go tools"
+      go run ./tools/dev build >/dev/null 2>&1 || \
+        echo "hint: run 'go run ./tools/dev build' to build the Go tools"
     fi
   '';
 }

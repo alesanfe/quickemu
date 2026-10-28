@@ -14,8 +14,8 @@ Describe 'entry scripts exist and parse'
         When run test -x "$QE_ROOT/$1"
         The status should be success
     End
-    It "$1 passes bash -n"
-        When run bash -n "$QE_ROOT/$1"
+    It "$1 is a compiled Go binary"
+        When run sh -c 'head -c4 "$1" | grep -q ELF' _ "$QE_ROOT/$1"
         The status should be success
     End
 End

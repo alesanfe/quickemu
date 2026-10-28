@@ -7,13 +7,19 @@ export CGO_ENABLED := 0
 	dh $@
 
 # Build the Go tools in-place; debian/install ships each binary to
-# /usr/libexec/quickemu where the bin/ wrappers resolve them.
+# /usr/libexec/quickemu and the four bin/ entries to /usr/bin.
 override_dh_auto_build:
+	mkdir -p bin
 	for d in tools/*/; do \
 		name=$$(basename "$$d"); \
 		[ -f "$$d/go.mod" ] || continue; \
+		case "$$name" in qelib|dev|qespec) continue;; esac; \
 		(cd "$$d" && go build -trimpath -ldflags "-s -w" -o "$$name" .); \
 	done
+	(cd tools/quickemu-cli && go build -trimpath -ldflags "-s -w" -o ../../bin/quickemu .)
+	(cd tools/quickget-cli && go build -trimpath -ldflags "-s -w" -o ../../bin/quickget .)
+	(cd tools/quickgetc && go build -trimpath -ldflags "-s -w" -o ../../bin/quickgetc .)
+	(cd tools/quickreport && go build -trimpath -ldflags "-s -w" -o ../../bin/quickreport .)
 
 override_dh_builddeb:
 	dh_builddeb -- -Zgzip

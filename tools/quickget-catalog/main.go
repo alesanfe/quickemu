@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 type Entry struct {
@@ -63,10 +65,7 @@ func catalogPath() string {
 	if p := os.Getenv("QUICKEMU_CATALOG"); p != "" {
 		return p
 	}
-	// Resolve relative to the binary's location: tools/x/x -> catalog/data
-	exe, _ := os.Executable()
-	base := filepath.Dir(filepath.Dir(filepath.Dir(exe)))
-	return filepath.Join(base, "catalog", "data", "catalog.json")
+	return qelib.DataFile("catalog", "data", "catalog.json")
 }
 
 func infoPath() string {

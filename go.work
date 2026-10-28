@@ -1,6 +1,7 @@
 go 1.25.0
 
 use (
+	./tools/dev
 	./tools/qelib
 	./tools/quickemu-api
 	./tools/quickemu-archive

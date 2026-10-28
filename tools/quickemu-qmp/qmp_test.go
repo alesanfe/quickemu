@@ -94,13 +94,21 @@ func TestBadCommandJSON(t *testing.T) {
 }
 
 // Envelope shape sanity: the emitted JSON parses and carries the
-// contract fields.
+// v1 contract fields (schemas/v1).
 func TestEnvelopeShape(t *testing.T) {
-	var e envelope
-	if json.Unmarshal([]byte(`{"schemaVersion":1,"command":"qmp.execute","success":true,"data":{},"warnings":[],"errors":[],"meta":{"backend":"quickemu-qmp","backendVersion":"0.1.0"}}`), &e) != nil {
+	var e struct {
+		SchemaVersion int            `json:"schemaVersion"`
+		Command       string         `json:"command"`
+		Success       bool           `json:"success"`
+		Data          map[string]any `json:"data"`
+		Meta          struct {
+			Tool string `json:"tool"`
+		} `json:"meta"`
+	}
+	if json.Unmarshal([]byte(`{"schemaVersion":1,"command":"qmp.execute","success":true,"data":{},"warnings":[],"errors":[],"meta":{"tool":"quickemu-qmp","quickemuVersion":"5.0.0"}}`), &e) != nil {
 		t.Fatal("envelope schema drifted")
 	}
-	if e.SchemaVersion != 1 || !strings.Contains(e.Meta.Backend, "quickemu") {
+	if e.SchemaVersion != 1 || !strings.Contains(e.Meta.Tool, "quickemu") {
 		t.Fatal("envelope contract broken")
 	}
 }

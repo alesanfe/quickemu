@@ -122,6 +122,11 @@ func FindTool(name string) (string, error) {
 		for _, p := range []string{
 			filepath.Join(dir, name),
 			filepath.Join(dir, "..", name, name),
+			// Packaged: <prefix>/bin/<entry> -> <prefix>/libexec/quickemu/<name>
+			filepath.Join(dir, "..", "libexec", "quickemu", name),
+			filepath.Join(dir, "..", "lib", "quickemu", name),
+			// Dev entries: bin/<entry> -> tools/<name>/<name>
+			filepath.Join(dir, "..", "tools", name, name),
 		} {
 			if st, err := os.Stat(p); err == nil && !st.IsDir() && st.Mode()&0o111 != 0 {
 				return p, nil
@@ -147,4 +152,33 @@ func Tool(name string, env []string, args ...string) (string, error) {
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	return buf.String(), err
+}
+
+// DataFile resolves a packaged/dev-tree data file (e.g. catalog/data/
+// catalog.json) for every layout: dev bin/<entry>, dev tools/<x>/<x>,
+// packaged <prefix>/bin and <prefix>/libexec/quickemu — with data under
+// either <root>/catalog or <prefix>/share/quickemu.
+// QUICKEMU_DATA_DIR overrides the search root.
+func DataFile(rel ...string) string {
+	if p := os.Getenv("QUICKEMU_DATA_DIR"); p != "" {
+		return filepath.Join(append([]string{p}, rel...)...)
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return filepath.Join(rel...)
+	}
+	dir := filepath.Dir(exe)
+	base := dir
+	for up := 0; up <= 3; up++ {
+		for _, pre := range []string{base, filepath.Join(base, "share", "quickemu")} {
+			p := filepath.Join(append([]string{pre}, rel...)...)
+			if st, err := os.Stat(p); err == nil && !st.IsDir() {
+				return p
+			}
+		}
+		base = filepath.Dir(base)
+	}
+	// Old dev-tree guess so error messages stay sensible.
+	return filepath.Join(append([]string{
+		filepath.Dir(filepath.Dir(filepath.Dir(exe)))}, rel...)...)
 }

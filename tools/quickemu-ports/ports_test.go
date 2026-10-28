@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 func TestStaleDeadOwner(t *testing.T) {
@@ -46,14 +48,14 @@ func TestStaleEmptyAndGarbage(t *testing.T) {
 }
 
 func TestNormArgsEqualsForm(t *testing.T) {
-	got := normArgs([]string{"p", "reserve", "--port=2222", "--pid", "7"})
+	got := qelib.NormArgs([]string{"p", "reserve", "--port=2222", "--pid", "7"})
 	want := []string{"p", "reserve", "--port", "2222", "--pid", "7"}
 	if len(got) != len(want) {
-		t.Fatalf("normArgs len %d, want %d: %v", len(got), len(want), got)
+		t.Fatalf("NormArgs len %d, want %d: %v", len(got), len(want), got)
 	}
 	for i := range want {
 		if got[i] != want[i] {
-			t.Fatalf("normArgs[%d]=%q want %q", i, got[i], want[i])
+			t.Fatalf("NormArgs[%d]=%q want %q", i, got[i], want[i])
 		}
 	}
 }

@@ -35,9 +35,7 @@ func dataPath(name string) string {
 	if p := os.Getenv("QUICKEMU_CATALOG_DIR"); p != "" {
 		return filepath.Join(p, name)
 	}
-	exe, _ := os.Executable()
-	base := filepath.Dir(filepath.Dir(filepath.Dir(exe)))
-	return filepath.Join(base, "catalog", "data", name)
+	return qelib.DataFile("catalog", "data", name)
 }
 
 type Entry struct {

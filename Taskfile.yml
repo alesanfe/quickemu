@@ -2,23 +2,26 @@ version: '3'
 
 tasks:
   build:
-    desc: Build all Go tool binaries (required before bin/ works)
+    desc: Build all Go tool binaries (entries land in bin/)
     cmds:
-      - bash tools/build-go.sh
+      - go run ./tools/dev build
 
   lint:
-    desc: ShellCheck on wrappers + dev scripts, go vet on all modules
+    desc: go vet + tests + coverage + build for every module
     cmds:
-      - shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport tools/*.sh
-      - bash -n bin/quickemu bin/quickget bin/quickgetc bin/quickreport
-      - bash tools/go-check.sh
+      - go run ./tools/dev check
 
   test:
-    desc: Per-spec ShellSpec suite (isolated process groups, timeouts)
+    desc: Go spec suite (tools/qespec)
     cmds:
-      - bash tools/run-specs.sh 240 spec
+      - go run ./tools/dev specs
 
   check:
     desc: Validate an OS download URL
     cmds:
       - ./bin/quickget --check {{.CLI_ARGS}}
+
+  list:
+    desc: List supported OSes
+    cmds:
+      - ./bin/quickget --list
