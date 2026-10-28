@@ -153,7 +153,7 @@ func importVm(in, destDir string) int {
 		}
 		members = append(members, h.Name)
 		if len(members) > 100000 {
-			die("UNSAFE_ARCHIVE", fmt.Sprintf("Archive has >100000 members."))
+			die("UNSAFE_ARCHIVE", "Archive has >100000 members.")
 		}
 		if strings.HasPrefix(h.Name, "/") || h.Name == ".." ||
 			strings.HasPrefix(h.Name, "../") || strings.Contains(h.Name, "/..") {

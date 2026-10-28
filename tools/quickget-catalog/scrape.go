@@ -467,7 +467,7 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		// rewrites -live/hybrid→cd; arm64 is netinst-only.
 		darch := arch
 		if darch == "arm64" && edition != "netinst" {
-			return "", "", fmt.Errorf("Debian %s is not available for ARM64. Use 'netinst' edition.", edition)
+			return "", "", fmt.Errorf("debian %s is not available for arm64, use the 'netinst' edition", edition)
 		}
 		u := fmt.Sprintf("https://cdimage.debian.org/cdimage/archive/%s-live/%s/iso-hybrid", release, darch)
 		if body, err := fetchString("https://cdimage.debian.org/debian-cd/"); err == nil {

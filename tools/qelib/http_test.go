@@ -85,7 +85,7 @@ func TestDLClientRejectsSchemeRedirect(t *testing.T) {
 func TestDLClientRedirectCap(t *testing.T) {
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		http.Redirect(w, httptest.NewRequest("GET", srv.URL+"/loop", nil), "/loop", 302)
+		http.Redirect(w, httptest.NewRequest("GET", srv.URL+"/loop", nil), "/loop", http.StatusFound)
 	}))
 	defer srv.Close()
 	if _, err := DLClient.Get(srv.URL); err == nil ||
@@ -109,13 +109,12 @@ func TestFetchStringTruncatedBody(t *testing.T) {
 }
 
 func TestFinalURL(t *testing.T) {
-	var srv *httptest.Server
-	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/end" {
 			w.Write([]byte("ok"))
 			return
 		}
-		http.Redirect(w, r, "/end", 302)
+		http.Redirect(w, r, "/end", http.StatusFound)
 	}))
 	defer srv.Close()
 	u, err := FinalURL(srv.URL + "/start")

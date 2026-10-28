@@ -98,10 +98,7 @@ func isoExtractPure(iso, out, prefix string) bool {
 		}
 		return len(want) == 0
 	}
-	if !walk(root) {
-		return false
-	}
-	return true
+	return walk(root)
 }
 
 // isoExtractBootfiles: extract PREFIX/vmlinuz + PREFIX/initrd from an

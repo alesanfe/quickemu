@@ -43,8 +43,6 @@ func archSupported(e *Entry, arch string) bool {
 	return false
 }
 
-var checkClient = qelib.ProbeClient
-
 // webCheck mirrors web_check(): HEAD with redirects first, then a
 // single-byte ranged GET fallback for presigned URLs that reject HEAD.
 var webCheck = func(url string) bool { return qelib.WebCheck(url, nil) }

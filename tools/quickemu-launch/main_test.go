@@ -129,7 +129,7 @@ network="none"
 	}
 	for _, v := range []string{"none", "bogus"} {
 		c := richConf(t, "monitor=\""+v+"\"\n")
-		out, rc = launch(t, nil, c, "--dry-run")
+		_, rc = launch(t, nil, c, "--dry-run")
 		if v == "none" && rc != 0 {
 			t.Fatalf("monitor none rc=%d", rc)
 		}

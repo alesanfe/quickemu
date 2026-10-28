@@ -81,7 +81,7 @@ func TestReserveReleaseListLifecycle(t *testing.T) {
 		t.Fatalf("list rc=%d n=%d", rc, len(res))
 	}
 
-	out, _, rc = runTool(t, "release", "--registry", reg, "--port", "2222")
+	_, _, rc = runTool(t, "release", "--registry", reg, "--port", "2222")
 	if rc != 0 {
 		t.Fatalf("release rc=%d", rc)
 	}

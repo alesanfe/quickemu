@@ -37,7 +37,7 @@ func TestDownloadWindowsWorkstation(t *testing.T) {
 		t.Fatal("iso not fetched")
 	}
 	// no SKU match → error
-	name, err = downloadWindowsWorkstation("11", "Klingon", dir)
+	_, err = downloadWindowsWorkstation("11", "Klingon", dir)
 	if err == nil {
 		t.Fatal("unknown language should fail")
 	}

@@ -83,8 +83,7 @@ func TestExportImportRoundtrip(t *testing.T) {
 	}
 	// import back into a fresh cwd.
 	dest := t.TempDir()
-	o, rc = runTool(t, nil, "import", dir, out)
-	_ = o // import target is cwd-relative — run through helper cwd below
+	runTool(t, nil, "import", dir, out)
 	_ = dest
 }
 

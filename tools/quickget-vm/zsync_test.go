@@ -45,7 +45,8 @@ func TestCryptSaltAlphabetAndLen(t *testing.T) {
 			}
 		}
 	}
-	if cryptSalt(16) == cryptSalt(16) {
+	s1, s2 := cryptSalt(16), cryptSalt(16)
+	if s1 == s2 {
 		t.Fatal("cryptSalt must not repeat")
 	}
 }
