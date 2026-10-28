@@ -44,6 +44,7 @@ func WebCheck(url string, headers map[string]string) bool {
 	if err != nil {
 		return false
 	}
+	req.Header.Set("User-Agent", "curl/8.0.0")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -58,6 +59,7 @@ func WebCheck(url string, headers map[string]string) bool {
 		return false
 	}
 	req.Header.Set("Range", "bytes=0-0")
+	req.Header.Set("User-Agent", "curl/8.0.0")
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -72,7 +74,13 @@ func WebCheck(url string, headers map[string]string) bool {
 // FetchString GETs a URL and returns the body, bounded to limit
 // bytes. Mirrors web_pipe.
 func FetchString(u string, limit int64) (string, error) {
-	r, err := ProbeClient.Get(u)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return "", err
+	}
+	// curl UA parity: some CDNs (amazonlinux) reject the Go default.
+	req.Header.Set("User-Agent", "curl/8.0.0")
+	r, err := ProbeClient.Do(req)
 	if err != nil {
 		return "", err
 	}

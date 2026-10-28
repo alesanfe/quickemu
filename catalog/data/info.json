@@ -9,7 +9,7 @@
   "alma": {
    "credentials": "-",
    "homepage": "https://almalinux.org/",
-   "info": "Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL\u00ae.",
+   "info": "Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL®.",
    "name": "AlmaLinux"
   },
   "alpine": {
@@ -51,7 +51,7 @@
   "archlinux": {
    "credentials": "-",
    "homepage": "https://archlinux.org/",
-   "info": "Lightweight and flexible Linux\u00ae distribution that tries to Keep It Simple.",
+   "info": "Lightweight and flexible Linux® distribution that tries to Keep It Simple.",
    "name": "Arch Linux"
   },
   "artixlinux": {
@@ -333,7 +333,7 @@
   "guix": {
    "credentials": "-",
    "homepage": "https://guix.gnu.org/",
-   "info": "Distribution of the GNU operating system developed by the GNU Project\u2014which respects the freedom of computer users.",
+   "info": "Distribution of the GNU operating system developed by the GNU Project—which respects the freedom of computer users.",
    "name": "Guix"
   },
   "haiku": {
@@ -483,7 +483,7 @@
   "maxlinux": {
    "credentials": "-",
    "homepage": "https://www.educa2.madrid.org/web/max",
-   "info": "MAdrid_linuX \u2014 education distro by the Madrid regional government.",
+   "info": "MAdrid_linuX — education distro by the Madrid regional government.",
    "name": "MAX"
   },
   "metamorphose": {
@@ -675,7 +675,7 @@
   "ponyos": {
    "credentials": "-",
    "homepage": "https://ponyos.org/",
-   "info": "Hobby Unix-like OS with its own kernel \u2014 not Linux.",
+   "info": "Hobby Unix-like OS with its own kernel — not Linux.",
    "name": "PonyOS"
   },
   "popos": {
@@ -753,7 +753,7 @@
   "rockylinux": {
    "credentials": "-",
    "homepage": "https://rockylinux.org/",
-   "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux\u00ae.",
+   "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.",
    "name": "Rocky Linux"
   },
   "rosalinux": {
@@ -909,7 +909,7 @@
   "ubuntucinnamon": {
    "credentials": "-",
    "homepage": "https://ubuntucinnamon.org/",
-   "info": "Community-driven, featuring Linux Mint\u2019s Cinnamon Desktop with Ubuntu at the core, packed fast and full of features, here is the most traditionally modern desktop you will ever love.",
+   "info": "Community-driven, featuring Linux Mint’s Cinnamon Desktop with Ubuntu at the core, packed fast and full of features, here is the most traditionally modern desktop you will ever love.",
    "name": "Ubuntu Cinnamon"
   },
   "ubuntukylin": {
@@ -969,7 +969,7 @@
   "windows": {
    "credentials": "-",
    "homepage": "https://www.microsoft.com/en-us/windows/",
-   "info": "Whether you\u2019re gaming, studying, running a business, or running a household, Windows helps you get it done.",
+   "info": "Whether you’re gaming, studying, running a business, or running a household, Windows helps you get it done.",
    "name": "Windows"
   },
   "windows-server": {
@@ -989,6 +989,384 @@
    "homepage": "https://zorin.com/os/",
    "info": "Alternative to Windows and macOS designed to make your computer faster, more powerful, secure, and privacy-respecting.",
    "name": "Zorin OS"
+  },
+  "4mlinux": {
+   "credentials": "-",
+   "homepage": "https://4mlinux.com/",
+   "info": "Minimalist Linux distribution focused on the four Ms: maintenance, multimedia, miniserver and mystery.",
+   "name": "4MLinux"
+  },
+  "amazonlinux": {
+   "credentials": "-",
+   "homepage": "https://aws.amazon.com/amazon-linux-2023/",
+   "info": "RPM-based Linux distribution optimized for AWS, maintained by Amazon.",
+   "name": "Amazon Linux"
+  },
+  "athenaos": {
+   "credentials": "-",
+   "homepage": "https://athenaos.org/",
+   "info": "Arch-based pentesting-oriented distribution.",
+   "name": "AthenaOS"
+  },
+  "avlinux": {
+   "credentials": "-",
+   "homepage": "https://bandshed.net/avlinux/",
+   "info": "Multimedia-production distribution based on MX Linux with a low-latency focus.",
+   "name": "AVLinux"
+  },
+  "bsdrp": {
+   "credentials": "-",
+   "homepage": "https://bsdrp.net/",
+   "info": "FreeBSD-based router distribution for network labs.",
+   "name": "BSDRP"
+  },
+  "calculate-linux": {
+   "credentials": "-",
+   "homepage": "https://www.calculate-linux.org/",
+   "info": "Gentoo-based distribution with fast binary installs and domain tooling.",
+   "name": "Calculate Linux"
+  },
+  "centos": {
+   "credentials": "-",
+   "homepage": "https://www.centos.org/",
+   "info": "Historic RHEL-compatible distribution (EOL releases preserved on the vault).",
+   "name": "CentOS"
+  },
+  "chimeraos": {
+   "credentials": "-",
+   "homepage": "https://chimeraos.org/",
+   "info": "Console-like gaming distribution delivering Big Picture Steam sessions.",
+   "name": "ChimeraOS"
+  },
+  "cirros": {
+   "credentials": "-",
+   "homepage": "https://cirros-cloud.net/",
+   "info": "Tiny cloud test image used to verify OpenStack and cloud deployments.",
+   "name": "CirrOS"
+  },
+  "clonezilla": {
+   "credentials": "-",
+   "homepage": "https://clonezilla.org/",
+   "info": "Disk cloning and imaging live system.",
+   "name": "Clonezilla"
+  },
+  "coreos": {
+   "credentials": "-",
+   "homepage": "https://coreos.com/",
+   "info": "The original container-optimized OS; EOL, preserved final releases.",
+   "name": "Container Linux"
+  },
+  "crystal-linux": {
+   "credentials": "-",
+   "homepage": "https://getcryst.al/",
+   "info": "Arch-based distribution focused on usability with the amethyst helper.",
+   "name": "Crystal Linux"
+  },
+  "dahliaos": {
+   "credentials": "-",
+   "homepage": "https://dahliaos.io/",
+   "info": "Independent OS with the Pangolin desktop, Linux and Fuchsia variants.",
+   "name": "dahliaOS"
+  },
+  "damn-small-linux": {
+   "credentials": "-",
+   "homepage": "https://www.damnsmalllinux.org/",
+   "info": "The classic ~50MB live distribution, revived for modern low-end hardware.",
+   "name": "Damn Small Linux"
+  },
+  "dietpi": {
+   "credentials": "-",
+   "homepage": "https://dietpi.com/",
+   "info": "Extremely lightweight Debian-based system with automated software installs.",
+   "name": "DietPi"
+  },
+  "drauger-os": {
+   "credentials": "-",
+   "homepage": "https://draugeros.org/",
+   "info": "Gaming-focused Ubuntu derivative.",
+   "name": "Drauger OS"
+  },
+  "eurolinux": {
+   "credentials": "-",
+   "homepage": "https://euro-linux.com/",
+   "info": "Polish RHEL-compatible enterprise distribution.",
+   "name": "EuroLinux"
+  },
+  "fedora-coreos": {
+   "credentials": "-",
+   "homepage": "https://fedoraproject.org/coreos/",
+   "info": "Automatic-updating minimal OS for container workloads (rpm-ostree).",
+   "name": "Fedora CoreOS"
+  },
+  "feren-os": {
+   "credentials": "-",
+   "homepage": "https://ferenos.weebly.com/",
+   "info": "User-friendly Mint-derived distribution with heavy Cinnamon customization.",
+   "name": "feren OS"
+  },
+  "flatcar": {
+   "credentials": "-",
+   "homepage": "https://flatcar.org/",
+   "info": "Container-optimized immutable OS, the community CoreOS successor.",
+   "name": "Flatcar Container Linux"
+  },
+  "freenas": {
+   "credentials": "-",
+   "homepage": "https://www.truenas.com/freenas/",
+   "info": "The original FreeBSD NAS appliance; precursor of TrueNAS CORE.",
+   "name": "FreeNAS"
+  },
+  "freespire": {
+   "credentials": "-",
+   "homepage": "https://www.freespire.com/",
+   "info": "Community free-software edition of Linspire.",
+   "name": "Freespire"
+  },
+  "gparted-live": {
+   "credentials": "-",
+   "homepage": "https://gparted.org/",
+   "info": "Debian live system for partition editing and rescue.",
+   "name": "GParted Live"
+  },
+  "gnu-hurd": {
+   "credentials": "-",
+   "homepage": "https://www.debian.org/ports/hurd/",
+   "info": "Debian userland on the GNU Hurd microkernel.",
+   "name": "Debian GNU/Hurd"
+  },
+  "grml": {
+   "credentials": "-",
+   "homepage": "https://grml.org/",
+   "info": "Debian-based live system for sysadmins and rescue work.",
+   "name": "Grml"
+  },
+  "haos": {
+   "credentials": "-",
+   "homepage": "https://www.home-assistant.io/",
+   "info": "Minimal appliance OS for the Home Assistant smart-home stack.",
+   "name": "Home Assistant OS"
+  },
+  "harvester": {
+   "credentials": "-",
+   "homepage": "https://harvesterhci.io/",
+   "info": "Rancher hyperconverged infrastructure platform (KVM+Kubernetes).",
+   "name": "Harvester"
+  },
+  "hellosystem": {
+   "credentials": "-",
+   "homepage": "https://hellosystem.github.io/",
+   "info": "FreeBSD-based desktop system inspired by classic macOS simplicity.",
+   "name": "helloSystem"
+  },
+  "ipfire": {
+   "credentials": "-",
+   "homepage": "https://www.ipfire.org/",
+   "info": "Hardened open-source firewall and router distribution.",
+   "name": "IPFire"
+  },
+  "k3os": {
+   "credentials": "-",
+   "homepage": "https://k3s.io/",
+   "info": "Minimal OS purpose-built to run k3s Kubernetes (legacy).",
+   "name": "k3OS"
+  },
+  "kairos": {
+   "credentials": "-",
+   "homepage": "https://kairos.io/",
+   "info": "Immutable meta-distribution for running Kubernetes at the edge.",
+   "name": "Kairos"
+  },
+  "knoppix": {
+   "credentials": "-",
+   "homepage": "https://knopper.net/knoppix/",
+   "info": "The original Debian live CD distribution by Klaus Knopper.",
+   "name": "KNOPPIX"
+  },
+  "lakka": {
+   "credentials": "-",
+   "homepage": "https://lakka.tv/",
+   "info": "LibreELEC-based retro-gaming console distribution.",
+   "name": "Lakka"
+  },
+  "libreelec": {
+   "credentials": "-",
+   "homepage": "https://libreelec.tv/",
+   "info": "Just-enough-OS for the Kodi media center.",
+   "name": "LibreELEC"
+  },
+  "linuxfx": {
+   "credentials": "-",
+   "homepage": "https://linuxfx.org/",
+   "info": "Windows-like desktop distribution (Wxd theme) based on Ubuntu.",
+   "name": "Linuxfx"
+  },
+  "loc-os": {
+   "credentials": "-",
+   "homepage": "https://locos.sourceforge.io/",
+   "info": "Chilean lightweight LXDE distribution for older hardware.",
+   "name": "Loc-OS"
+  },
+  "minix": {
+   "credentials": "-",
+   "homepage": "https://minix3.org/",
+   "info": "Microkernel teaching OS by Andrew S. Tanenbaum.",
+   "name": "MINIX 3"
+  },
+  "mocaccinoos": {
+   "credentials": "-",
+   "homepage": "https://www.mocaccino.org/",
+   "info": "Independent distribution built on the Luet package manager.",
+   "name": "MocaccinoOS"
+  },
+  "neptune": {
+   "credentials": "-",
+   "homepage": "https://neptuneos.com/",
+   "info": "Debian Stable-based KDE desktop distribution.",
+   "name": "Neptune"
+  },
+  "nomadbsd": {
+   "credentials": "-",
+   "homepage": "https://nomadbsd.org/",
+   "info": "Persistent live FreeBSD system designed for USB drives.",
+   "name": "NomadBSD"
+  },
+  "omnios": {
+   "credentials": "-",
+   "homepage": "https://omnios.org/",
+   "info": "Self-hosting illumos distribution descended from OpenSolaris.",
+   "name": "OmniOS"
+  },
+  "openmamba": {
+   "credentials": "-",
+   "homepage": "https://openmamba.org/",
+   "info": "Independent Italian distribution with the DNF package manager.",
+   "name": "openmamba"
+  },
+  "opensuse-microos": {
+   "credentials": "-",
+   "homepage": "https://microos.opensuse.org/",
+   "info": "Transactional, immutable openSUSE variant for containers and edge.",
+   "name": "openSUSE MicroOS"
+  },
+  "photonos": {
+   "credentials": "-",
+   "homepage": "https://vmware.github.io/photon/",
+   "info": "VMware minimal container host Linux distribution.",
+   "name": "Photon OS"
+  },
+  "primeos": {
+   "credentials": "-",
+   "homepage": "https://primeos.in/",
+   "info": "Android-x86 derivative with a desktop gaming focus.",
+   "name": "PrimeOS"
+  },
+  "proxmox-backup-server": {
+   "credentials": "-",
+   "homepage": "https://www.proxmox.com/en/proxmox-backup-server",
+   "info": "Backup appliance for Proxmox VE and file-level backups.",
+   "name": "Proxmox Backup Server"
+  },
+  "proxmox-mail-gateway": {
+   "credentials": "-",
+   "homepage": "https://www.proxmox.com/en/proxmox-mail-gateway",
+   "info": "Open-source mail security and anti-spam gateway appliance.",
+   "name": "Proxmox Mail Gateway"
+  },
+  "puppylinux": {
+   "credentials": "-",
+   "homepage": "https://puppylinux-woof-ce.github.io/",
+   "info": "The famously tiny, fast and friendly live distribution family.",
+   "name": "Puppy Linux"
+  },
+  "raspberrypios-desktop": {
+   "credentials": "-",
+   "homepage": "https://www.raspberrypi.com/software/",
+   "info": "The Raspberry Pi OS desktop environment ported to x86 PCs.",
+   "name": "Raspberry Pi Desktop"
+  },
+  "salix": {
+   "credentials": "-",
+   "homepage": "https://salixos.github.io/",
+   "info": "Slackware-based, lightweight distribution with sane defaults.",
+   "name": "Salix"
+  },
+  "steamos": {
+   "credentials": "-",
+   "homepage": "https://store.steampowered.com/steamos",
+   "info": "Valve Debian-based gaming OS; original alchemist installer image.",
+   "name": "SteamOS"
+  },
+  "taloslinux": {
+   "credentials": "-",
+   "homepage": "https://www.talos.dev/",
+   "info": "Minimal, immutable OS designed specifically for Kubernetes.",
+   "name": "Talos Linux"
+  },
+  "toaruos": {
+   "credentials": "-",
+   "homepage": "https://toaruos.org/",
+   "info": "Hobby OS written from scratch with its own kernel and desktop.",
+   "name": "ToaruOS"
+  },
+  "tribblix": {
+   "credentials": "-",
+   "homepage": "https://www.tribblix.org/",
+   "info": "illumos distribution with a retro yet usable desktop.",
+   "name": "Tribblix"
+  },
+  "ultramarine": {
+   "credentials": "-",
+   "homepage": "https://ultramarine-linux.org/",
+   "info": "Fedora-based distribution for developers by Fyra Labs.",
+   "name": "Ultramarine Linux"
+  },
+  "umbrelos": {
+   "credentials": "-",
+   "homepage": "https://umbrel.com/",
+   "info": "Home server appliance OS for self-hosted apps and Bitcoin nodes.",
+   "name": "umbrelOS"
+  },
+  "xcp-ng": {
+   "credentials": "-",
+   "homepage": "https://xcp-ng.org/",
+   "info": "Open-source Xen hypervisor platform managed by Xen Orchestra.",
+   "name": "XCP-ng"
+  },
+  "xigmanas": {
+   "credentials": "-",
+   "homepage": "https://www.xigmanas.com/",
+   "info": "FreeBSD-based NAS appliance, successor of NAS4Free.",
+   "name": "XigmaNAS"
+  },
+  "yunohost": {
+   "credentials": "-",
+   "homepage": "https://yunohost.org/",
+   "info": "Debian-based self-hosting server with one-click app installs.",
+   "name": "YunoHost"
+  },
+  "zimaos": {
+   "credentials": "-",
+   "homepage": "https://www.zimaspace.com/",
+   "info": "Lightweight NAS/home-server OS by IceWhale for Zima devices.",
+   "name": "ZimaOS"
+  },
+  "backtrack": {
+   "credentials": "-",
+   "homepage": "https://www.backtrack-linux.org/",
+   "info": "The original Slackware-based pentesting live distribution, ancestor of Kali.",
+   "name": "BackTrack"
+  },
+  "beos": {
+   "credentials": "-",
+   "homepage": "https://en.wikipedia.org/wiki/BeOS",
+   "info": "Be Inc multimedia OS, spiritual ancestor of Haiku.",
+   "name": "BeOS"
+  },
+  "openwrt": {
+   "credentials": "-",
+   "homepage": "https://openwrt.org/",
+   "info": "The leading open-source router/embedded Linux distribution.",
+   "name": "OpenWrt"
   }
  },
  "generated": "bash-dump"

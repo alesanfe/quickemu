@@ -1157,7 +1157,7 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		}
 		return "https://archive.org/download/" + item + "/" + iso, "", nil
 	default:
-		return "", "", fmt.Errorf("scrape not implemented for %s", osName)
+		return scrapeRescued(osName, release, edition, arch)
 	}
 }
 

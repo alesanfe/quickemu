@@ -2,6 +2,17 @@
  "generated": "bash-dump",
  "entries": [
   {
+   "os": "4mlinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "9front",
    "releases": [
     "latest"
@@ -72,6 +83,17 @@
     "kworkstation",
     "education"
    ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "amazonlinux",
+   "releases": [
+    "2023"
+   ],
+   "editions": [],
    "arch": [
     "amd64"
    ],
@@ -194,6 +216,28 @@
    "scrape": true
   },
   {
+   "os": "athenaos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "avlinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "azurelinux",
    "releases": [
     "3.0"
@@ -220,6 +264,18 @@
    "iso": "$(web_pipe ",
    "hash_url": "https://linux.backbox.org/download/",
    "scrape": true
+  },
+  {
+   "os": "backtrack",
+   "releases": [
+    "r1"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://archive.org/download/backtrack-five-et-al/backtrack%205/revolution%201/gnome",
+   "iso": "BT5R1-GNOME-64.iso"
   },
   {
    "os": "batocera",
@@ -256,6 +312,18 @@
    "url": "https://download.bazzite.gg",
    "iso": "bazzite-gnome-stable-amd64.iso",
    "hash_url": "${URL}/%ISO%-CHECKSUM"
+  },
+  {
+   "os": "beos",
+   "releases": [
+    "5pe"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://archive.org/download/beos-5-pe",
+   "iso": "beos-5-pe.iso"
   },
   {
    "os": "biebian",
@@ -366,6 +434,17 @@
    "scrape": true
   },
   {
+   "os": "bsdrp",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "bunsenlabs",
    "releases": [
     "boron"
@@ -405,6 +484,17 @@
    "iso": "caine%RELEASE%.iso"
   },
   {
+   "os": "calculate-linux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "canaima",
    "releases": [
     "9.0",
@@ -413,6 +503,20 @@
    "editions": [
     "full"
    ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "centos",
+   "releases": [
+    "8.5.2111",
+    "7.9.2009",
+    "6.10",
+    "5.11"
+   ],
+   "editions": [],
    "arch": [
     "amd64"
    ],
@@ -453,6 +557,61 @@
    "scrape": true
   },
   {
+   "os": "chimeraos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "cirros",
+   "releases": [
+    "0.6.3",
+    "0.6.2",
+    "0.6.1",
+    "0.6.0",
+    "0.5.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://download.cirros-cloud.net/%RELEASE%",
+   "iso": "cirros-%RELEASE%-x86_64-disk.img"
+  },
+  {
+   "os": "clonezilla",
+   "releases": [
+    "3.2.0-5",
+    "3.1.3-16",
+    "3.1.2-22"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://sourceforge.net/projects/clonezilla/files/clonezilla_live_stable/%RELEASE%",
+   "iso": "clonezilla-live-%RELEASE%-amd64.iso"
+  },
+  {
+   "os": "coreos",
+   "releases": [
+    "2345.3.1",
+    "2303.4.0",
+    "2247.7.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://stable.release.core-os.net/amd64-usr/%RELEASE%",
+   "iso": "coreos_production_iso_image.iso"
+  },
+  {
    "os": "crunchbang++",
    "releases": [
     "12.0",
@@ -465,6 +624,40 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "crystal-linux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "dahliaos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "damn-small-linux",
+   "releases": [
+    "4.4.10"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://distro.ibiblio.org/damnsmall/current",
+   "iso": "dsl-%RELEASE%-syslinux.iso"
   },
   {
    "os": "debian",
@@ -527,6 +720,17 @@
    "scrape": true
   },
   {
+   "os": "dietpi",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "dragonflybsd",
    "releases": [
     "6.4.2",
@@ -577,6 +781,17 @@
    ],
    "url": "https://downloads.sourceforge.net/project/dragonos-focal",
    "iso": "DragonOS_%RELEASE%.iso"
+  },
+  {
+   "os": "drauger-os",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "easyos",
@@ -701,6 +916,18 @@
    "scrape": true
   },
   {
+   "os": "eurolinux",
+   "releases": [
+    "9",
+    "8"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "fedora",
    "releases": [
     "45_Beta",
@@ -736,6 +963,18 @@
    "scrape": true
   },
   {
+   "os": "fedora-coreos",
+   "releases": [
+    "stable",
+    "testing"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "fedoracore",
    "releases": [
     "6",
@@ -750,6 +989,32 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "feren-os",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "flatcar",
+   "releases": [
+    "stable",
+    "beta",
+    "alpha",
+    "lts"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://%RELEASE%.release.flatcar-linux.net/amd64-usr/current",
+   "iso": "flatcar_production_iso_image.iso"
   },
   {
    "os": "freebsd",
@@ -784,6 +1049,19 @@
    "url": "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/%RELEASE%",
    "iso": "FD12CD.iso",
    "hash_url": "${URL}/FD12.sha"
+  },
+  {
+   "os": "freenas",
+   "releases": [
+    "11.3",
+    "11.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://download.freenas.org/%RELEASE%/latest/x64",
+   "iso": "FreeNAS-%RELEASE%-U5.iso"
   },
   {
    "os": "garuda",
@@ -868,6 +1146,17 @@
    "iso": "gnome_os_installer_%RELEASE%.iso"
   },
   {
+   "os": "gnu-hurd",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "gnulinex",
    "releases": [
     "v0.0.1"
@@ -893,6 +1182,28 @@
    ],
    "url": "https://gobolinux.neonsys.org/%RELEASE%-ISO",
    "iso": "GoboLinux-%RELEASE%-x86_64.iso"
+  },
+  {
+   "os": "gparted-live",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "grml",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "guadalinex",
@@ -996,6 +1307,72 @@
    "iso": "hannah_montana_linux_x86_basic_edition.iso"
   },
   {
+   "os": "haos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "harvester",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "hellosystem",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "ipfire",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "k3os",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "kairos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "kali",
    "releases": [
     "current",
@@ -1069,6 +1446,17 @@
    "scrape": true
   },
   {
+   "os": "knoppix",
+   "releases": [
+    "9.1"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "kolibrios",
    "releases": [
     "latest"
@@ -1118,6 +1506,19 @@
    "scrape": true
   },
   {
+   "os": "lakka",
+   "releases": [
+    "5.0",
+    "4.3"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://le.builds.lakka.tv/Generic.x86_64",
+   "iso": "Lakka-Generic.x86_64-%RELEASE%.img.gz"
+  },
+  {
    "os": "lernstick",
    "releases": [
     "13"
@@ -1131,6 +1532,20 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "libreelec",
+   "releases": [
+    "12.2.1",
+    "12.0.2",
+    "11.0.6"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://releases.libreelec.tv",
+   "iso": "LibreELEC-Generic.x86_64-%RELEASE%.img.gz"
   },
   {
    "os": "life",
@@ -1155,6 +1570,17 @@
    ],
    "url": "http://download-linkat.xtec.cat/d83/ISO",
    "iso": "linkat-22.04.3-amd64.iso"
+  },
+  {
+   "os": "linuxfx",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "linuxlite",
@@ -1227,6 +1653,17 @@
    "url": "https://mirrors.kernel.org/linuxmint/debian",
    "iso": "lmde-%RELEASE%-%EDITION%-64bit.iso",
    "hash_url": "${URL}/sha256sum.txt"
+  },
+  {
+   "os": "loc-os",
+   "releases": [
+    "23"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "lubuntu",
@@ -1385,6 +1822,35 @@
    "iso": "minino-%RELEASE%-%EDITION%.iso"
   },
   {
+   "os": "minix",
+   "releases": [
+    "3.3.0",
+    "3.2.1"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "mocaccinoos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "mate",
+    "cosmic",
+    "gnome",
+    "kde",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "molinux",
    "releases": [
     "6.0"
@@ -1414,6 +1880,19 @@
    "url": "https://sourceforge.net/projects/mx-linux/files/Final/%EDITION%",
    "iso": "MX-%RELEASE%_Xfce_x64.iso",
    "hash_url": "${URL}/%ISO%.sha256"
+  },
+  {
+   "os": "neptune",
+   "releases": [
+    "9",
+    "8",
+    "7"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "netboot",
@@ -1493,6 +1972,19 @@
    "hash_url": "${URL}"
   },
   {
+   "os": "nomadbsd",
+   "releases": [
+    "1.4-RC6",
+    "1.3.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://nomadbsd.org/download",
+   "iso": "nomadbsd-%RELEASE%.img.lzma"
+  },
+  {
    "os": "nova",
    "releases": [
     "7.0"
@@ -1560,6 +2052,17 @@
    ],
    "url": "https://iso.omarchy.org",
    "iso": "omarchy-%RELEASE%.iso"
+  },
+  {
+   "os": "omnios",
+   "releases": [
+    "stable"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "openbsd",
@@ -1645,6 +2148,17 @@
    "scrape": true
   },
   {
+   "os": "openmamba",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "openmandriva",
    "releases": [
     "rome"
@@ -1712,6 +2226,31 @@
    "iso": "openSUSE-Tumbleweed-DVD-x86_64-Current.iso",
    "hash_url": "${URL}/%ISO%.sha256",
    "scrape": true
+  },
+  {
+   "os": "opensuse-microos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "openwrt",
+   "releases": [
+    "24.10.2",
+    "23.05.5",
+    "22.03.7"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://downloads.openwrt.org/releases/%RELEASE%/targets/x86/64",
+   "iso": "openwrt-%RELEASE%-x86-64-generic-ext4-combined-efi.img.gz"
   },
   {
    "os": "opnsense",
@@ -1856,6 +2395,18 @@
    "hash_url": "${URL}/%ISO%-sha512.checksum"
   },
   {
+   "os": "photonos",
+   "releases": [
+    "5.0",
+    "4.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "plan9",
    "releases": [
     "4e",
@@ -1924,6 +2475,17 @@
    "hash_url": "${URL}/sha256sums.txt"
   },
   {
+   "os": "primeos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "primtux",
    "releases": [
     "7"
@@ -1937,6 +2499,30 @@
    "url": "https://sourceforge.net/projects/primtux/files/Distribution",
    "iso": "PrimTux%RELEASE%-amd64-%EDITION%.iso",
    "hash_url": "${URL}/%ISO%.md5"
+  },
+  {
+   "os": "proxmox-backup-server",
+   "releases": [
+    "4.0-1",
+    "3.4-1"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "proxmox-mail-gateway",
+   "releases": [
+    "8.1",
+    "7.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "proxmox-ve",
@@ -1953,6 +2539,19 @@
    "url": "https://enterprise.proxmox.com/iso",
    "iso": "proxmox-ve_%RELEASE%.iso",
    "hash_url": "${URL}/SHA256SUMS"
+  },
+  {
+   "os": "puppylinux",
+   "releases": [
+    "9.5"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://distro.ibiblio.org/puppylinux/puppy-fossa",
+   "iso": "fossapup64-%RELEASE%.iso",
+   "hash_url": "/.sha256.txt"
   },
   {
    "os": "pureos",
@@ -2011,6 +2610,17 @@
    "url": "https://ftp.qubes-os.org/iso",
    "iso": "Qubes-R%RELEASE%-x86_64.iso",
    "hash_url": "${URL}/%ISO%.DIGESTS"
+  },
+  {
+   "os": "raspberrypios-desktop",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "reactos",
@@ -2107,6 +2717,17 @@
     "amd64"
    ],
    "iso": "ROSA.FRESH.${ED}.13.3.x86_64.iso",
+   "scrape": true
+  },
+  {
+   "os": "salix",
+   "releases": [
+    "15.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
    "scrape": true
   },
   {
@@ -2260,6 +2881,17 @@
    "iso": "SpiralLinux_%EDITION%_12.231005_x86-64.iso"
   },
   {
+   "os": "steamos",
+   "releases": [
+    "alchemist"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "subgraph",
    "releases": [
     "alpha"
@@ -2327,6 +2959,17 @@
    "scrape": true
   },
   {
+   "os": "taloslinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "templeos",
    "releases": [
     "5.03"
@@ -2357,6 +3000,28 @@
    "url": "http://www.tinycorelinux.net/%RELEASE%.x/%ARCH%/release",
    "iso": "%EDITION%-%RELEASE%.0.iso",
    "hash_url": "${URL}/%ISO%.md5.txt"
+  },
+  {
+   "os": "toaruos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "tribblix",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "trisquel",
@@ -2558,6 +3223,29 @@
    "scrape": true
   },
   {
+   "os": "ultramarine",
+   "releases": [
+    "42",
+    "41"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "umbrelos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "uwuntu",
    "releases": [
     "22.10"
@@ -2698,6 +3386,29 @@
    ]
   },
   {
+   "os": "xcp-ng",
+   "releases": [
+    "8.3",
+    "8.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "xigmanas",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "xubuntu",
    "releases": [
     "16.04",
@@ -2708,6 +3419,28 @@
     "26.04",
     "26.10",
     "daily-live"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "yunohost",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "zimaos",
+   "releases": [
+    "latest"
    ],
    "editions": [],
    "arch": [
