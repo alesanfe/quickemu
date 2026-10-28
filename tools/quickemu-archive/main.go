@@ -179,7 +179,7 @@ func main() {
 // normArgs expands GNU-style --flag=value into --flag value so the
 // positional pair parsers stay uniform (pflag parity without the dep).
 func normArgs(a []string) []string {
-	out := a[:0]
+	out := make([]string, 0, len(a)+4)
 	for _, s := range a {
 		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
 			out = append(out, s[:i], s[i+1:])

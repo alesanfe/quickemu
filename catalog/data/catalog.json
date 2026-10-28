@@ -1766,7 +1766,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "scrape": true
   },
   {
    "os": "pardus",
@@ -2053,7 +2054,8 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "scrape": true
   },
   {
    "os": "redoxos",

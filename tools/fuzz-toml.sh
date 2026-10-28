@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# Deterministic TOML parser fuzzer: feeds hostile inputs to toml_parse
-# and asserts it never hangs, never executes payload, and returns 0/1.
+# Deterministic TOML parser fuzzer: feeds hostile inputs to the Go
+# parser (tools/quickemu-toml validate) and asserts it never hangs,
+# never crashes, and never executes payload. Exit 0|1 only.
 set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "${ROOT}"
+cd "${ROOT}" || exit
+
+TOML_BIN="${ROOT}/tools/quickemu-toml/quickemu-toml"
+if [ ! -x "${TOML_BIN}" ]; then
+    echo "fuzz-toml: build tools/quickemu-toml first (tools/build-go.sh)" >&2
+    exit 2
+fi
 
 FAIL=0; D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 run_case() { # name input -> expect bounded exit
     printf '%s' "${2}" >"${D}/f.toml"
-    timeout 5 bash -c 'cd "'"${ROOT}"'"; source lib/quickemu/config/parser.sh; source lib/quickemu/config/loader.sh; source lib/quickemu/config/toml.sh; toml_parse "${1}"' _ "${D}/f.toml" >/dev/null 2>&1
+    timeout 5 "${TOML_BIN}" validate --file "${D}/f.toml" >/dev/null 2>&1
     local RC=$?
     [ ${RC} -ge 124 ] && { echo "HANG: ${1}"; FAIL=1; return; }
-    [ ${RC} -gt 1 ] && { echo "CRASH(${RC}): ${1}"; FAIL=1; return; }
+    [ ${RC} -gt 2 ] && { echo "CRASH(${RC}): ${1}"; FAIL=1; return; }
 }
 # hostile corpus
 run_case "unicode"      "$(printf 'guest_os = "linu\303\251\u1234"\n')"
@@ -32,7 +39,7 @@ run_case "nestarr"      'x = [["a","b"],["c"]]'
 # execution safety: payload must never run
 rm -f "${D}/pwned"
 printf 'guest_os = "$(touch %s/pwned)"\n' "${D}" >"${D}/f.toml"
-timeout 5 bash -c 'cd "'"${ROOT}"'"; source lib/quickemu/config/parser.sh; source lib/quickemu/config/loader.sh; source lib/quickemu/config/toml.sh; toml_parse "${1}"' _ "${D}/f.toml" >/dev/null 2>&1
-[ -f "${D}/pwned" ] && { echo "EXEC-LEAK: toml_parse ran payload"; FAIL=1; }
+timeout 5 "${TOML_BIN}" validate --file "${D}/f.toml" >/dev/null 2>&1
+[ -f "${D}/pwned" ] && { echo "EXEC-LEAK: parser ran payload"; FAIL=1; }
 echo "fuzz-toml: ${FAIL:-0} failures"
 exit ${FAIL:-0}

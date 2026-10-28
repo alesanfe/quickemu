@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# quickget — entry point.
-#
-# The Go implementation (tools/quickget-cli plus its sibling tools) is the
-# canonical backend. bin/quickget.bash preserves the original Bash
-# implementation and is used when the Go binaries have not been built
-# (fresh checkout) or when QUICKEMU_BACKEND=bash is set.
+# quickget — entry point for the Go backend (tools/quickget-cli plus its
+# sibling tools). Resolves packaged installs (libexec/quickemu) and
+# dev trees (tools/*/) alike; exposes the tool dir on PATH.
 export LC_ALL=C
 
 if ((BASH_VERSINFO[0] < 4)); then
@@ -15,26 +12,32 @@ fi
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${HERE}/.." && pwd)"
 
-if [ "${QUICKEMU_BACKEND:-go}" != "bash" ]; then
+# Packaged layout: <prefix>/libexec/quickemu/<tool>
+# Dev layout:      <repo>/tools/<tool>/<tool>
+GO_CLI="${ROOT}/libexec/quickemu/quickget-cli"
+TOOL_DIR="${ROOT}/libexec/quickemu"
+if [ ! -x "${GO_CLI}" ]; then
   GO_CLI="${ROOT}/tools/quickget-cli/quickget-cli"
-  if [ -x "${GO_CLI}" ]; then
-    # Helper tools live beside their modules in the dev tree; expose
-    # every built one on PATH so the CLI's tool() lookup finds them.
-    for d in "${ROOT}/tools/"*/; do
-      [ -n "${d}" ] || continue
-      n="$(basename "${d}")"
-      if [ -x "${d}${n}" ]; then
-        PATH="${d}:${PATH}"
-      fi
-    done
-    export PATH
-    exec "${GO_CLI}" "$@"
-  fi
-  if [ -x "${HERE}/quickget.bash" ]; then
-    exec "${HERE}/quickget.bash" "$@"
-  fi
-  echo "quickget: no backend found (build the Go tools with tools/build-go.sh)" >&2
+  TOOL_DIR=""
+fi
+if [ ! -x "${GO_CLI}" ]; then
+  echo "quickget: Go tools not built — run tools/build-go.sh" >&2
   exit 127
 fi
 
-exec "${HERE}/quickget.bash" "$@"
+if [ -n "${TOOL_DIR}" ]; then
+  PATH="${TOOL_DIR}:${PATH}"
+else
+  for d in "${ROOT}/tools/"*/; do
+    [ -n "${d}" ] || continue
+    n="$(basename "${d}")"
+    if [ -x "${d}${n}" ]; then
+      PATH="${d}:${PATH}"
+    fi
+  done
+fi
+export PATH
+# Generated shortcuts/services must invoke this entry point, not the
+# inner Go binary directly.
+export QE_LAUNCHER="${BASH_SOURCE[0]}"
+exec "${GO_CLI}" "$@"

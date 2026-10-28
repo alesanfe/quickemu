@@ -1,6 +1,6 @@
 #!/bin/bash
-# Build all Go tool binaries in-place (needed for compare-backends.sh
-# and manual CLI parity checks).
+# Build all Go tool binaries in-place — required before the bin/
+# wrappers or the spec suite can run them.
 export PATH="${HOME}/go/bin:/usr/local/go/bin:${PATH}"
 cd "$(dirname "${0}")/.." || exit 1
 RC=0

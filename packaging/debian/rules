@@ -1,7 +1,19 @@
 #!/usr/bin/make -f
 
+export GOFLAGS := -mod=vendor
+export CGO_ENABLED := 0
+
 %:
 	dh $@
+
+# Build the Go tools in-place; debian/install ships each binary to
+# /usr/libexec/quickemu where the bin/ wrappers resolve them.
+override_dh_auto_build:
+	for d in tools/*/; do \
+		name=$$(basename "$$d"); \
+		[ -f "$$d/go.mod" ] || continue; \
+		(cd "$$d" && go build -trimpath -ldflags "-s -w" -o "$$name" .); \
+	done
 
 override_dh_builddeb:
 	dh_builddeb -- -Zgzip

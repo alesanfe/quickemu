@@ -1,8 +1,8 @@
-# Property test (matrix 41): conf_parse never crashes and always
-# produces parseable output for ANY generated input — valid or garbage.
+# Property test (matrix 41): the Go conf loader never crashes and
+# always produces a verdict for ANY generated input — valid or garbage.
+# (Migrated from Bash vm_config_load internals to the public CLI.)
 Describe 'conf parse properties'
-Include lib/quickemu/support/filesystem.sh
-Include lib/quickemu/config/loader.sh
+Include spec/spec_helper.sh
 
 setup() { TESTDIR=$(mktemp -d); }
 cleanup() { rm -rf -- "$TESTDIR"; }
@@ -24,7 +24,7 @@ It 'any generated conf either parses or fails cleanly — never hangs/crashes'
     ok=0 bad=0 i=0
     while [ $i -lt 40 ]; do
         gen_conf
-        if timeout 2 bash -c "source lib/quickemu/support/filesystem.sh; source lib/quickemu/config/loader.sh; VMDIR='$TESTDIR' vm_config_load '$TESTDIR/c.conf' >/dev/null 2>&1"; then
+        if timeout 2 "$QE_ROOT/tools/quickemu-cli/quickemu-cli" --vm "$TESTDIR/c.conf" --status >/dev/null 2>&1; then
             ok=$((ok+1))
         else
             bad=$((bad+1))

@@ -1,0 +1,19 @@
+go 1.25.0
+
+use (
+	./tools/quickemu-api
+	./tools/quickemu-archive
+	./tools/quickemu-cli
+	./tools/quickemu-launch
+	./tools/quickemu-ops
+	./tools/quickemu-ports
+	./tools/quickemu-proc
+	./tools/quickemu-qmp
+	./tools/quickemu-toml
+	./tools/quickemu-vm
+	./tools/quickget-catalog
+	./tools/quickget-cli
+	./tools/quickget-vm
+	./tools/quickgetc
+	./tools/quickreport
+)

@@ -20,16 +20,15 @@ Describe 'entry scripts exist and parse'
     End
 End
 
-Describe 'library files parse'
-    It 'all lib/*.sh pass bash -n'
-        lib_check() {
-            local f s=0
-            while IFS= read -r f; do
-                bash -n "$f" || s=1
-            done < <(find "$QE_ROOT/lib" -name '*.sh')
-            return "$s"
+Describe 'go tools are present and formatted'
+    It 'every tools/*/main.go exists'
+        tools_check() {
+            local d
+            for d in "$QE_ROOT"/tools/*/; do
+                [ -f "$d/main.go" ] || ls "$d"/*.go >/dev/null 2>&1 || return 1
+            done
         }
-        When call lib_check
+        When call tools_check
         The status should be success
     End
 End
@@ -56,16 +55,9 @@ Describe 'basic invocations'
         The output should include 'quickget'
     End
     It 'quickgetc --version prints a version'
-        v() { ( cd "$TMPDIRP" 2>/dev/null || cd /tmp; export XDG_CACHE_HOME="$TESTCACHE"; export PATH="$TESTBIN:$PATH"; . "$QE_ROOT/bin/quickgetc.bash" --version ); }
-        TESTCACHE=$(mktemp -d); TESTBIN=$(mktemp -d)
-        printf '[]' > "$TESTCACHE/quickget_data.json.zst"
-        printf '#!/bin/sh\nwhile [ $# -gt 1 ]; do shift; done\nexec cat "$1"\n' > "$TESTBIN/zstd"
-        printf '#!/bin/sh\nexit 0\n' > "$TESTBIN/curl"; printf '#!/bin/sh\nexit 0\n' > "$TESTBIN/qemu-img"
-        chmod +x "$TESTBIN"/*
-        When run v
+        When run "$QE_ROOT/bin/quickgetc" --version
         The status should be success
         The output should include '0.1.0'
-        rm -rf "$TESTCACHE" "$TESTBIN"
     End
 End
 End

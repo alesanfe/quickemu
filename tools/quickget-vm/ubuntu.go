@@ -19,7 +19,7 @@ func fetchString(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -36,7 +36,7 @@ func webCheck(url string) bool {
 	if err != nil {
 		return false
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return false
 	}
@@ -114,7 +114,7 @@ func zsyncGet(url, dir, out string) int {
 		out = filepath.Base(url)
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Unable to create directory %s\n", dir)
+		fmt.Printf("ERROR! Unable to create directory %s\n", dir)
 		return 1
 	}
 	if z, err := exec.LookPath("zsync"); err == nil {
@@ -123,13 +123,13 @@ func zsyncGet(url, dir, out string) int {
 		cmd := exec.Command(z, zu, "-i", filepath.Join(dir, out), "-o", filepath.Join(dir, out))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		if cmd.Run() != nil {
-			fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s\n", zu)
+			fmt.Printf("ERROR! Failed to download %s\n", zu)
 			return 1
 		}
 		os.Remove(filepath.Join(dir, out) + ".zs-old")
 		return 0
 	}
-	fmt.Fprintln(os.Stderr, "INFO: zsync not found, falling back to curl")
+	fmt.Println("INFO: zsync not found, falling back to curl")
 	return fetch(url, filepath.Join(dir, out), "")
 }
 
@@ -147,7 +147,7 @@ func getUbuntu(osName, release, dir, arch string) int {
 	case isDaily:
 		codename := ubuntuDailyCodename(osName)
 		if codename == "" {
-			fmt.Fprintf(os.Stderr, "%s %s is currently unavailable. Please select other OS/Release combination\n", osName, release)
+			fmt.Printf("%s %s is currently unavailable. Please select other OS/Release combination\n", osName, release)
 			return 1
 		}
 		url = "https://cdimage.ubuntu.com/" + osName + "/" + codename + "/daily-live/current"
@@ -187,7 +187,7 @@ func getUbuntu(osName, release, dir, arch string) int {
 		iso, hash = sumsPick(body, namePats, arch, md5Field)
 	}
 	if iso == "" || hash == "" {
-		fmt.Fprintf(os.Stderr, "%s %s is currently unavailable. Please select other OS/Release combination\n", osName, release)
+		fmt.Printf("%s %s is currently unavailable. Please select other OS/Release combination\n", osName, release)
 		return 1
 	}
 	if isDaily {

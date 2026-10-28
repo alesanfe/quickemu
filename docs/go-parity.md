@@ -1,8 +1,13 @@
-# Bash ↔ Go parity (ADR-0001 phase E–G)
+# Go backend parity (ADR-0001 — migration complete)
 
-## Status by subsystem — verified via `tools/compare-backends.sh`
+The Go backend is the **only** implementation: `bin/quickemu`,
+`bin/quickget`, `bin/quickgetc` and `bin/quickreport` exec the Go
+tools directly. The Bash implementation (`lib/`, `libexec/`,
+`bin/*.bash`) has been removed.
 
-| Subsystem | Bash file | Go tool | Status |
+## Status by subsystem
+
+| Subsystem | Former Bash file | Go tool | Status |
 |---|---|---|---|
 | ops journal | `lib/quickemu/runtime/ops.sh` | `quickemu-ops` | ✅ **100%** — new/set/done/fail/status/watch/list/cancel/prune/**recover/rollback** |
 | ports registry | port flock helpers | `quickemu-ports` | ✅ **100%** — alloc/free/check |
@@ -147,16 +152,17 @@ dispatches every action to a Go backend tool:
   → mkconf
 - `quickreport` — host probes + redaction + output file
 
-## Entry points (all four are Go-first wrappers)
+## Entry points (all four are Go-only wrappers)
 
 `bin/quickemu`, `bin/quickget`, `bin/quickgetc`, `bin/quickreport`
-are thin wrappers that exec the Go tool (`tools/<name>/<name>`),
-inject every built `tools/*/` dir onto PATH, and fall back to the
-preserved `bin/*.bash` implementation when the Go binary is absent
-or `QUICKEMU_BACKEND=bash` is set. Specs that source entrypoints
-in-process exercise `bin/*.bash` directly (they fake PATH binaries
-like `curl`, which the Go `net/http` pipeline intentionally does
-not honor).
+are thin wrappers that exec the Go tool — resolving
+`libexec/quickemu/<tool>` in packaged installs and
+`tools/<tool>/<tool>` in a dev tree — and inject the tool dir onto
+PATH. There is no Bash fallback and no `QUICKEMU_BACKEND` switch.
+Specs exercise the public binaries; behaviours once tested via
+sourced Bash internals now live in Go unit tests (lock/state
+machine, conf parsing, port registry, QMP allowlist, catalog
+contracts, chunklist verify).
 
 Selection-validation parity in `quickget-cli` (the uat/contract
 specs pin this): `os_supported` gate on any positional OS;
@@ -220,7 +226,6 @@ image; `quickemu-vm` emits the v1 envelope only under
 tools/build-go.sh        # builds all 15 binaries
 tools/go-check.sh        # vet + test -race -coverprofile + build, all modules
 tools/run-go-tests.sh    # go test -race -cover per package
-tools/compare-backends.sh  # zero divergences on extracted subsystems
 ```
 
 E2E (real QEMU, TCG): `spec/e2e/go_cli_boot_spec.sh` boots a VM via

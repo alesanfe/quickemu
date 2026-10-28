@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Martin Wimpress <code@wimpress.io>
 Build-Depends:
  debhelper-compat (= 12),
+ golang-go (>= 2:1.25~) | golang-1.25-go | golang-go,
 Standards-Version: 4.5.1
 Homepage: https://github.com/quickemu-project/quickemu
 Vcs-Browser: https://github.com/quickemu-project/quickemu
@@ -16,13 +17,9 @@ Package: quickemu
 Architecture: any
 Depends:
  coreutils,
- curl,
- genisoimage,
- jq,
  mesa-utils,
  pciutils,
  procps,
- python3-minimal,
  qemu-system-arm (>= 6.0) [arm64],
  qemu-system-x86 (>= 6.0),
  base-files (<< 13~) | qemu-system-modules-spice,
@@ -31,7 +28,6 @@ Depends:
  swtpm,
  usbutils,
  util-linux,
- uuid-runtime,
  x11-xserver-utils,
  xdg-user-dirs,
  zsync,

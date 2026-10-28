@@ -12,7 +12,7 @@ TIMEOUT="${1:-300}"
 SPEC_DIR="${2:-spec}"
 OUT_DIR="${ROOT}/.spec-artifacts"
 mkdir -p "${OUT_DIR}"
-cd "${ROOT}"
+cd "${ROOT}" || exit
 
 FAIL=0 TOTAL=0 PASSED=0 TIMED=0
 while IFS= read -r SPEC; do

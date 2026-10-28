@@ -26,17 +26,14 @@ Describe 'platform: environment detection'
         The stdout should include 'qemu-system-x86_64'
     End
 
-    It 'required catalog files are present'
-        When run bash -c 'test -f lib/quickget/catalog/data.sh -a -f lib/quickget/catalog/get.sh -a -f lib/quickget/catalog/info.sh'
+    It 'required catalog data files are present'
+        When run bash -c 'test -f catalog/data/catalog.json -a -f catalog/data/info.json'
         The status should be success
     End
 
     It 'CRLF does not corrupt editions lists (regression: jq.exe on Windows)'
-        # The validate.sh tr -d '\r\n' fix must hold — editions must be
-        # space-separated single-line output, not multi-line CRLF.
-        # releases_debian needs the network (web_pipe); the static
-        # editions_alma proves the output-shape contract instead.
-        When run bash -c 'source lib/quickget/catalog/data.sh; out=$(editions_alma); a=$(printf %s "${out}" | wc -c); b=$(printf %s "${out}" | tr -d "\r\n" | wc -c); [ "${a}" -eq "${b}" ] || exit 1; printf "%s\n" "${out}"'
+        # Editions must be space-separated single-line output.
+        When run bash -c 'out=$(tools/quickget-catalog/quickget-catalog editions alma); a=$(printf %s "${out}" | wc -c); b=$(printf %s "${out}" | tr -d "\r\n" | wc -c); [ "${a}" -eq "${b}" ] || exit 1; printf "%s\n" "${out}"'
         The status should be success
         The stdout should include 'boot minimal dvd'
     End

@@ -1,9 +1,12 @@
-#!/usr/bin/env bash
-# E2E-DOWNLOAD-001: interrupted downloads resume — the download layer must
-# pass a resume flag to curl/aria2 so partial files are not restarted.
+# download_resume @download @p1 — the Go fetch path resumes a .part
+# staging file via the Range header (web_get continue-at parity).
 Describe 'download_resume @download @p1'
     It 'the download path uses resume-capable fetch'
-        When run bash -c 'grep -qE "continue-at|--continue=true" lib/quickget/download/web.sh'
+        When run bash -c 'grep -qE "Range.*bytes=%d-" tools/quickget-vm/main.go && grep -q "O_APPEND" tools/quickget-vm/main.go'
+        The status should be success
+    End
+    It 'server ignoring Range restarts the staging file'
+        When run bash -c 'grep -q "StatusPartialContent" tools/quickget-vm/main.go'
         The status should be success
     End
 End

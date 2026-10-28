@@ -70,7 +70,7 @@ func appleRecoverySession() (string, error) {
 	req.Header.Set("Host", "osrecovery.apple.com")
 	req.Header.Set("Connection", "close")
 	req.Header.Set("User-Agent", "InternetRecovery/1.0")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -107,7 +107,7 @@ func appleRecoveryInfo(session, mlb, boardID, osType string) ([]string, error) {
 	req.Header.Set("User-Agent", "InternetRecovery/1.0")
 	req.Header.Set("Cookie", "session=\""+session+"\"")
 	req.Header.Set("Content-Type", "text/plain")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -123,26 +123,26 @@ func appleRecoveryInfo(session, mlb, boardID, osType string) ([]string, error) {
 func macFetch(url, dest, token string) int {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	req.Header.Set("Host", "oscdn.apple.com")
 	req.Header.Set("Connection", "close")
 	req.Header.Set("User-Agent", "InternetRecovery/1.0")
 	req.Header.Set("Cookie", "AssetToken="+token)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "download failed: HTTP %d\n", resp.StatusCode)
+		fmt.Printf("download failed: HTTP %d\n", resp.StatusCode)
 		return 1
 	}
 	f, err := os.Create(dest)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	defer f.Close()
@@ -154,7 +154,7 @@ func macFetch(url, dest, token string) int {
 func getMacos(release, dir, arch string) int {
 	row, ok := macBoards[release]
 	if !ok {
-		fmt.Fprintf(os.Stderr, "ERROR! Unknown release: %s\n", release)
+		fmt.Printf("ERROR! Unknown release: %s\n", release)
 		return 1
 	}
 	boardID, mlb, osType := row[0], row[1], row[2]
@@ -164,12 +164,12 @@ func getMacos(release, dir, arch string) int {
 	os.MkdirAll(dir, 0755)
 	session, err := appleRecoverySession()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! Could not get Apple recovery session:", err)
+		fmt.Println("ERROR! Could not get Apple recovery session:", err)
 		return 1
 	}
 	fields, err := appleRecoveryInfo(session, mlb, boardID, osType)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! RecoveryImage request failed:", err)
+		fmt.Println("ERROR! RecoveryImage request failed:", err)
 		return 1
 	}
 	var dmgLink, dmgSession, clLink, clSession string
@@ -186,7 +186,7 @@ func getMacos(release, dir, arch string) int {
 		}
 	}
 	if dmgLink == "" || clLink == "" {
-		fmt.Fprintln(os.Stderr, "ERROR! Apple did not return a recovery image URL.")
+		fmt.Println("ERROR! Apple did not return a recovery image URL.")
 		return 1
 	}
 	dmg := filepath.Join(dir, "RecoveryImage.dmg")

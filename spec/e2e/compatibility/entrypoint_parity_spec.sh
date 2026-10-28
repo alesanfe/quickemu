@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# E2E-COMPAT-001: the canonical entrypoint and the quickemu-ops tool
+# emit the same structured envelope shape for operation status.
+Describe 'entrypoint_tool_parity @compatibility @p1'
+    Include spec/e2e/support/e2e_lib.sh
+
+    setup() {
+        ws="$(e2e_sandbox "$(e2e_id parity)")"
+        vm_fixture "$ws" >/dev/null
+        CONF="$ws/vm.conf"
+        GO_BIN="$(pwd)/tools/quickemu-ops/quickemu-ops"
+    }
+    BeforeEach 'setup'
+
+    go_missing() { [ ! -x "${GO_BIN}" ]; }
+
+    parity_check() {
+        cli_out=$("${QE}" --vm "${CONF}" --op-status no-such-op --format json 2>/dev/null)
+        go_out=$("${GO_BIN}" status --vmdir "${ws}" no-such-op 2>/dev/null)
+        [ -n "${cli_out}" ] || { echo "entrypoint emitted nothing"; return 1; }
+        [ -n "${go_out}" ] || { echo "go emitted nothing"; return 1; }
+        # Parity contract: both emit schemaVersion + success + structured
+        # errors[]. The Go error envelope is intentionally slimmer (no
+        # command/data/warnings/meta); the contract keys must match.
+        valid_env() {
+            printf '%s' "${1}" | jq -e '.schemaVersion == 1 and (.success | type == "boolean") and (.errors | type == "array")' \
+                >/dev/null 2>&1
+        }
+        valid_env "${cli_out}" || { echo "entrypoint envelope violates contract: ${cli_out}"; return 1; }
+        valid_env "${go_out}" || { echo "go envelope violates contract: ${go_out}"; return 1; }
+    }
+
+    It 'entrypoint and tool emit the same envelope keys on error paths'
+        Skip if 'quickemu-ops binary unavailable' go_missing
+        When call parity_check
+        The status should be success
+    End
+End

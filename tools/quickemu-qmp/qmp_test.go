@@ -104,3 +104,24 @@ func TestEnvelopeShape(t *testing.T) {
 		t.Fatal("envelope contract broken")
 	}
 }
+
+// Allowlist contract (qmp_adversarial_spec.sh parity): the structured
+// channel is fail-closed — mutation commands are denied unless
+// QUICKEMU_QMP_RAW=1.
+func TestCommandAllowlist(t *testing.T) {
+	t.Setenv("QUICKEMU_QMP_RAW", "")
+	for _, denied := range []string{"device_add", "blockdev-add", "x-exit", "chardev-add"} {
+		if qmpCommandAllowed(denied) {
+			t.Errorf("%q must be denied without QUICKEMU_QMP_RAW", denied)
+		}
+	}
+	for _, ok := range []string{"query-status", "query-block", "screendump", "system_powerdown", "human-monitor-command"} {
+		if !qmpCommandAllowed(ok) {
+			t.Errorf("%q must be allowed", ok)
+		}
+	}
+	t.Setenv("QUICKEMU_QMP_RAW", "1")
+	if !qmpCommandAllowed("device_add") {
+		t.Error("QUICKEMU_QMP_RAW=1 must bypass the allowlist")
+	}
+}

@@ -1,8 +1,9 @@
 # schemas/v1 — public JSON contract
 
 These JSON Schemas are the public contract between quickemu/quickget and
-external clients (QuickGUI, TUIs, scripts). `QE_SCHEMA_VERSION` in
-`lib/quickemu/support/json.sh` is the single source of the contract version.
+external clients (QuickGUI, TUIs, scripts). The schema version is set by
+the Go emitters (`"schemaVersion":1` in `tools/quickemu-cli` and
+`tools/quickemu-ops`).
 
 ## Enforced schemas (live emitters)
 

@@ -1,38 +1,43 @@
 # AGENTS.md
 
-Quickemu is a Bash wrapper around QEMU that automates VM creation for ~1000 operating systems (Linux, macOS, Windows, BSDs). Two main tools: `quickget` downloads ISOs and creates configs; `quickemu` launches VMs with optimised hardware detection.
+Quickemu is a Go wrapper around QEMU that automates VM creation for ~1000 operating systems (Linux, macOS, Windows, BSDs). Two main tools: `quickget` downloads ISOs and creates configs; `quickemu` launches VMs with optimised hardware detection.
 
 ## Project structure
 
 ```
-bin/quickemu      # VM launcher entrypoint — Go-first wrapper
-                  #   (tools/quickemu-cli; falls back to bin/quickemu.bash)
-bin/quickget      # OS downloader entrypoint — Go-first wrapper
-                  #   (tools/quickget-cli; falls back to bin/quickget.bash)
-bin/quickgetc     # Data-driven downloader — Go-first wrapper
-                  #   (tools/quickgetc; falls back to bin/quickgetc.bash)
-bin/quickreport   # Diagnostics entrypoint — Go-first wrapper
-                  #   (tools/quickreport; falls back to bin/quickreport.bash)
-bin/*.bash        # Original Bash implementations (QUICKEMU_BACKEND=bash
-                  #   or Go binaries not built → fallback backend)
-tools/            # Go modules (one dir per tool; tools/build-go.sh builds all)
-lib/quickemu/     # Modules sourced by the entries (cli, config, catalog,
-                  # host, planning, runtime, vm, support)
-lib/quickget/     # quickget layers (cli, catalog, download, image, vm, support)
-lib/quickgetc/    # quickgetc layers (same layout as lib/quickget)
-lib/quickreport/  # quickreport layers (host probes + cli report)
-libexec/quickemu/chunkcheck.py  # Download verification utility
+bin/quickemu      # VM launcher entrypoint → tools/quickemu-cli
+bin/quickget      # OS downloader entrypoint → tools/quickget-cli
+bin/quickgetc     # Data-driven downloader → tools/quickgetc
+bin/quickreport   # Diagnostics entrypoint → tools/quickreport
+                  # (bin/ wrappers exec the Go binaries; they resolve
+                  # packaged libexec/quickemu/ and dev-tree tools/*/)
+tools/            # Go modules — one dir per tool
+  quickemu-cli    #   unified CLI: lifecycle, flags, JSON envelopes
+  quickemu-launch #   QEMU arg builder + spawn/reaper (the old vm_boot)
+  quickemu-vm     #   VM ops: delete/export/clone/snapshots/create-disk
+  quickemu-ops    #   op journal: new/set/done/fail/status/watch/cancel
+  quickemu-qmp    #   QMP/HMP client, allowlist, socket defenses
+  quickemu-ports  #   port registry: reserve/release/list/check/find
+  quickemu-proc   #   process identity + comm checks
+  quickemu-archive#   export/import with tar-slip validation
+  quickemu-toml   #   .conf ⇄ TOML parse/emit
+  quickemu-api    #   v1 HTTP/unix-socket API daemon
+  quickget-catalog#   catalog data + URL resolution + scrapers
+  quickget-cli    #   quickget CLI dispatch (list/check/get/config)
+  quickget-vm     #   image fetch/verify + conf generation + mkiso
+  quickgetc       #   data-driven downloader (quickgetc entrypoint)
+  quickreport     #   host diagnostics (the quickreport entrypoint)
+go.work           # Workspace joining all modules
+vendor/           # `go work vendor` output — offline reproducible builds
 schemas/v1/       # Versioned JSON CLI contract (--format json)
-tools/quickemu-qmp/  # ADR-0001 phase 1: extracted QMP client (Go)
-catalog/          # OS catalogue data (schema today, entries phased in).
-                  # catalog/data/catalog.json feeds tools/quickget-catalog:
-                  # editions is a static dump — OSes whose editions_<os>()
-                  # key on ${RELEASE} (e.g. blackarch) list it empty and are
-                  # resolved live via scrapeEditions() in the catalog tool.
-spec/             # ShellSpec suite (unit, integration, contract)
+catalog/          # OS catalogue data — catalog/data/catalog.json feeds
+                  # tools/quickget-catalog; releases/editions left empty
+                  # for dynamic OSes are resolved live via scrape.go
+spec/             # ShellSpec suite (contract, functional, e2e, security)
 probes/           # External-source checks (nightly, not PR-blocking)
 flake.nix         # Nix flake for packaging
 packaging/nix/package.nix  # Nix package definition
+packaging/debian/          # Debian packaging (install, rules, control)
 devshell.nix      # Development environment
 ```
 
@@ -40,16 +45,20 @@ devshell.nix      # Development environment
 
 ```shell
 nix develop                    # Enter devshell with all dependencies
-direnv reload                  # Update .direnv/bin/quickemu for testing
+direnv reload                  # Update .direnv/bin/* for testing
+bash tools/build-go.sh         # Build all Go tool binaries (required)
 ```
 
-The devshell patches `quickemu` to use Nix store paths for OVMF and Samba, writing to `.direnv/bin/quickemu`.
+The devshell exports `QE_FIRMWARE_DIR` so the Go launcher finds
+nix-store OVMF/AAVMF firmware without patching sources.
 
 ## Build and test commands
 
-- Lint scripts: `shellcheck -S warning bin/quickemu bin/quickemu.bash bin/quickget bin/quickget.bash bin/quickgetc bin/quickgetc.bash bin/quickreport bin/quickreport.bash $(find lib -name '*.sh')`
-- Build Go tools: `bash tools/build-go.sh` (or `bash tools/go-check.sh` for the full vet+test+race+coverage gate)
-- Run tests (ShellSpec 0.28.1 is vendored): `./shellspec-0.28.1/shellspec [spec/file.sh]` — needs `jq`, `qemu-img`, `qemu-system-*`, `socat` and `python3` for full coverage; on hosts without them expect env-dependent failures in contract/quickget/quickgetc specs.
+- Build Go tools: `bash tools/build-go.sh` (required before bin/ wrappers work)
+- Full Go gate (vet+test+race+coverage+build, 15 modules): `bash tools/go-check.sh`
+- Lint scripts: `shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport tools/*.sh`
+- Run tests (ShellSpec 0.28.1 is vendored): `./shellspec-0.28.1/shellspec [spec/file.sh]` — needs `qemu-img`, `qemu-system-*`, `socat` and `python3` for full coverage; contract/quickget/quickgetc specs are hermetic via `QUICKGETC_CATALOG` overrides.
+- TOML fuzzer: `bash tools/fuzz-toml.sh`
 - Test quickget URLs: `./bin/quickget --check <os> [release] [edition]`
 - Test ARM64 downloads: `./bin/quickget --arch arm64 --check <os> [release] [edition]`
 - Test all architectures: `./bin/quickget --check-all-arch <os> [release] [edition]`
@@ -58,29 +67,27 @@ The devshell patches `quickemu` to use Nix store paths for OVMF and Samba, writi
 
 ## Code style
 
-All scripts are Bash 4.0+ with ShellCheck compliance.
-
-| File | Indent | Notes |
-|------|--------|-------|
-| bin/quickemu | 2 spaces | Main VM launcher |
-| bin/quickget | 4 spaces | OS definitions and download logic |
+Go (gofmt, `go vet` clean); the thin bin/ wrappers and tools/*.sh are
+Bash 4.0+ with ShellCheck compliance.
 
 **General conventions:**
 
 - UTF-8, LF line endings, final newline
 - Trim trailing whitespace (except Markdown)
-- Functions use `function name() {` syntax
-- Many functions are invoked indirectly via dynamic dispatch - `SC2317` is disabled globally in quickget
+- Go tools emit the v1 JSON envelope (`schemas/v1/`) for `--format json`
+- User-facing errors go to **stdout** (historical contract); only
+  integrity/trust warnings go to stderr
 
 ## Adding a new OS to quickget
 
 Follow the [guide in the wiki](https://github.com/quickemu-project/quickemu/wiki/06-Advanced-quickget-features#adding-a-new-os-to-quickget). Each OS requires:
 
-1. Entry in `os_info()` case statement
-2. `releases_<os>()` function returning available versions
-3. `editions_<os>()` function if multiple editions exist
-4. `arch_<os>()` function if ARM64 is supported (defaults to amd64 only if omitted)
-5. Download URL construction logic
+1. An entry in `catalog/data/catalog.json` (releases, editions, arch,
+   url/hash templates) — or `"scrape": true` plus a case in
+   `tools/quickget-catalog/scrape.go` for dynamic resolution
+2. An `os_info` row (tools/quickget-catalog/info.go data)
+3. Guest-OS quirks in `tools/quickget-vm` (guestFor/osTweaks) if it
+   needs non-default hardware or post-download fixups
 
 ## Commit message format
 
@@ -107,17 +114,20 @@ fix(quickget): remove Athena OS (no longer getting updates)
 
 - PR titles must match Conventional Commits format (enforced by CI)
 - Single-commit PRs: commit message must match PR title
-- Run `shellcheck` before submitting
+- Run `bash tools/go-check.sh` and `shellcheck` before submitting
 - Test affected OS downloads with `./bin/quickget --check <os> <release>`
 
 ## CI workflows
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| lint-shellcheck | PR | ShellCheck with severity: warning |
+| go | PR | `go-check.sh` gate (vet, tests, race, build) |
+| shellspec-suite | PR | Contract/functional/e2e specs vs Go binaries |
+| lint-shellcheck | PR | ShellCheck on wrappers + tools/*.sh |
 | lint-pr | PR | Validates PR title matches Conventional Commits |
-| test-quickget | PR | Tests quickget functionality |
-| test-build-quickemu | PR | Build verification |
+| test-quickget | PR | Per-distro download checks via `bin/quickget` |
+| test-build-quickemu | PR | .deb + .nix build verification |
+| coverage | PR/push | `go test -cover` per module |
 | flake-checker | PR | Nix flake validation |
 
 ## Platform support
@@ -126,10 +136,13 @@ fix(quickget): remove Athena OS (no longer getting updates)
 - Guest: x86_64 (default), aarch64 (set `arch="aarch64"` in VM config)
 - ARM64 guests use AAVMF firmware and `virt` machine type
 - Cross-arch emulation uses TCG (no KVM acceleration)
-- OVMF/UEFI firmware: Linux only
-- Bash 4.0+ required (explicit version check at runtime)
+- OVMF/UEFI firmware: Linux only (`QE_FIRMWARE_DIR` overrides the
+  distro search paths)
 
 ## Key dependencies
 
-Runtime: qemu, cdrtools, curl, jq, spice-gtk, swtpm, samba, zsync
-Linux-specific: OVMF (x86_64 guests), AAVMF (aarch64 guests), usbutils, mesa-demos
+Runtime (exec'd by the Go tools): qemu-system-*, qemu-img, swtpm,
+virtiofsd, samba (smbd via QEMU netdev), spice-gtk, zsync, xrandr,
+usbutils, util-linux, socat (legacy monitor passthrough only)
+Firmware: OVMF (x86_64), AAVMF (aarch64) — `QE_FIRMWARE_DIR` override
+Linux-specific: usbutils, mesa-demos

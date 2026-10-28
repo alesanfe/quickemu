@@ -93,11 +93,17 @@ func main() {
 			fmt.Println(e.OS)
 		}
 	case "releases":
+		// releases <os> — static list, or live scrape for OSes whose
+		// releases_<os>() resolved dynamically (pureos/rockylinux/slitaz).
 		e := find(cat, args[1])
 		if e == nil {
 			os.Exit(1)
 		}
-		fmt.Println(strings.Join(e.Releases, " "))
+		rels := e.Releases
+		if len(rels) == 0 {
+			rels = scrapeReleases(e.OS)
+		}
+		fmt.Println(strings.Join(rels, " "))
 	case "editions":
 		// editions <os> [release] — static list, or live scrape for
 		// OSes whose editions_<os>() depends on the release (blackarch).

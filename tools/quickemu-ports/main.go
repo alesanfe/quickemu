@@ -213,7 +213,10 @@ func isNum(s string) bool {
 // normArgs expands GNU-style --flag=value into --flag value so the
 // positional pair parsers stay uniform (pflag parity without the dep).
 func normArgs(a []string) []string {
-	out := a[:0]
+	// Fresh backing array — in-place reuse (a[:0]) would overwrite
+	// elements the range loop hasn't read yet when an = arg splits
+	// into two, corrupting later flags.
+	out := make([]string, 0, len(a)+4)
 	for _, s := range a {
 		if i := strings.IndexByte(s, '='); strings.HasPrefix(s, "--") && i > 2 {
 			out = append(out, s[:i], s[i+1:])

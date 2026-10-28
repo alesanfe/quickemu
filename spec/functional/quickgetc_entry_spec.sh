@@ -1,47 +1,62 @@
 # shellcheck disable=SC2034
-# Functional tests: run the real bin/quickgetc entry point in-process
-# (sourced in a subshell) so argument dispatch, exit codes and module
-# wiring are exercised end to end without network access.
+# Functional tests: run the real bin/quickgetc entry point (Go
+# backend) covering argument dispatch, exit codes and catalog-driven
+# download/config behaviour. Hermetic: the catalog override is plain
+# JSON and image URLs resolve to a local HTTP server.
 Describe 'quickgetc entry point'
 Include spec/spec_helper.sh
+
+SRVPORT=18744
 
 setup() {
     TESTDIR=$(mktemp -d)
     FAKEBIN="$TESTDIR/bin"; mkdir -p "$FAKEBIN"
     export XDG_CACHE_HOME="$TESTDIR/cache"
-    mkdir -p "$XDG_CACHE_HOME"
+    mkdir -p "$XDG_CACHE_HOME" "$TESTDIR/www"
 
-    # Same-day catalog cache; the fake zstd decompresses by cat(1).
-    cat > "$XDG_CACHE_HOME/quickget_data.json.zst" <<'JSON'
+    # Catalog override: quickget_data.json (plain) wins over .zst and
+    # skips any network. Image URLs point at the local test server.
+    cat > "$XDG_CACHE_HOME/quickget_data.json" <<'JSON'
 [
   {"name":"testos","pretty_name":"TestOS","guest_os":"linux","homepage":"https://testos.example","description":"A test OS",
    "releases":[
      {"release":"1.0","edition":null,"arch":"x86_64","ram":4294967296,
-      "iso":[{"web":{"url":"https://cdn.testos/1.iso","file_name":"t1.iso"}}]},
+      "iso":[{"web":{"url":"http://127.0.0.1:SRVPORT/t1.iso","file_name":"t1.iso"}}]},
      {"release":"2.0","edition":"kde","arch":"x86_64",
-      "iso":[{"web":{"url":"https://cdn.testos/2k.iso","file_name":"t2k.iso"}}]},
+      "iso":[{"web":{"url":"http://127.0.0.1:SRVPORT/t2k.iso","file_name":"t2k.iso"}}]},
      {"release":"2.0","edition":"gnome","arch":"x86_64",
-      "iso":[{"web":{"url":"https://cdn.testos/2g.iso","file_name":"t2g.iso"}}]}
+      "iso":[{"web":{"url":"http://127.0.0.1:SRVPORT/t2g.iso","file_name":"t2g.iso"}}]}
    ]},
   {"name":"otheros","pretty_name":"OtherOS","guest_os":"linux","homepage":"https://other.example","description":"Other",
    "releases":[{"release":"9","edition":null,"arch":"x86_64",
-      "iso":[{"web":{"url":"https://cdn.other/9.iso","file_name":"o9.iso"}}]}]}
+      "iso":[{"web":{"url":"http://127.0.0.1:SRVPORT/o9.iso","file_name":"o9.iso"}}]}]}
 ]
 JSON
+    sed -i "s/SRVPORT/${SRVPORT}/g" "$XDG_CACHE_HOME/quickget_data.json"
 
-    printf '#!/bin/sh\nwhile [ $# -gt 1 ]; do shift; done\nexec cat "$1"\n' > "$FAKEBIN/zstd"
-    printf '#!/bin/sh\necho quickemu 4.9.9-stub\n' > "$FAKEBIN/quickemu"
-    printf '#!/bin/sh\necho 80\n' > "$FAKEBIN/tput"
+    printf 'iso1' > "$TESTDIR/www/t1.iso"; printf 'iso2k' > "$TESTDIR/www/t2k.iso"
+    printf 'iso2g' > "$TESTDIR/www/t2g.iso"; printf 'iso9' > "$TESTDIR/www/o9.iso"
+    # Kill any orphan still bound to the port, then serve www detached
+    # with every fd >=3 closed so the server never holds a harness pipe
+    # open (ShellSpec executor wedges on EOF otherwise).
+    pkill -f "http.server ${SRVPORT}" 2>/dev/null || true
+    ( cd "$TESTDIR/www" && exec 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&- \
+        && nohup python3 -m http.server "$SRVPORT" </dev/null >/dev/null 2>&1 \
+        & echo $! >"$TESTDIR/srv.pid" )
+    sleep 1
+
+    cp "${QE_ROOT}/spec/fake-bin/qemu-img" "$FAKEBIN/"
     printf '#!/bin/sh\nexit 0\n' > "$FAKEBIN/xdg-open"
-    cp "${QE_ROOT}/spec/fake-bin/curl" "${QE_ROOT}/spec/fake-bin/qemu-img" "$FAKEBIN/"
     chmod +x "$FAKEBIN"/*
     export PATH="$FAKEBIN:$PATH" FIXTURES="${QE_ROOT}/spec/fixtures"
 
-    # Source the real entry inside a subshell: args are the function's
-    # positional params, exit() is contained, coverage is still traced.
-    qgc() { ( cd "$TESTDIR" && . "${QE_ROOT}/bin/quickgetc.bash" ); }
+    qgc() { ( cd "$TESTDIR" && "${QE_ROOT}/bin/quickgetc" "$@" ); }
 }
-cleanup() { rm -rf -- "$TESTDIR"; }
+cleanup() {
+    [ -f "$TESTDIR/srv.pid" ] && kill "$(cat "$TESTDIR/srv.pid")" 2>/dev/null
+    pkill -f "http.server ${SRVPORT}" 2>/dev/null || true
+    rm -rf -- "$TESTDIR"
+}
 BeforeEach 'setup'
 AfterEach 'cleanup'
 
@@ -101,8 +116,8 @@ Describe 'url and check operations'
     It '--url lists image URLs for an OS'
         When run qgc --url testos
         The status should be success
-        The output should include 'https://cdn.testos/1.iso'
-        The output should include 'https://cdn.testos/2k.iso'
+        The output should include 'http://127.0.0.1:18744/t1.iso'
+        The output should include 'http://127.0.0.1:18744/t2k.iso'
     End
     It '--url with no OS iterates the whole catalog'
         When run qgc --url
@@ -110,7 +125,7 @@ Describe 'url and check operations'
         The output should include 'testos-1.0'
         The output should include 'otheros-9'
     End
-    It '--check probes URLs through curl'
+    It '--check probes URLs via HTTP'
         When run qgc --check testos
         The status should be success
         The output should include 'testos-1.0'
@@ -247,31 +262,20 @@ Describe 'argument validation'
 End
 
 Describe 'cache handling'
-    It 're-downloads the catalog when the cache is stale'
+    It 'a fresh .json override wins over a stale .zst'
+        # Stale compressed cache + fresh override: no download needed,
+        # the override is authoritative.
+        printf 'not-real-zstd' > "$XDG_CACHE_HOME/quickget_data.json.zst"
         touch -d '3 days ago' "$XDG_CACHE_HOME/quickget_data.json.zst"
-        cat > "$FAKEBIN/curl" <<'EOF'
-#!/bin/sh
-out=''
-while [ $# -gt 0 ]; do
-    case "$1" in -o|--output) out="$2"; shift 2;; *) shift;; esac
-done
-if [ -n "$out" ] && [ -d "$(dirname "$out")" ]; then
-    printf '[{"name":"fresh","pretty_name":"Fresh","releases":[{"release":"1","edition":null,"arch":"x86_64"}]}]' > "$out"
-fi
-exit 0
-EOF
-        chmod +x "$FAKEBIN/curl"
         When run qgc --list-csv
         The status should be success
-        The output should include 'Downloading quickget data'
-        The output should include 'Fresh,fresh'
+        The output should include 'TestOS,testos,1.0'
     End
-    It 'fails cleanly when the cache cannot be downloaded nor decompressed'
-        touch -d '3 days ago' "$XDG_CACHE_HOME/quickget_data.json.zst"
-        printf '#!/bin/sh\nexit 22\n' > "$FAKEBIN/curl"
-        printf '#!/bin/sh\nexit 1\n' > "$FAKEBIN/zstd"
-        chmod +x "$FAKEBIN/curl" "$FAKEBIN/zstd"
-        When run qgc --version
+    It 'fails cleanly when the .zst cache cannot be decompressed'
+        # Fresh-but-garbage .zst, no .json override: decode error path.
+        rm -f "$XDG_CACHE_HOME/quickget_data.json"
+        printf 'garbage-not-zstd' > "$XDG_CACHE_HOME/quickget_data.json.zst"
+        When run qgc --list
         The status should be failure
         The output should include 'Failed to decompress'
     End

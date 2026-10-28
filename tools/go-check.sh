@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Go quality gate — vet, tests (race when cgo available, with
 # coverage), build for every Go module under tools/.
+# GOWORK=off: modules resolve their own go.sum (the workspace exists
+# for vendored builds; workspace coverage merging needs toolchain
+# tools absent from the module-shipped toolchain).
 set -u
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit
 export PATH="${PATH}:${HOME}/go/bin:/usr/local/go/bin"
+export GOWORK=off
 RC=0
 for D in tools/*/; do
     [ -f "${D}/go.mod" ] || continue

@@ -4,22 +4,15 @@
   makeWrapper,
   stdenv,
   testers,
-  cdrtools,
-  curl,
-  gawk,
-  gnugrep,
-  gnused,
-  jq,
+  go,
   mesa-demos,
   pciutils,
   procps,
-  python3,
   qemu_full,
   samba,
   socat,
   spice-gtk,
   swtpm,
-  unzip,
   usbutils,
   util-linux,
   xdg-user-dirs,
@@ -30,74 +23,68 @@
   virtiofsd ? null,
 }:
 let
+  # Runtime tools the Go backend execs: QEMU itself, its companion
+  # daemons (swtpm, virtiofsd, qemu-bridge-helper via util-linux),
+  # optional accelerators (zsync delta downloads), viewers
+  # (spice-gtk/xrandr) and the socat bridge used by legacy monitor
+  # passthrough. Catalog data + schemas ship under share/quickemu.
   runtimePaths = [
-    cdrtools
-    curl
-    gawk
-    gnugrep
-    gnused
-    jq
     pciutils
     procps
-    python3
     qemu_full
     samba
     socat
     swtpm
-    unzip
     util-linux
     xrandr
     zsync
   ]
   ++ lib.optionals stdenv.hostPlatform.isLinux [
     mesa-demos
-    OVMF
-    OVMFFull
     usbutils
     xdg-user-dirs
     virtiofsd
   ];
-  # Extract version using builtins.split to avoid regex backtracking on large files.
-  # builtins.match with .* patterns on multi-kilobyte files can cause stack overflow.
-  versionParts = builtins.split "readonly VERSION=\"([0-9]+\\.[0-9]+\\.[0-9]+)\"" (
-    builtins.readFile ./bin/quickemu.bash
+  # Version lives in the canonical CLI tool (const qeVersion).
+  versionParts = builtins.split "qeVersion = \"([0-9]+\\.[0-9]+\\.[0-9]+)\"" (
+    builtins.readFile ../../tools/quickemu-cli/main.go
   );
   version = builtins.elemAt (builtins.elemAt versionParts 1) 0;
 in
 stdenv.mkDerivation (finalAttrs: {
   pname = "quickemu";
-  version = version;
-  src = lib.cleanSource ./.;
+  inherit version;
+  src = lib.cleanSource ../..;
 
-  postPatch = ''
-    sed -i \
-      ${
-        lib.optionalString (OVMF != null && OVMFFull != null) ''
-          -e '/OVMF_CODE_4M.secboot.fd/s|ovmfs=(|ovmfs=("${OVMFFull.firmware}","${OVMFFull.variablesMs}" |' \
-          -e '/OVMF_CODE_4M.fd/s|ovmfs=(|ovmfs=("${OVMF.firmware}","${OVMF.variables}" |' \
-        ''
-      } \
-      -e '/cp "''${VARS_IN}" "''${VARS_OUT}"/a chmod +w "''${VARS_OUT}"' \
-      -e 's/Icon=.*qemu.svg/Icon=qemu/' \
-      -e 's,\$(command -v smbd),${samba}/bin/smbd,' \
-      bin/quickemu.bash
-  '';
+  # All 15 modules share go.work + vendor/ — builds are fully offline.
+  env.GOFLAGS = "-mod=vendor";
+  env.GOWORK = "on";
+  env.CGO_ENABLED = "0";
 
   nativeBuildInputs = [
+    go
     makeWrapper
     installShellFiles
   ];
+
+  buildPhase = ''
+    runHook preBuild
+    mkdir -p build
+    for d in tools/*/; do
+      name=$(basename "$d")
+      [ -f "$d/go.mod" ] || continue
+      (cd "$d" && go build -trimpath -ldflags "-s -w" -o "$OLDPWD/build/$name" .)
+    done
+    runHook postBuild
+  '';
 
   installPhase = ''
     runHook preInstall
 
     installManPage docs/quickget.1 docs/quickemu.1 docs/quickemu_conf.5
-    install -Dm755 -t "$out/bin" bin/quickemu bin/quickemu.bash bin/quickget bin/quickget.bash bin/quickgetc bin/quickgetc.bash bin/quickreport bin/quickreport.bash
-    install -Dm755 -t "$out/libexec/quickemu" libexec/quickemu/chunkcheck.py
-    install -d "$out/lib"
-    cp -r lib/quickemu "$out/lib/"
-    cp -r lib/quickget "$out/lib/"
-    cp -r lib/quickreport "$out/lib/"
+    install -d "$out/libexec/quickemu"
+    install -Dm755 -t "$out/libexec/quickemu" build/*
+    install -Dm755 -t "$out/bin" bin/quickemu bin/quickget bin/quickgetc bin/quickreport
     install -d "$out/share/quickemu"
     cp -r schemas catalog "$out/share/quickemu/"
 
@@ -105,8 +92,12 @@ stdenv.mkDerivation (finalAttrs: {
     # is enabled, the wrapped spice-client-glib-usb-acl-helper is used
     for f in quickget quickgetc quickemu quickreport; do
       wrapProgram $out/bin/$f \
+        --prefix PATH : "$out/libexec/quickemu" \
         --prefix PATH : "${lib.makeBinPath runtimePaths}" \
-        --suffix PATH : "${lib.makeBinPath [ spice-gtk ]}"
+        --suffix PATH : "${lib.makeBinPath [ spice-gtk ]}" \
+        ${lib.optionalString (OVMF != null || OVMFFull != null) ''
+        --set-default QE_FIRMWARE_DIR "${if OVMFFull != null then "${OVMFFull.fd}/FV" else "${OVMF.fd}/FV"}" \
+        ''}
     done
 
     runHook postInstall

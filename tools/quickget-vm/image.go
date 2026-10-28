@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/bodgit/sevenzip"
 	"github.com/diskfs/go-diskfs"
@@ -35,12 +36,13 @@ import (
 // finalURL: web_redirect parity — follow redirects and return the
 // resolved URL (used to name URL-sourced images).
 func finalURL(url string) string {
-	c := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 10 {
-			return http.ErrUseLastResponse
-		}
-		return nil
-	}}
+	c := &http.Client{Timeout: 30 * time.Second, Transport: httpTransport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return http.ErrUseLastResponse
+			}
+			return nil
+		}}
 	resp, err := c.Head(url)
 	if err != nil {
 		return url
@@ -137,7 +139,7 @@ func isoExtractBootfiles(iso, out, prefix string) bool {
 		}
 	}
 	if !done {
-		fmt.Fprintln(os.Stderr, "ERROR! Could not read the ISO (not ISO9660) and no bsdtar, 7z or isoinfo fallback is available.")
+		fmt.Println("ERROR! Could not read the ISO (not ISO9660) and no bsdtar, 7z or isoinfo fallback is available.")
 		return false
 	}
 	// 7z/bsdtar may place files at OUT root or under PREFIX.
@@ -162,11 +164,11 @@ func fileNonEmpty(p string) bool {
 // unattended Windows media when applicable, then write the .conf.
 func customConf(vmPath, input, flag string) int {
 	if vmPath == "" || input == "" {
-		fmt.Fprintln(os.Stderr, "customconf: <vm-path> <input> required")
+		fmt.Println("customconf: <vm-path> <input> required")
 		return 2
 	}
 	if err := os.Mkdir(vmPath, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Could not create directory: %s. Please verify that it does not already exist\n", vmPath)
+		fmt.Printf("ERROR! Could not create directory: %s. Please verify that it does not already exist\n", vmPath)
 		return 1
 	}
 	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
@@ -177,12 +179,12 @@ func customConf(vmPath, input, flag string) int {
 			}
 			input = filepath.Base(input)
 		} else {
-			fmt.Fprintln(os.Stderr, "ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config")
+			fmt.Println("ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config")
 			return 1
 		}
 	} else {
 		if _, err := os.Stat(input); err != nil {
-			fmt.Fprintln(os.Stderr, "ERROR! The input must be a valid URL or path to an ISO, IMG, or QCOW2 file.")
+			fmt.Println("ERROR! The input must be a valid URL or path to an ISO, IMG, or QCOW2 file.")
 			return 1
 		}
 		fmt.Println("Moving image to VM dir")
@@ -190,7 +192,7 @@ func customConf(vmPath, input, flag string) int {
 		if err := os.Rename(input, filepath.Join(vmPath, base)); err != nil {
 			// cross-device: copy+remove fallback
 			if cp := copyFile(input, filepath.Join(vmPath, base)); cp != nil {
-				fmt.Fprintln(os.Stderr, cp)
+				fmt.Println(cp)
 				return 1
 			}
 			os.Remove(input)
@@ -203,7 +205,7 @@ func customConf(vmPath, input, flag string) int {
 		strings.HasSuffix(low, ".qcow2"), strings.HasSuffix(low, ".vmdk"),
 		strings.HasSuffix(low, ".raw"), strings.HasSuffix(low, ".vdi"):
 	default:
-		fmt.Fprintln(os.Stderr, "ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config")
+		fmt.Println("ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config")
 		return 1
 	}
 	fmt.Println("Creating custom VM config for " + input + ".")
@@ -274,14 +276,14 @@ func cryptSalt(n int) string {
 
 func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 	if !isoExtractBootfiles(iso, vmPath, "casper") {
-		fmt.Fprintln(os.Stderr, "ERROR! Could not extract casper/vmlinuz+initrd from "+iso)
+		fmt.Println("ERROR! Could not extract casper/vmlinuz+initrd from " + iso)
 		return 1
 	}
 	// SHA512-crypt of "quickemu" — pure-Go equivalent of
 	// `openssl passwd -6 quickemu` (removes the openssl dependency).
 	pwHash, err := crypt.Crypt("quickemu", "$6$"+cryptSalt(8))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! could not generate the install password hash.")
+		fmt.Println("ERROR! could not generate the install password hash.")
 		return 1
 	}
 	userName := os.Getenv("USER")
@@ -294,7 +296,7 @@ func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 		"    allow-pw: true\n  storage:\n    layout:\n      name: direct\n" +
 		"  late-commands:\n    - echo \"" + userName + " ALL=(ALL) NOPASSWD:ALL\" > /target/etc/sudoers.d/" + userName + "\n"
 	if err := os.WriteFile(filepath.Join(vmPath, "user-data"), []byte(userData), 0644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	if rc := genSeedISO(vmPath, confFile); rc != 0 {
@@ -302,7 +304,7 @@ func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 	}
 	f, err := os.OpenFile(confFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	defer f.Close()
@@ -352,7 +354,7 @@ func imageNormalize(osName, iso, vmPath string) string {
 				os.Remove(filepath.Join(vmPath, iso))
 				iso = strings.TrimSuffix(iso, ".zst")
 			} else {
-				fmt.Fprintln(os.Stderr, "ERROR! Unable to extract file.")
+				fmt.Println("ERROR! Unable to extract file.")
 			}
 		}
 	case "freedos", "reactos":
@@ -376,7 +378,7 @@ func imageNormalize(osName, iso, vmPath string) string {
 func extract7z(arc, dir string) bool {
 	r, err := sevenzip.OpenReader(arc)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! could not read 7z archive: "+err.Error())
+		fmt.Println("ERROR! could not read 7z archive: " + err.Error())
 		return false
 	}
 	defer r.Close()
@@ -582,7 +584,7 @@ func unattendedWindows(vmPath, driverDir, i18n string) int {
 	xml = strings.ReplaceAll(xml, "${DRIVER_DIR}", driverDir)
 	xml = strings.ReplaceAll(xml, "${QXLDOD_PATH}", qxldod)
 	if err := os.WriteFile(filepath.Join(dir, "autounattend.xml"), []byte(xml), 0644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	fmt.Println("Downloading Spice drivers...")
@@ -605,7 +607,7 @@ func unattendedWindows(vmPath, driverDir, i18n string) int {
 		err = writeISO9660(iso, "unattended", files)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! Could not build unattended.iso: "+err.Error())
+		fmt.Println("ERROR! Could not build unattended.iso: " + err.Error())
 		return 1
 	}
 	return 0

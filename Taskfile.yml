@@ -1,17 +1,22 @@
 version: '3'
 
 tasks:
-  lint:
-    desc: ShellCheck + bash -n on all scripts
+  build:
+    desc: Build all Go tool binaries (required before bin/ works)
     cmds:
-      - shellcheck bin/quickemu bin/quickget bin/quickreport $(find lib -name "*.sh") || true
-      - bash -n bin/quickemu bin/quickget bin/quickreport
-      - for f in lib/*/*.sh; do bash -n "$f"; done
+      - bash tools/build-go.sh
+
+  lint:
+    desc: ShellCheck on wrappers + dev scripts, go vet on all modules
+    cmds:
+      - shellcheck -S warning bin/quickemu bin/quickget bin/quickgetc bin/quickreport tools/*.sh
+      - bash -n bin/quickemu bin/quickget bin/quickgetc bin/quickreport
+      - bash tools/go-check.sh
 
   test:
-    desc: Run the unit/contract test suite
+    desc: Per-spec ShellSpec suite (isolated process groups, timeouts)
     cmds:
-      - shellspec
+      - bash tools/run-specs.sh 240 spec
 
   check:
     desc: Validate an OS download URL

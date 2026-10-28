@@ -48,6 +48,8 @@ It 'imports a VM archive without an existing --vm configuration'
     When run qe --import "$TESTDIR/vm-new.tar.gz"
     The status should be success
     The output should include 'Imported vm-new'
+    # No-manifest archive → integrity/review warnings on stderr.
+    The stderr should match pattern '*'
     The file "$TESTDIR/dest/vm-new.conf" should be exist
     The directory "$TESTDIR/dest/vm-new" should be exist
 End

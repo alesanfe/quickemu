@@ -70,7 +70,7 @@ func msGet(url string, max int64, referer string) (string, error) {
 	if referer != "" {
 		req.Header.Set("Referer", referer)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -268,7 +268,7 @@ func downloadWindowsServer(release, i18n, vmPath, entType string) (string, error
 	}
 	// Follow redirect for a useful log line (HEAD effective URL).
 	req, _ := http.NewRequest("HEAD", link, nil)
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -301,7 +301,7 @@ func getWindows(osName, release, i18n, dir, arch string) int {
 			list = winServerLanguages
 		}
 		if !validLang(list, i18n) {
-			fmt.Fprintf(os.Stderr, "ERROR! %s is not a supported language\n", i18n)
+			fmt.Printf("ERROR! %s is not a supported language\n", i18n)
 			return 1
 		}
 	} else {
@@ -322,7 +322,7 @@ func getWindows(osName, release, i18n, dir, arch string) int {
 		fileName, err = downloadWindowsWorkstation(release, i18n, dir)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		// Microsoft-blocked flows still continue to conf generation
 		// when the user was told to download manually — Bash returns
 		// 1 but proceeds to make_vm_config for the placeholder file.

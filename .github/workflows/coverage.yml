@@ -1,4 +1,4 @@
-name: Coverage (kcov behavioral)
+name: Coverage (go test)
 on: [push, pull_request]
 permissions:
   contents: read
@@ -7,14 +7,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-      - name: Install kcov + deps
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391e405a14327b7d613ca9d90898b08  # v5
+        with:
+          go-version: '1.25'
+      - name: Per-module coverage
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends kcov jq
-      - name: Behavioral coverage via kcov
-        run: bash tools/coverage-kcov.sh spec/unit
+          mkdir -p coverage
+          for d in tools/*/; do
+            [ -f "$d/go.mod" ] || continue
+            name=$(basename "$d")
+            (cd "$d" && go test -coverprofile="../../coverage/$name.out" ./...) || true
+          done
+      - name: Coverage summary
+        run: |
+          for f in coverage/*.out; do
+            [ -f "$f" ] || continue
+            echo "== $(basename "$f" .out)"
+            go tool cover -func="$f" | tail -1
+          done >> "$GITHUB_STEP_SUMMARY"
       - name: Upload coverage report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: kcov-report
-          path: /tmp/kcov-*
+          name: go-coverage
+          path: coverage/

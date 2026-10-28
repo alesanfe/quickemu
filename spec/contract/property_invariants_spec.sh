@@ -17,8 +17,9 @@ End
 Describe 'property: path confinement invariants'
     It 'realpath-confinement rejects paths outside workspace'
         # The delete/import confinement check must reject ".." escapes —
-        # verify the enforcement code exists in the runtime/vm layer.
-        When run bash -c 'grep -qE "realpath|readlink -f" lib/quickemu/runtime/*.sh lib/quickemu/vm/*.sh'
+        # Go enforces it via filepath.EvalSymlinks + filepath.Rel guards
+        # in quickemu-vm's delete/export plan.
+        When run bash -c 'grep -q "EvalSymlinks" tools/quickemu-vm/main.go && grep -q "filepath.Rel" tools/quickemu-vm/main.go'
         The status should be success
     End
 End

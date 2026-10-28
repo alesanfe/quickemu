@@ -12,12 +12,39 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"net"
+	neturl "net/url"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
+)
+
+// HTTP clients: curl --connect-timeout/--max-time parity — probes die
+// in 30s, downloads bound dial+header but stream unbounded.
+var (
+	httpProbe = &http.Client{Timeout: 30 * time.Second, Transport: httpTransport}
+	httpDL    = &http.Client{Transport: httpTransport,
+		// proto-redir =http,https parity: redirects may never leave
+		// the http(s) schemes (blocks redirect -> file:// etc.) and
+		// are bounded like curl --max-redirs.
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("too many redirects")
+			}
+			if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
+				return fmt.Errorf("redirect to disallowed scheme %q", req.URL.Scheme)
+			}
+			return nil
+		}}
+	httpTransport = &http.Transport{
+		DialContext:           (&net.Dialer{Timeout: 15 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   15 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+	}
 )
 
 // guestFor: the OS -> guest_os/IMAGE_TYPE case table.
@@ -211,11 +238,11 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 		b.WriteString("fixed_iso=\"" + dir + "/" + isoFile + "\"\n")
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	if err := os.WriteFile(confFile, []byte(b.String()), 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	fmt.Println("Making " + confFile)
@@ -226,7 +253,7 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: quickget-vm <mkconf|fetch> ...")
+		fmt.Println("usage: quickget-vm <mkconf|fetch> ...")
 		os.Exit(2)
 	}
 	if os.Args[1] == "fetch" {
@@ -247,7 +274,7 @@ func main() {
 			i++
 		}
 		if url == "" || dest == "" {
-			fmt.Fprintln(os.Stderr, "fetch: --url and --dest are required")
+			fmt.Println("fetch: --url and --dest are required")
 			os.Exit(2)
 		}
 		os.Exit(fetch(url, dest, sha))
@@ -287,7 +314,7 @@ func main() {
 			edition = pos[2]
 		}
 		if osName == "" {
-			fmt.Fprintln(os.Stderr, "get: <os> [release] [edition] required")
+			fmt.Println("get: <os> [release] [edition] required")
 			os.Exit(2)
 		}
 		os.Exit(getOS(osName, release, edition, dir, arch))
@@ -313,7 +340,7 @@ func main() {
 		os.Exit(customConf(vmPath, input, flag))
 	}
 	if os.Args[1] != "mkconf" {
-		fmt.Fprintln(os.Stderr, "usage: quickget-vm <get|mkconf|fetch|customconf> ...")
+		fmt.Println("usage: quickget-vm <get|mkconf|fetch|customconf> ...")
 		os.Exit(2)
 	}
 	var osName, release, edition, image, iso, dir, arch string
@@ -347,7 +374,7 @@ func main() {
 		i++
 	}
 	if osName == "" || image == "" {
-		fmt.Fprintln(os.Stderr, "mkconf: --os and --image are required")
+		fmt.Println("mkconf: --os and --image are required")
 		os.Exit(2)
 	}
 	_ = filepath.Separator
@@ -356,30 +383,54 @@ func main() {
 
 // fetch: web_get/check_hash parity — download url -> dest via a .part
 // staging file (atomic rename), resume a partial download with the
-// Range header, and verify sha256 when provided. Uses net/http so no
+// Range header, bounded retries (curl --retry 3), http(s)-only scheme
+// restriction, and sha256 verify when provided. Uses net/http so no
 // curl/zsync dependency is required.
 func fetch(url, dest, wantSHA string) int {
+	if u, err := neturl.Parse(url); err != nil ||
+		(u.Scheme != "http" && u.Scheme != "https") {
+		fmt.Printf("ERROR! unsupported URL scheme: %s\n", url)
+		return 1
+	}
 	part := dest + ".part"
+	for attempt := 1; attempt <= 3; attempt++ {
+		if fetchOnce(url, part, wantSHA) == 0 {
+			break
+		}
+		if attempt == 3 {
+			return 1
+		}
+		time.Sleep(time.Duration(attempt) * 2 * time.Second)
+	}
+	if err := os.Rename(part, dest); err != nil {
+		fmt.Println(err)
+		return 1
+	}
+	fmt.Println(" - Downloaded " + dest)
+	return 0
+}
+
+func fetchOnce(url, part, wantSHA string) int {
 	var have int64
 	if st, err := os.Stat(part); err == nil {
 		have = st.Size()
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	if have > 0 {
 		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", have))
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpDL.Do(req)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "download failed: HTTP %d\n", resp.StatusCode)
+		fmt.Printf("download failed: HTTP %d\n", resp.StatusCode)
 		return 1
 	}
 	// Server ignored Range -> restart the staging file.
@@ -394,33 +445,28 @@ func fetch(url, dest, wantSHA string) int {
 	}
 	f, err := os.OpenFile(part, flag, 0644)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	if _, err := io.Copy(f, resp.Body); err != nil {
 		f.Close()
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	f.Close()
 	if wantSHA != "" {
 		b, err := os.ReadFile(part)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Println(err)
 			return 1
 		}
 		sum := fmt.Sprintf("%x", sha256.Sum256(b))
 		if !strings.EqualFold(sum, wantSHA) {
 			os.Remove(part)
-			fmt.Fprintf(os.Stderr, "checksum mismatch: got %s want %s\n", sum, wantSHA)
+			fmt.Printf("checksum mismatch: got %s want %s\n", sum, wantSHA)
 			return 1
 		}
 	}
-	if err := os.Rename(part, dest); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	fmt.Println(" - Downloaded " + dest)
 	return 0
 }
 
@@ -446,7 +492,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 	}
 	cat, err := exec.LookPath("quickget-catalog")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "get: quickget-catalog not on PATH")
+		fmt.Println("get: quickget-catalog not on PATH")
 		return 1
 	}
 	args := []string{"url", osName}
@@ -465,12 +511,12 @@ func getOS(osName, release, edition, dir, arch string) int {
 	}
 	out, err := exec.Command(cat, args...).Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "get: url resolution failed for %s %s %s\n", osName, release, edition)
+		fmt.Printf("get: url resolution failed for %s %s %s\n", osName, release, edition)
 		return 1
 	}
 	parts := strings.Fields(strings.TrimSpace(string(out)))
 	if len(parts) == 0 {
-		fmt.Fprintln(os.Stderr, "get: empty url")
+		fmt.Println("get: empty url")
 		return 1
 	}
 	url := parts[0]
@@ -485,7 +531,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 		}
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	image := filepath.Join(dir, filepath.Base(url))
@@ -559,15 +605,15 @@ func getOS(osName, release, edition, dir, arch string) int {
 			confFile := dir + ".conf"
 			return genUbuntuAutoinstall(dir, filepath.Join(dir, imageName), confFile)
 		}
-		fmt.Fprintln(os.Stderr, "WARNING! --unattended is only supported for ubuntu-server; ignoring.")
+		fmt.Println("WARNING! --unattended is only supported for ubuntu-server; ignoring.")
 	}
 	return 0
 }
 
 // genSeedISO: gen_seed_iso parity — write user-data + meta-data and
-// build a NoCloud seed.iso via the first available tool
-// (cloud-localds > genisoimage > xorrisofs > mkisofs), then append
-// seed="..." to the conf.
+// build a NoCloud seed.iso in pure Go (writeISO9660/diskfs — replaces
+// the cloud-localds > genisoimage > xorrisofs > mkisofs chain), then
+// append seed="..." to the conf.
 func genSeedISO(vmPath, confFile string) int {
 	userName := os.Getenv("USER")
 	if userName == "" {
@@ -589,7 +635,7 @@ func genSeedISO(vmPath, confFile string) int {
 	}
 	ud.WriteString("ssh_pwauth: true\npackage_update: true\n")
 	if err := os.WriteFile(userData, []byte(ud.String()), 0644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	metaData := filepath.Join(vmPath, "meta-data")
@@ -602,7 +648,7 @@ func genSeedISO(vmPath, confFile string) int {
 	if err := writeISO9660(seed, "cidata", map[string]string{
 		"/user-data": userData, "/meta-data": metaData,
 	}); err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! Could not build seed.iso: "+err.Error())
+		fmt.Println("ERROR! Could not build seed.iso: " + err.Error())
 		return 1
 	}
 	if _, err := os.Stat(seed); err == nil {

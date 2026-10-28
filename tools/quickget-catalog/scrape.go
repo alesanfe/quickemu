@@ -675,6 +675,20 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u + "/" + iso, sha, nil
+	case "os2warp":
+		// get_os2warp: archive.org per-release ISO map, warp4 default.
+		switch release {
+		case "3":
+			return "https://archive.org/download/ibm-os2-warp-3.0-connect-max-german/CDINST/OS2_Warp3_Connect_Max_de_CD_ROM.iso", "", nil
+		case "2.1":
+			return "https://archive.org/download/ibm-os2-2.1-german/CD-Inst/OS2_CD_ROM.iso", "", nil
+		case "2.0":
+			return "https://archive.org/download/ibm-os2-2.0-max-cd-german/OS2Reg20Max/CDINST/OS2_CD_ROM_20_Max.iso", "", nil
+		}
+		return "https://archive.org/download/IBMOS2Warp4Collection/OS2WARP4-EN.iso", "", nil
+	case "recreomatic":
+		// get_recreomatic: fixed archive.org ISO.
+		return "https://archive.org/download/guadalinex-v9-32B/recreomatic.iso", "", nil
 	case "pardus":
 		// get_pardus: ED_UPPER edition in iso; no hash.
 		iso := fmt.Sprintf("Pardus-%s-%s-latest-amd64.iso", release, strings.ToUpper(edition))
@@ -863,6 +877,72 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 // scrapeEditions resolves editions for OSes whose editions_<os>() is a
 // live scrape keyed on ${RELEASE} — the static catalog lists them as
 // empty. Mirrors the Bash function output (page order, deduplicated).
+// scrapeReleases: releases_<os> parity for OSes whose release list is
+// live (empty in the static catalog). Each case mirrors the Bash
+// web_pipe pipeline.
+func scrapeReleases(osName string) []string {
+	switch osName {
+	case "pureos":
+		// releases_pureos: download page, first puri.sm link, 4th '-' field
+		body, err := fetchString("https://www.pureos.net/download/")
+		if err != nil {
+			return nil
+		}
+		for _, m := range regexp.MustCompile(`"([^"]*downloads\.puri[^"]*)"`).FindAllStringSubmatch(body, -1) {
+			f := strings.Split(m[1], "-")
+			if len(f) > 4 {
+				return []string{f[4]}
+			}
+		}
+	case "rockylinux":
+		// releases_rockylinux: vault index links minus full/RC/ISO,
+		// reversed (newest first).
+		body, err := fetchString("https://dl.rockylinux.org/vault/rocky/")
+		if err != nil {
+			return nil
+		}
+		var rels []string
+		for _, m := range regexp.MustCompile(`class="link"[^>]*>([^<"]+)/?<`).FindAllStringSubmatch(body, -1) {
+			n := strings.Trim(m[1], "/")
+			if n == "" || strings.ContainsAny(n, " ") {
+				continue
+			}
+			low := strings.ToLower(n)
+			if strings.Contains(low, "full") || strings.Contains(low, "rc") ||
+				strings.Contains(low, "iso") || strings.Contains(low, "parent") {
+				continue
+			}
+			rels = append(rels, n)
+		}
+		for i, j := 0, len(rels)-1; i < j; i, j = i+1, j-1 {
+			rels[i], rels[j] = rels[j], rels[i]
+		}
+		return rels
+	case "slitaz":
+		// releases_slitaz: rolling index iso filenames, unique versions.
+		body, err := fetchString("https://mirror.slitaz.org/iso/rolling/")
+		if err != nil {
+			return nil
+		}
+		seen := map[string]bool{}
+		var rels []string
+		for _, m := range regexp.MustCompile(`class='iso'[^>]*>'?([^'<>]+)`).FindAllStringSubmatch(body, -1) {
+			f := strings.TrimSuffix(m[1], "'")
+			parts := strings.SplitN(f, "-", 3)
+			if len(parts) < 3 || !strings.HasSuffix(f, ".iso") {
+				continue
+			}
+			ver := strings.TrimSuffix(parts[2], ".iso")
+			if !seen[ver] {
+				seen[ver] = true
+				rels = append(rels, ver)
+			}
+		}
+		return rels
+	}
+	return nil
+}
+
 func scrapeEditions(osName, release string) []string {
 	if release == "" {
 		return nil

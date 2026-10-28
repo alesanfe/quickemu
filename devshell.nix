@@ -11,24 +11,21 @@ mkShell {
     with pkgs;
     (
       [
-        cdrtools
-        curl
-        gawk
-        gnugrep
-        gnused
-        jq
-        pciutils
-        procps
-        python3
+        # Toolchain
+        go
+        gnumake
+        shellcheck
+        # QEMU runtime + companions the Go tools exec
         qemu_full
+        swtpm
         samba
         socat
-        spice-gtk
-        swtpm
-        unzip
+        zsync
+        pciutils
+        procps
         util-linux
         xorg.xrandr
-        zsync
+        spice-gtk
       ]
       ++ lib.optionals stdenv.hostPlatform.isLinux [
         mesa-demos
@@ -45,35 +42,26 @@ mkShell {
     git
   ];
 
+  # Firmware search override — the Go launcher's firmwareFile() reads
+  # QE_FIRMWARE_DIR first, so nix-store OVMF paths plug in without
+  # patching sources.
+  QE_FIRMWARE_DIR = lib.optionalString (OVMFFull != null) "${OVMFFull.fd}/FV";
+
   shellHook = ''
     echo "**********************************************************************"
-    echo "* 'direnv reload' to update '.direnv/bin/quickemu' for testing  *"
+    echo "* 'direnv reload' to update '.direnv/bin' for testing           *"
     echo "**********************************************************************"
-    sed \
-      ${
-        lib.optionalString (OVMF != null && OVMFFull != null) ''
-          -e '/OVMF_CODE_4M.secboot.fd/s|ovmfs=(|ovmfs=("${OVMFFull.firmware}","${OVMFFull.variablesMs}" |' \
-          -e '/OVMF_CODE_4M.fd/s|ovmfs=(|ovmfs=("${OVMF.firmware}","${OVMF.variables}" |' \
-        ''
-      }${lib.optionalString stdenv.hostPlatform.isDarwin ''
-        -e 's|ovmfs=("[$][{]SHARE_PATH}/OVMF/OVMF_CODE_4M.secboot.fd"|ovmfs=("${pkgs.qemu_full}/share/qemu/edk2-x86_64-secure-code.fd","${pkgs.qemu_full}/share/qemu/edk2-i386-vars.fd" "''${SHARE_PATH}/OVMF/OVMF_CODE_4M.secboot.fd"|' \
-        -e 's|ovmfs=("[$][{]SHARE_PATH}/OVMF/OVMF_CODE_4M.fd"|ovmfs=("${pkgs.qemu_full}/share/qemu/edk2-x86_64-code.fd","${pkgs.qemu_full}/share/qemu/edk2-i386-vars.fd" "''${SHARE_PATH}/OVMF/OVMF_CODE_4M.fd"|' \
-        -e 's|ovmfs=("/usr/share/AAVMF/AAVMF_CODE.fd"|ovmfs=("${pkgs.qemu_full}/share/qemu/edk2-aarch64-code.fd","${pkgs.qemu_full}/share/qemu/edk2-arm-vars.fd" "/usr/share/AAVMF/AAVMF_CODE.fd"|' \
-      ''} \
-      -e '/cp "''${VARS_IN}" "''${VARS_OUT}"/a chmod +w "''${VARS_OUT}"' \
-      -e 's,\$(command -v smbd),${pkgs.samba}/bin/smbd,' \
-      bin/quickemu.bash > $PWD/.direnv/bin/quickemu.bash
-    chmod +x $PWD/.direnv/bin/quickemu.bash
-    # Keep the Go-first wrappers available under .direnv/bin too,
-    # plus the unpatched .bash fallbacks for the other entry points.
+    mkdir -p $PWD/.direnv/bin
     for f in quickemu quickget quickgetc quickreport; do
       cp bin/$f $PWD/.direnv/bin/$f
       chmod +x $PWD/.direnv/bin/$f
-      [ "$f" = quickemu ] || cp bin/$f.bash $PWD/.direnv/bin/$f.bash
     done
-    # The patched entry resolves ../lib/quickemu next to itself.
-    ln -sfn "$PWD/lib" "$PWD/.direnv/lib"
     # Wrappers resolve ../tools/<t>/<t> from their own dir.
     ln -sfn "$PWD/tools" "$PWD/.direnv/tools"
+    # Build the Go tools once so the wrappers work immediately.
+    if command -v go >/dev/null; then
+      bash tools/build-go.sh >/dev/null 2>&1 || \
+        echo "hint: run tools/build-go.sh to build the Go tools"
+    fi
   '';
 }

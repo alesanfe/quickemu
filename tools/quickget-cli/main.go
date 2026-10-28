@@ -277,7 +277,15 @@ func actOpenHomepage(osName string) int {
 	info := loadInfo()
 	inf, ok := info[osName]
 	if !ok || inf.Homepage == "" {
-		fmt.Fprintf(os.Stdout, "ERROR! You must specify a valid OS.\n")
+		// open_homepage parity: os_info miss → error_specify_os.
+		fmt.Fprintln(os.Stdout, "ERROR! You must specify an operating system.")
+		fmt.Fprintln(os.Stdout, "- Supported Operating Systems:")
+		var names []string
+		for _, e := range loadCatalog() {
+			names = append(names, e.OS)
+		}
+		fmt.Fprintln(os.Stdout, strings.Join(names, " "))
+		fmt.Fprintln(os.Stdout, "\nTo see all possible arguments, use:\n   quickget -h  or  quickget --help")
 		return 1
 	}
 	for _, opener := range []string{"xdg-open", "sensible-browser", "x-www-browser", "gnome-open"} {
@@ -713,7 +721,7 @@ func main() {
 	// os_supported gate (main.sh:194): any positional OS is validated
 	// before dispatch. --create-config positionals are vm-path+input,
 	// not an OS, so that op is exempt.
-	if osName != "" && op != "config" && !validateOS(osName) {
+	if osName != "" && op != "config" && op != "homepage" && !validateOS(osName) {
 		os.Exit(1)
 	}
 	rc := 0

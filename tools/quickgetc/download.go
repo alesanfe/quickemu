@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -29,9 +30,23 @@ import (
 
 const (
 	cacheFile = "quickget_data.json.zst"
+	cacheJSON = "quickget_data.json"
 	cacheURL  = "https://github.com/lj3954/quickget_configs/releases/download/daily/quickget_data.json.zst"
-	qgcUA     = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 )
+
+// HTTP clients: curl --connect-timeout/--max-time parity — probes die
+// in 30s, downloads bound dial+header but stream unbounded.
+var (
+	httpProbe     = &http.Client{Timeout: 30 * time.Second, Transport: httpTransport}
+	httpDL        = &http.Client{Transport: httpTransport}
+	httpTransport = &http.Transport{
+		DialContext:           (&net.Dialer{Timeout: 15 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   15 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second,
+	}
+)
+
+const qgcUA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 
 // cacheIsValid: cache file must be from the current UTC day.
 func cacheIsValid(p string) bool {
@@ -47,39 +62,59 @@ func cacheIsValid(p string) bool {
 // populateCache: download the daily dataset if stale, then
 // zstd-decompress it into the catalog model.
 func populateCache() []OSEntry {
+	// QUICKGETC_CATALOG=<path> loads an uncompressed JSON catalog from
+	// anywhere (offline catalogs, pinned datasets, hermetic tests) —
+	// it wins over the cache and skips the download entirely.
+	if override := os.Getenv("QUICKGETC_CATALOG"); override != "" {
+		if raw, err := os.ReadFile(override); err == nil {
+			var cat []OSEntry
+			if err := json.Unmarshal(raw, &cat); err == nil {
+				return cat
+			}
+		}
+	}
 	cacheDir := os.Getenv("XDG_CACHE_HOME")
 	if cacheDir == "" {
 		cacheDir = filepath.Join(os.Getenv("HOME"), ".cache")
+	}
+	// A plain quickget_data.json next to the cache is an authoritative
+	// override (offline catalogs, pinned datasets, tests) — it skips
+	// both the download and the zstd decode entirely.
+	if raw, err := os.ReadFile(filepath.Join(cacheDir, cacheJSON)); err == nil {
+		var cat []OSEntry
+		if err := json.Unmarshal(raw, &cat); err == nil {
+			return cat
+		}
 	}
 	p := filepath.Join(cacheDir, cacheFile)
 	if !cacheIsValid(p) {
 		fmt.Println("Downloading quickget data from " + cacheURL)
 		os.MkdirAll(cacheDir, 0755)
 		if webGet(cacheURL, cacheDir, cacheFile, nil) != 0 {
-			fmt.Fprintln(os.Stderr, "ERROR! Failed to download catalog data.")
+			fmt.Println("ERROR! Failed to download catalog data.")
 			os.Exit(1)
 		}
 	}
 	raw, err := os.ReadFile(p)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Failed to read %s\n", p)
+		fmt.Printf("ERROR! Failed to read %s\n", p)
 		os.Exit(1)
 	}
 	zr, err := zstd.NewReader(nil)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 	defer zr.Close()
 	data, err := zr.DecodeAll(raw, nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Failed to decompress %s. Try running quickgetc again.\n", p)
+		fmt.Printf("ERROR! Failed to decompress %s. Try running quickgetc again.\n", p)
 		os.Remove(p)
 		os.Exit(1)
 	}
 	var cat []OSEntry
 	if err := json.Unmarshal(data, &cat); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Failed to parse catalog data: %v\n", err)
+		fmt.Printf("ERROR! Failed to parse catalog data: %v\n", err)
 		os.Exit(1)
 	}
 	return cat
@@ -93,7 +128,7 @@ func webGet(url, dir, file string, headers [][2]string) int {
 	}
 	if dir != "" {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR! Unable to create directory %s\n", dir)
+			fmt.Printf("ERROR! Unable to create directory %s\n", dir)
 			return 1
 		}
 	}
@@ -104,7 +139,7 @@ func webGet(url, dir, file string, headers [][2]string) int {
 	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	req.Header.Set("User-Agent", qgcUA)
@@ -114,14 +149,19 @@ func webGet(url, dir, file string, headers [][2]string) int {
 	if have > 0 {
 		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", have))
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpDL.Do(req)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s\n", url)
+		fmt.Printf("ERROR! Failed to download %s\n", url)
 		return 1
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusRequestedRangeNotSatisfiable && have > 0 {
+		// Resume offset at or beyond the remote size: the local file is
+		// already complete — keep it (decode/parse validates it below).
+		return 0
+	}
 	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s (HTTP %d)\n", url, resp.StatusCode)
+		fmt.Printf("ERROR! Failed to download %s (HTTP %d)\n", url, resp.StatusCode)
 		return 1
 	}
 	flag := os.O_CREATE | os.O_WRONLY
@@ -133,12 +173,12 @@ func webGet(url, dir, file string, headers [][2]string) int {
 	}
 	f, err := os.OpenFile(dest, flag, 0644)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		return 1
 	}
 	defer f.Close()
 	if _, err := io.Copy(f, resp.Body); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Failed to download %s\n", url)
+		fmt.Printf("ERROR! Failed to download %s\n", url)
 		os.Remove(dest)
 		return 1
 	}
@@ -151,7 +191,7 @@ func webRedirect(url string) string {
 	if err != nil {
 		return url
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return url
 	}
@@ -171,7 +211,7 @@ func webCheck(url string, headers [][2]string) bool {
 	for _, h := range headers {
 		req.Header.Set(h[0], h[1])
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpProbe.Do(req)
 	if err != nil {
 		return false
 	}

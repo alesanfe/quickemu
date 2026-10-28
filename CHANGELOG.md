@@ -5,6 +5,17 @@ Versioning follows the structured-contract version in `schemas/v1/`.
 
 ## Unreleased
 
+### Changed
+- **Backend is now 100% Go** — `bin/{quickemu,quickget,quickgetc,quickreport}`
+  exec the 15 `tools/` binaries directly (resolve `libexec/quickemu/` in
+  packages, `tools/*/` in dev trees). The Bash implementation
+  (`lib/`, `libexec/`, `bin/*.bash`) has been removed along with its
+  internals suite (`spec/unit/`); behavior coverage moved to Go unit
+  tests + public-contract specs. No `QUICKEMU_BACKEND` switch remains.
+- Runtime deps dropped: `curl`, `jq`, `python3`, `genisoimage`,
+  `uuid-runtime`, `unzip` (replaced by `net/http`, `encoding/json`,
+  `math/big` RSA verify, `diskfs`, `archive/zip`).
+
 ### Added
 - SECURITY.md, CODE_OF_CONDUCT.md, threat-model, supported-platforms,
   error-codes, adapter-contract docs (QE-09/04/03 governance)
