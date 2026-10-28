@@ -121,6 +121,27 @@ network="none"
 			t.Fatalf("%s rc=%d %s", g, rc, out)
 		}
 	}
+	// monitor variants + tcg accel + extra_args.
+	mon := richConf(t, "monitor=\"telnet\"\nmonitor_telnet_port=\"4440\"\n")
+	out, rc = launch(t, nil, mon, "--dry-run")
+	if rc != 0 || !strings.Contains(out, "telnet:") {
+		t.Fatalf("monitor telnet rc=%d %s", rc, out)
+	}
+	for _, v := range []string{"none", "bogus"} {
+		c := richConf(t, "monitor=\""+v+"\"\n")
+		out, rc = launch(t, nil, c, "--dry-run")
+		if v == "none" && rc != 0 {
+			t.Fatalf("monitor none rc=%d", rc)
+		}
+		if v == "bogus" && rc != 1 {
+			t.Fatalf("monitor bogus rc=%d", rc)
+		}
+	}
+	tcg := richConf(t, "qemu_accel=\"tcg\"\nextra_args=\"-object rng-random,id=x,filename=/dev/null\"\n")
+	out, rc = launch(t, nil, tcg, "--dry-run")
+	if rc != 0 || !strings.Contains(out, "-accel tcg") {
+		t.Fatalf("tcg rc=%d %s", rc, out)
+	}
 	// display none + macos + telnet serial.
 	conf3 := richConf(t, `guest_os="macos"
 display="none"
