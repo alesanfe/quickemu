@@ -91,15 +91,26 @@ func exportVm(dir, out string) int {
 	// Checksum file accumulated while streaming members.
 	var sums strings.Builder
 	writeFile := func(arcName, diskPath string) error {
-		b, err := os.ReadFile(diskPath)
+		f, err := os.Open(diskPath)
 		if err != nil {
 			return err
 		}
-		sum := sha256.Sum256(b)
-		sums.WriteString(fmt.Sprintf("%x  %s\n", sum, arcName))
-		tw.WriteHeader(&tar.Header{Name: arcName, Mode: 0644, Size: int64(len(b)), ModTime: time.Now()})
-		_, err = tw.Write(b)
-		return err
+		defer f.Close()
+		st, err := f.Stat()
+		if err != nil {
+			return err
+		}
+		// Stream through the hasher — whole-file reads OOM on qcow2s.
+		h := sha256.New()
+		if err := tw.WriteHeader(&tar.Header{Name: arcName, Mode: 0644,
+			Size: st.Size(), ModTime: st.ModTime()}); err != nil {
+			return err
+		}
+		if _, err := io.Copy(io.MultiWriter(h, tw), f); err != nil {
+			return err
+		}
+		sums.WriteString(fmt.Sprintf("%x  %s\n", h.Sum(nil), arcName))
+		return nil
 	}
 	for _, m := range members {
 		if err := writeFile(m, filepath.Join(parent, filepath.FromSlash(m))); err != nil {
@@ -522,28 +533,32 @@ func backupVerify(fpath string) int {
 		return 1
 	}
 	tr := tar.NewReader(gz)
-	var sums map[string]string
+	sums := map[string]string{}
+	hashes := map[string]string{}
 	hasManifest := false
-	sums = map[string]string{}
-	files := map[string][]byte{}
 	for {
 		h, err := tr.Next()
 		if err != nil {
 			break
 		}
-		b, _ := io.ReadAll(tr)
-		files[h.Name] = b
-		if h.Name == "quickvm-manifest.json" {
-			hasManifest = true
-		}
 		if h.Name == "quickvm-checksums.sha256" {
+			b, _ := io.ReadAll(io.LimitReader(tr, 1<<20))
 			for _, l := range strings.Split(string(b), "\n") {
 				flds := strings.Fields(l)
 				if len(flds) == 2 {
 					sums[flds[1]] = flds[0]
 				}
 			}
+			continue
 		}
+		if h.Name == "quickvm-manifest.json" {
+			hasManifest = true
+		}
+		// Hash while streaming — ReadAll per member OOMs on real
+		// backups (qcow2 payloads are GBs).
+		hh := sha256.New()
+		io.Copy(hh, tr)
+		hashes[h.Name] = fmt.Sprintf("%x", hh.Sum(nil))
 	}
 	if !hasManifest {
 		fmt.Fprintln(os.Stderr, "ERROR! No quickvm-manifest.json (not a verified backup).")
@@ -551,8 +566,7 @@ func backupVerify(fpath string) int {
 	}
 	bad := false
 	for name, want := range sums {
-		b, ok := files[name]
-		if !ok || fmt.Sprintf("%x", sha256.Sum256(b)) != want {
+		if hashes[name] != want {
 			bad = true
 		}
 	}

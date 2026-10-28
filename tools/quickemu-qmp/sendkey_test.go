@@ -47,16 +47,25 @@ func TestSendkeyNameCoversPrintableASCII(t *testing.T) {
 // references by ReplaceAllString — a path like disk$1.img corrupted
 // the conf. Splice must be literal.
 func TestHotplugPersistDollarValue(t *testing.T) {
-	for _, ext := range []string{".conf", ".toml"} {
-		f := filepath.Join(t.TempDir(), "vm"+ext)
+	// The stored form must survive a re-parse: bash confs re-expand
+	// `$x`/`\x` inside double quotes when sourced, and a lone `\x` is
+	// an invalid TOML escape — so both formats store the escaped
+	// spelling that decodes back to the raw value.
+	val := `usb$1&\x`
+	for _, tc := range []struct {
+		ext, want string
+	}{
+		{".conf", `usb\$1&\\x`}, // bash unescapes to usb$1&\x on source
+		{".toml", `usb$1&\\x`},  // $ literal, \\ -> \ per TOML rules
+	} {
+		f := filepath.Join(t.TempDir(), "vm"+tc.ext)
 		os.WriteFile(f, []byte("guest_os=linux\n"), 0o600)
-		val := `usb$1&\x`
 		if err := HotplugPersist(f, "usb", val); err != nil {
 			t.Fatal(err)
 		}
 		b, _ := os.ReadFile(f)
-		if !strings.Contains(string(b), val) {
-			t.Fatalf("%s: $-value not persisted literally:\n%s", ext, b)
+		if !strings.Contains(string(b), tc.want) {
+			t.Fatalf("%s: want %q persisted, got:\n%s", tc.ext, tc.want, b)
 		}
 	}
 }

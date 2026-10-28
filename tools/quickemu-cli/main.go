@@ -518,6 +518,8 @@ func monitorSend(network, addr, msg string) (string, error) {
 
 var ansiRe = regexp.MustCompile("\x1b\\[[0-9;]*[A-Za-z]|[\x00-\x08\x0b\x0e-\x1f]")
 
+var stateRe = regexp.MustCompile(`"state":"[^"]*"`)
+
 func actSendKeys() int {
 	out, err := hmp("sendkey " + extra["send-keys"])
 	fmt.Print(out)
@@ -1296,7 +1298,7 @@ func qeDoctor(fix bool) {
 		}
 		findings = append(findings, "orphan-operation:"+op)
 		if fix {
-			s := regexp.MustCompile(`"state":"[^"]*"`).ReplaceAllString(string(b), `"state":"interrupted"`)
+			s := stateRe.ReplaceAllString(string(b), `"state":"interrupted"`)
 			os.WriteFile(op, []byte(s), 0644)
 			findings = append(findings, "fixed:marked-interrupted")
 		}

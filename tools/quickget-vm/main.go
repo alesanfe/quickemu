@@ -440,12 +440,19 @@ func fetchOnce(url, part, wantSHA string) int {
 	}
 	f.Close()
 	if wantSHA != "" {
-		b, err := os.ReadFile(part)
+		f, err := os.Open(part)
 		if err != nil {
 			fmt.Println(err)
 			return 1
 		}
-		sum := fmt.Sprintf("%x", sha256.Sum256(b))
+		h := sha256.New()
+		_, err = io.Copy(h, f)
+		f.Close()
+		if err != nil {
+			fmt.Println(err)
+			return 1
+		}
+		sum := fmt.Sprintf("%x", h.Sum(nil))
 		if !strings.EqualFold(sum, wantSHA) {
 			os.Remove(part)
 			fmt.Printf("checksum mismatch: got %s want %s\n", sum, wantSHA)

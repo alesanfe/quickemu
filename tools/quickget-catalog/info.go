@@ -47,4 +47,4 @@ var checkClient = qelib.ProbeClient
 
 // webCheck mirrors web_check(): HEAD with redirects first, then a
 // single-byte ranged GET fallback for presigned URLs that reject HEAD.
-func webCheck(url string) bool { return qelib.WebCheck(url, nil) }
+var webCheck = func(url string) bool { return qelib.WebCheck(url, nil) }

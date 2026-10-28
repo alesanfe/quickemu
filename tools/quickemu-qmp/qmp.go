@@ -25,6 +25,8 @@ var qmpRaw bool // --raw: emit the bare QMP reply line for Bash callers
 
 var qmpSeq int // monotonic command ids for request/response correlation
 
+var nonAlnum = regexp.MustCompile(`[^a-zA-Z0-9]`)
+
 type qmpConn struct {
 	c net.Conn
 	r *bufio.Reader
@@ -263,7 +265,7 @@ func HotplugDisk(sock, file string) (string, error) {
 	if _, err := os.Stat(file); err != nil {
 		return "", err
 	}
-	id := "hotdisk" + regexp.MustCompile(`[^a-zA-Z0-9]`).ReplaceAllString(filepath.Base(file), "")
+	id := "hotdisk" + nonAlnum.ReplaceAllString(filepath.Base(file), "")
 	abs, _ := filepath.Abs(file)
 	node := id + "node"
 	// blockdev-add first (registers the file), then device_add references it

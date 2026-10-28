@@ -122,18 +122,22 @@ func run() int {
 		default: // symlink, link, char, block, fifo, xattr
 			return die("ARCHIVE_LINK", "unsafe member type "+h.Name)
 		}
-		body, err := io.ReadAll(tr)
-		if err != nil {
-			return die("ARCHIVE_BAD", err.Error())
-		}
-		if int64(len(body)) != h.Size {
-			return die("ARCHIVE_BAD", "short read on "+h.Name)
-		}
 		base := filepath.Base(h.Name)
-		if base == "quickvm-manifest.json" {
-			haveMan = json.Unmarshal(body, &man) == nil
-		}
-		if base == "quickvm-checksums.sha256" {
+		// Metadata members are small — read bounded. qcow2 data
+		// members stream through the hasher/extractor; ReadAll
+		// would OOM on multi-GB archives.
+		if base == "quickvm-manifest.json" || base == "quickvm-checksums.sha256" {
+			body, err := io.ReadAll(io.LimitReader(tr, 1<<20))
+			if err != nil {
+				return die("ARCHIVE_BAD", err.Error())
+			}
+			if int64(len(body)) != h.Size {
+				return die("ARCHIVE_BAD", "short read on "+h.Name)
+			}
+			if base == "quickvm-manifest.json" {
+				haveMan = json.Unmarshal(body, &man) == nil
+				continue
+			}
 			for _, l := range strings.Split(string(body), "\n") {
 				p := strings.Fields(l)
 				if len(p) == 2 {
@@ -142,18 +146,33 @@ func run() int {
 			}
 			continue
 		}
-		sum := sha256.Sum256(body)
-		cname := filepath.ToSlash(filepath.Clean(h.Name))
-		files = append(files, cname+"="+hex.EncodeToString(sum[:]))
+		h256 := sha256.New()
+		var w io.Writer = h256
+		var out *os.File
 		if sub == "extract" && dest != "" {
-			out := filepath.Join(dest, h.Name)
-			if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			p := filepath.Join(dest, h.Name)
+			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 				return die("EXTRACT_FAIL", err.Error())
 			}
-			if err := os.WriteFile(out, body, 0o600); err != nil {
+			f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+			if err != nil {
 				return die("EXTRACT_FAIL", err.Error())
 			}
+			out = f
+			w = io.MultiWriter(h256, f)
 		}
+		n, err := io.Copy(w, tr)
+		if out != nil {
+			out.Close()
+		}
+		if err != nil {
+			return die("ARCHIVE_BAD", err.Error())
+		}
+		if n != h.Size {
+			return die("ARCHIVE_BAD", "short read on "+h.Name)
+		}
+		cname := filepath.ToSlash(filepath.Clean(h.Name))
+		files = append(files, cname+"="+hex.EncodeToString(h256.Sum(nil)))
 	}
 	if !haveMan {
 		return die("MANIFEST_MISSING", "quickvm-manifest.json absent")
