@@ -8,6 +8,10 @@
 //	qedev metrics chaoss         CHAOSS snapshot from git history
 //	qedev metrics record [k=v..] append a record to docs/quality/history.jsonl
 //	qedev metrics trend          report trends; exits 1 on regression
+//	qedev probe                  nightly quickget --check against upstream sources
+//	qedev check-catalog          validate bin/quickget --list-json emits valid JSON
+//	qedev sbom <version>         emit a CycloneDX 1.5 SBOM of shipped binaries
+//	qedev bench                  hyperfine startup benchmarks (on-demand)
 //
 // Run it via `go run ./tools/dev <cmd>` or the compiled binary.
 package main
@@ -53,6 +57,16 @@ func main() {
 		rc = cmdSpecs()
 	case "metrics":
 		rc = cmdMetrics(os.Args[2:])
+	case "probe":
+		rc = cmdProbe()
+	case "check-catalog":
+		rc = cmdCheckCatalog()
+	case "sbom":
+		rc = cmdSbom(os.Args[2:])
+	case "bench":
+		rc = cmdBench()
+	case "release-notes":
+		rc = cmdReleaseNotes()
 	default:
 		fmt.Fprintf(os.Stderr, "qedev: unknown command %q\n", os.Args[1])
 		rc = 2
@@ -230,6 +244,145 @@ func errRc(err error) int {
 	if err != nil {
 		return 1
 	}
+	return 0
+}
+
+// ---- probes / sbom / bench (former probes/, scripts/, tools/ scripts) ----
+
+// probeOSes mirrors probes/check-sources.sh: live upstream checks for
+// OSes whose download sources churn most. Nightly CI, not PR-blocking.
+var probeOSes = []string{
+	"blackarch", "blissos", "kaos", "midnightbsd", "nobara",
+	"openmandriva", "openmediavault", "opnsense", "q4os",
+	"systemrescue", "truenas-scale", "vyos",
+}
+
+func cmdProbe() int {
+	r := root()
+	fail := 0
+	for _, name := range probeOSes {
+		cmd := exec.Command(filepath.Join(r, "bin", "quickget"), "--check", name)
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("FAIL %s\n", name)
+			fail = 1
+		}
+	}
+	return fail
+}
+
+// cmdCheckCatalog replaces tools/check-catalog: --list-json must emit
+// a non-empty JSON array (no python3 needed anymore).
+func cmdCheckCatalog() int {
+	r := root()
+	out, err := exec.Command(filepath.Join(r, "bin", "quickget"), "--list-json").Output()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "check-catalog: quickget --list-json failed")
+		return 1
+	}
+	var entries []any
+	if err := json.Unmarshal(out, &entries); err != nil {
+		fmt.Fprintf(os.Stderr, "check-catalog: invalid JSON: %v\n", err)
+		return 1
+	}
+	if len(entries) == 0 {
+		fmt.Fprintln(os.Stderr, "check-catalog: empty catalog")
+		return 1
+	}
+	fmt.Printf("%d catalog entries OK\n", len(entries))
+	return 0
+}
+
+// cmdSbom replaces scripts/gen-sbom.sh: CycloneDX 1.5 over the shipped
+// binaries (bin/ entries + in-place tool binaries).
+func cmdSbom(args []string) int {
+	r := root()
+	ver := "unknown"
+	if len(args) > 0 {
+		ver = args[0]
+	}
+	var files []string
+	add := func(dir string) {
+		ents, _ := os.ReadDir(filepath.Join(r, dir))
+		for _, e := range ents {
+			if e.IsDir() {
+				continue
+			}
+			if strings.HasSuffix(e.Name(), ".md") || strings.HasSuffix(e.Name(), ".out") {
+				continue
+			}
+			p := filepath.Join(dir, e.Name())
+			if f, err := os.Open(filepath.Join(r, p)); err == nil {
+				head := make([]byte, 4)
+				if n, _ := f.Read(head); n >= 4 && string(head[:4]) == "\x7fELF" {
+					files = append(files, filepath.ToSlash(p))
+				}
+				f.Close()
+			}
+		}
+	}
+	add("bin")
+	for _, d := range modules(r) {
+		name := filepath.Base(d)
+		p := filepath.Join("tools", name, name)
+		if f, err := os.Open(filepath.Join(r, p)); err == nil {
+			head := make([]byte, 4)
+			if n, _ := f.Read(head); n >= 4 && string(head[:4]) == "\x7fELF" {
+				files = append(files, filepath.ToSlash(p))
+			}
+			f.Close()
+		}
+	}
+	sort.Strings(files)
+	type comp struct {
+		Type string `json:"type"`
+		Name string `json:"name"`
+	}
+	comps := make([]comp, 0, len(files))
+	for _, f := range files {
+		comps = append(comps, comp{"file", f})
+	}
+	bom := map[string]any{
+		"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
+		"metadata": map[string]any{
+			"timestamp": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+			"tools":     map[string]string{"vendor": "quickemu", "name": "qedev sbom"},
+			"component": map[string]string{"type": "application", "name": "quickemu", "version": ver},
+		},
+		"components": comps,
+	}
+	b, _ := json.MarshalIndent(bom, "", "  ")
+	fmt.Println(string(b))
+	return 0
+}
+
+// cmdBench replaces tools/benchmark: hyperfine startup benchmarks.
+func cmdBench() int {
+	r := root()
+	hf, err := exec.LookPath("hyperfine")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hyperfine not installed")
+		return 1
+	}
+	q := filepath.Join(r, "bin", "quickemu")
+	return errRc(run(r, hf, nil,
+		q+" --capabilities",
+		q+" --list-vms --format json",
+		q+" --help",
+		"--warmup", "3", "--export-json", "benchmark.json"))
+}
+
+// cmdReleaseNotes replaces tools/release-notes: commits since the last tag.
+func cmdReleaseNotes() int {
+	r := root()
+	base := git("describe", "--tags", "--abbrev=0")
+	if base == "" {
+		base = git("rev-list", "--max-parents=0", "HEAD")
+	}
+	out := git("log", "--pretty=format:- %s", base+"..HEAD")
+	if out != "" {
+		fmt.Println(out)
+	}
+	_ = r
 	return 0
 }
 

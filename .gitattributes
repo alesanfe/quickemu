@@ -1,5 +1,7 @@
 # Enforce LF line endings on checkout (see .editorconfig).
-# All scripts in this repo are Bash and require LF; a Windows checkout
+# Go sources and scripts in this repo require LF; a Windows checkout
 # with core.autocrlf=true would otherwise produce CRLF and break
-# shellspec, shellcheck and the tools themselves.
+# gofmt, build scripts and the qespec suite.
 * text=auto eol=lf
+# bin/ holds compiled ELF binaries — never normalize.
+bin/* -text

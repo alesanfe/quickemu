@@ -184,11 +184,13 @@ func deletePlanDependents(dir string) []string {
 	return out
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	args := os.Args[1:]
 	if len(args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-vm <op> <vmdir> [args]")
-		os.Exit(2)
+		return 2
 	}
 	// Bash reads OUTPUT_FORMAT from the environment; --format=json is
 	// the CLI-flag equivalent. Env wins only when the flag is absent.
@@ -208,7 +210,7 @@ func main() {
 	}
 	if len(args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-vm <op> <vmdir> [args]")
-		os.Exit(2)
+		return 2
 	}
 	op, dir := args[0], args[1]
 	// v1 envelope command name per op (qe_emit's command arg parity).
@@ -243,7 +245,7 @@ func main() {
 				d["dependents"] = json.RawMessage(dep)
 			}
 			okMap(d)
-			return
+			return 0
 		}
 		fmt.Println("Delete plan for " + name + ":")
 		if len(items) == 0 {
@@ -258,14 +260,14 @@ func main() {
 		fmt.Printf("Plan id: %s (required by --delete-vm --plan-id)\n", planID)
 	case "backup":
 		// backup_vm: export into <vmdir>/backups/<utc>-<vm>.quickvm.tar.gz
-		os.Exit(backupVm(dir))
+		return backupVm(dir)
 	case "backup-list":
-		os.Exit(backupList(dir))
+		return backupList(dir)
 	case "backup-verify":
 		if len(args) < 3 {
 			die("INVALID_ARGS", "backup-verify needs a file")
 		}
-		os.Exit(backupVerify(args[2]))
+		return backupVerify(args[2])
 	case "backup-restore":
 		f, dest := "", "."
 		if len(args) > 2 {
@@ -277,31 +279,31 @@ func main() {
 		if f == "" {
 			die("INVALID_ARGS", "backup-restore needs a file")
 		}
-		os.Exit(backupRestore(f, dest))
+		return backupRestore(f, dest)
 	case "backup-prune":
 		keep := 5
 		if len(args) > 2 {
 			fmt.Sscanf(args[2], "%d", &keep)
 		}
-		os.Exit(backupPrune(dir, keep))
+		return backupPrune(dir, keep)
 	case "export":
 		out := ""
 		if len(args) > 2 {
 			out = args[2]
 		}
-		os.Exit(exportVm(dir, out))
+		return exportVm(dir, out)
 	case "import":
 		if len(args) < 3 {
 			die("INVALID_ARGS", "import needs a .quickvm.tar.gz file")
 		}
-		os.Exit(importVm(args[2], "."))
+		return importVm(args[2], ".")
 	case "autostart":
 		name := filepath.Base(dir)
 		conf := vmConfPath(dir)
 		if conf != "" {
 			name = strings.TrimSuffix(filepath.Base(conf), ".conf")
 		}
-		os.Exit(autostartCreate(name, conf))
+		return autostartCreate(name, conf)
 	case "shortcut":
 		name := filepath.Base(dir)
 		if conf := vmConfPath(dir); conf != "" {
@@ -311,7 +313,7 @@ func main() {
 		if len(args) > 2 {
 			opts = strings.Join(args[2:], " ")
 		}
-		os.Exit(shortcutCreate(name, vmConfPath(dir), opts))
+		return shortcutCreate(name, vmConfPath(dir), opts)
 	case "shortcut-delete":
 		name := filepath.Base(dir)
 		if conf := vmConfPath(dir); conf != "" {
@@ -321,41 +323,41 @@ func main() {
 		info(" - Shortcut removed for " + name)
 		okMap(map[string]any{"shortcutDeleted": name})
 	case "trash-list":
-		os.Exit(trashList())
+		return trashList()
 	case "trash-empty":
-		os.Exit(trashEmpty())
+		return trashEmpty()
 	case "trash-restore":
 		name := filepath.Base(dir)
 		if len(args) > 2 {
 			name = args[2]
 		}
-		os.Exit(trashRestore(name))
+		return trashRestore(name)
 	case "vfio-scan":
-		os.Exit(vfioScan(""))
+		return vfioScan("")
 	case "snapshot-info":
-		os.Exit(snapshotInfo(dir))
+		return snapshotInfo(dir)
 	case "snapshot-list-json":
-		os.Exit(snapshotListJSON(dir, filepath.Base(dir)))
+		return snapshotListJSON(dir, filepath.Base(dir))
 	case "delete-disk":
 		pidFile := ""
 		if len(args) > 2 {
 			pidFile = args[2]
 		}
-		os.Exit(deleteDisk(dir, pidFile))
+		return deleteDisk(dir, pidFile)
 	case "resize":
 		// disk_resize: qemu-img resize, VM stopped, size arg required.
 		if len(args) < 3 || args[2] == "" {
 			fmt.Fprintln(os.Stderr, "ERROR! '--disk-resize' needs a size (e.g. 32G).")
-			os.Exit(1)
+			return 1
 		}
 		disk := confDisk(dir)
 		if _, err := os.Stat(disk); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
-			os.Exit(1)
+			return 1
 		}
 		if err := execCommand("qemu-img", "resize", disk, args[2]).Run(); err != nil {
 			fmt.Fprintln(os.Stderr, "ERROR! Failed to resize "+disk+".")
-			os.Exit(1)
+			return 1
 		}
 		info(" - Resized " + disk + " to " + args[2] + ".")
 		info("             Remember to grow the partition and filesystem inside the guest.")
@@ -365,7 +367,7 @@ func main() {
 		disk := confDisk(dir)
 		if _, err := os.Stat(disk); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
-			os.Exit(1)
+			return 1
 		}
 		fmt_ := confGet(dir, "disk_format")
 		if fmt_ == "" {
@@ -375,12 +377,12 @@ func main() {
 		if err := execCommand("qemu-img", "convert", "-O", fmt_, disk, out).Run(); err != nil {
 			os.Remove(out)
 			fmt.Fprintln(os.Stderr, "ERROR! Failed to compact "+disk+".")
-			os.Exit(1)
+			return 1
 		}
 		if err := os.Rename(out, disk); err != nil {
 			os.Remove(out)
 			fmt.Fprintln(os.Stderr, "ERROR! Failed to replace "+disk+".")
-			os.Exit(1)
+			return 1
 		}
 		info(" - Compacted " + disk)
 		okMap(map[string]any{"compacted": disk})
@@ -400,7 +402,7 @@ func main() {
 		if name == "" {
 			die("INVALID_ARGS", "clone needs a new name")
 		}
-		os.Exit(cloneVm(dir, name, full))
+		return cloneVm(dir, name, full)
 	case "delete":
 		// delete_vm: confinement + plan-id guard, then conf+dir+shortcut
 		// to trash (default) or rm -rf (--no-trash / --hard-delete).
@@ -539,7 +541,7 @@ func main() {
 			pf := filepath.Join(dir, strings.TrimSuffix(filepath.Base(c), ".conf")+".pid")
 			if b, err := os.ReadFile(pf); err == nil && len(strings.TrimSpace(string(b))) > 0 {
 				fmt.Fprintln(os.Stderr, " - ERROR! Stop the VM before managing snapshots.")
-				os.Exit(1)
+				return 1
 			}
 		}
 		// --external/-external [desc]: qcow2 overlay chain instead of
@@ -554,7 +556,7 @@ func main() {
 							break
 						}
 					}
-					os.Exit(snapshotCreateExternal(dir, tag, desc, vmConfPath(dir)))
+					return snapshotCreateExternal(dir, tag, desc, vmConfPath(dir))
 				}
 				die("INVALID_ARGS", "--external only applies to snapshot-create")
 			}
@@ -570,14 +572,14 @@ func main() {
 		}
 		okMap(map[string]any{"snapshot": tag, "op": op})
 	case "snapshot-tree":
-		os.Exit(snapshotTree(dir))
+		return snapshotTree(dir)
 	case "snapshot-verify":
-		os.Exit(snapshotVerify(dir))
+		return snapshotVerify(dir)
 	case "snapshot-consolidate":
 		if len(args) < 3 {
 			die("INVALID_ARGS", "snapshot-consolidate needs a tag")
 		}
-		os.Exit(snapshotConsolidate(dir, args[2]))
+		return snapshotConsolidate(dir, args[2])
 	case "snapshot-list":
 		sdir := filepath.Join(dir, ".snapshots")
 		ents, _ := filepath.Glob(filepath.Join(sdir, "*.json"))
@@ -592,8 +594,9 @@ func main() {
 		ok(string(j))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown op %q\n", op)
-		os.Exit(2)
+		return 2
 	}
+	return 0
 }
 
 func xdgData() string { return qelib.XDGData() }

@@ -76,11 +76,13 @@ func writeOp(dir string, o *Op) {
 	o.save(dir)
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 3 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-ops <new|set|done|fail|status|list|cancel|prune> --vmdir <dir> [args]")
-		os.Exit(2)
+		return 2
 	}
 	sub := os.Args[1]
 	if os.Getenv("OPS_DEBUG") != "" {
@@ -142,7 +144,7 @@ func main() {
 		if state == "cancelled" && o.State != "cancelRequested" {
 			o.State = "cancelRequested"
 			writeOp(dir, o)
-			return
+			return 0
 		}
 		o.State = state
 		o.Progress = progress
@@ -168,7 +170,7 @@ func main() {
 	case "status":
 		fmt.Println(string(must(filepath.Join(dir, flag(args, "--id")+".json"))))
 	case "watch":
-		os.Exit(runWatch(dir))
+		return runWatch(dir)
 	case "list":
 		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 		slices.Sort(ents)
@@ -189,7 +191,7 @@ func main() {
 			syscall.Kill(o.WorkerPid, syscall.SIGTERM)
 			o.State = "cancelRequested" // worker confirms via set/cancelled
 			writeOp(dir, o)
-			return
+			return 0
 		}
 		o.State = "cancelled" // no live worker: cancel is final now
 		writeOp(dir, o)
@@ -238,8 +240,9 @@ func main() {
 		fmt.Printf("{\"rolledBack\":\"%s\"}\n", o.Type)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", sub)
-		os.Exit(2)
+		return 2
 	}
+	return 0
 }
 
 // rbCompensate undoes the filesystem effects of an interrupted op by type.

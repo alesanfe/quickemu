@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# Prints commits since the last tag for release notes.
-cd "$(dirname "${0}")/.." || exit 1
-git log --pretty=format:'- %s' "$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=0 HEAD)..HEAD"

@@ -35,8 +35,9 @@ schemas/v1/       # Versioned JSON CLI contract (--format json)
 catalog/          # OS catalogue data — catalog/data/catalog.json feeds
                   # tools/quickget-catalog; releases/editions left empty
                   # for dynamic OSes are resolved live via scrape.go
-spec/             # ShellSpec suite (contract, functional, e2e, security)
-probes/           # External-source checks (nightly, not PR-blocking)
+tools/qespec/     # Go spec suite (contract, functional, e2e, security)
+tools/dev/        # qedev task runner (build/check/specs/metrics/probe/sbom/bench)
+completions/      # Shell completion data (bash/fish/zsh)
 flake.nix         # Nix flake for packaging
 packaging/nix/package.nix  # Nix package definition
 packaging/debian/          # Debian packaging (install, rules, control)
@@ -58,9 +59,8 @@ nix-store OVMF/AAVMF firmware without patching sources.
 
 - Build Go tools: `go run ./tools/dev build` (required before bin/ entries exist)
 - Full Go gate (vet+test+race+coverage+build, all modules): `go run ./tools/dev check`
-- Lint scripts: `shellcheck -S warning tools/*.sh`
-- Run tests (ShellSpec 0.28.1 is vendored): `./shellspec-0.28.1/shellspec [spec/file.sh]` — needs `qemu-img`, `qemu-system-*`, `socat` and `python3` for full coverage; contract/quickget/quickgetc specs are hermetic via `QUICKGETC_CATALOG` overrides.
-- TOML hostile-corpus: `go test ./tools/quickemu-toml` (was tools/fuzz-toml.sh)
+- Run the spec suite: `go run ./tools/dev specs` (or `go test ./tools/qespec`) — contract, functional, security, resilience and e2e tests in Go; needs `qemu-img`/`qemu-system-*` for full coverage, tests self-skip otherwise.
+- TOML hostile-corpus: `go test ./tools/quickemu-toml`
 - Test quickget URLs: `./bin/quickget --check <os> [release] [edition]`
 - Test ARM64 downloads: `./bin/quickget --arch arm64 --check <os> [release] [edition]`
 - Test all architectures: `./bin/quickget --check-all-arch <os> [release] [edition]`
@@ -69,8 +69,8 @@ nix-store OVMF/AAVMF firmware without patching sources.
 
 ## Code style
 
-Go (gofmt, `go vet` clean); the thin bin/ wrappers and tools/*.sh are
-Bash 4.0+ with ShellCheck compliance.
+Go (gofmt, `go vet` clean). All product code, the spec suite and the
+dev tooling are Go; `completions/` holds shell-syntax completion data.
 
 **General conventions:**
 
@@ -123,9 +123,8 @@ fix(quickget): remove Athena OS (no longer getting updates)
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| go | PR | `go-check.sh` gate (vet, tests, race, build) |
-| shellspec-suite | PR | Contract/functional/e2e specs vs Go binaries |
-| lint-shellcheck | PR | ShellCheck on wrappers + tools/*.sh |
+| go | PR | `qedev check` gate (vet, tests, race, build) |
+| ci | PR | qespec suite (contract/functional/e2e) vs Go binaries |
 | lint-pr | PR | Validates PR title matches Conventional Commits |
 | test-quickget | PR | Per-distro download checks via `bin/quickget` |
 | test-build-quickemu | PR | .deb + .nix build verification |

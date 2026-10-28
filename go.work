@@ -3,11 +3,13 @@ go 1.25.0
 use (
 	./tools/dev
 	./tools/qelib
+	./tools/qespec
 	./tools/quickemu-api
 	./tools/quickemu-archive
 	./tools/quickemu-cli
 	./tools/quickemu-launch
 	./tools/quickemu-ops
+	./tools/quickemu-plugin-market
 	./tools/quickemu-ports
 	./tools/quickemu-proc
 	./tools/quickemu-qmp

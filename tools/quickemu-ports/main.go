@@ -17,10 +17,14 @@ import (
 
 const version = "0.1.0"
 
-func die(c, m string) { qelib.Fail(qelib.CmdName("ports"), "quickemu-ports/"+version, c, m) }
-func ok(data map[string]any) {
+func die(c, m string) int {
+	qelib.Emit(qelib.CmdName("ports"), "quickemu-ports/"+version, false, nil,
+		[]qelib.QEError{{Code: c, Message: m, Severity: "error", Retryable: false}})
+	return 1
+}
+func ok(data map[string]any) int {
 	qelib.EmitOK(qelib.CmdName("ports"), "quickemu-ports/"+version, data)
-	os.Exit(0)
+	return 0
 }
 
 func stale(meta string) bool { // "pid ts instance [lease]" -> owner dead or lease out
@@ -56,11 +60,13 @@ func lock(reg string) func() {
 	return nil
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-ports <reserve|release|list|check|find> --registry <dir> [--port N] [--pid P] [--instance I] [--lo N --hi N]")
-		os.Exit(2)
+		return 2
 	}
 	sub := os.Args[1]
 	var reg, port, pidS, inst, proto, bind, lease string
@@ -88,7 +94,7 @@ func main() {
 		}
 	}
 	if reg == "" {
-		die("BAD_ARGS", "--registry required")
+		return die("BAD_ARGS", "--registry required")
 	}
 	os.MkdirAll(reg, 0o700)
 	unlock := lock(reg)
@@ -109,11 +115,11 @@ func main() {
 	switch sub {
 	case "reserve":
 		if port == "" || pidS == "" {
-			die("BAD_ARGS", "reserve needs --port and --pid")
+			return die("BAD_ARGS", "reserve needs --port and --pid")
 		}
 		f := filepath.Join(reg, port)
 		if _, err := os.Stat(f); err == nil {
-			die("PORT_TAKEN", "port "+port+" reserved")
+			return die("PORT_TAKEN", "port "+port+" reserved")
 		}
 		rec := pidS + " " + strconv.FormatInt(time.Now().Unix(), 10) + " " + inst
 		if lease != "" {
@@ -122,10 +128,10 @@ func main() {
 			}
 		}
 		os.WriteFile(f, []byte(rec), 0o600)
-		ok(map[string]any{"port": port})
+		return ok(map[string]any{"port": port})
 	case "release":
 		os.Remove(filepath.Join(reg, port))
-		ok(map[string]any{"port": port})
+		return ok(map[string]any{"port": port})
 	case "check":
 		if proto == "" {
 			proto = "tcp"
@@ -149,9 +155,9 @@ func main() {
 			}
 		}
 		if err != nil {
-			die("PORT_BOUND", err.Error())
+			return die("PORT_BOUND", err.Error())
 		}
-		ok(map[string]any{"port": port, "proto": proto, "bind": bind, "free": true})
+		return ok(map[string]any{"port": port, "proto": proto, "bind": bind, "free": true})
 	case "find":
 		for p := lo; p <= hi; p++ {
 			f := filepath.Join(reg, strconv.Itoa(p))
@@ -183,9 +189,9 @@ func main() {
 				continue
 			}
 			fmt.Println(p)
-			return
+			return 0
 		}
-		die("PORT_RANGE_EXHAUSTED", "no free port")
+		return die("PORT_RANGE_EXHAUSTED", "no free port")
 	case "list":
 		parts := []map[string]any{}
 		for _, e := range ents {
@@ -194,10 +200,10 @@ func main() {
 					"port": e.Name(), "owner": strings.TrimSpace(string(b))})
 			}
 		}
-		ok(map[string]any{"reservations": parts})
+		return ok(map[string]any{"reservations": parts})
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", sub)
-		os.Exit(2)
+		return 2
 	}
 }
 

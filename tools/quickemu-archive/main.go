@@ -20,13 +20,17 @@ import (
 
 const version = "0.1.0"
 
-func die(c, m string) { qelib.Fail(qelib.CmdName("archive"), "quickemu-archive/"+version, c, m) }
+func die(c, m string) int {
+	qelib.Emit(qelib.CmdName("archive"), "quickemu-archive/"+version, false, nil,
+		[]qelib.QEError{{Code: c, Message: m, Severity: "error", Retryable: false}})
+	return 1
+}
 
 // ok emits the envelope; d is a pre-marshalled JSON fragment (the
 // small fixed payloads built by callers below).
-func ok(d string) {
+func ok(d string) int {
 	qelib.EmitOK(qelib.CmdName("archive"), "quickemu-archive/"+version, json.RawMessage(d))
-	os.Exit(0)
+	return 0
 }
 
 const maxMembers = 100000
@@ -51,11 +55,13 @@ func safeMember(name string) bool {
 	return strings.Count(clean, "/") < maxDepth
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-archive <verify|extract> --archive <tgz> [--dest <dir>]")
-		os.Exit(2)
+		return 2
 	}
 	sub := os.Args[1]
 	var arch, dest string
@@ -69,12 +75,12 @@ func main() {
 	}
 	f, err := os.Open(arch)
 	if err != nil {
-		die("NOT_FOUND", err.Error())
+		return die("NOT_FOUND", err.Error())
 	}
 	defer f.Close()
 	gz, err := gzip.NewReader(f)
 	if err != nil {
-		die("ARCHIVE_BAD", err.Error())
+		return die("ARCHIVE_BAD", err.Error())
 	}
 	defer gz.Close()
 
@@ -93,35 +99,35 @@ func main() {
 			break
 		}
 		if err != nil {
-			die("ARCHIVE_BAD", err.Error())
+			return die("ARCHIVE_BAD", err.Error())
 		}
 		entries++
 		if entries > maxMembers {
-			die("ARCHIVE_BOMB", "member limit")
+			return die("ARCHIVE_BOMB", "member limit")
 		}
 		total += h.Size
 		if total > maxSize {
-			die("ARCHIVE_BOMB", "size limit")
+			return die("ARCHIVE_BOMB", "size limit")
 		}
 		if !safeMember(h.Name) {
-			die("TAR_SLIP", "unsafe member "+h.Name)
+			return die("TAR_SLIP", "unsafe member "+h.Name)
 		}
 		if !filepath.IsLocal(h.Name) {
-			die("TAR_SLIP", "non-local member "+h.Name)
+			return die("TAR_SLIP", "non-local member "+h.Name)
 		}
 		switch h.Typeflag {
 		case tar.TypeReg:
 		case tar.TypeDir:
 			continue
 		default: // symlink, link, char, block, fifo, xattr
-			die("ARCHIVE_LINK", "unsafe member type "+h.Name)
+			return die("ARCHIVE_LINK", "unsafe member type "+h.Name)
 		}
 		body, err := io.ReadAll(tr)
 		if err != nil {
-			die("ARCHIVE_BAD", err.Error())
+			return die("ARCHIVE_BAD", err.Error())
 		}
 		if int64(len(body)) != h.Size {
-			die("ARCHIVE_BAD", "short read on "+h.Name)
+			return die("ARCHIVE_BAD", "short read on "+h.Name)
 		}
 		base := filepath.Base(h.Name)
 		if base == "quickvm-manifest.json" {
@@ -146,7 +152,7 @@ func main() {
 		}
 	}
 	if !haveMan {
-		die("MANIFEST_MISSING", "quickvm-manifest.json absent")
+		return die("MANIFEST_MISSING", "quickvm-manifest.json absent")
 	}
 	// Verify every declared member checksum by CANONICAL FULL PATH —
 	// basename matching lets disk1/data.qcow2 collide with
@@ -156,7 +162,7 @@ func main() {
 	for _, fm := range files {
 		name, sum, _ := strings.Cut(fm, "=")
 		if seen[name] {
-			die("MANIFEST_DUP", "duplicate member path "+name)
+			return die("MANIFEST_DUP", "duplicate member path "+name)
 		}
 		seen[name] = true
 		want, declared := sums[name]
@@ -168,8 +174,8 @@ func main() {
 		}
 	}
 	if mismatch > 0 {
-		die("CHECKSUM_MISMATCH", fmt.Sprintf("%d members failed sha256", mismatch))
+		return die("CHECKSUM_MISMATCH", fmt.Sprintf("%d members failed sha256", mismatch))
 	}
 	d, _ := json.Marshal(map[string]any{"members": entries, "verified": len(files)})
-	ok(string(d))
+	return ok(string(d))
 }

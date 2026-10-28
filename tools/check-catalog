@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# Validates the OS catalogue: quickget --list-json must emit valid JSON.
-cd "$(dirname "${0}")/.." || exit 1
-./bin/quickget --list-json | python3 -c "import json,sys; d=json.load(sys.stdin); assert len(d)>0; print(f'{len(d)} catalog entries OK')"

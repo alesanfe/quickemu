@@ -15,10 +15,14 @@ import (
 
 const version = "0.1.0"
 
-func die(c, m string) { qelib.Fail("toml.parse", "quickemu-toml/"+version, c, m) }
-func ok(d any) {
+func die(c, m string) int {
+	qelib.Emit("toml.parse", "quickemu-toml/"+version, false, nil,
+		[]qelib.QEError{{Code: c, Message: m, Severity: "error", Retryable: false}})
+	return 1
+}
+func ok(d any) int {
 	qelib.EmitOK("toml.parse", "quickemu-toml/"+version, d)
-	os.Exit(0)
+	return 0
 }
 
 // flat walks the decoded tree producing "key=value" rows identical to
@@ -55,7 +59,7 @@ var tomlKeyOrder = []string{
 func fromConf(file string) int {
 	b, err := os.ReadFile(file)
 	if err != nil {
-		die("TOML_PARSE", err.Error())
+		return die("TOML_PARSE", err.Error())
 	}
 	kv := map[string]string{}
 	for _, l := range strings.Split(string(b), "\n") {
@@ -79,11 +83,13 @@ func fromConf(file string) int {
 	return 0
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 3 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-toml <parse|validate|get|from-conf> --file <f> [--key k]")
-		os.Exit(2)
+		return 2
 	}
 	sub, file, key := os.Args[1], "", ""
 	for i := 2; i+1 < len(os.Args); i += 2 {
@@ -95,14 +101,14 @@ func main() {
 		}
 	}
 	if file == "" {
-		die("BAD_ARGS", "--file required")
+		return die("BAD_ARGS", "--file required")
 	}
 	if sub == "from-conf" {
-		os.Exit(fromConf(file))
+		return fromConf(file)
 	}
 	var doc map[string]any
 	if _, err := toml.DecodeFile(file, &doc); err != nil {
-		die("TOML_PARSE", err.Error())
+		return die("TOML_PARSE", err.Error())
 	}
 	// map[string]any accepts every key; strict-key warnings need a
 	// typed-schema decode, which is a separate contract.
@@ -110,20 +116,20 @@ func main() {
 	flat("", doc, out)
 	switch sub {
 	case "parse":
-		ok(out)
+		return ok(out)
 	case "validate":
-		ok(map[string]any{"valid": true, "keys": len(out)})
+		return ok(map[string]any{"valid": true, "keys": len(out)})
 	case "get":
 		if key == "" {
-			die("BAD_ARGS", "get needs --key")
+			return die("BAD_ARGS", "get needs --key")
 		}
 		if v, ok := out[key]; ok {
 			fmt.Printf("%v\n", v)
-			os.Exit(0)
+			return 0
 		}
-		os.Exit(1)
+		return 1
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", sub)
-		os.Exit(2)
+		return 2
 	}
 }

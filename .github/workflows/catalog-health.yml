@@ -12,4 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
-      - run: tools/check-catalog
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - run: go run ./tools/dev build
+      - run: go run ./tools/dev check-catalog

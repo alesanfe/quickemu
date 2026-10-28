@@ -14,16 +14,14 @@ mkShell {
         # Toolchain
         go
         gnumake
-        shellcheck
         # QEMU runtime + companions the Go tools exec
         qemu_full
         swtpm
         samba
         zsync
-        # spec tooling (not a runtime dep): QMP socket probing in
-        # qemu_boot_spec, jq for schema assertions.
+        # qespec e2e probes QMP sockets via Go net; socat kept for
+        # ad-hoc debugging of monitor sockets.
         socat
-        jq
         pciutils
         procps
         util-linux
@@ -61,7 +59,7 @@ mkShell {
     done
     # Entries resolve ../tools/<t>/<t> from their own dir.
     ln -sfn "$PWD/tools" "$PWD/.direnv/tools"
-    # Build the Go tools once so the wrappers work immediately.
+    # Build the Go tools once so the bin/ entries work immediately.
     if command -v go >/dev/null; then
       go run ./tools/dev build >/dev/null 2>&1 || \
         echo "hint: run 'go run ./tools/dev build' to build the Go tools"

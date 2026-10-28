@@ -32,11 +32,13 @@ func emit(ok bool, data any, err string) int {
 }
 
 // verify --pid P [--start-time S] [--uid U] [--exe name]
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 || os.Args[1] != "verify" {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-proc verify --pid P [--start-time S] [--uid U] [--exe name]")
-		os.Exit(2)
+		return 2
 	}
 	var pid, wantStart, wantUID int
 	var wantExe, wantComm string
@@ -55,18 +57,18 @@ func main() {
 		}
 	}
 	if pid <= 0 {
-		os.Exit(emit(false, nil, "PID_INVALID"))
+		return emit(false, nil, "PID_INVALID")
 	}
 	data := map[string]any{"pid": pid}
 	// 1) alive
 	if err := syscall.Kill(pid, 0); err != nil {
-		os.Exit(emit(false, data, "PROCESS_DEAD"))
+		return emit(false, data, "PROCESS_DEAD")
 	}
 	// 2) uid from /proc/<pid>/status
 	if wantUID > 0 {
 		st, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 		if err != nil {
-			os.Exit(emit(false, data, "PROC_UNREADABLE"))
+			return emit(false, data, "PROC_UNREADABLE")
 		}
 		uid := -1
 		for _, l := range strings.Split(string(st), "\n") {
@@ -76,7 +78,7 @@ func main() {
 		}
 		if uid != wantUID {
 			data["uid"] = uid
-			os.Exit(emit(false, data, "UID_MISMATCH"))
+			return emit(false, data, "UID_MISMATCH")
 		}
 	}
 	// 3) starttime: procfs parses /proc/<pid>/stat correctly even when
@@ -99,7 +101,7 @@ func main() {
 		}
 		data["startTime"] = st
 		if st != 0 && st != int64(wantStart) {
-			os.Exit(emit(false, data, "STARTTIME_MISMATCH"))
+			return emit(false, data, "STARTTIME_MISMATCH")
 		}
 	}
 	// 4) comm (process name as the kernel reports it — matches
@@ -112,20 +114,20 @@ func main() {
 		data["comm"] = comm
 		if comm != wantComm && !strings.HasPrefix(comm, wantComm[:min(len(wantComm), 15)]) &&
 			!strings.HasPrefix(comm, "qemu") {
-			os.Exit(emit(false, data, "COMM_MISMATCH"))
+			return emit(false, data, "COMM_MISMATCH")
 		}
 	}
 	// 5) exe basename
 	if wantExe != "" {
 		ex, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
 		if err != nil {
-			os.Exit(emit(false, data, "EXE_UNREADABLE"))
+			return emit(false, data, "EXE_UNREADABLE")
 		}
 		base := ex[strings.LastIndex(ex, "/")+1:]
 		data["exe"] = base
 		if !strings.Contains(base, wantExe) {
-			os.Exit(emit(false, data, "EXE_MISMATCH"))
+			return emit(false, data, "EXE_MISMATCH")
 		}
 	}
-	os.Exit(emit(true, data, ""))
+	return emit(true, data, "")
 }

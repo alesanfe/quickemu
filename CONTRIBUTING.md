@@ -9,11 +9,11 @@
 ## Development setup
 
 ```bash
-# Linux: bash 4.0+, jq, curl, socat, qemu-utils
+# Linux: go 1.25+, qemu-utils, qemu-system-x86 (for e2e)
 # Verify your change:
-bash -n <edited-file>
-./shellspec-0.28.1/shellspec
-shellcheck -S warning bin/* lib/**/*.sh
+go run ./tools/dev check          # vet + test + build, all modules
+go run ./tools/dev build          # rebuild bin/ entries
+go run ./tools/dev specs          # qespec suite (contract + e2e)
 ```
 
 ## Commits

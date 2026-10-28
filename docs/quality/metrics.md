@@ -4,19 +4,18 @@
 
 | Metric | Source | Threshold |
 |---|---|---|
-| test pass rate | shellspec | 100% on required specs |
-| specs executed | shellspec --count | ≥ baseline |
-| coverage (bash) | `tools/coverage.sh` — function→spec map | 100% — all 246 functions referenced by specs |
-| coverage (go) | `go test -cover` | ≥80% domain |
-| catalog health | `catalog-health.yml` | ≥98% OK excluding upstream outages |
+| test pass rate | `go test ./tools/qespec` | 100% on required tests |
+| tests executed | `go test -v` count | ≥ baseline |
+| coverage (go) | `go test -cover` per module | ≥80% domain |
+| catalog health | `catalog-health.yml` (`qedev check-catalog`) | ≥98% OK excluding upstream outages |
 | CLI startup | `time quickget --version` | ≤500ms |
-| QEMU boot (TCG) | e2e spec | ≤60s |
-| QEMU shutdown | e2e spec | ≤10s |
-| flaky specs | repeated CI failures | 0 in required |
+| QEMU boot (TCG) | qespec e2e test | ≤60s |
+| QEMU shutdown | qespec e2e test | ≤10s |
+| flaky tests | repeated CI failures | 0 in required |
 
 ## Release-level metrics
 
-- SBOM component count (`scripts/gen-sbom.sh`)
+- SBOM component count (`qedev sbom`)
 - Signed artifact coverage (release workflow)
 - OpenSSF score (self-assessed)
 - Issues closed / opened ratio
@@ -24,6 +23,6 @@
 
 ## Baselines (to be recorded)
 
-| Release | coverage | specs | catalog-ok | boot-ms | shutdown-ms |
+| Release | coverage | tests | catalog-ok | boot-ms | shutdown-ms |
 |---|---|---|---|---|---|
-| 4.9.9 | 100% funcs | 81+ | ~98% | TBD | TBD |
+| 5.0.0 | go per-module | 46 | ~98% | TBD | TBD |

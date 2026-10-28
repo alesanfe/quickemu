@@ -7,7 +7,7 @@ event stream / op registry. Targets are for a healthy single host.
 |---|---|---|---|
 | SLO-QE-01 | valid `--start` ops that create exactly one VM process | >=99.5% | ops registry + runtime.json pid |
 | SLO-QE-02 | port collisions in concurrent reservations | 0 in 10^4 runs | concurrency spec (parallel reservations unique) |
-| SLO-QE-03 | envelope validity for `--format json` | 100% schemaVersion+command+success+data+errors+meta | e2e-contract.sh, schemas/v1 |
+| SLO-QE-03 | envelope validity for `--format json` | 100% schemaVersion+command+success+data+errors+meta | qespec contract tests, schemas/v1 |
 | SLO-QE-04 | ops reaching a terminal state | 100% (queued→running→succeeded/failed/cancelled) | ops spec, OP terminal rule |
 | SLO-QE-05 | `--status` reflects reality | converges <=2s after process change | vm_state + pid fingerprint |
 | SLO-QE-06 | destructive ops gated | 100% delete requires valid planId | PLAN_* typed errors |

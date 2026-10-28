@@ -38,7 +38,6 @@ X-Test*/
 /nul
 /quickreport.txt
 /*.quickvm.tar.gz
-/shellspec-*/
 
 # Debian build output (source lives in packaging/debian/)
 /debian/
@@ -89,4 +88,6 @@ tools/*/proc
 tools/*/qmp
 tools/*/toml
 tools/*/vm
+tools/dev/dev
+tools/qespec/qespec
 tools/*/coverage.out

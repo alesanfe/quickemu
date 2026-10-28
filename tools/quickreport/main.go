@@ -259,17 +259,17 @@ func firstLine(s string) string {
 	return strings.SplitN(s, "\n", 2)[0]
 }
 
-func main() {
+func main() { os.Exit(run()) }
+
+func run() int {
 	args := os.Args[1:]
 	if len(args) >= 1 && (args[0] == "--format=json" ||
 		(len(args) >= 2 && args[0] == "--format" && args[1] == "json")) {
 		// quick_report_json | tee quickreport.json
-		rc := captureStdout(func() { exitWith(quickReportJSON()) }, "quickreport.json")
-		os.Exit(rc)
+		return captureStdout(func() { exitWith(quickReportJSON()) }, "quickreport.json")
 	}
 	// quick_report | qr_redact | tee quickreport.txt
-	rc := captureStdout(func() { exitWith(quickReport()) }, "quickreport.txt")
-	os.Exit(rc)
+	return captureStdout(func() { exitWith(quickReport()) }, "quickreport.txt")
 }
 
 // captureStdout runs fn with stdout redirected to a pipe, then prints

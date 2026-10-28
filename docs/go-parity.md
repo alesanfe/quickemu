@@ -228,7 +228,7 @@ go run ./tools/dev check   # vet + test -race -coverprofile + build, all modules
 go run ./tools/dev test    # go test -race -cover per package
 ```
 
-E2E (real QEMU, TCG): `spec/e2e/go_cli_boot_spec.sh` boots a VM via
+E2E (real QEMU, TCG): `tools/qespec/e2e_test.go` boots a VM via
 `quickemu-cli`, checks pidfile/QMP/status running, pause→resume,
 `--monitor-cmd` HMP round-trip, QMP allowlist (query-* ok, `quit`
 denied without `QUICKEMU_QMP_RAW=1`), and clean `--stop` teardown.

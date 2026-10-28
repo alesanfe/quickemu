@@ -5,19 +5,24 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-go@4b73464bb391e405a14327b7d613ca9d90898b08  # v5
+        with:
+          go-version: '1.25'
       - name: Install dependencies
         run: |
           sudo apt-get -y update
-          sudo apt-get -y install qemu-utils qemu-system-x86
-      - name: Install shellspec
+          sudo apt-get -y install qemu-utils qemu-system-x86 socat
+      - name: Build Go binaries
+        run: go run ./tools/dev build
+      - name: Go spec suite (contract, functional, e2e w/ real QEMU)
+        run: go run ./tools/dev specs
+      - name: Assert no residual processes
+        if: always()
         run: |
-          curl -sSfL https://github.com/shellspec/shellspec/archive/refs/tags/0.28.1.tar.gz | tar -xz
-          chmod +x shellspec-0.28.1/shellspec
-          echo "$PWD/shellspec-0.28.1" >> "$GITHUB_PATH"
-      - name: Run unit + contract tests
-        run: shellspec
+          pgrep -af 'socat|qemu-system' && exit 1 || true
       - name: Record quality metrics
         if: always()
         run: go run ./tools/dev metrics record ci_run=true
@@ -31,35 +36,32 @@ jobs:
           name: quality-history
           path: docs/quality/history.jsonl
 
-  bash-baseline:
+  entrypoint-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
-      - name: Install dependencies
-        run: sudo apt-get -y update && sudo apt-get -y install qemu-utils jq
-      - name: Bash entrypoints smoke test
+      - uses: actions/setup-go@4b73464bb391e405a14327b7d613ca9d90898b08  # v5
+        with:
+          go-version: '1.25'
+      - name: Build + smoke test Go entrypoints
         run: |
+          go run ./tools/dev build
           bin/quickemu --help >/dev/null
           bin/quickemu --version
           bin/quickget --list | tail -5
           bin/quickget --version 2>/dev/null || true
-          bash -n bin/quickemu bin/quickget bin/quickgetc bin/quickreport
-          echo "bash baseline OK"
+          file bin/quickemu bin/quickget | grep -q ELF
+          echo "entrypoint smoke OK"
 
-  e2e:
-    runs-on: ubuntu-latest
-    needs: tests
+  specs-macos:
+    runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
-      - name: Install dependencies
-        run: |
-          sudo apt-get -y update
-          sudo apt-get -y install qemu-utils qemu-system-x86 socat
-      - name: Install shellspec
-        run: |
-          curl -sSfL https://github.com/shellspec/shellspec/archive/refs/tags/0.28.1.tar.gz | tar -xz
-          chmod +x shellspec-0.28.1/shellspec
-          echo "$PWD/shellspec-0.28.1" >> "$GITHUB_PATH"
-      - name: Run e2e (TCG, real QEMU)
-        run: shellspec spec/e2e/
-        timeout-minutes: 15
+      - uses: actions/setup-go@4b73464bb391e405a14327b7d613ca9d90898b08  # v5
+        with:
+          go-version: '1.25'
+      - name: Build Go binaries
+        run: go run ./tools/dev build
+      - name: Portable spec subset (QEMU-dependent tests self-skip)
+        run: go test ./tools/qespec/ -run 'Smoke|Contract|Schema' -v

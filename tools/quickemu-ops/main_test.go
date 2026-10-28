@@ -1,0 +1,185 @@
+// main_test.go: run() in-process re-exec covering the whole op
+// lifecycle — new→set→status→list→done/fail→cancel→prune→recover→
+// rollback — against a temp vmdir, envelope and on-disk state asserted.
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+func TestMain(m *testing.M) {
+	if os.Getenv("QE_HELPER") == "1" {
+		a := os.Getenv("QE_HELPER_ARGS")
+		os.Args = []string{"quickemu-ops"}
+		if a != "" {
+			os.Args = append(os.Args, strings.Split(a, "\x1f")...)
+		}
+		rc := run()
+		_ = os.WriteFile(os.Getenv("QE_HELPER_RC"),
+			[]byte(strconv.Itoa(rc)), 0o600)
+		return
+	}
+	os.Exit(m.Run())
+}
+
+func runTool(t *testing.T, args ...string) (string, int) {
+	t.Helper()
+	rcf := filepath.Join(t.TempDir(), "rc")
+	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	cmd.Env = append(os.Environ(), "QE_HELPER=1",
+		"QE_HELPER_ARGS="+strings.Join(args, "\x1f"),
+		"QE_HELPER_RC="+rcf)
+	var so bytes.Buffer
+	cmd.Stdout = &so
+	_ = cmd.Run() // helper exits non-zero on die() paths — not a test error
+	rc := -1      // -1 = helper exited via die()/os.Exit mid-flow
+	if b, err := os.ReadFile(rcf); err == nil {
+		rc, _ = strconv.Atoi(strings.TrimSpace(string(b)))
+	}
+	return so.String(), rc
+}
+
+func newOp(t *testing.T, vm string) (vmdir, id string) {
+	t.Helper()
+	vmdir = t.TempDir()
+	out, rc := runTool(t, "new", "--vmdir", vmdir, "--type", "export", "--vm", vm)
+	if rc != 0 {
+		t.Fatalf("new rc=%d", rc)
+	}
+	return vmdir, strings.TrimSpace(out)
+}
+
+func opState(t *testing.T, vmdir, id string) map[string]any {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(vmdir, "ops", id+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var o map[string]any
+	json.Unmarshal(b, &o)
+	return o
+}
+
+func TestLifecycle(t *testing.T) {
+	vmdir, id := newOp(t, "v")
+
+	if out, rc := runTool(t, "set", "--vmdir", vmdir, "--id", id,
+		"--state", "running", "--progress", "40"); rc != 0 {
+		t.Fatalf("set rc=%d %s", rc, out)
+	}
+	if st := opState(t, vmdir, id); st["state"] != "running" ||
+		st["progress"].(float64) != 40 {
+		t.Fatalf("state=%v", st)
+	}
+
+	out, rc := runTool(t, "status", "--vmdir", vmdir, "--id", id)
+	var so map[string]any
+	if rc != 0 || json.Unmarshal([]byte(out), &so) != nil ||
+		so["state"] != "running" {
+		t.Fatalf("status rc=%d %s", rc, out)
+	}
+
+	if _, rc := runTool(t, "done", "--vmdir", vmdir, "--id", id); rc != 0 {
+		t.Fatalf("done rc=%d", rc)
+	}
+	if st := opState(t, vmdir, id); st["state"] != "completed" ||
+		st["progress"].(float64) != 100 {
+		t.Fatalf("%v", st)
+	}
+
+	// Terminal guard: completed op refuses set (die → rc=-1, envelope out).
+	out, rc = runTool(t, "set", "--vmdir", vmdir, "--id", id,
+		"--state", "running", "--progress", "1")
+	if rc != -1 || !strings.Contains(out, "OP_FINISHED") {
+		t.Fatalf("terminal guard rc=%d %s", rc, out)
+	}
+}
+
+func TestFailAndCancel(t *testing.T) {
+	vmdir, id := newOp(t, "v")
+	if _, rc := runTool(t, "fail", "--vmdir", vmdir, "--id", id,
+		"--code", "E", "--message", "boom"); rc != 0 {
+		t.Fatalf("fail rc=%d", rc)
+	}
+	st := opState(t, vmdir, id)
+	if st["state"] != "failed" ||
+		!strings.Contains(string(st["error"].(map[string]any)["message"].(string)), "boom") {
+		t.Fatalf("%v", st)
+	}
+
+	// cancel with no live worker → cancelled immediately.
+	v2, id2 := newOp(t, "v")
+	if _, rc := runTool(t, "cancel", "--vmdir", v2, "--id", id2); rc != 0 {
+		t.Fatalf("cancel rc=%d", rc)
+	}
+	if opState(t, v2, id2)["state"] != "cancelled" {
+		t.Fatal("cancel must be final without worker")
+	}
+}
+
+func TestListPruneRecoverRollback(t *testing.T) {
+	vmdir, id := newOp(t, "v")
+	out, rc := runTool(t, "list", "--vmdir", vmdir)
+	if rc != 0 || !strings.Contains(out, id) {
+		t.Fatalf("list rc=%d", rc)
+	}
+
+	// prune --keep 0 removes all.
+	out, rc = runTool(t, "prune", "--vmdir", vmdir, "--keep", "0")
+	if rc != 0 || !strings.Contains(out, `"pruned":1`) {
+		t.Fatalf("prune rc=%d %s", rc, out)
+	}
+
+	// recover marks a stale running op failed.
+	v2, id2 := newOp(t, "v")
+	o := opState(t, v2, id2)
+	o["state"] = "running"
+	b, _ := json.Marshal(o)
+	os.WriteFile(filepath.Join(v2, "ops", id2+".json"), b, 0o600)
+	out, rc = runTool(t, "recover", "--vmdir", v2)
+	if rc != 0 || !strings.Contains(out, `"reaped":1`) {
+		t.Fatalf("recover rc=%d %s", rc, out)
+	}
+	if opState(t, v2, id2)["state"] != "failed" {
+		t.Fatal("recover must fail stale ops")
+	}
+
+	// rollback cleans .part files for download-type ops.
+	v3, id3 := newOp(t, "v")
+	os.WriteFile(filepath.Join(v3, "x.part"), []byte("p"), 0o600)
+	out, rc = runTool(t, "set", "--vmdir", v3, "--id", id3,
+		"--state", "running", "--progress", "10")
+	if rc != 0 {
+		t.Fatalf("set %s", out)
+	}
+	o = opState(t, v3, id3)
+	o["type"] = "download"
+	b, _ = json.Marshal(o)
+	os.WriteFile(filepath.Join(v3, "ops", id3+".json"), b, 0o600)
+	out, rc = runTool(t, "rollback", "--vmdir", v3, "--id", id3)
+	if rc != 0 || !strings.Contains(out, "rolledBack") {
+		t.Fatalf("rollback rc=%d %s", rc, out)
+	}
+	if _, err := os.Stat(filepath.Join(v3, "x.part")); !os.IsNotExist(err) {
+		t.Fatal("rollback must delete .part")
+	}
+}
+
+func TestBadArgs(t *testing.T) {
+	if _, rc := runTool(t); rc != 2 {
+		t.Fatalf("usage rc=%d", rc)
+	}
+	if _, rc := runTool(t, "list", "--foo", "x"); rc != -1 { // die(BAD_ARGS)
+		t.Fatalf("no vmdir rc=%d", rc)
+	}
+	if _, rc := runTool(t, "bogus", "--vmdir", t.TempDir()); rc != 2 {
+		t.Fatalf("unknown rc=%d", rc)
+	}
+}
