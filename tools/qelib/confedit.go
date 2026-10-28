@@ -20,10 +20,12 @@ func HotplugPersist(confPath, kind, val string) error {
 	}
 	s := string(b)
 	if strings.HasSuffix(confPath, ".toml") {
+		// TOML basic string: escape the two sequences it requires.
+		val = strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(val)
 		// (?s) lets the array span lines; index-splicing keeps $
 		// sequences in the value literal (ReplaceAllString would
 		// expand them as group references and corrupt the conf).
-		re := regexp.MustCompile(`(?ms)^` + key + `\s*=\s*\[(.*?)\]`)
+		re := regexp.MustCompile(`(?ms)^` + regexp.QuoteMeta(key) + `\s*=\s*\[(.*?)\]`)
 		if m := re.FindStringSubmatchIndex(s); m != nil {
 			inner := strings.TrimSpace(s[m[2]:m[3]])
 			rep := `, "` + val + `"]`
@@ -35,7 +37,9 @@ func HotplugPersist(confPath, kind, val string) error {
 			s += key + ` = ["` + val + `"]` + "\n"
 		}
 	} else {
-		re := regexp.MustCompile(`(?ms)` + key + `=\((.*?)\)`)
+		// bash double-quoted string: \ " $ ` all expand on re-source.
+		val = strings.NewReplacer(`\`, `\\`, `"`, `\"`, `$`, `\$`, "`", "\\`").Replace(val)
+		re := regexp.MustCompile(`(?ms)` + regexp.QuoteMeta(key) + `=\((.*?)\)`)
 		if m := re.FindStringSubmatchIndex(s); m != nil {
 			inner := s[m[2]:m[3]]
 			s = s[:m[0]] + key + `=(` + inner + ` "` + val + `")` + s[m[1]:]
