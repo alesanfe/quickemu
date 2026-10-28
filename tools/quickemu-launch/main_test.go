@@ -193,8 +193,12 @@ func TestRunPathWithFakeQEMU(t *testing.T) {
 	env := []string{"PATH=" + stub + string(os.PathListSeparator) + os.Getenv("PATH")}
 	out, rc := launch(t, env, conf, "--run")
 	// Fake qemu stays up 2s → Started; may fail on the VT-x gate on
-	// hosts without kvm — both paths exercise the run branch.
-	if !strings.Contains(out, "Started") && !strings.Contains(out, "ERROR") && rc != 0 && rc != 1 {
+	// hosts without kvm — both paths exercise the run branch. The
+	// contract pairs the marker with the rc: "Started" means rc=0 and
+	// an "ERROR" line must not exit successfully.
+	started := strings.Contains(out, "Started") && rc == 0
+	failed := strings.Contains(out, "ERROR") && rc != 0
+	if !started && !failed {
 		t.Fatalf("run rc=%d %s", rc, out)
 	}
 }

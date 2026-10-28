@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -329,13 +330,21 @@ func TestPresetsPortsAndMisc(t *testing.T) {
 		t.Fatalf("getPort %d", p)
 	}
 	portRegistryRelease(os.Getpid())
-	// firstFreePort busy path: bind the range start, next port returned.
-	ln, err := net.Listen("tcp", "127.0.0.1:23900")
-	if err == nil {
-		defer ln.Close()
-		if p := firstFreePort("", 23900, 23909); p == "23900" || p == "" {
-			t.Fatalf("busy firstFreePort %q", p)
-		}
+	// firstFreePort busy path: hold a bound ephemeral port — the scan
+	// must skip it. A fixed port would silently skip the assertion
+	// whenever a host already occupies it.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+	defer ln.Close()
+	busy := ln.Addr().(*net.TCPAddr).Port
+	hi := busy + 9
+	if hi > 65535 {
+		hi = 65535
+	}
+	if p := firstFreePort("", busy, hi); p == strconv.Itoa(busy) || p == "" {
+		t.Fatalf("busy firstFreePort %q", p)
 	}
 	// osQuirks direct sweep over more guest branches.
 	for _, g := range []string{"macos", "windows", "windows-server", "freebsd",
