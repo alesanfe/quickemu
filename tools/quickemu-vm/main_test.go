@@ -31,8 +31,18 @@ func TestMain(m *testing.M) {
 
 func runTool(t *testing.T, env []string, args ...string) (string, int) {
 	t.Helper()
+	return runToolIn(t, env, "", args...)
+}
+
+// runToolIn is runTool with an explicit helper cwd — for ops that read
+// or write cwd-relative files (export/import land in ".").
+func runToolIn(t *testing.T, env []string, cwd string, args ...string) (string, int) {
+	t.Helper()
 	rcf := filepath.Join(t.TempDir(), "rc")
 	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	if cwd != "" {
+		cmd.Dir = cwd
+	}
 	cmd.Env = append(os.Environ(), "QE_HELPER=1",
 		"QE_HELPER_ARGS="+strings.Join(args, "\x1f"),
 		"QE_HELPER_RC="+rcf)
