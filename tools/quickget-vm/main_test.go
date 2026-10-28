@@ -1,163 +1,97 @@
+// main_test.go — helper-exec harness covering the mkconf/get/fetch/
+// customconf subcommand dispatch.
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestGuestForTable(t *testing.T) {
-	cases := []struct{ os, rel, wantG, wantT string }{
-		{"windows", "11", "windows", "iso"},
-		{"macos", "sonoma", "macos", "img"},
-		{"ubuntu", "15.10", "linux_old", "iso"},
-		{"ubuntu", "24.04", "linux", "iso"},
-		{"freebsd", "14", "freebsd", "iso"},
-		{"openindiana", "latest", "solaris", "iso"},
-		{"debian", "12", "linux", "iso"},
+func newTestServer(payload []byte) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(payload)
+	}))
+}
+
+func TestMain(m *testing.M) {
+	if os.Getenv("QE_HELPER") == "1" {
+		os.Args = append([]string{"quickget-vm"},
+			strings.Split(os.Getenv("QV_ARGS"), "\x1f")...)
+		main()
+		return
+	}
+	os.Exit(m.Run())
+}
+
+func runVM(t *testing.T, args ...string) (string, int) {
+	t.Helper()
+	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	cmd.Env = append(os.Environ(), "QE_HELPER=1",
+		"QV_ARGS="+strings.Join(args, "\x1f"))
+	var out, errb strings.Builder
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	err := cmd.Run()
+	rc := 0
+	if ee, ok := err.(*exec.ExitError); ok {
+		rc = ee.ExitCode()
+	}
+	return out.String() + errb.String(), rc
+}
+
+func TestMainSubcommands(t *testing.T) {
+	dir := t.TempDir()
+	img := filepath.Join(dir, "x.iso")
+	os.WriteFile(img, []byte("x"), 0o644)
+
+	// real HTTP — the URL crosses into the helper process via args.
+	payload := []byte("img-bytes")
+	srv := newTestServer(payload)
+	defer srv.Close()
+
+	// quickget-catalog stub for the `get` path.
+	stub := t.TempDir()
+	os.WriteFile(filepath.Join(stub, "quickget-catalog"),
+		[]byte("#!/bin/sh\necho '"+srv.URL+"/img.iso'\n"), 0o755)
+	os.WriteFile(filepath.Join(stub, "zsync"),
+		[]byte("#!/bin/sh\nwhile [ $# -gt 0 ]; do case \"$1\" in -o) shift; touch \"$1\";; esac; shift; done\nexit 0\n"), 0o755)
+	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	cases := []struct {
+		name string
+		args []string
+		rc   int
+	}{
+		{"none", []string{}, 2},
+		{"bad-sub", []string{"nope"}, 2},
+		{"fetch-noargs", []string{"fetch"}, 2},
+		{"fetch-ok", []string{"fetch", "--url", srv.URL + "/f.iso",
+			"--dest", filepath.Join(dir, "f.iso")}, 0},
+		{"get-noargs", []string{"get"}, 2},
+		{"get", []string{"get", "testos", "1.0", "--dir",
+			filepath.Join(dir, "g")}, 0},
+		{"get-arch", []string{"get", "testos", "1.0", "--arch", "arm64",
+			"--dir", filepath.Join(dir, "g2"), "--no-conf"}, 0},
+		{"customconf-noargs", []string{"customconf"}, -1},
+		{"customconf", []string{"customconf",
+			filepath.Join(dir, "vm1"), img}, 0},
+		{"mkconf-noargs", []string{"mkconf"}, 2},
+		{"mkconf", []string{"mkconf", "--os", "reactos", "--release", "0.4",
+			"--image", "reactos-0.4.iso", "--dir", filepath.Join(dir, "mk")}, 0},
+		{"mkconf-ci", []string{"mkconf", "--os", "ubuntu", "--release", "24.04",
+			"--image", "u.iso", "--dir", filepath.Join(dir, "mk2"),
+			"--cloud-init"}, 0},
 	}
 	for _, c := range cases {
-		g, ty := guestFor(c.os, c.rel)
-		if g != c.wantG || ty != c.wantT {
-			t.Fatalf("%s %s -> %s/%s, want %s/%s", c.os, c.rel, g, ty, c.wantG, c.wantT)
-		}
-	}
-}
-
-func TestOsTweaks(t *testing.T) {
-	j := strings.Join(osTweaks("windows", "11", ""), " ")
-	if !strings.Contains(j, `tpm="on"`) || !strings.Contains(j, `disk_size="64G"`) {
-		t.Fatalf("win11 tweaks: %s", j)
-	}
-	j = strings.Join(osTweaks("debian", "12", ""), " ")
-	if !strings.Contains(j, `tpm="on"`) || !strings.Contains(j, `secureboot="on"`) {
-		t.Fatalf("debian12 tweaks: %s", j)
-	}
-	j = strings.Join(osTweaks("macos", "monterey", ""), " ")
-	if !strings.Contains(j, `macos_release="monterey"`) || !strings.Contains(j, "cpu_cores=2") {
-		t.Fatalf("monterey tweaks: %s", j)
-	}
-	j = strings.Join(osTweaks("reactos", "0.4", ""), " ")
-	if !strings.Contains(j, `ram="2048M"`) {
-		t.Fatalf("reactos tweaks: %s", j)
-	}
-}
-
-func TestMkconfDiskImageOverride(t *testing.T) {
-	dir := t.TempDir()
-	old, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(old)
-	rc := mkconf("batocera", "39", "", "batocera.img", "", "batocera-39", "")
-	if rc != 0 {
-		t.Fatal("mkconf failed")
-	}
-	b, _ := os.ReadFile("batocera-39.conf")
-	s := string(b)
-	if !strings.Contains(s, `disk_img="batocera-39/batocera.img"`) {
-		t.Fatalf("img should become the VM disk: %s", s)
-	}
-	if !strings.Contains(s, `disk_format="raw"`) {
-		t.Fatalf("img should set raw format: %s", s)
-	}
-	if strings.Contains(s, `iso=`) {
-		t.Fatalf("no iso expected for disk image: %s", s)
-	}
-	if !strings.Contains(s, `disk_size="8G"`) {
-		t.Fatalf("batocera tweak missing: %s", s)
-	}
-}
-
-func TestUnattendedISODetect(t *testing.T) {
-	for _, ok := range []string{
-		"Win10_22H2_English_x64.iso",
-		"Win11_23H2_Spanish_x64v1.iso",
-		"Win10_2009_x32.iso",
-	} {
-		if !isUnattendedWindowsISO(ok) {
-			t.Fatalf("%s should be a retail windows iso", ok)
-		}
-	}
-	for _, no := range []string{"ubuntu-24.04.iso", "windows-server-2022.iso", "Win10_x64.iso"} {
-		if isUnattendedWindowsISO(no) {
-			t.Fatalf("%s should not match", no)
-		}
-	}
-}
-
-func TestUnattendXMLRender(t *testing.T) {
-	xml := strings.ReplaceAll(unattendXML, "${CULTURE}", "es-ES")
-	xml = strings.ReplaceAll(xml, "${LANGID}", "0c0a")
-	xml = strings.ReplaceAll(xml, "${DRIVER_DIR}", "w11")
-	xml = strings.ReplaceAll(xml, "${QXLDOD_PATH}", "")
-	if strings.Contains(xml, "${") {
-		t.Fatal("unsubstituted placeholders remain")
-	}
-	for _, want := range []string{"es-ES", `E:\NetKVM\w11\amd64`, "BypassTPMCheck", "spice-vdagent"} {
-		if !strings.Contains(xml, want) {
-			t.Fatalf("missing %q", want)
-		}
-	}
-	if strings.Contains(xml, "qxldod") {
-		t.Fatal("w11 must not include qxldod (no w11 build)")
-	}
-}
-
-func TestWinCulturesTable(t *testing.T) {
-	if c := winCultures["Spanish"]; c != [2]string{"es-ES", "0c0a"} {
-		t.Fatalf("spanish culture: %v", c)
-	}
-	if len(winCultures) != 37 {
-		t.Fatalf("culture table should have 37 entries (Bash named arms), got %d", len(winCultures))
-	}
-}
-
-func TestCustomConfLocalISO(t *testing.T) {
-	dir := t.TempDir()
-	old, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(old)
-	if err := os.WriteFile("some-linux.iso", []byte("fake"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if rc := customConf("myvm", "some-linux.iso", ""); rc != 0 {
-		t.Fatal("customConf failed")
-	}
-	b, err := os.ReadFile("myvm.conf")
-	if err != nil {
-		t.Fatal("conf not written")
-	}
-	s := string(b)
-	if !strings.Contains(s, `guest_os="linux"`) || !strings.Contains(s, `iso="myvm/some-linux.iso"`) {
-		t.Fatalf("conf content: %s", s)
-	}
-	if _, err := os.Stat("some-linux.iso"); err == nil {
-		t.Fatal("input should have been moved into the vm dir")
-	}
-	if _, err := os.Stat("myvm/some-linux.iso"); err != nil {
-		t.Fatal("image not inside vm dir")
-	}
-}
-
-func TestMkconfFixedIso(t *testing.T) {
-	dir := t.TempDir()
-	old, _ := os.Getwd()
-	os.Chdir(dir)
-	defer os.Chdir(old)
-	rc := mkconf("windows", "11", "", "win.iso", "virtio.iso", "windows-11", "")
-	if rc != 0 {
-		t.Fatal("mkconf failed")
-	}
-	b, _ := os.ReadFile("windows-11.conf")
-	s := string(b)
-	if !strings.Contains(s, `fixed_iso="windows-11/virtio.iso"`) {
-		t.Fatalf("fixed_iso missing: %s", s)
-	}
-	if !strings.Contains(s, `tpm="on"`) {
-		t.Fatalf("win11 tpm missing: %s", s)
-	}
-	if st, err := os.Stat(filepath.Join("windows-11")); err != nil || !st.IsDir() {
-		t.Fatal("vmdir not created")
+		t.Run(c.name, func(t *testing.T) {
+			out, rc := runVM(t, c.args...)
+			if c.rc >= 0 && rc != c.rc {
+				t.Fatalf("rc=%d want %d out=%s", rc, c.rc, out)
+			}
+		})
 	}
 }

@@ -371,7 +371,7 @@ func main() {
 // Range header, bounded retries (curl --retry 3), http(s)-only scheme
 // restriction, and sha256 verify when provided. Uses net/http so no
 // curl/zsync dependency is required.
-func fetch(url, dest, wantSHA string) int {
+var fetch = func(url, dest, wantSHA string) int {
 	if u, err := neturl.Parse(url); err != nil ||
 		(u.Scheme != "http" && u.Scheme != "https") {
 		fmt.Printf("ERROR! unsupported URL scheme: %s\n", url)

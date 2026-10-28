@@ -18,7 +18,7 @@ var webCheck = func(url string) bool { return qelib.WebCheck(url, nil) }
 
 // ubuntuDailyCodename: first launchpad series name (newest-first)
 // whose daily-live SHA256SUMS exists on cdimage.
-func ubuntuDailyCodename(osName string) string {
+var ubuntuDailyCodename = func(osName string) string {
 	name, _ := qelib.UbuntuDailyCodename(osName)
 	return name
 }
