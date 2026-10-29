@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -103,6 +104,59 @@ func TestAutostartShortcut(t *testing.T) {
 // The vm name and conf path land verbatim in a systemd unit and a
 // .desktop Exec line — a newline injects new keys (ExecStart=/evil)
 // and a space in the conf path silently splits the command.
+// The internal snapshot ops pass the tag verbatim to
+// `qemu-img snapshot <flag> <tag> <disk>` — a tag like "-d" lands in
+// option position and reshapes the command (only the --external path
+// applied snapTagRe). Tags must match [A-Za-z0-9._-]+ and not start
+// with '-'.
+func TestSnapshotTagInjection(t *testing.T) {
+	parent, dir := mkVM(t, "snapvm")
+	_ = parent
+	conf := dir + ".conf"
+	env := []string{"QE_VMCONF=" + conf}
+	bin, mark := markerQemuImg(t)
+	env = append(env, "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for _, bad := range []string{"-d", "-a", "--foo", "a b", "x/y", ""} {
+		out, rc := runTool(t, env, "snapshot-create", dir, bad)
+		if rc == 0 {
+			t.Fatalf("tag %q accepted: %s", bad, out)
+		}
+	}
+	if b, err := os.ReadFile(mark); err == nil {
+		t.Fatalf("hostile tag reached qemu-img: %s", b)
+	}
+}
+
+// snapshots.json is untrusted content: a crafted "file" field points
+// `qemu-img commit` and os.Remove at a foreign qcow2 — node.File must
+// stay inside the VM dir (same class as the ops/operationId fix).
+func TestSnapshotConsolidateForeignFile(t *testing.T) {
+	_, dir := mkVM(t, "snapvm")
+	outside := t.TempDir()
+	victim := filepath.Join(outside, "victim.qcow2")
+	if err := os.WriteFile(victim, []byte("img"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	meta := `[{"id":"x","tag":"evil","file":` + strconv.Quote(victim) + `,"parent":"p"}]`
+	if err := os.WriteFile(filepath.Join(dir, "snapshots.json"), []byte(meta), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bin, mark := markerQemuImg(t)
+	conf := dir + ".conf"
+	env := []string{"QE_VMCONF=" + conf,
+		"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH")}
+	out, rc := runTool(t, env, "snapshot-consolidate", dir, "evil")
+	if rc == 0 {
+		t.Fatalf("consolidate accepted a foreign overlay path: %s", out)
+	}
+	if _, err := os.Stat(victim); err != nil {
+		t.Fatalf("foreign file touched: %v", err)
+	}
+	if b, err := os.ReadFile(mark); err == nil {
+		t.Fatalf("qemu-img ran against a foreign path: %s", b)
+	}
+}
+
 func TestAutostartShortcutInjection(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

@@ -247,6 +247,13 @@ func snapshotConsolidate(dir, tag string) int {
 	if node == nil {
 		die("SNAPSHOT_CONFLICT", "external snapshot '"+tag+"' not found")
 	}
+	// snapshots.json is untrusted content: the recorded file reaches
+	// qemu-img commit and os.Remove — it must stay inside the VM dir.
+	absDir, _ := filepath.Abs(dir)
+	abs, aerr := filepath.Abs(node.File)
+	if aerr != nil || abs != filepath.Join(absDir, filepath.Base(abs)) {
+		die("SNAPSHOT_CONFLICT", "external snapshot '"+tag+"' points outside the VM dir")
+	}
 	// qemu-img commit on a live chain corrupts the backing file —
 	// same guard as the internal snapshot ops.
 	vmStoppedOrDie(dir, "consolidating snapshots")

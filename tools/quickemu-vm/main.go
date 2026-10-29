@@ -564,6 +564,11 @@ func run() int {
 			die("INVALID_ARGS", "snapshot op needs a tag")
 		}
 		tag := args[2]
+		// The tag lands in `qemu-img snapshot <flag> <tag>` option
+		// position — same allowlist as the external path.
+		if !snapTagOk(tag) {
+			die("INVALID_ARGS", "snapshot tag must match [A-Za-z0-9._-]+ and not start with '-'")
+		}
 		// vm_running guard: qemu-img snapshot on a live disk corrupts it.
 		if c := vmConfPath(dir); c != "" {
 			pf := filepath.Join(dir, strings.TrimSuffix(filepath.Base(c), ".conf")+".pid")

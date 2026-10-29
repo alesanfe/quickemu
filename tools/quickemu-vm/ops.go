@@ -114,8 +114,14 @@ func glob(dir, pat string) []string {
 // snapshotCreateExternal: qcow2 overlay backed by the current disk,
 // repoint conf disk_img at the overlay, register metadata.
 // snapTagRe allowlists snapshot tags — they land in overlay
-// filenames and inside the conf's disk_img="..." string.
+// filenames, inside the conf's disk_img="..." string, and in the
+// option position of `qemu-img snapshot <flag> <tag>` — a leading
+// dash makes it another option, so it is excluded by snapTagOk.
 var snapTagRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+func snapTagOk(tag string) bool {
+	return snapTagRe.MatchString(tag) && !strings.HasPrefix(tag, "-")
+}
 
 func exitCode(err error) int {
 	if err == nil {
