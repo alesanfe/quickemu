@@ -168,23 +168,23 @@ func biosArgs(c Conf, osName, arch string) []string {
 	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
 	if confOn(c, "secureboot") {
 		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file="+
-			firmwareFile("OVMF_CODE_4M.secboot.fd", "OVMF_CODE.secboot.fd",
-				"OVMF_CODE.fd")+",readonly=on")
+			qemuOptEsc(firmwareFile("OVMF_CODE_4M.secboot.fd", "OVMF_CODE.secboot.fd",
+				"OVMF_CODE.fd"))+",readonly=on")
 	} else {
 		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file="+
-			firmwareFile("OVMF_CODE_4M.fd", "OVMF_CODE.fd")+",readonly=on")
+			qemuOptEsc(firmwareFile("OVMF_CODE_4M.fd", "OVMF_CODE.fd"))+",readonly=on")
 	}
-	a = append(a, "-drive", "if=pflash,format=raw,unit=1,file="+vars)
+	a = append(a, "-drive", "if=pflash,format=raw,unit=1,file="+qemuOptEsc(vars))
 	// swtpm_socket_ready: emit the chardev only when the control socket
 	// will exist — always on --dry-run, only after startSwtpm on --run.
 	if confOn(c, "tpm") && (c["_run"] == "" || c["_swtpm"] == "1") {
 		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".swtpm-sock"
 		if arch == "aarch64" {
-			a = append(a, "-chardev", "socket,id=chrtpm,path="+sock,
+			a = append(a, "-chardev", "socket,id=chrtpm,path="+qemuOptEsc(sock),
 				"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
 				"-device", "tpm-tis-device,tpmdev=tpm0")
 		} else {
-			a = append(a, "-chardev", "socket,id=chrtpm,path="+sock,
+			a = append(a, "-chardev", "socket,id=chrtpm,path="+qemuOptEsc(sock),
 				"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
 				"-device", "tpm-tis,tpmdev=tpm0")
 		}
@@ -207,7 +207,7 @@ func networkArgs(c Conf, t OsTuning) []string {
 	vm := c["_vmname"]
 	mac := ""
 	if m := c.get("macaddr", c.get("mac_addr", "")); m != "" && net != "none" {
-		mac = ",mac=" + m
+		mac = ",mac=" + qemuOptEsc(m)
 	}
 	var a []string
 	switch net {
@@ -215,7 +215,7 @@ func networkArgs(c Conf, t OsTuning) []string {
 		a = []string{"-nic", "none"}
 	case "restrict":
 		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
-			"-netdev", "user,hostname=" + vm + ",restrict=y,id=nic"}
+			"-netdev", "user,hostname=" + qemuOptEsc(vm) + ",restrict=y,id=nic"}
 	case "passt":
 		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "passt,id=nic"}
@@ -224,24 +224,25 @@ func networkArgs(c Conf, t OsTuning) []string {
 		// configure_ports auto-allocates ssh_port 22220-22229 when unset.
 		fwd := ""
 		if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229); p != "" {
-			fwd = ",hostfwd=tcp:127.0.0.1:" + p + "-:22"
+			fwd = ",hostfwd=tcp:127.0.0.1:" + qemuOptEsc(p) + "-:22"
 			portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p, c["_run"] == "1")
 		}
 		for _, pf := range strings.Fields(c.get("port_forwards", "")) {
 			kv := strings.SplitN(pf, ":", 2)
 			if len(kv) == 2 {
-				fwd += ",hostfwd=tcp::" + kv[0] + "-:" + kv[1] + ",hostfwd=udp::" + kv[0] + "-:" + kv[1]
+				fwd += ",hostfwd=tcp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1]) +
+					",hostfwd=udp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1])
 			}
 		}
 		if pub := c["_public"]; pub != "" {
-			fwd += ",smb=" + pub // Samba share on the user netdev
+			fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
 		}
 		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
-			"-netdev", "user,hostname=" + vm + fwd + ",id=nic"}
+			"-netdev", "user,hostname=" + qemuOptEsc(vm) + fwd + ",id=nic"}
 	default:
 		// bridge mode: network value IS the interface name
 		helper, _ := exec.LookPath("qemu-bridge-helper")
-		a = []string{"-nic", "bridge,br=" + net + ",helper=" + helper + ",model=" + t.NetDevice + mac}
+		a = []string{"-nic", "bridge,br=" + qemuOptEsc(net) + ",helper=" + helper + ",model=" + t.NetDevice + mac}
 	}
 
 	// Secondary NICs (vm.sh extra_nics): user|restrict|passt|bridge:<iface>,
@@ -253,12 +254,12 @@ func networkArgs(c Conf, t OsTuning) []string {
 		}
 		emac := ""
 		if i < len(macs) && macs[i] != "" {
-			emac = ",mac=" + macs[i]
+			emac = ",mac=" + qemuOptEsc(macs[i])
 		}
 		switch {
 		case strings.HasPrefix(en, "bridge:"):
 			helper, _ := exec.LookPath("qemu-bridge-helper")
-			a = append(a, "-nic", "bridge,br="+strings.TrimPrefix(en, "bridge:")+",helper="+helper+",model="+t.NetDevice+emac)
+			a = append(a, "-nic", "bridge,br="+qemuOptEsc(strings.TrimPrefix(en, "bridge:"))+",helper="+helper+",model="+t.NetDevice+emac)
 		case en == "user" || en == "restrict" || en == "passt":
 			id := fmt.Sprintf("nic%d", i)
 			a = append(a, "-device", t.NetDevice+",netdev="+id+emac,

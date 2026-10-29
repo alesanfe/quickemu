@@ -27,6 +27,13 @@ func detach(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Setsid = true
 }
 
+// shq: POSIX single-quote — the launch .sh embeds conf paths, the vm
+// name and every QEMU arg; an apostrophe or $(...) in any of them
+// would otherwise execute when the script is run.
+func shq(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
 func runQEMU(confPath string, vmdir string, args []string) error {
 	dir := vmdir
 	if abs, err := filepath.Abs(dir); err == nil {
@@ -38,10 +45,17 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 	script := filepath.Join(dir, name+".sh")
 	pre := ""
 	if _, err := os.Stat(filepath.Join(dir, name+".swtpm-pid")); err == nil {
-		pre = "swtpm socket --ctrl type=unixio,path=" + filepath.Join(dir, name+".swtpm-sock") +
-			" --terminate --tpmstate dir=" + dir + " --tpm2 &\n"
+		pre = "swtpm socket --ctrl type=unixio,path=" + shq(filepath.Join(dir, name+".swtpm-sock")) +
+			" --terminate --tpmstate dir=" + shq(dir) + " --tpm2 &\n"
 	}
-	scriptBody := "#!/bin/sh\n" + pre + strings.Join(args, " \\\n    ") + " 2>/dev/null\n"
+	var sb strings.Builder
+	for i, arg := range args {
+		if i > 0 {
+			sb.WriteString(" \\\n    ")
+		}
+		sb.WriteString(shq(arg))
+	}
+	scriptBody := "#!/bin/sh\n" + pre + sb.String() + " 2>/dev/null\n"
 	if err := os.WriteFile(script, []byte(scriptBody), 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "WARNING: launch script %s: %v\n", script, err)
 	}

@@ -18,7 +18,7 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	gl := c.get("gl", "on")
 	switch display {
 	case "sdl", "spice-app":
-		a = append(a, "-display", display+",gl="+gl)
+		a = append(a, "-display", display+",gl="+qemuOptEsc(gl))
 	case "cocoa":
 		// display.sh: gl=on + check_cocoa_gl_es_support → gl=es;
 		// otherwise bare "cocoa" (gl param omitted entirely).
@@ -29,7 +29,7 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 			a = append(a, "-display", display)
 		}
 	case "gtk":
-		render := display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + gl
+		render := display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + qemuOptEsc(gl)
 		if c.get("fullscreen", "") == "true" {
 			render += ",full-screen=on"
 		}
@@ -38,7 +38,7 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 		// vm.sh: args+=(-vnc "${vnc_listen}") — host:display pair,
 		// default 127.0.0.1:0 from bin/quickemu.
 		listen := c.get("vnc_listen", "127.0.0.1:0")
-		a = append(a, "-vnc", listen, "-display", "none")
+		a = append(a, "-vnc", qemuOptEsc(listen), "-display", "none")
 		// Publish the RFB endpoint so frontends can attach a viewer:
 		// "host:display" maps onto TCP 5900+display.
 		host, disp, found := strings.Cut(listen, ":")
@@ -70,7 +70,7 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	// Bash appends xres/yres to virtio-gpu devices.
 	res := ""
 	if strings.HasPrefix(dev, "virtio-") {
-		res = ",xres=" + c.get("width", "1280") + ",yres=" + c.get("height", "800")
+		res = ",xres=" + qemuOptEsc(c.get("width", "1280")) + ",yres=" + qemuOptEsc(c.get("height", "800"))
 	}
 	a = append(a, "-device", dev+res)
 	return a
@@ -176,11 +176,11 @@ func audioArgs(c Conf, osName string, t OsTuning) []string {
 	var a []string
 	switch sc {
 	case "ich9-intel-hda", "intel-hda":
-		a = append(a, "-audiodev", backend, "-device", sc, "-device", duplex+",audiodev=audio0")
+		a = append(a, "-audiodev", backend, "-device", qemuOptEsc(sc), "-device", qemuOptEsc(duplex)+",audiodev=audio0")
 	case "usb-audio", "virtio-sound-pci", "ac97", "es1370", "sb16":
-		a = append(a, "-audiodev", backend, "-device", sc+",audiodev=audio0")
+		a = append(a, "-audiodev", backend, "-device", qemuOptEsc(sc)+",audiodev=audio0")
 	default:
-		a = append(a, "-audiodev", backend, "-device", sc)
+		a = append(a, "-audiodev", backend, "-device", qemuOptEsc(sc))
 	}
 	return a
 }
@@ -217,17 +217,17 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		}
 		// Bash: split -drive (if=none,id=SystemDisk) + -device pattern.
 		a = append(a, "-device", dev+",drive=SystemDisk",
-			"-drive", "id=SystemDisk,if=none,format=qcow2,file="+joinConf(dir, d)+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
+			"-drive", "id=SystemDisk,if=none,format=qcow2,file="+qemuOptEsc(joinConf(dir, d))+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
 	}
 	if d := c.get("iso", ""); d != "" {
 		// Bash: plain cdrom drive (IDE), indexed.
-		a = append(a, "-drive", "media=cdrom,index=0,file="+joinConf(dir, d))
+		a = append(a, "-drive", "media=cdrom,index=0,file="+qemuOptEsc(joinConf(dir, d)))
 	}
 	if d := c.get("img", ""); d != "" {
-		a = append(a, "-drive", "file="+joinConf(dir, d)+",format=raw,if=virtio")
+		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",format=raw,if=virtio")
 	}
 	if d := c.get("fixed_iso", ""); d != "" {
-		a = append(a, "-drive", "file="+joinConf(dir, d)+",media=cdrom")
+		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",media=cdrom")
 	}
 	if c.get("storage", "") == "nvme" {
 		a = append(a, "-device", "nvme,drive=nvme0,serial=nvme0")
@@ -282,14 +282,14 @@ func fileshareArgs(c Conf, dir string) []string {
 	if c["_virtiofsd"] == "1" {
 		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".virtiofsd-sock"
 		return []string{
-			"-object", "memory-backend-file,id=mem,size=" + c.get("ram", "4G") + ",mem-path=/dev/shm,share=on",
+			"-object", "memory-backend-file,id=mem,size=" + qemuOptEsc(c.get("ram", "4G")) + ",mem-path=/dev/shm,share=on",
 			"-numa", "node,memdev=mem",
-			"-chardev", "socket,id=char0,path=" + sock,
-			"-device", "vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=" + tag,
+			"-chardev", "socket,id=char0,path=" + qemuOptEsc(sock),
+			"-device", "vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=" + qemuOptEsc(tag),
 		}
 	}
 	return []string{
-		"-fsdev", "local,id=fsdev0,path=" + pub + ",security_model=mapped-xattr",
-		"-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=" + tag,
+		"-fsdev", "local,id=fsdev0,path=" + qemuOptEsc(pub) + ",security_model=mapped-xattr",
+		"-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=" + qemuOptEsc(tag),
 	}
 }

@@ -27,13 +27,13 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 		spice := "disable-ticketing=on"
 		switch {
 		case d == "spice-app":
-			spice += ",gl=" + c.get("gl", "on")
+			spice += ",gl=" + qemuOptEsc(c.get("gl", "on"))
 		case d == "spice":
 			switch access := c.get("access", "local"); access {
 			case "", "local":
 				// Unix socket for local access — no port consumed.
 				sock := filepath.Join(dir, vmname+".sock")
-				spice += ",unix=on,addr=" + dotdir(dir) + vmname + ".sock"
+				spice += ",unix=on,addr=" + qemuOptEsc(dotdir(dir)+vmname+".sock")
 				portsRecord(dir, vmname, "unix,"+sock, c["_run"] == "1")
 				spiceRecord(dir, vmname, sock, c["_run"] == "1")
 			default:
@@ -47,7 +47,7 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 					fmt.Fprintln(os.Stderr, "             ERROR! Requested SPICE display, but no SPICE ports are free.")
 					os.Exit(1)
 				}
-				spice += ",port=" + port + ",addr=" + addr
+				spice += ",port=" + qemuOptEsc(port) + ",addr=" + qemuOptEsc(addr)
 				portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
 				spiceRecord(dir, vmname, port, c["_run"] == "1")
 			}
@@ -66,13 +66,13 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 				fmt.Fprintln(os.Stderr, "             ERROR! Requested SPICE display, but no SPICE ports are free.")
 				os.Exit(1)
 			}
-			spice += ",port=" + port + ",addr=" + addr
+			spice += ",port=" + qemuOptEsc(port) + ",addr=" + qemuOptEsc(addr)
 			portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
 			spiceRecord(dir, vmname, port, c["_run"] == "1")
 		}
 		a = append(a, "-spice", spice)
 		a = append(a, "-device", "virtio-serial-pci")
-		a = append(a, "-chardev", fmt.Sprintf("socket,id=agent0,path=%s%s-agent.sock,server=on,wait=off", dotdir(dir), vmname))
+		a = append(a, "-chardev", fmt.Sprintf("socket,id=agent0,path=%s,server=on,wait=off", qemuOptEsc(dotdir(dir)+vmname+"-agent.sock")))
 		a = append(a, "-device", "virtserialport,chardev=agent0,name=org.qemu.guest_agent.0")
 		a = append(a, "-chardev", "spicevmc,id=vdagent0,name=vdagent")
 		a = append(a, "-device", "virtserialport,chardev=vdagent0,name=com.redhat.spice.0")
@@ -167,7 +167,7 @@ func usbArgs(c Conf, t OsTuning) []string {
 		if len(vp) != 2 {
 			continue
 		}
-		a = append(a, "-device", "usb-host,bus=hostpass.0,vendorid=0x"+vp[0]+",productid=0x"+vp[1])
+		a = append(a, "-device", "usb-host,bus=hostpass.0,vendorid=0x"+qemuOptEsc(vp[0])+",productid=0x"+qemuOptEsc(vp[1]))
 	}
 	return a
 }

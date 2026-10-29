@@ -29,6 +29,14 @@ func joinConf(dir, p string) string {
 	return filepath.Join(dir, p)
 }
 
+// qemuOptEsc: QEMU option lists split on ',' — a conf path or name
+// containing a comma would otherwise inject bogus options
+// (file=d,ro=on opens "d"; hostname=x,hostfwd=... adds a forward).
+// QEMU's documented escape inside option strings is ',,'.
+func qemuOptEsc(v string) string {
+	return strings.ReplaceAll(v, ",", ",,")
+}
+
 func parseConf(path string) Conf {
 	if strings.HasSuffix(path, ".toml") {
 		return parseTomlConf(path)
@@ -79,6 +87,13 @@ func main() {
 	conf := applyPresets(parseConf(os.Args[1]))
 	conf["_vmdir"] = vmDir(conf, os.Args[1])
 	conf["_vmname"] = strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
+	// The name goes verbatim into -name (whose parser splits on ','
+	// with no escape) — a comma-bearing conf name cannot be launched
+	// correctly, so fail here rather than boot under a mangled name.
+	if strings.Contains(conf["_vmname"], ",") {
+		fmt.Fprintf(os.Stderr, "ERROR! VM name %q contains a comma — rename the conf file.\n", conf["_vmname"])
+		os.Exit(1)
+	}
 	if len(os.Args) > 2 && os.Args[2] == "--validate" {
 		if errs := validateConf(conf, os.Args[1]); len(errs) > 0 {
 			for _, e := range errs {
@@ -230,17 +245,17 @@ func main() {
 			fmt.Fprintf(os.Stderr, " - Monitor:  All Monitor-Telnet ports have been exhausted.\n")
 		} else {
 			args = append(args, "-monitor",
-				fmt.Sprintf("telnet:%s:%d,server,nowait", host, port))
+				fmt.Sprintf("telnet:%s:%d,server,nowait", qemuOptEsc(host), port))
 			fmt.Printf(" - Monitor:  On host:  telnet %s %d\n", host, port)
 			portsRecord(vmdir, vmname,
 				fmt.Sprintf("monitor-telnet,%d,%s", port, host), runMode)
 		}
 	case "socket":
 		args = append(args, "-monitor",
-			"unix:"+dotdir(vmdir)+vmname+"-monitor.socket"+",server,nowait")
+			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-monitor.socket")+",server,nowait")
 		// Machine control channel (QMP) next to the HMP socket.
 		args = append(args, "-qmp",
-			"unix:"+dotdir(vmdir)+vmname+"-qmp.socket"+",server,nowait")
+			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-qmp.socket")+",server,nowait")
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown monitor option.\n", mon)
 		os.Exit(1)
@@ -270,14 +285,14 @@ func main() {
 			fmt.Fprintf(os.Stderr, " - Serial:   All Serial Telnet ports have been exhausted.\n")
 		} else {
 			args = append(args, "-serial",
-				fmt.Sprintf("telnet:%s:%d,server,nowait", host, port))
+				fmt.Sprintf("telnet:%s:%d,server,nowait", qemuOptEsc(host), port))
 			fmt.Printf(" - Serial:   On host:  telnet %s %d\n", host, port)
 			portsRecord(vmdir, vmname,
 				fmt.Sprintf("serial-telnet,%d,%s", port, host), runMode)
 		}
 	case "socket":
 		args = append(args, "-serial",
-			"unix:"+dotdir(vmdir)+vmname+"-serial.socket"+",server,nowait")
+			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-serial.socket")+",server,nowait")
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown serial option.\n", ser)
 		os.Exit(1)
