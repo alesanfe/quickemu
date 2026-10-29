@@ -1,9 +1,11 @@
 package qelib
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // HotplugPersist appends a hotplugged device to the VM config so it
@@ -13,6 +15,11 @@ func HotplugPersist(confPath, kind, val string) error {
 	key := "extra_disks"
 	if kind == "usb" {
 		key = "usb_devices"
+	}
+	// A control char survives quoting and lands as a literal newline —
+	// corrupt TOML, injected key lines in .conf.
+	if strings.IndexFunc(val, unicode.IsControl) >= 0 {
+		return fmt.Errorf("value contains control characters")
 	}
 	b, err := os.ReadFile(confPath)
 	if err != nil {

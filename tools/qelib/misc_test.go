@@ -67,6 +67,24 @@ func TestHotplugPersist(t *testing.T) {
 	}
 }
 
+// A newline/control char in the device value lands verbatim inside the
+// quoted string — for .conf that splits a line and can inject keys, for
+// .toml it produces invalid TOML. Refuse instead of corrupting.
+func TestHotplugPersistRejectsCtl(t *testing.T) {
+	dir := t.TempDir()
+	for _, ext := range []string{".conf", ".toml"} {
+		p := filepath.Join(dir, "vm"+ext)
+		os.WriteFile(p, []byte("guest_os=\"linux\"\n"), 0o600)
+		if err := HotplugPersist(p, "disk", "a\ninjected=\"1\""); err == nil {
+			t.Fatalf("%s: newline value must fail", ext)
+		}
+		b, _ := os.ReadFile(p)
+		if strings.Contains(string(b), "injected") {
+			t.Fatalf("%s: conf corrupted: %s", ext, b)
+		}
+	}
+}
+
 func TestUbuntuDailyCodename(t *testing.T) {
 	oldF, oldP := httpFetch, httpProbeURL
 	defer func() { httpFetch, httpProbeURL = oldF, oldP }()
