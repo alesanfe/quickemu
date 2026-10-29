@@ -242,6 +242,35 @@ func TestListVMsPreservesVMConf(t *testing.T) {
 	}
 }
 
+// disk_img drives vmdir() — a relative "../out/d.qcow2" escapes the
+// conf's directory and scatters .pid/.sock/locks outside it (the same
+// class as the quickemu-vm confDisk fix). It must fall back to the
+// conventional <confdir>/<vmname>.
+func TestVmdirRejectsEscapingDisk(t *testing.T) {
+	stubTools(t)
+	d := withConf(t, "guest_os=\"linux\"\ndisk_img=\"../out/d.qcow2\"\n")
+	if got := vmdir(); !strings.HasPrefix(got, filepath.Dir(vmConf)) {
+		t.Fatalf("vmdir escaped confdir: %s", got)
+	}
+	// Absolute disk paths are a supported layout — kept.
+	confKVCache.Lock()
+	confKVCache.path = ""
+	confKVCache.Unlock()
+	b, _ := os.ReadFile(vmConf)
+	os.WriteFile(vmConf, append(b, []byte("disk_img=\""+d+"/abs/d.qcow2\"\n")...), 0o644)
+	if got := vmdir(); got != filepath.Join(d, "abs") {
+		t.Fatalf("absolute disk_img must define vmdir, got %s", got)
+	}
+	// A relative path that stays inside confdir is also legitimate.
+	confKVCache.Lock()
+	confKVCache.path = ""
+	confKVCache.Unlock()
+	os.WriteFile(vmConf, []byte("disk_img=\"vm/d.qcow2\"\n"), 0o644)
+	if got := vmdir(); got != filepath.Join(filepath.Dir(vmConf), "vm") {
+		t.Fatalf("nested relative disk_img must stay under confdir, got %s", got)
+	}
+}
+
 func TestApplyOverridesRejectsInjection(t *testing.T) {
 	stubTools(t)
 	withConf(t, "guest_os=\"linux\"\n")

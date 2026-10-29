@@ -49,10 +49,15 @@ func toolEnv(name string, env []string, args ...string) (string, error) {
 func vmdir() string {
 	confDir := filepath.Dir(vmConf)
 	if d := confKV()["disk_img"]; d != "" {
-		if !filepath.IsAbs(d) {
-			d = filepath.Join(confDir, d)
+		if filepath.IsAbs(d) {
+			return filepath.Dir(d)
 		}
-		return filepath.Dir(d)
+		// Relative disk_img must stay inside confdir — "../x" would
+		// scatter .pid/.sock/locks outside the VM tree.
+		j := filepath.Join(confDir, d)
+		if rel, err := filepath.Rel(confDir, j); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return filepath.Dir(j)
+		}
 	}
 	return filepath.Join(confDir, vmname())
 }
