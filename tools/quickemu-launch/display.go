@@ -29,6 +29,13 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 			a = append(a, "-display", display)
 		}
 	case "gtk":
+		// display.sh: GTK needs a reachable display server AND QEMU
+		// gtk support — headless hosts fall back to SDL.
+		if !gtkAvailable() {
+			fmt.Println(" - NOTE: GTK display not available, falling back to SDL")
+			a = append(a, "-display", "sdl,gl="+qemuOptEsc(gl))
+			break
+		}
 		render := display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + qemuOptEsc(gl)
 		if c.get("fullscreen", "") == "true" {
 			render += ",full-screen=on"
@@ -116,6 +123,25 @@ func displayDevice(c Conf, osName, arch, display string) string {
 }
 
 // cocoaGLES mirrors check_cocoa_gl_es_support (macOS-only): probe
+// gtkAvailable: display.sh parity — GTK is usable only when a display
+// server is reachable AND the QEMU build ships the gtk backend.
+func gtkAvailable() bool {
+	if os.Getenv("DISPLAY") == "" && os.Getenv("WAYLAND_DISPLAY") == "" {
+		return false
+	}
+	qemu, err := exec.LookPath("qemu-system-x86_64")
+	if err != nil {
+		return true // no x86 binary to probe — let QEMU decide
+	}
+	out, _ := execCommand(qemu, "-display", "help", "-M", "none").CombinedOutput()
+	for _, l := range strings.Split(string(out), "\n") {
+		if strings.TrimSpace(l) == "gtk" {
+			return true
+		}
+	}
+	return false
+}
+
 // `qemu -display cocoa,gl=es -M none` for OpenGL rejection, then fall
 // back to scanning for ANGLE's libEGL.dylib near the QEMU prefix or
 // in DYLD_LIBRARY_PATH.

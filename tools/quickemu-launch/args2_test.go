@@ -393,3 +393,16 @@ func TestPresetsPortsAndMisc(t *testing.T) {
 		t.Fatal("joinConf abs")
 	}
 }
+
+func TestDisplayGtkHeadlessFallback(t *testing.T) {
+	t.Setenv("DISPLAY", "")
+	t.Setenv("WAYLAND_DISPLAY", "")
+	a := displayArgs(Conf{"display": "gtk"}, t.TempDir(), "linux", "x86_64")
+	joined := strings.Join(a, " ")
+	if !strings.Contains(joined, "sdl") {
+		t.Fatalf("headless host must fall back gtk->sdl: %v", a)
+	}
+	if strings.Contains(joined, "grab-on-hover") {
+		t.Fatalf("gtk render args must not appear on headless fallback: %v", a)
+	}
+}
