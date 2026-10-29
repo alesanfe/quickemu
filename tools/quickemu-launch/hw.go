@@ -505,12 +505,17 @@ func networkArgs(c Conf, t OsTuning) []string {
 	}
 	vm := c["_vmname"]
 	mac := ""
-	if m := c.get("macaddr", c.get("mac_addr", "")); m != "" && net != "none" {
-		mac = ",mac=" + qemuOptEsc(m)
+	if m := c.get("macaddr", c.get("mac_addr", "")); m != "" {
+		if net == "none" {
+			fmt.Printf(" - WARNING!  macaddr '%s' is ignored because networking is disabled.\n", m)
+		} else {
+			mac = ",mac=" + qemuOptEsc(m)
+		}
 	}
 	var a []string
 	switch net {
 	case "none":
+		fmt.Printf(" - Network:  Disabled\n")
 		a = []string{"-nic", "none"}
 	case "restrict", "", "slirp":
 		// user + restrict modes both take hostfwd (launch.sh): restrict
@@ -532,7 +537,10 @@ func networkArgs(c Conf, t OsTuning) []string {
 			portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p, c["_run"] == "1")
 			fmt.Printf(" - ssh:      On host:  ssh user@%s -p %s\n", sshHost, p)
 		} else {
-			fmt.Println(" - ssh:      All ssh ports have been exhausted.")
+			// qe_die "vm.port" PORT_BUSY — auto-allocation found no
+			// free port in 22220-22229: the launch cannot proceed.
+			fmt.Fprintf(os.Stderr, "ERROR! No free SSH forward port (range 22220-22229).\n")
+			os.Exit(1)
 		}
 		if pfs := strings.Fields(c.get("port_forwards", "")); len(pfs) > 0 {
 			fmt.Println(" - PORTS:    Port forwards requested:")
@@ -547,16 +555,30 @@ func networkArgs(c Conf, t OsTuning) []string {
 		}
 		if net == "restrict" {
 			fwd += ",restrict=y"
-		} else if pub := c["_public"]; pub != "" {
+		} else if pub := c["_public"]; pub != "" && smbdPresent() {
 			fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
+			fmt.Printf(" - smbd:     On guest: smb://10.0.2.4/qemu\n")
+		}
+		// Bash prints the Network line in vm_boot — after configure_ports'
+		// ssh/PORTS echoes.
+		if net == "restrict" {
+			fmt.Printf(" - Network:  Restricted (%s)\n", t.NetDevice)
+		} else {
+			fmt.Printf(" - Network:  User (%s)\n", t.NetDevice)
 		}
 		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "user,hostname=" + qemuOptEsc(vm) + fwd + ",id=nic"}
 	case "passt":
+		fmt.Printf(" - Network:  passt (%s)\n", t.NetDevice)
+		if v := qemuVersionShort(c.get("arch", "x86_64")); v >= 0 && v < 101 {
+			fmt.Printf("ERROR! 'passt' networking requires QEMU 10.1 or newer.\n")
+			os.Exit(1)
+		}
 		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "passt,id=nic"}
 	default:
 		// bridge mode: network value IS the interface name
+		fmt.Printf(" - Network:  Bridged (%s)\n", net)
 		helper, _ := exec.LookPath("qemu-bridge-helper")
 		a = []string{"-nic", "bridge,br=" + qemuOptEsc(net) + ",helper=" + helper + ",model=" + t.NetDevice + mac}
 	}
@@ -574,14 +596,17 @@ func networkArgs(c Conf, t OsTuning) []string {
 		}
 		switch {
 		case strings.HasPrefix(en, "bridge:"):
+			iface := strings.TrimPrefix(en, "bridge:")
+			fmt.Printf(" - Network:  Bridged NIC%d (%s)\n", i, iface)
 			helper, _ := exec.LookPath("qemu-bridge-helper")
-			a = append(a, "-nic", "bridge,br="+qemuOptEsc(strings.TrimPrefix(en, "bridge:"))+",helper="+helper+",model="+t.NetDevice+emac)
+			a = append(a, "-nic", "bridge,br="+qemuOptEsc(iface)+",helper="+helper+",model="+t.NetDevice+emac)
 		case en == "user" || en == "restrict" || en == "passt":
 			id := fmt.Sprintf("nic%d", i)
+			fmt.Printf(" - Network:  %s NIC%d (%s)\n", en, i, t.NetDevice)
 			a = append(a, "-device", t.NetDevice+",netdev="+id+emac,
 				"-netdev", en+",id="+id)
 		default:
-			fmt.Fprintf(os.Stderr, " - WARNING! extra_nics[%d] '%s' unknown (user|restrict|bridge:<iface>); skipping.\n", i, en)
+			fmt.Printf(" - WARNING! extra_nics[%d] '%s' unknown (user|restrict|bridge:<iface>); skipping.\n", i, en)
 		}
 	}
 	return a
@@ -624,6 +649,38 @@ func portArgs(c Conf, dir string) []string {
 // netListen: seam for firstFreePort's TCP probe — tests replace it so
 // port scanning stays deterministic on hosts where the scanned range
 // is already bound by unrelated processes.
+// smbdPresent: configure_file_sharing parity — the Samba guest share
+// is only wired when smbd resolves (PATH or the /usr/sbin fallback).
+func smbdPresent() bool {
+	if _, err := exec.LookPath("smbd"); err == nil {
+		return true
+	}
+	if st, err := os.Stat("/usr/sbin/smbd"); err == nil && st.Mode()&0o111 != 0 {
+		return true
+	}
+	return false
+}
+
+// qemuVersionShort: QEMU_VER_SHORT parity — the dotted version with
+// dots stripped compared as an integer (8.1.2 → 812, 10.1 → 101).
+// Unresolvable binary → -1 so version gates stay permissive.
+func qemuVersionShort(arch string) int {
+	qemu, err := exec.LookPath("qemu-system-" + arch)
+	if err != nil {
+		return -1
+	}
+	out, _ := execCommand(qemu, "--version").Output()
+	for _, f := range strings.Fields(string(out)) {
+		if f[0] >= '0' && f[0] <= '9' && strings.Contains(f, ".") {
+			v, err := strconv.Atoi(strings.ReplaceAll(f, ".", ""))
+			if err == nil {
+				return v
+			}
+		}
+	}
+	return -1
+}
+
 var netListen = net.Listen
 
 // firstFreePort: returns p if set, else the first free TCP port in

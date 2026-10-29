@@ -279,6 +279,13 @@ func TestDisplayAndAudioPaths(t *testing.T) {
 }
 
 func TestInputAudioNetArgs(t *testing.T) {
+	// networkArgs auto-allocates ssh_port over real host TCP state —
+	// stub the probe (and the ssh-port exhaustion gate needs it too).
+	oldListen := netListen
+	netListen = func(_, _ string) (net.Listener, error) {
+		return net.Listen("tcp", "127.0.0.1:0")
+	}
+	defer func() { netListen = oldListen }()
 	// inputArgs matrix: controller/keyboard/mouse variants.
 	for _, c := range []Conf{
 		{"usb_controller": "xhci", "keyboard": "virtio", "mouse": "usb", "keyboard_layout": "es"},

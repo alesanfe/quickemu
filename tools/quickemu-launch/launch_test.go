@@ -23,6 +23,11 @@ func TestConfListBashArray(t *testing.T) {
 }
 
 func TestExtraNicsArgs(t *testing.T) {
+	oldListen := netListen
+	netListen = func(_, _ string) (net.Listener, error) {
+		return net.Listen("tcp", "127.0.0.1:0")
+	}
+	defer func() { netListen = oldListen }()
 	c := Conf{
 		"network":    "",
 		"extra_nics": `("restrict" "user")`,

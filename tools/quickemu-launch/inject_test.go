@@ -6,11 +6,19 @@
 package main
 
 import (
+	"net"
 	"strings"
 	"testing"
 )
 
 func TestOptionInjectionViaConfValues(t *testing.T) {
+	// Unset ssh_port triggers the auto-alloc probe (and, on a host with
+	// the range bound, the exhaustion die) — stub it deterministic.
+	oldListen := netListen
+	netListen = func(_, _ string) (net.Listener, error) {
+		return net.Listen("tcp", "127.0.0.1:0")
+	}
+	defer func() { netListen = oldListen }()
 	dir := "/vmdir"
 	tun := OsTuning{NetDevice: "virtio-net-pci"}
 
