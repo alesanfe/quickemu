@@ -24,12 +24,6 @@
    "info": "Debian-based educational distribution bundling curricula-aligned software (archived).",
    "name": "AcademiX"
   },
-  "adelie": {
-   "credentials": "-",
-   "homepage": "https://adelielinux.org/",
-   "info": "Independent musl-based Linux distribution focused on standards compliance and supporting multiple architectures.",
-   "name": "Adélie Linux"
-  },
   "aerynos": {
    "name": "AerynOS",
    "credentials": "",
@@ -1997,6 +1991,48 @@
    "credentials": "-",
    "homepage": "https://pisilinux.org/",
    "info": "Independent Turkish distribution continuing the PiSi package system; KDE6/Minimal/LXQt images."
+  },
+  "fatdog64": {
+   "credentials": "-",
+   "homepage": "https://distro.ibiblio.org/fatdog/web/",
+   "info": "Lightweight Puppy-derived 64-bit distribution for older hardware.",
+   "name": "Fatdog64 Linux"
+  },
+  "peppermintos": {
+   "credentials": "-",
+   "homepage": "https://peppermintos.com/",
+   "info": "Lightweight Devuan-based desktop with minimal Xfce experience.",
+   "name": "Peppermint OS"
+  },
+  "android-x86": {
+   "credentials": "-",
+   "homepage": "https://www.android-x86.org/",
+   "info": "Port of Android to x86 platforms; project currently unmaintained.",
+   "name": "Android-x86"
+  },
+  "shrine": {
+   "credentials": "-",
+   "homepage": "https://github.com/minexew/Shrine",
+   "info": "TempleOS-derived distribution with improved networking and package manager.",
+   "name": "Shrine"
+  },
+  "tinkeros": {
+   "credentials": "-",
+   "homepage": "https://tinkeros.github.io/",
+   "info": "TempleOS fork focused on keeping the original design while fixing issues.",
+   "name": "TinkerOS"
+  },
+  "springdale": {
+   "credentials": "-",
+   "homepage": "https://springdale.princeton.edu/",
+   "info": "RHEL-compatible distribution maintained by Princeton University.",
+   "name": "Springdale Linux"
+  },
+  "adelie": {
+   "credentials": "-",
+   "homepage": "https://www.adelielinux.org/",
+   "info": "Musl+Linux-libre distribution for many architectures, including legacy PPC.",
+   "name": "Adélie Linux"
   }
  }
 }

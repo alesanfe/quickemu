@@ -478,11 +478,13 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 
 	// --- batch 4: mirrors/direct ---
 	case "adelie":
+		// adelie-{inst,live-<de>}-x86_64-<rel>-<build>.iso + SHA512SUMS.
 		ed := "inst"
-		if edition == "kde" || edition == "lxqt" {
+		if edition != "" && edition != "install" {
 			ed = "live-" + edition
 		}
-		return indexISO("https://distfiles.adelielinux.org/adelie/"+release+"/iso/", `adelie-`+ed+`-x86_64-[^"/]*\.iso`)
+		return indexISOsums("https://distfiles.adelielinux.org/adelie/"+release+"/iso/",
+			`adelie-`+ed+`-x86_64-`+regexp.QuoteMeta(release)+`-[^"/]*\.iso`, "SHA512SUMS")
 	case "anolis":
 		ed := "minimal"
 		if edition != "" {
@@ -550,8 +552,6 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 			return "", "", err
 		}
 		return indexISO(dir+"/live/", `ploplinux-[0-9.]+-x86_64\.iso`)
-	case "koozali":
-		return indexISOsum("http://mirror.contribs.org/releases/10/iso/x86_64/", `smeserver-[0-9.]+-x86_64\.iso`, ".sha1sum")
 	case "t2sde":
 		u, _, err := indexISO("https://dl.t2sde.org/binary/2024/", `t2-`+regexp.QuoteMeta(release)+`-x86-64-base-wayland-glibc-gcc-nocona\.iso`)
 		if err != nil {
@@ -733,21 +733,22 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		// 9.x nests a dated build dir; 8.x is a flat listing where
 		// "everything" is published as dvd1.
 		if dir, err := latestDir(base, `[0-9]{8}\.[0-9]+`); err == nil {
-			return indexISOsums(dir+"/", `OpenCloudOS-`+regexp.QuoteMeta(release)+`-[^"/]*-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
+			return indexISOsums(dir+"/", `(?i)opencloudos-`+regexp.QuoteMeta(release)+`-[^"/]*-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
 		}
 		// 9.x flat listings put the edition before x86_64; on 8.x
-		// "everything" is published as dvd1 after it.
-		if u, s, err := indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-`+regexp.QuoteMeta(ed)+`-x86_64\.iso`, "CHECKSUM"); err == nil {
+		// "everything" is published as dvd1 after it. 8.6 is all
+		// lowercase: opencloudos-8.6-x86_64-<ed>.iso.
+		if u, s, err := indexISOsums(base, `(?i)opencloudos-`+regexp.QuoteMeta(release)+`-`+regexp.QuoteMeta(ed)+`-x86_64\.iso`, "CHECKSUM"); err == nil {
 			return u, s, nil
 		}
 		if ed == "everything" {
 			ed = "dvd1"
 		}
-		if u, s, err := indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM"); err == nil {
+		if u, s, err := indexISOsums(base, `(?i)opencloudos-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM"); err == nil {
 			return u, s, nil
 		}
 		// 8.10 names carry a build date: OpenCloudOS-8.10-20241210.0-x86_64-<ed>.iso
-		return indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-[0-9]{8}\.[0-9]+-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
+		return indexISOsums(base, `(?i)opencloudos-`+regexp.QuoteMeta(release)+`-[0-9]{8}\.[0-9]+-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
 	case "tencentos":
 		base := "https://mirrors.tencent.com/tencentos/" + release + "/isos/x86_64/"
 		ed := "minimal"
@@ -795,7 +796,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "hardenedbsd":
 		return indexISOsums("https://installers.hardenedbsd.org/pub/"+release+"/amd64/amd64/installer/LATEST/", `disc1\.iso`, "MANIFEST")
 	case "zenwalk":
-		return indexISOsum("https://download.zenwalk.org/x86_64/"+release+"/", `zenwalk-`+regexp.QuoteMeta(release)+`-[0-9]+\.iso`, ".md5")
+		return indexISOsum("https://download.zenwalk.org/x86_64/"+release+"/", `zenwalk-`+regexp.QuoteMeta(release)+`(-[0-9]+)?\.iso`, ".md5")
 	case "freedombox":
 		return indexISO("https://ftp.freedombox.org/pub/freedombox/hardware/amd64/"+release+"/", `freedombox-[^"/]*_all-amd64\.img\.xz`)
 	case "parabola":
@@ -960,9 +961,13 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		return "", "", fmt.Errorf("tribblix: no iso link")
 
 	case "xcp-ng":
-		// mirrors.xcp-ng.org: isos/<major.minor>/xcp-ng-<ver>-<date>.iso + SHA256SUMS.
+		// mirrors.xcp-ng.org: isos/<major.minor>/xcp-ng-<ver>[-<spin>].iso
+		// + SHA256SUMS; 7.6/8.0 have no -<spin> suffix.
 		base := "https://mirrors.xcp-ng.org/isos/" + release
 		u, _, err := indexISO(base, `xcp-ng-[0-9.]+-[0-9]+\.iso`)
+		if err != nil {
+			u, _, err = indexISO(base, `xcp-ng-[0-9.]+\.iso`)
+		}
 		if err != nil {
 			return "", "", err
 		}
@@ -986,6 +991,87 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		return "https://download.umbrel.com/release/latest/umbrelos-amd64-usb-installer.iso.xz", "", nil
 	case "yunohost":
 		return indexISO("https://repo.yunohost.org/images/", `yunohost-[^"]*amd64[^"]*\.iso`)
+
+	// --- index/mirror (batch 4) ---
+	case "trisquel":
+		// edition→file prefix: mate=trisquel_, lxde=trisquel-mini_,
+		// kde=triskel_, sugar=trisquel-sugar_, netinst=trisquel-netinst_.
+		prefix := map[string]string{
+			"lxde": "trisquel-mini_", "kde": "triskel_",
+			"sugar": "trisquel-sugar_", "netinst": "trisquel-netinst_",
+		}[edition]
+		if prefix == "" {
+			prefix = "trisquel_"
+		}
+		return indexISOsum("https://mirrors.ocf.berkeley.edu/trisquel-images/",
+			prefix+regexp.QuoteMeta(release)+`_amd64\.iso`, ".sha256")
+	case "bunsenlabs":
+		// <codename>-1[-<date>]-amd64.hybrid.iso; carbon+ add a build date.
+		return indexISO("https://ddl.bunsenlabs.org/ddl/", release+`-[0-9-]*amd64\.hybrid\.iso`)
+	case "ghostbsd":
+		// New: GhostBSD-<rel>.iso / GhostBSD-<rel>-XFCE.iso.
+		// 18.x-19.x: GhostBSD<rel>.iso (no dash).
+		ed := ""
+		if edition == "xfce" {
+			ed = "-XFCE"
+		}
+		return indexISOsum("https://download.ghostbsd.org/releases/amd64/"+release+"/",
+			`GhostBSD-?`+regexp.QuoteMeta(release)+ed+`\.iso`, ".sha256")
+	case "primtux":
+		// SF Distribution dir; naming drifted across major versions
+		// (PrimTux7-amd64-2022-10, primtux8-amd64, primtux9-m22.3-64bit-*).
+		re := `(?i)primtux` + regexp.QuoteMeta(release) + `[^"]*(amd64|64bit)[^"]*\.iso`
+		if edition != "" {
+			re = `(?i)primtux` + regexp.QuoteMeta(release) + `[^"]*` + regexp.QuoteMeta(edition) + `[^"]*\.iso`
+		}
+		return sfISO("primtux", "Distribution", re)
+	case "fatdog64":
+		// Fatdog64-<rel>.iso; 6xx builds also ship -firefox/-seamonkey.
+		re := `Fatdog64-` + regexp.QuoteMeta(release) + `\.iso`
+		if edition != "" && edition != "standard" {
+			re = `(?i)Fatdog64-` + regexp.QuoteMeta(release) + `-` + regexp.QuoteMeta(edition) + `\.iso`
+		}
+		return indexISOsum("https://ftp.nluug.nl/pub/os/Linux/distr/fatdog/iso/", re, ".md5sum.txt")
+	case "sparkylinux":
+		// SF per-edition dirs: cli=minimalcli, base=minimalgui;
+		// kde/lxqt/mate/xfce/gameover/multimedia/rescue own dirs.
+		dir := map[string]string{
+			"minimalcli": "cli", "minimalgui": "base",
+		}[edition]
+		if dir == "" {
+			dir = edition
+		}
+		return sfISO("sparkylinux", dir,
+			`sparkylinux-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(edition)+`\.iso`)
+	case "peppermintos":
+		return sfISO("peppermintos", "isos/XFCE", `(?i)peppermint[^"/]*amd64\.iso`)
+	case "android-x86":
+		return sfISO("android-x86", "Release%20"+release, `android-x86_64-`+regexp.QuoteMeta(release)+`[^"]*\.iso`)
+	case "koozali":
+		// releases/<maj>/iso/x86_64/smeserver-<ver>-x86_64[-netinstall].iso;
+		// 10.1 only exists as releases/10/. The mirrors round-robin to
+		// individual hosts, so fall back across host+dir combinations.
+		suf := ""
+		if edition == "netinstall" {
+			suf = "-netinstall"
+		}
+		re := `smeserver-[^"/]*-x86_64` + suf + `\.iso`
+		maj := strings.SplitN(release, ".", 2)[0]
+		for _, base := range []string{
+			"https://mirror.koozali.org/smeserver/releases/" + release + "/iso/x86_64/",
+			"https://mirror.koozali.org/smeserver/releases/" + maj + "/iso/x86_64/",
+			"https://mirror.contribs.org/smeserver/releases/" + release + "/iso/x86_64/",
+			"https://mirror.contribs.org/smeserver/releases/" + maj + "/iso/x86_64/",
+		} {
+			if u, s, err := indexISOsum(base, re, ".sha1sum"); err == nil {
+				return u, s, nil
+			}
+		}
+		return "", "", fmt.Errorf("koozali: no smeserver iso for %s/%s", release, edition)
+	case "springdale":
+		// Springdale%20Linux-<rel>-x86_64-netinst.iso (name has a space).
+		base := "https://mirror.math.princeton.edu/pub/springdale/springdale/" + release + "/x86_64/iso/"
+		return indexISO(base, `Springdale%20Linux-`+regexp.QuoteMeta(release)+`-x86_64-netinst\.iso`)
 
 	// --- JSON APIs ---
 	case "fedora-coreos":

@@ -71,27 +71,6 @@
    "support_level": "community"
   },
   {
-   "os": "adelie",
-   "arch": [
-    "amd64"
-   ],
-   "scrape": true,
-   "releases": [
-    "1.0"
-   ],
-   "editions": [
-    "install",
-    "kde",
-    "lxqt"
-   ],
-   "status": "active",
-   "image_type": "iso",
-   "download_mode": "direct",
-   "license": "redistributable",
-   "boot_mode": "both",
-   "support_level": "community"
-  },
-  {
    "os": "aerynos",
    "releases": [
     "2026.08",
@@ -320,6 +299,9 @@
   {
    "os": "antix",
    "releases": [
+    "26.1",
+    "26",
+    "23.2",
     "23.1",
     "23",
     "22",
@@ -571,7 +553,8 @@
   {
    "os": "backbox",
    "releases": [
-    "9"
+    "9",
+    "8.1"
    ],
    "editions": [],
    "arch": [
@@ -623,7 +606,15 @@
     "32",
     "31",
     "30",
-    "29"
+    "29",
+    "5.27.2",
+    "5.27",
+    "5.26",
+    "5.25",
+    "5.24",
+    "5.23",
+    "5.22",
+    "20161211"
    ],
    "editions": [],
    "arch": [
@@ -891,20 +882,21 @@
   {
    "os": "bunsenlabs",
    "releases": [
+    "beryllium",
+    "carbon",
     "boron"
    ],
    "editions": [],
    "arch": [
     "amd64"
    ],
-   "url": "https://ddl.bunsenlabs.org/ddl",
-   "iso": "boron-1-240123-amd64.hybrid.iso",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "cachyos",
@@ -1099,7 +1091,8 @@
    ],
    "editions": [
     "base",
-    "gnome"
+    "gnome",
+    "plasma"
    ],
    "arch": [
     "amd64"
@@ -1142,7 +1135,11 @@
     "0.5.2",
     "0.5.3",
     "0.5.1",
-    "0.5.0"
+    "0.5.0",
+    "0.4.0",
+    "0.3.5",
+    "0.3.4",
+    "0.3.3"
    ],
    "editions": [],
    "arch": [
@@ -1634,7 +1631,13 @@
    "os": "edubuntu",
    "releases": [
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -1717,12 +1720,15 @@
    "releases": [
     "13.7"
    ],
-   "editions": [],
+   "editions": [
+    "full",
+    "core"
+   ],
    "arch": [
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/emmabuntus/files/Emmabuntus_DE6/Images/1.03",
-   "iso": "emmabuntus-de6-core-amd64-13.7-1.03.iso",
+   "iso": "emmabuntus-de6-%EDITION%-amd64-%RELEASE%-1.03.iso",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
@@ -2284,7 +2290,6 @@
     "20.03",
     "20.04",
     "20.04.1",
-    "20.05",
     "20.08.04",
     "20.11.28",
     "21.01.15",
@@ -2304,7 +2309,6 @@
     "22.01.12",
     "22.06.15",
     "22.06.18",
-    "23.03.15",
     "23.04.23",
     "23.06.01",
     "23.10.1",
@@ -2314,7 +2318,12 @@
     "24.07.1",
     "24.07.2",
     "24.07.3",
-    "24.10.1"
+    "24.10.1",
+    "19.10",
+    "19.09",
+    "19.04",
+    "18.12",
+    "18.10"
    ],
    "editions": [
     "mate",
@@ -2323,15 +2332,13 @@
    "arch": [
     "amd64"
    ],
-   "url": "https://download.ghostbsd.org/releases/amd64/%RELEASE%",
-   "iso": "GhostBSD-%RELEASE%.iso",
-   "hash_url": "${URL}/%ISO%.sha256",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "gnomeos",
@@ -2526,7 +2533,9 @@
    "os": "guix",
    "releases": [
     "1.5.0",
-    "1.4.0"
+    "1.4.0",
+    "1.3.0",
+    "1.2.0"
    ],
    "editions": [],
    "arch": [
@@ -3018,14 +3027,19 @@
    ],
    "scrape": true,
    "releases": [
-    "latest"
+    "11.0",
+    "10.1"
    ],
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "editions": [
+    "standard",
+    "netinstall"
+   ]
   },
   {
    "os": "kubuntu",
@@ -3033,9 +3047,17 @@
     "16.04",
     "18.04",
     "20.04",
+    "20.04.6",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -3075,6 +3097,7 @@
   {
    "os": "lakka",
    "releases": [
+    "6.1",
     "5.0",
     "4.3"
    ],
@@ -3228,7 +3251,8 @@
     "20.3",
     "20.2",
     "20.1",
-    "20"
+    "20",
+    "19.3"
    ],
    "editions": [
     "cinnamon",
@@ -3275,7 +3299,9 @@
    "os": "lmde",
    "releases": [
     "7",
-    "6"
+    "6",
+    "5",
+    "4"
    ],
    "editions": [
     "cinnamon"
@@ -3325,8 +3351,15 @@
     "18.04",
     "20.04",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -3581,7 +3614,13 @@
     "3.1.0",
     "3.0.2",
     "3.0.1",
-    "3.0.0"
+    "3.0.0",
+    "2.2.8",
+    "2.2.7",
+    "2.2.6",
+    "2.2.4",
+    "2.2.2",
+    "2.2.0"
    ],
    "editions": [],
    "arch": [
@@ -3818,7 +3857,8 @@
     "11.0",
     "10.2",
     "10.1",
-    "10.0"
+    "10.0",
+    "9.5"
    ],
    "editions": [],
    "arch": [
@@ -4125,7 +4165,15 @@
     "6.3",
     "6.2",
     "6.1",
-    "6.0"
+    "6.0",
+    "5.9",
+    "5.8",
+    "5.7",
+    "5.6",
+    "5.5",
+    "5.4",
+    "5.3",
+    "5.2"
    ],
    "editions": [],
    "arch": [
@@ -4149,7 +4197,8 @@
     "9.4",
     "9.2",
     "8.8",
-    "8.10"
+    "8.10",
+    "8.6"
    ],
    "editions": [
     "minimal",
@@ -4258,7 +4307,15 @@
     "20251026",
     "20250606",
     "20250402",
-    "20241026"
+    "20241026",
+    "20240426",
+    "20231027",
+    "20230502",
+    "20230421",
+    "20221123",
+    "20211031",
+    "20210430",
+    "20201031"
    ],
    "editions": [
     "gui",
@@ -4616,6 +4673,7 @@
   {
    "os": "pardus",
    "releases": [
+    "23.4",
     "23.2",
     "21.5",
     "19.5"
@@ -4965,23 +5023,20 @@
   {
    "os": "primtux",
    "releases": [
+    "9",
+    "8",
     "7"
-   ],
-   "editions": [
-    "2022-10"
    ],
    "arch": [
     "amd64"
    ],
-   "url": "https://sourceforge.net/projects/primtux/files/Distribution",
-   "iso": "PrimTux%RELEASE%-amd64-%EDITION%.iso",
-   "hash_url": "${URL}/%ISO%.md5",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "proxmox-backup-server",
@@ -5755,28 +5810,34 @@
   {
    "os": "sparkylinux",
    "releases": [
-    "8.4"
+    "2026.09",
+    "2026.06",
+    "2026.03",
+    "8.4",
+    "7.8",
+    "6.7"
    ],
    "editions": [
+    "gameover",
     "kde",
     "lxqt",
     "mate",
     "minimalcli",
     "minimalgui",
-    "pae",
+    "multimedia",
+    "rescue",
     "xfce"
    ],
    "arch": [
     "amd64"
    ],
-   "url": "https://sourceforge.net/projects/sparkylinux/files/cli",
-   "iso": "sparkylinux-%RELEASE%-x86_64-%EDITION%.iso",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "spirallinux",
@@ -5960,6 +6021,7 @@
    ],
    "scrape": true,
    "releases": [
+    "24.12",
     "24.10",
     "24.11"
    ],
@@ -6109,27 +6171,26 @@
   {
    "os": "trisquel",
    "releases": [
-    "11.0",
-    "10.0.1"
+    "12.0",
+    "11.0.1"
    ],
    "editions": [
     "mate",
     "lxde",
     "kde",
-    "sugar"
+    "sugar",
+    "netinst"
    ],
    "arch": [
     "amd64"
    ],
-   "url": "https://mirrors.ocf.berkeley.edu/trisquel-images",
-   "iso": "trisquel_%RELEASE%_amd64.iso",
-   "hash_url": "${URL}/%ISO%.sha1",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "truenas-core",
@@ -6324,9 +6385,17 @@
     "16.04",
     "18.04",
     "20.04",
+    "20.04.6",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5.1",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -6351,9 +6420,17 @@
    "releases": [
     "18.04",
     "20.04",
+    "20.04.6",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -6373,6 +6450,7 @@
   {
    "os": "ubuntu-core",
    "releases": [
+    "26",
     "24",
     "22",
     "20",
@@ -6397,8 +6475,15 @@
     "16.04",
     "18.04",
     "20.04",
+    "20.04.6",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
     "25.10",
     "26.10",
@@ -6420,9 +6505,17 @@
    "os": "ubuntu-server",
    "releases": [
     "26.04",
+    "26.04.1",
     "24.04",
+    "24.04.5.1",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
     "22.04",
-    "daily-live"
+    "22.04.5",
+    "daily-live",
+    "20.04.6"
    ],
    "editions": [],
    "arch": [
@@ -6443,6 +6536,11 @@
    "os": "ubuntu-unity",
    "releases": [
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
     "26.10",
     "daily-live"
@@ -6480,7 +6578,13 @@
    "os": "ubuntucinnamon",
    "releases": [
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -6519,9 +6623,17 @@
     "16.04",
     "18.04",
     "20.04",
+    "20.04.6",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -6545,8 +6657,15 @@
     "18.04",
     "20.04",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -6604,7 +6723,9 @@
     "43",
     "44",
     "42",
-    "41"
+    "41",
+    "40",
+    "39"
    ],
    "editions": [],
    "arch": [
@@ -6904,7 +7025,11 @@
    "os": "xcp-ng",
    "releases": [
     "8.3",
-    "8.2"
+    "8.2",
+    "8.1",
+    "8.0",
+    "7.6",
+    "7.5"
    ],
    "editions": [],
    "arch": [
@@ -6941,9 +7066,17 @@
     "16.04",
     "18.04",
     "20.04",
+    "20.04.6",
     "22.04",
+    "22.04.5",
     "24.04",
+    "24.04.5",
+    "24.04.4",
+    "24.04.3",
+    "24.04.2",
+    "24.04.1",
     "26.04",
+    "26.04.1",
     "25.10",
     "26.10",
     "daily-live"
@@ -6980,7 +7113,9 @@
   {
    "os": "zenwalk",
    "releases": [
-    "current"
+    "current",
+    "15.0",
+    "8.0"
    ],
    "editions": [],
    "arch": [
@@ -7016,7 +7151,8 @@
    "releases": [
     "18",
     "17",
-    "16"
+    "16",
+    "15"
    ],
    "editions": [
     "core64",
@@ -7131,6 +7267,166 @@
    "license": "redistributable",
    "boot_mode": "both",
    "support_level": "community"
+  },
+  {
+   "os": "fatdog64",
+   "releases": [
+    "903",
+    "902",
+    "901",
+    "900",
+    "814",
+    "813",
+    "812",
+    "811",
+    "810",
+    "802",
+    "801",
+    "800",
+    "721",
+    "720",
+    "710",
+    "702",
+    "701",
+    "700",
+    "631",
+    "630",
+    "621",
+    "620",
+    "521",
+    "511",
+    "500"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
+   "os": "peppermintos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
+   "os": "android-x86",
+   "releases": [
+    "9.0",
+    "8.1",
+    "7.1"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
+   "os": "shrine",
+   "releases": [
+    "5.05.1"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://github.com/minexew/Shrine/releases/download/v%RELEASE%",
+   "iso": "Shrine-v${RELEASE//\\./}.iso",
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
+  },
+  {
+   "os": "tinkeros",
+   "releases": [
+    "5.23"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://github.com/TinkerOS/TinkerOS/releases/download/%RELEASE%",
+   "iso": "TinkerOS_%RELEASE%.ISO",
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
+  },
+  {
+   "os": "springdale",
+   "releases": [
+    "9.2",
+    "9.1",
+    "9.0",
+    "8.8",
+    "7.9",
+    "7.8"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://mirror.math.princeton.edu/pub/springdale/springdale/%RELEASE%/x86_64/iso",
+   "iso": "Springdale%20Linux-%RELEASE%-x86_64-netinst.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
+  },
+  {
+   "os": "adelie",
+   "releases": [
+    "1.0"
+   ],
+   "editions": [
+    "install",
+    "kde",
+    "lxqt",
+    "mate",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "experimental"
   }
  ]
 }

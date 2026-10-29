@@ -94,6 +94,8 @@ func bodyFor(url string) (string, error) {
 		return `<a href="crux-3.8/">d</a><a href="crux-3.7/">d</a>`, nil
 	case strings.Contains(url, "freedif"):
 		return `<a href="2.29-core204/">d</a><a href="2.29-core203/">d</a>`, nil
+	case strings.Contains(url, "fatdog"):
+		return `<a href="Fatdog64-903.iso">x</a><a href="Fatdog64-500.iso">y</a>`, nil
 	case strings.Contains(url, "nluug"):
 		return `<a href="KNOPPIX_V9.1CD-2021-01-25-EN.iso">x</a>`, nil
 	case strings.Contains(url, "minix3"):
@@ -134,12 +136,20 @@ func bodyFor(url string) (string, error) {
 		return `<a href="rpd_x86-2024-11-19/">d</a>`, nil
 	case strings.Contains(url, "tribblix"):
 		return `<a href="https://iso.tribblix.org/iso/tribblix-0m41.1.iso">x</a>`, nil
+	case strings.Contains(url, "xcp-ng.org/isos/7"), strings.Contains(url, "xcp-ng.org/isos/8.0"):
+		return `<a href="xcp-ng-7.6.0.iso">x</a><a href="xcp-ng-8.0.2.iso">y</a>`, nil
 	case strings.Contains(url, "xcp-ng"):
 		return `<a href="xcp-ng-8.3-20250606.iso">x</a>`, nil
+	case strings.Contains(url, "ultramarine/40"):
+		return `<a href="ultramarine-40-x86_64-flagship.iso">x</a><a href="ultramarine-40-x86_64-kde.iso">y</a>`, nil
+	case strings.Contains(url, "ultramarine/39"):
+		return `<a href="ultramarine-39-x86_64-flagship.iso">x</a>`, nil
 	case strings.Contains(url, "fyralabs"):
 		return `<a href="ultramarine-42-x86_64-flagship.iso">x</a>`, nil
 	case strings.Contains(url, "coreos.fedoraproject"):
 		return `{"architectures":{"x86_64":{"artifacts":{"qemu":{"formats":{"qcow2.xz":{"disk":{"location":"https://fcos/qemu.qcow2.xz","sha256":"fcos"}}}}}}}}`, nil
+	case strings.Contains(url, "chimera-linux"):
+		return shaX + "  chimera-linux-x86_64-LIVE-20251220-base.iso\n" + shaX + "  chimera-linux-x86_64-LIVE-20251220-gnome.iso\n" + shaX + "  chimera-linux-x86_64-LIVE-20251220-plasma.iso\n", nil
 	case strings.Contains(url, "xigmanas"):
 		return `"name":"XigmaNAS-x64-13.0.0.5.iso"`, nil
 	case strings.Contains(url, "salix"):
@@ -164,6 +174,10 @@ func bodyFor(url string) (string, error) {
 		return `<a class='iso' href='slitaz-rolling-core64.iso'>slitaz-rolling-core64.iso</a><a class='iso'>slitaz-rolling-core.iso</a>`, nil
 	case strings.Contains(url, "pureos"):
 		return `"https://downloads.puri.sm/pureos-10.3-librem-2024-x/"`, nil
+	case strings.Contains(url, "springdale") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  Springdale Linux-9.2-x86_64-netinst.iso\n", nil
+	case strings.Contains(url, "springdale"):
+		return `<a href="Springdale%20Linux-9.2-x86_64-netinst.iso">x</a>`, nil
 	case strings.Contains(url, "princeton"), strings.Contains(url, "dotsrc"):
 		return `<a class="folder" href="siduction-24.01/">x</a><a href="x-1.0-y-z-20240101.iso.md5">m</a>`, nil
 	case strings.Contains(url, "kirkstone"):
@@ -173,6 +187,10 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "kicksecure"):
 		return `<a href="17.9.9/">v</a><a href="Kicksecure-CLI-17.9.9.Intel_AMD64.qcow2.libvirt.xz">i</a>`, nil
 	// --- third-expansion fixtures ---
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.6") && strings.Contains(url, "CHECKSUM"):
+		return shaX + "  opencloudos-8.6-x86_64-minimal.iso\n", nil
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.6"):
+		return `<a href="opencloudos-8.6-x86_64-boot.iso">a</a><a href="opencloudos-8.6-x86_64-dvd1.iso">b</a><a href="opencloudos-8.6-x86_64-minimal.iso">c</a>`, nil
 	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.8") && strings.Contains(url, "CHECKSUM"):
 		return shaX + "  OpenCloudOS-8.8-x86_64-dvd1.iso\n", nil
 	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.8"):
@@ -201,6 +219,8 @@ func bodyFor(url string) (string, error) {
 		return `<a href="20250227.0/">d</a>`, nil
 	case strings.Contains(url, "netgate"):
 		return `<a href="pfSense-CE-2.7.2-RELEASE-amd64.iso.gz">x</a>`, nil
+	case strings.Contains(url, "ubuntu-core/26"):
+		return `<a href="ubuntu-core-26-amd64.img.xz">x</a>`, nil
 	case strings.Contains(url, "ubuntu-core"):
 		return `<a href="ubuntu-core-24-amd64.img.xz">x</a>`, nil
 	case strings.Contains(url, "grommunio"):
@@ -229,6 +249,10 @@ func bodyFor(url string) (string, error) {
 		return "SHA256 (disc1.iso) = " + shaX + "\n", nil
 	case strings.Contains(url, "hardenedbsd"):
 		return `<a href="disc1.iso">x</a>`, nil
+	case strings.Contains(url, "zenwalk.org/x86_64/15"):
+		return `<a href="zenwalk-15.0-220204.iso">x</a>`, nil
+	case strings.Contains(url, "zenwalk.org/x86_64/8.0"):
+		return `<a href="zenwalk-8.0.iso">x</a><a href="zenwalk_core-8.0.iso">y</a>`, nil
 	case strings.Contains(url, "zenwalk"):
 		return `<a href="zenwalk-current-250715.iso">x</a>`, nil
 	case strings.Contains(url, "aerynos.dev") && strings.HasSuffix(url, ".sha256sum"):
@@ -287,6 +311,21 @@ func bodyFor(url string) (string, error) {
 		return `"name":"supergrub2-classic-2.06s4-i386_pc-CD.iso" "name":"supergrub2-classic-2.06s4-i386_efi-CD.iso"`, nil
 	case strings.Contains(url, "refracta"):
 		return `"name":"refracta12_xfce_amd64-20240101.iso"`, nil
+	// --- sixth-expansion fixtures ---
+	case strings.Contains(url, "trisquel-images"):
+		return `<a href="trisquel_12.0_amd64.iso">a</a><a href="triskel_12.0_amd64.iso">b</a><a href="trisquel-mini_12.0_amd64.iso">c</a><a href="trisquel-netinst_12.0_amd64.iso">d</a><a href="trisquel-sugar_12.0_amd64.iso">e</a><a href="trisquel_11.0.1_amd64.iso">f</a>`, nil
+	case strings.Contains(url, "bunsenlabs"):
+		return `<a href="beryllium-1-amd64.hybrid.iso">a</a><a href="boron-1-240123-amd64.hybrid.iso">b</a><a href="carbon-1-260211-amd64.hybrid.iso">c</a>`, nil
+	case strings.Contains(url, "ghostbsd.org/releases/amd64/19"):
+		return `<a href="GhostBSD19.10.iso">x</a><a href="GhostBSD19.10-XFCE.iso">y</a>`, nil
+	case strings.Contains(url, "ghostbsd"):
+		return `<a href="GhostBSD-24.10.1.iso">x</a><a href="GhostBSD-24.10.1-XFCE.iso">y</a>`, nil
+	case strings.Contains(url, "primtux"):
+		return `"name":"PrimTux7-amd64-2022-10.iso" "name":"primtux8-amd64.iso" "name":"primtux9-m22.3-64bit-2026-02-27.iso"`, nil
+	case strings.Contains(url, "peppermintos"):
+		return `"name":"peppermint_devuan-amd64.iso"`, nil
+	case strings.Contains(url, "android-x86"):
+		return `"name":"android-x86_64-9.0-r2.iso" "name":"android-x86_64-8.1-r6.iso"`, nil
 	// --- fourth-expansion fixtures ---
 	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, "2026.1"):
 		return `"name":"Rhino-Linux-2026.1-amd64.iso"`, nil
@@ -335,7 +374,7 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "ctlos"):
 		return `"name":"v2.5.0"`, nil
 	case strings.Contains(url, "adelielinux"):
-		return `<a href="adelie-inst-x86_64-1.0-rc1.iso">x</a><a href="adelie-live-kde-x86_64-1.0-rc1.iso">y</a><a href="adelie-live-lxqt-x86_64-1.0-rc1.iso">z</a>`, nil
+		return `<a href="adelie-inst-x86_64-1.0-rc1.iso">x</a><a href="adelie-live-kde-x86_64-1.0-rc1.iso">y</a><a href="adelie-live-lxqt-x86_64-1.0-rc1.iso">z</a><a href="adelie-live-mate-x86_64-1.0-rc1.iso">m</a><a href="adelie-live-xfce-x86_64-1.0-rc1.iso">f</a><a href="SHA512SUMS">s</a>`, nil
 	case strings.Contains(url, "openanolis") && strings.Contains(url, "7.9"):
 		return `<a href="AnolisOS-7.9-GA-x86_64-dvd.iso">x</a><a href="AnolisOS-7.9-Minimal-x86_64-dvd.iso">y</a>`, nil
 	case strings.Contains(url, "openanolis"):
@@ -366,10 +405,16 @@ func bodyFor(url string) (string, error) {
 		return `<a href="ploplinux-24.2-x86_64.iso">x</a>`, nil
 	case strings.Contains(url, "plop"):
 		return `<a href="24.2/">d</a><a href="24.1/">d</a>`, nil
+	case strings.Contains(url, "koozali") && strings.Contains(url, "releases/10.1"):
+		return `<a href="readme.txt">x</a>`, nil
+	case strings.Contains(url, "koozali") && strings.Contains(url, "releases/11"):
+		return `<a href="smeserver-11.0-x86_64.iso">x</a><a href="smeserver-11.0-x86_64-netinstall.iso">y</a>`, nil
+	case strings.Contains(url, "koozali"):
+		return `<a href="smeserver-10.1-x86_64.iso">x</a>`, nil
 	case strings.Contains(url, "contribs"):
 		return `<a href="smeserver-10.1-x86_64.iso">x</a>`, nil
 	case strings.Contains(url, "t2sde"):
-		return `<a href="t2-24.10-x86-64-base-wayland-glibc-gcc-nocona.iso">x</a><a href="t2-24.11-x86-64-base-wayland-glibc-gcc-nocona.iso">y</a>`, nil
+		return `<a href="t2-24.10-x86-64-base-wayland-glibc-gcc-nocona.iso">x</a><a href="t2-24.11-x86-64-base-wayland-glibc-gcc-nocona.iso">y</a><a href="t2-24.12-x86-64-base-wayland-glibc-gcc-nocona.iso">z</a>`, nil
 	case strings.Contains(url, "fiwix"):
 		return `<a href="FiwixOS-3.1-i386.iso">x</a>`, nil
 	case strings.Contains(url, "genode"):
@@ -768,6 +813,40 @@ func TestScrapeAll(t *testing.T) {
 		{"finnix", "latest", "", "amd64", false},
 		{"kaspersky-rescue", "latest", "", "amd64", false},
 		{"ipxe", "latest", "", "amd64", false},
+		// sixth-expansion resolvers.
+		{"trisquel", "12.0", "", "amd64", false},
+		{"trisquel", "12.0", "kde", "amd64", false},
+		{"trisquel", "12.0", "netinst", "amd64", false},
+		{"trisquel", "11.0.1", "", "amd64", false},
+		{"bunsenlabs", "carbon", "", "amd64", false},
+		{"bunsenlabs", "beryllium", "", "amd64", false},
+		{"ghostbsd", "19.10", "", "amd64", false},
+		{"ghostbsd", "19.10", "xfce", "amd64", false},
+		{"ghostbsd", "24.10.1", "xfce", "amd64", false},
+		{"primtux", "9", "", "amd64", false},
+		{"primtux", "8", "", "amd64", false},
+		{"primtux", "7", "", "amd64", false},
+		{"fatdog64", "903", "", "amd64", false},
+		{"fatdog64", "500", "", "amd64", false},
+		{"peppermintos", "latest", "", "amd64", false},
+		{"android-x86", "9.0", "", "amd64", false},
+		{"android-x86", "8.1", "", "amd64", false},
+		{"koozali", "11.0", "", "amd64", false},
+		{"koozali", "11.0", "netinstall", "amd64", false},
+		{"koozali", "10.1", "", "amd64", false},
+		{"springdale", "9.2", "", "amd64", false},
+		{"xcp-ng", "7.6", "", "amd64", false},
+		{"xcp-ng", "8.0", "", "amd64", false},
+		{"opencloudos", "8.6", "minimal", "amd64", false},
+		{"ubuntu-core", "26", "", "amd64", false},
+		{"zenwalk", "15.0", "", "amd64", false},
+		{"zenwalk", "8.0", "", "amd64", false},
+		{"t2sde", "24.12", "", "amd64", false},
+		{"ultramarine", "40", "", "amd64", false},
+		{"ultramarine", "39", "", "amd64", false},
+		{"chimeralinux", "latest", "plasma", "amd64", false},
+		{"adelie", "1.0", "mate", "amd64", false},
+		{"adelie", "1.0", "xfce", "amd64", false},
 	}
 	for _, c := range cases {
 		t.Run(c.os+"/"+c.rel+"/"+c.ed, func(t *testing.T) {
