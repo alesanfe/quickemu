@@ -1148,6 +1148,21 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		// + signed .hash (sha256 embedded before the PGP armor).
 		return indexISOsum("https://mirror.turnkeylinux.org/turnkeylinux/images/iso/",
 			`turnkey-`+regexp.QuoteMeta(edition)+`-[0-9.]+-[a-z]+-amd64\.iso`, ".hash")
+	case "xebian":
+		// download/ is not listable; download/pending/ indexes both
+		// unstable (+.sha256) and trixie (no sidecar).
+		return indexISOsum("https://xebian.org/download/pending/",
+			`xebian-`+regexp.QuoteMeta(release)+`-amd64\.hybrid\.iso`, ".sha256")
+	case "justbrowsing":
+		// SF: 64bit/<name>.iso standard; browser variants in subdirs.
+		dir, suff := "64bit", ""
+		switch edition {
+		case "chrome":
+			dir, suff = "64bit/OnlyChrome64", "_chrome"
+		case "firefox":
+			dir, suff = "64bit/OnlyFirefox64", "_firefox"
+		}
+		return sfISO("justbrowsing", dir, `justbrowsing64_[0-9]+`+suff+`\.iso`)
 	case "dynebolic":
 		// files.dyne.org listing is JS; names are deterministic.
 		return "https://files.dyne.org/dynebolic/dynebolic-" + release + ".iso", "", nil

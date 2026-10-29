@@ -2141,6 +2141,24 @@
    "homepage": "https://www.turnkeylinux.org/",
    "info": "Debian-based server appliance library (91 appliances)",
    "name": "TurnKey GNU/Linux"
+  },
+  "xebian": {
+   "credentials": "-",
+   "homepage": "https://xebian.org/",
+   "info": "Debian Sid-based live hybrid with Xfce",
+   "name": "Xebian"
+  },
+  "justbrowsing": {
+   "credentials": "-",
+   "homepage": "https://justbrowsing.info/",
+   "info": "browser-centric live distro (archived 2014)",
+   "name": "JustBrowsing"
+  },
+  "bbqlinux": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/bbqlinux/",
+   "info": "Arch-based Cinnamon desktop (archived 2021)",
+   "name": "BBQLinux"
   }
  }
 }

@@ -347,6 +347,12 @@ func bodyFor(url string) (string, error) {
 		return `"name":"eznixOS13X-260919.iso" "name":"eznixOS13K-260919.iso"`, nil
 	case strings.Contains(url, "extix"):
 		return `"name":"extix-26.4-64bit-gnome-waydroid-3290mb-260410.iso" "name":"extix-26.7-deepin-25.2-refractasnapshot-5540mb-260710.iso" "name":"extix-26.8-64bit-lxqt-refractasnapshot-2800mb-260811.iso"`, nil
+	case strings.Contains(url, "xebian.org") && strings.HasSuffix(url, ".sha256"):
+		return shaX + "  xebian-unstable-amd64.hybrid.iso\n", nil
+	case strings.Contains(url, "xebian.org"):
+		return `<a href="xebian-unstable-amd64.hybrid.iso">x</a><a href="xebian-trixie-amd64.hybrid.iso">y</a>`, nil
+	case strings.Contains(url, "justbrowsing"):
+		return `"name":"justbrowsing64_20140808.iso" "name":"justbrowsing64_20140808_chrome.iso" "name":"justbrowsing64_20140808_firefox.iso"`, nil
 	case strings.Contains(url, "maboxlinux.org/iso/") && strings.HasSuffix(url, ".md5"):
 		return "5d41402abc4b2a76b9719d911017c592  mabox-linux-26.09-Istredd-260911-linux618.iso", nil
 	case strings.Contains(url, "maboxlinux.org/iso/"):
@@ -907,6 +913,11 @@ func TestScrapeAll(t *testing.T) {
 		{"turnkey", "latest", "core", "amd64", false},
 		{"turnkey", "latest", "wordpress", "amd64", false},
 		{"turnkey", "latest", "nosuchapp", "amd64", true},
+		{"xebian", "unstable", "", "amd64", false},
+		{"xebian", "trixie", "", "amd64", false},
+		{"xebian", "stable", "", "amd64", true},
+		{"justbrowsing", "20140808", "standard", "amd64", false},
+		{"justbrowsing", "20140808", "chrome", "amd64", false},
 	}
 	for _, c := range cases {
 		t.Run(c.os+"/"+c.rel+"/"+c.ed, func(t *testing.T) {
