@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
@@ -140,6 +141,13 @@ func portsRecord(dir, vmname, rec string, runMode bool) {
 	if !runMode {
 		return
 	}
+	// .ports is parsed line-by-line by other tools — a record carrying
+	// a newline injects a fake entry (e.g. "ssh,22" from a hostile
+	// monitor_telnet_host).
+	if strings.ContainsAny(rec, "\r\n") {
+		fmt.Fprintf(os.Stderr, "WARNING: refusing malformed ports record %q\n", rec)
+		return
+	}
 	f, err := os.OpenFile(filepath.Join(dir, vmname+".ports"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -153,6 +161,10 @@ func portsRecord(dir, vmname, rec string, runMode bool) {
 // to <vmdir>/<vm>.spice — spice_record parity; start_viewer reads it.
 func spiceRecord(dir, vmname, val string, runMode bool) {
 	if !runMode {
+		return
+	}
+	if strings.ContainsAny(val, "\r\n") {
+		fmt.Fprintf(os.Stderr, "WARNING: refusing malformed spice record %q\n", val)
 		return
 	}
 	if err := os.WriteFile(filepath.Join(dir, vmname+".spice"), []byte(val+"\n"), 0644); err != nil {

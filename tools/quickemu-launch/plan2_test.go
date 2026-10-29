@@ -115,6 +115,23 @@ func TestPortsHelpers(t *testing.T) {
 	}
 }
 
+// .ports/.spice are a cross-tool contract (quickgui parses them
+// line-by-line): a conf-derived value carrying '\n' injects a fake
+// record — e.g. monitor_telnet_host="x\nssh,22" fabricates an ssh
+// line. Records must stay single-line.
+func TestPortsRecordRejectsNewlines(t *testing.T) {
+	dir := t.TempDir()
+	portsRecord(dir, "vm", "monitor-telnet,4440,x\nssh,22", true)
+	b, err := os.ReadFile(filepath.Join(dir, "vm.ports"))
+	if err == nil && strings.Contains(string(b), "ssh,22") {
+		t.Fatalf("injected record persisted: %q", b)
+	}
+	spiceRecord(dir, "vm", "5930\n--evil", true)
+	if b, err := os.ReadFile(filepath.Join(dir, "vm.spice")); err == nil && strings.Contains(string(b), "evil") {
+		t.Fatalf("injected spice record persisted: %q", b)
+	}
+}
+
 func TestHostProbesAndMisc(t *testing.T) {
 	_ = hostArch()
 	_ = hostSMT()
