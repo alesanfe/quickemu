@@ -100,10 +100,13 @@ secureboot="true"
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}
 	}
-	// aarch64 cross → tcg + virt machine.
+	// aarch64 cross → tcg + virt machine. spice_port is pinned so the
+	// headless display path skips the real TCP port probe — host port
+	// state is outside this test's contract.
 	conf2 := richConf(t, `arch="aarch64"
 display="none"
 network="none"
+spice_port="5930"
 `)
 	out, rc = launch(t, nil, conf2, "--dry-run")
 	if rc != 0 {
@@ -142,11 +145,13 @@ network="none"
 	if rc != 0 || !strings.Contains(out, "-accel tcg") {
 		t.Fatalf("tcg rc=%d %s", rc, out)
 	}
-	// display none + macos + telnet serial.
+	// display none + macos + telnet serial — spice_port pinned as in
+	// conf2 so the headless path never probes host TCP state.
 	conf3 := richConf(t, `guest_os="macos"
 display="none"
 serial="telnet"
 serial_telnet_port="6660"
+spice_port="5930"
 `)
 	out, rc = launch(t, nil, conf3, "--dry-run")
 	if rc != 0 {

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,13 @@ import (
 )
 
 func TestQuirksMatrix(t *testing.T) {
+	// spiceArgs probes real TCP ports for headless variants — stub the
+	// probe so host port state cannot flake the sweep.
+	oldListen := netListen
+	netListen = func(_, _ string) (net.Listener, error) {
+		return net.Listen("tcp", "127.0.0.1:0")
+	}
+	defer func() { netListen = oldListen }()
 	for _, osName := range []string{"linux", "windows", "windows-server",
 		"macos", "freebsd", "haiku", "kolibrios", "reactos", "solaris",
 		"openbsd", "netbsd", "dragonflybsd", "freedos", "batocera",

@@ -304,6 +304,11 @@ func portArgs(c Conf, dir string) []string {
 	return a
 }
 
+// netListen: seam for firstFreePort's TCP probe — tests replace it so
+// port scanning stays deterministic on hosts where the scanned range
+// is already bound by unrelated processes.
+var netListen = net.Listen
+
 // firstFreePort: returns p if set, else the first free TCP port in
 // [lo,hi] — get_port(22220,9) parity.
 func firstFreePort(p string, lo, hi int) string {
@@ -311,7 +316,7 @@ func firstFreePort(p string, lo, hi int) string {
 		return p
 	}
 	for port := lo; port <= hi; port++ {
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		ln, err := netListen("tcp", fmt.Sprintf(":%d", port))
 		if err == nil {
 			ln.Close()
 			return fmt.Sprint(port)
