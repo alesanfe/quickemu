@@ -277,12 +277,9 @@ func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 		fmt.Println("ERROR! could not generate the install password hash.")
 		return 1
 	}
-	userName := os.Getenv("USER")
-	if userName == "" {
-		userName = "quickemu"
-	}
+	userName := safeUsername(os.Getenv("USER"))
 	userData := "#cloud-config\nautoinstall:\n  version: 1\n  identity:\n" +
-		"    hostname: " + vmPath + "\n    username: " + userName +
+		"    hostname: " + safeHostname(vmPath) + "\n    username: " + userName +
 		"\n    password: \"" + pwHash + "\"\n  ssh:\n    install-server: true\n" +
 		"    allow-pw: true\n  storage:\n    layout:\n      name: direct\n" +
 		"  late-commands:\n    - echo \"" + userName + " ALL=(ALL) NOPASSWD:ALL\" > /target/etc/sudoers.d/" + userName + "\n"
@@ -490,6 +487,11 @@ func extractZip(zipPath, dest string) bool {
 	}
 	defer zr.Close()
 	for _, zf := range zr.File {
+		// Member names come from a remote server — a "../" or absolute
+		// member would write outside the VM dir (zip-slip).
+		if !filepath.IsLocal(zf.Name) {
+			continue
+		}
 		d := filepath.Join(dest, zf.Name)
 		if zf.FileInfo().IsDir() {
 			os.MkdirAll(d, 0755)
