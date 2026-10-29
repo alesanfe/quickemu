@@ -275,7 +275,10 @@ func newMux() *http.ServeMux {
 		if len(parts) == 2 {
 			sub = parts[1]
 		}
-		if strings.Contains(vm, "..") || strings.ContainsAny(vm, "/\\") {
+		// vm names feed filepath.Join AND filepath.Glob — separators and
+		// ".." are traversal, but glob metachars (* ? [) also re-shape the
+		// match and leak other VMs' ops/state.
+		if strings.Contains(vm, "..") || strings.ContainsAny(vm, `/\?*[]`) {
 			write(w, 400, map[string]any{"errors": []any{map[string]any{"code": "INVALID_ARGUMENT"}}})
 			return
 		}

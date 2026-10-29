@@ -121,9 +121,18 @@ func TestEndpoints(t *testing.T) {
 	if _, m := get("/v1/vm/a/ops"); len(m["data"].(map[string]any)["operations"].([]any)) != 1 {
 		t.Fatalf("ops %v", m)
 	}
-	// Traversal + unknown sub.
+	// Traversal + glob metachars + unknown sub. A "*" vm name isn't a
+	// path traversal but it IS a glob pattern — /v1/vm/*/ops would list
+	// every VM's operations.
 	if code, _ := get("/v1/vm/..%2fetc/state"); code != 400 {
 		t.Fatalf("traversal %d", code)
+	}
+	if code, m := get("/v1/vm/*/ops"); code != 400 {
+		ops := m["data"].(map[string]any)["operations"].([]any)
+		if len(ops) > 0 {
+			t.Fatalf("glob name leaked %d foreign ops", len(ops))
+		}
+		t.Fatalf("glob name should be rejected, got %d", code)
 	}
 	if code, _ := get("/v1/vm/a/bogus"); code != 404 {
 		t.Fatalf("unknown sub %d", code)
