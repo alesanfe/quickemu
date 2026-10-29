@@ -18,6 +18,10 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	gl := c.get("gl", "on")
 	switch display {
 	case "sdl", "spice-app":
+		if display == "sdl" {
+			// commands.sh: grab-on-hover fix — QEMU #541.
+			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
+		}
 		a = append(a, "-display", display+",gl="+qemuOptEsc(gl))
 	case "cocoa":
 		// display.sh: gl=on + check_cocoa_gl_es_support → gl=es;
@@ -33,6 +37,7 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 		// gtk support — headless hosts fall back to SDL.
 		if !gtkAvailable() {
 			fmt.Println(" - NOTE: GTK display not available, falling back to SDL")
+			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
 			a = append(a, "-display", "sdl,gl="+qemuOptEsc(gl))
 			break
 		}
@@ -140,6 +145,81 @@ func gtkAvailable() bool {
 		}
 	}
 	return false
+}
+
+// paramCheckDisplay: display_param_check (commands.sh) — --braille
+// forces SDL (braille chardev needs it) plus an XHCI controller for
+// full-speed braille devices; the display backend is whitelisted per
+// platform; unset gl defaults via the glxinfo GLSL probe.
+func paramCheckDisplay(c Conf) error {
+	if confOn(c, "braille") {
+		c["display"] = "sdl"
+		c["usb_controller"] = "xhci"
+	}
+	display := c.get("display", "none")
+	if runtime.GOOS == "darwin" {
+		if display != "cocoa" && display != "none" {
+			return fmt.Errorf("ERROR! Requested output '%s' but only 'cocoa' and 'none' are avalible on macOS.", display)
+		}
+	} else {
+		switch display {
+		case "gtk", "none", "sdl", "spice", "spice-app", "vnc":
+		default:
+			return fmt.Errorf("ERROR! Requested output '%s' is not recognised.", display)
+		}
+	}
+	if c.get("gl", "") == "" {
+		c["gl"] = defaultGL()
+	}
+	return nil
+}
+
+// glslGL parses glxinfo output for the "OpenGL ES GLSL" line: GLSL
+// 1.x/2.x cannot drive QEMU's GL, anything newer (or absent) keeps it.
+func glslGL(out string) string {
+	for _, l := range strings.Split(out, "\n") {
+		if !strings.Contains(l, "OpenGL ES GLSL") {
+			continue
+		}
+		f := strings.Fields(l)
+		if len(f) == 0 {
+			break
+		}
+		v := f[len(f)-1]
+		if strings.HasPrefix(v, "1") || strings.HasPrefix(v, "2") {
+			return "off"
+		}
+		return "on"
+	}
+	return "on"
+}
+
+// defaultGL: Bash `command -v glxinfo` gate — absent tool keeps gl on.
+func defaultGL() string {
+	bin, err := exec.LookPath("glxinfo")
+	if err != nil {
+		return "on"
+	}
+	out, _ := execCommand(bin).Output()
+	return glslGL(string(out))
+}
+
+// brailleArgs: vm.sh — --braille emits -usbdevice braille on Linux when
+// the QEMU build ships the braille chardev, else a visible warning.
+func brailleArgs(c Conf, arch string) []string {
+	if !confOn(c, "braille") || runtime.GOOS != "linux" {
+		return nil
+	}
+	qemu := "qemu-system-" + arch
+	if p, err := exec.LookPath(qemu); err == nil {
+		qemu = p
+	}
+	out, _ := execCommand(qemu, "-chardev", "help").CombinedOutput()
+	if strings.Contains(string(out), "braille") {
+		return []string{"-usbdevice", "braille"}
+	}
+	fmt.Fprintf(os.Stderr, " - WARNING!  %s does not support -chardev braille \n", qemu)
+	return nil
 }
 
 // `qemu -display cocoa,gl=es -M none` for OpenGL rejection, then fall

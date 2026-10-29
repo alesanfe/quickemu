@@ -6,7 +6,9 @@ package main
 import (
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -404,5 +406,85 @@ func TestDisplayGtkHeadlessFallback(t *testing.T) {
 	}
 	if strings.Contains(joined, "grab-on-hover") {
 		t.Fatalf("gtk render args must not appear on headless fallback: %v", a)
+	}
+}
+
+// display_param_check parity (commands.sh):
+// braille forces display=sdl + usb_controller=xhci; unknown backends are
+// rejected; gl defaults to off when glxinfo reports an old GLSL version;
+// sdl exports SDL_MOUSE_FOCUS_CLICKTHROUGH=1.
+func TestParamCheckDisplayBraille(t *testing.T) {
+	c := Conf{"braille": "true", "display": "gtk", "usb_controller": "ehci"}
+	if err := paramCheckDisplay(c); err != nil {
+		t.Fatal(err)
+	}
+	if c["display"] != "sdl" || c["usb_controller"] != "xhci" {
+		t.Fatalf("braille must force sdl+xhci: %v", c)
+	}
+	if err := paramCheckDisplay(Conf{}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParamCheckDisplayWhitelist(t *testing.T) {
+	if err := paramCheckDisplay(Conf{"display": "bogus"}); err == nil {
+		t.Fatal("unknown display backend must be rejected")
+	}
+	if runtime.GOOS == "darwin" {
+		if err := paramCheckDisplay(Conf{"display": "sdl"}); err == nil {
+			t.Fatal("darwin accepts only cocoa/none")
+		}
+		return
+	}
+	for _, d := range []string{"gtk", "none", "sdl", "spice", "spice-app", "vnc"} {
+		if err := paramCheckDisplay(Conf{"display": d}); err != nil {
+			t.Fatalf("%s must be accepted: %v", d, err)
+		}
+	}
+}
+
+func TestGLSLDefault(t *testing.T) {
+	if glslGL("OpenGL ES GLSL version: 1.00\n") != "off" {
+		t.Fatal("GLSL 1.x must disable gl")
+	}
+	if glslGL("OpenGL ES GLSL version: 2.10\n") != "off" {
+		t.Fatal("GLSL 2.x must disable gl")
+	}
+	if glslGL("OpenGL ES GLSL version: 3.20\n") != "on" {
+		t.Fatal("GLSL 3.x keeps gl")
+	}
+	if glslGL("no glsl line\n") != "on" {
+		t.Fatal("missing GLSL line keeps gl")
+	}
+}
+
+func TestBrailleArgs(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("braille arg emission is linux-only")
+	}
+	defer func(f func(string, ...string) *exec.Cmd) { execCommand = f }(execCommand)
+	execCommand = func(name string, a ...string) *exec.Cmd {
+		return exec.Command("echo", "stdio\nbraille\npty")
+	}
+	a := brailleArgs(Conf{"braille": "on"}, "x86_64")
+	if !has(a, "-usbdevice") || !has(a, "braille") {
+		t.Fatalf("braille probe positive must emit -usbdevice braille: %v", a)
+	}
+	execCommand = func(name string, a ...string) *exec.Cmd {
+		return exec.Command("echo", "stdio\npty")
+	}
+	if a := brailleArgs(Conf{"braille": "on"}, "x86_64"); a != nil {
+		t.Fatalf("missing braille backend must not emit the device: %v", a)
+	}
+	if brailleArgs(Conf{}, "x86_64") != nil {
+		t.Fatal("braille unset must emit nothing")
+	}
+}
+
+func TestSDLClickthroughEnv(t *testing.T) {
+	os.Unsetenv("SDL_MOUSE_FOCUS_CLICKTHROUGH")
+	displayArgs(Conf{"display": "sdl"}, t.TempDir(), "linux", "x86_64")
+	if os.Getenv("SDL_MOUSE_FOCUS_CLICKTHROUGH") != "1" {
+		t.Fatal("sdl display must export SDL_MOUSE_FOCUS_CLICKTHROUGH=1")
 	}
 }

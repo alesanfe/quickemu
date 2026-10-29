@@ -87,6 +87,12 @@ func main() {
 	conf := applyPresets(parseConf(os.Args[1]))
 	conf["_vmdir"] = vmDir(conf, os.Args[1])
 	conf["_vmname"] = strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
+	// display_param_check (commands.sh): braille->sdl+xhci, platform
+	// display whitelist, glxinfo gl default — before any arg assembly.
+	if err := paramCheckDisplay(conf); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	// The name goes verbatim into -name (whose parser splits on ','
 	// with no escape) — a comma-bearing conf name cannot be launched
 	// correctly, so fail here rather than boot under a mangled name.
@@ -211,6 +217,7 @@ func main() {
 		args = append(args, strings.Fields(t.Balloon)...)
 	}
 	args = append(args, inputArgs(conf, t)...)
+	args = append(args, brailleArgs(conf, arch)...)
 	args = append(args, usbArgs(conf, t)...)
 	args = append(args, storageArgs(conf, dir, t)...)
 	args = append(args, displayArgs(conf, dir, osName, arch)...)
