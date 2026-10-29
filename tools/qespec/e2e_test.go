@@ -505,5 +505,3 @@ func TestGoCLIBootCycle(t *testing.T) {
 		return !PidAlive(pid)
 	}, "VM did not stop")
 }
-
-var _ = fmt.Sprint

@@ -3,7 +3,6 @@ package qespec
 import (
 	"archive/tar"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -146,5 +145,3 @@ func TestQuickgetCLIDispatch(t *testing.T) {
 		r.Contains(t, "edition")
 	}
 }
-
-var _ = fmt.Sprint

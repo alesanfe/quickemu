@@ -191,14 +191,18 @@ func TestPluginsAndSnapshotDispatch(t *testing.T) {
 	}
 	outFmt = old
 
-	// Snapshot dispatch: vmOp shells to quickemu-vm — absent → nonzero,
-	// but every case must be exercised. Unknown action → rc 1.
-	for _, act := range []string{"tree", "verify", "info", "bogus"} {
+	// Snapshot dispatch: valid actions shell to quickemu-vm — absent
+	// here, so they must fail nonzero; an unknown action is rejected
+	// by the CLI itself with rc 1.
+	for _, act := range []string{"tree", "verify", "info"} {
 		snapshotAct = act
-		if act == "bogus" && actSnapshotCmd() != 1 {
-			t.Fatalf("snapshot bogus")
+		if rc := actSnapshotCmd(); rc == 0 {
+			t.Fatalf("snapshot %s rc=0 with no quickemu-vm backend", act)
 		}
-		_ = actSnapshotCmd()
+	}
+	snapshotAct = "bogus"
+	if rc := actSnapshotCmd(); rc != 1 {
+		t.Fatalf("snapshot bogus rc=%d want 1", rc)
 	}
 	snapshotAct = ""
 }
