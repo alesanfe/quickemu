@@ -122,16 +122,36 @@ func procComm(pid int) string {
 // to this VM (comm matches the vm name, its 15-char truncation or
 // qemu*). When comm is unreadable (macOS, other users' procs) liveness
 // alone decides — same as the Bash legacy path.
+// procCmdline: /proc/<pid>/cmdline, NUL-separated argv joined with
+// spaces; "" when the kernel hides it (non-linux, foreign owner) or
+// for kernel threads.
+func procCmdline(pid int) string {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+	if err != nil {
+		return ""
+	}
+	return strings.ReplaceAll(strings.TrimRight(string(b), "\x00"), "\x00", " ")
+}
+
 func vmPidAlive() bool {
 	pid := readPID()
 	if !alive(pid) {
 		return false
 	}
+	name := vmname()
+	// Hard ownership proof first: a quickemu qemu always carries this
+	// VM's disk dir in its drive args and the -name process=<vm> token.
+	// A recycled pid running anything else is foreign — comm matching
+	// "qemu*" alone would let stop --force SIGKILL another VM.
+	if cl := procCmdline(pid); cl != "" {
+		return strings.Contains(cl, vmdir()+string(filepath.Separator)) ||
+			strings.Contains(cl, "process="+name+",") ||
+			strings.HasSuffix(cl, "process="+name)
+	}
 	comm := procComm(pid)
 	if comm == "" {
 		return true
 	}
-	name := vmname()
 	short := name
 	if len(short) > 15 {
 		short = short[:15]

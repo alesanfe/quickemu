@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -414,5 +415,52 @@ func TestDoctorGlobMetaName(t *testing.T) {
 	}
 	if _, err := os.Stat(flk); err != nil {
 		t.Fatal("doctor removed a foreign lock")
+	}
+}
+
+// A pidfile whose pid was recycled by an unrelated qemu-looking
+// process must not count as this VM: the comm check accepts any
+// "qemu*" name, so a stale pid + pid reuse would make `stop --force`
+// SIGKILL another VM (or any foreign qemu). Ownership needs a harder
+// proof than comm.
+func TestVMIdentityRejectsRecycledQemuPid(t *testing.T) {
+	parent := t.TempDir()
+	vd := filepath.Join(parent, "state")
+	os.MkdirAll(vd, 0o755)
+	old := vmConf
+	vmConf = filepath.Join(parent, "vm.conf")
+	os.WriteFile(vmConf, []byte("disk_img=\""+filepath.Join(vd, "d.qcow2")+"\"\n"), 0o644)
+	t.Cleanup(func() { vmConf = old })
+
+	sleep, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("no sleep binary")
+	}
+	fake := filepath.Join(parent, "qemu-system-x86_64")
+	b, err := os.ReadFile(sleep)
+	if err != nil {
+		t.Skip("read sleep: " + err.Error())
+	}
+	if err := os.WriteFile(fake, b, 0o755); err != nil {
+		t.Skip("write fake qemu: " + err.Error())
+	}
+	cmd := exec.Command(fake, "30")
+	if err := cmd.Start(); err != nil {
+		t.Skip("spawn fake qemu: " + err.Error())
+	}
+	defer cmd.Process.Kill()
+	deadline := time.Now().Add(2 * time.Second)
+	for procComm(cmd.Process.Pid) == "" && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !strings.HasPrefix(procComm(cmd.Process.Pid), "qemu") {
+		t.Skipf("fake qemu comm %q did not take", procComm(cmd.Process.Pid))
+	}
+	os.WriteFile(filepath.Join(vd, "vm.pid"),
+		[]byte(strconv.Itoa(cmd.Process.Pid)), 0o644)
+
+	if vmPidAlive() {
+		t.Fatal("recycled qemu-looking pid accepted as this VM — " +
+			"stop --force would SIGKILL a foreign process")
 	}
 }
