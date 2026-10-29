@@ -74,10 +74,12 @@ func startViewer(get func(string) string) {
 		args = append(args, strings.Fields(vea)...)
 	}
 	cmd := execCommand(bin, args...)
-	// detached — viewer outlives the CLI process; a spawn failure
-	// must not be silent (the VM still runs, just headless).
+	// start_viewer echo (stdout) then detached spawn — the viewer
+	// outlives the CLI; a spawn failure must not be silent (the VM
+	// still runs, just headless).
+	fmt.Printf(" - Viewer:   %s %s >/dev/null 2>&1 &\n", viewer, strings.Join(args, " "))
 	if err := cmd.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "WARNING! could not start %s: %v\n", viewer, err)
+		fmt.Fprintf(os.Stderr, "WARNING! Could not start viewer (%s) Err: %v\n", viewer, err)
 	}
 }
 

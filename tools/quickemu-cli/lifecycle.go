@@ -210,26 +210,99 @@ func runtimeCleanup() {
 	qeEvent("vm.stopped", "")
 }
 
-func actPause() int {
-	out, err := qmp("stop")
-	if err == nil {
-		if werr := os.WriteFile(filepath.Join(vmdir(), vmname()+".paused"), nil, 0644); werr != nil {
-			fmt.Fprintf(os.Stderr, "WARNING: paused but marker write failed: %v\n", werr)
-		}
-		fmt.Println(" - " + vmname() + " paused.")
+// monitorReady: a live monitor channel exists (QMP or HMP socket) —
+// the vm_qmp_socket_ready || vm_monitor_socket_ready disjunction.
+func monitorReady() bool {
+	if _, err := os.Stat(qmpSock()); err == nil {
+		return true
 	}
-	fmt.Print(out)
-	return rc(err)
+	_, err := os.Stat(filepath.Join(vmdir(), vmname()+"-monitor.socket"))
+	return err == nil
+}
+
+// monitorControl: vm_control parity — QMP execute first, HMP
+// human-monitor-command as the fallback path.
+func monitorControl(cmd string) bool {
+	if _, err := qmp(cmd); err == nil {
+		return true
+	}
+	_, err := hmp(cmd)
+	return err == nil
+}
+
+func actPause() int {
+	if !vmRunning() {
+		fmt.Println(" - " + vmname() + " is not running.")
+		return 1
+	}
+	conf := confKV()
+	if conf["monitor"] != "none" && monitorReady() {
+		if !monitorControl("stop") {
+			return 1
+		}
+	} else if err := syscall.Kill(readPID(), syscall.SIGSTOP); err != nil {
+		return 1
+	}
+	if werr := os.WriteFile(filepath.Join(vmdir(), vmname()+".paused"), nil, 0644); werr != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: paused but marker write failed: %v\n", werr)
+	}
+	qeEvent("vm.paused", "")
+	fmt.Printf(" - %s (%d) paused.\n", vmname(), readPID())
+	return 0
 }
 
 func actResume() int {
-	out, err := qmp("cont")
-	if err == nil {
-		os.Remove(filepath.Join(vmdir(), vmname()+".paused"))
-		fmt.Println(" - " + vmname() + " resumed.")
+	if !vmRunning() {
+		fmt.Println(" - " + vmname() + " is not running.")
+		return 1
 	}
-	fmt.Print(out)
-	return rc(err)
+	conf := confKV()
+	if conf["monitor"] != "none" && monitorReady() {
+		if !monitorControl("cont") {
+			return 1
+		}
+		qeEvent("vm.resumed", "")
+	} else if err := syscall.Kill(readPID(), syscall.SIGCONT); err != nil {
+		return 1
+	}
+	os.Remove(filepath.Join(vmdir(), vmname()+".paused"))
+	fmt.Printf(" - %s (%d) resumed.\n", vmname(), readPID())
+	return 0
+}
+
+// actShutdown: shutdown_vm — graceful ACPI system_powerdown over the
+// monitor; errors when the VM has no monitor channel (--kill forces).
+func actShutdown() int {
+	if !vmRunning() {
+		fmt.Println(" - " + vmname() + " is not running.")
+		return 1
+	}
+	conf := confKV()
+	if conf["monitor"] == "none" || !monitorReady() {
+		fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
+		return 1
+	}
+	monitorSendBest("system_powerdown")
+	qeEvent("vm.shutdown-requested", "")
+	fmt.Printf(" - %s (%d) shutdown requested.\n", vmname(), readPID())
+	return 0
+}
+
+// actReset: reset_vm — immediate system_reset over the monitor.
+func actReset() int {
+	if !vmRunning() {
+		fmt.Println(" - " + vmname() + " is not running.")
+		return 1
+	}
+	conf := confKV()
+	if conf["monitor"] == "none" || !monitorReady() {
+		fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
+		return 1
+	}
+	monitorSendBest("system_reset")
+	qeEvent("vm.reset-requested", "")
+	fmt.Printf(" - %s (%d) reset requested.\n", vmname(), readPID())
+	return 0
 }
 
 // vmOp runs `quickemu-vm <sub> <rest...>`; args are produced lazily at
@@ -326,6 +399,10 @@ func actLaunch() int {
 		return 1
 	}
 	inventoryTouch("running")
+	// qemu_spawn emits vm.started once the QEMU pid is published.
+	if p := readPID(); p > 0 {
+		qeEvent("vm.started", fmt.Sprintf(`{"pid":%d}`, p))
+	}
 	startViewer(get)
 	// Auto-skip the press-any-key prompt on uninstalled Windows guests.
 	if get("iso") != "" && strings.HasPrefix(get("guest_os"), "windows") {

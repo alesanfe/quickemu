@@ -148,7 +148,6 @@ func qmpOp(cmd, okMsg func() string) func() int {
 }
 
 func dispatch(act string) func() int {
-	msg := func(s string) func() string { return func() string { return s } }
 	switch act {
 	case "status_vm":
 		return actStatus
@@ -159,15 +158,9 @@ func dispatch(act string) func() int {
 	case "resume_vm":
 		return actResume
 	case "shutdown_vm":
-		return qmpOp(msg("system_powerdown"), func() string { return " - " + vmname() + " shutting down." })
+		return actShutdown
 	case "reset_vm":
-		// system_reset is not on the QMP allowlist — Bash sends it over
-		// the HMP channel (human-monitor-command).
-		return func() int {
-			out, err := hmp("system_reset")
-			fmt.Print(out)
-			return rc(err)
-		}
+		return actReset
 	case "kill_vm":
 		return func() int { return actStop(true) }
 	case "stop_vm":
