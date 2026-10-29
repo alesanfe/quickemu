@@ -278,6 +278,23 @@ func x86FirmwarePairs(secureboot bool) [][2]string {
 	}
 }
 
+// a64MonolithicEDK2: the EFI_MODE=bios decision — aarch64 Windows
+// guests without SecureBoot take Fedora's monolithic EDK2 via -bios
+// when it is installed; anything else is a persistent pflash pair.
+func a64MonolithicEDK2(c Conf, osName string) string {
+	if osName != "windows" || confOn(c, "secureboot") {
+		return ""
+	}
+	for _, dir := range firmwareDirs() {
+		for _, n := range []string{"edk2/aarch64/QEMU_EFI.fd", "QEMU_EFI.fd"} {
+			if st, err := os.Stat(filepath.Join(dir, n)); err == nil && !st.IsDir() {
+				return filepath.Join(dir, n)
+			}
+		}
+	}
+	return ""
+}
+
 // aarch64FirmwarePairs: AAVMF/edk2 pflash pairs for ARM64 guests.
 func aarch64FirmwarePairs() [][2]string {
 	return [][2]string{
@@ -397,12 +414,21 @@ func paramCheckFirmware(c Conf, arch string) error {
 	return nil
 }
 
+// resolvedBoot: the conf `boot` value with the upstream "efi" default —
+// vm_boot lowercases it, and configure_bios forces macos to efi before
+// the *efi* glob decides the branch.
+func resolvedBoot(c Conf, osName string) string {
+	if osName == "macos" {
+		return "efi"
+	}
+	return strings.ToLower(c.get("boot", "efi"))
+}
+
 func biosArgs(c Conf, osName, arch string) []string {
 	var a []string
 	vmdir := c["_vmdir"]
 	mac := osName == "macos"
-	efi := confOn(c, "efi") || strings.Contains(c.get("boot", ""), "efi") ||
-		osName == "windows" || mac
+	efi := strings.Contains(resolvedBoot(c, osName), "efi")
 	if !efi {
 		fmt.Printf(" - BOOT:     Legacy BIOS (%s)\n", title(osName))
 		return a
@@ -410,12 +436,10 @@ func biosArgs(c Conf, osName, arch string) []string {
 	if arch == "aarch64" {
 		// Fedora's monolithic EDK2 for Windows ARM64 — loaded via -bios,
 		// no persistent pflash store (configure_bios EFI_MODE=bios).
-		if osName == "windows" && !confOn(c, "secureboot") {
-			if f := firmwareFile("edk2/aarch64/QEMU_EFI.fd", "QEMU_EFI.fd"); f != "" {
-				fmt.Printf(" - BOOT:     EFI (%s), firmware (%s), mode (-bios), SecureBoot (off).\n",
-					title(osName), f)
-				return []string{"-bios", f}
-			}
+		if f := a64MonolithicEDK2(c, osName); f != "" {
+			fmt.Printf(" - BOOT:     EFI (%s), firmware (%s), mode (-bios), SecureBoot (off).\n",
+				title(osName), f)
+			return []string{"-bios", f}
 		}
 		code, tmpl := firmwarePair(aarch64FirmwarePairs())
 		vars := seedEFIVars(c, tmpl)
@@ -799,8 +823,25 @@ func title(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// hostCPUVendor: vendor_id from cpuinfo (GenuineIntel|AuthenticAMD|HygonGenuine).
+// hostCPUVendor: vendor_id from cpuinfo (GenuineIntel|AuthenticAMD|
+// HygonGenuine). Darwin resolves it via sysctl like get_cpu_info —
+// machdep.cpu.vendor on Intel, brand_string's first word on arm64.
 func hostCPUVendor() string {
+	if runtime.GOOS == "darwin" {
+		if runtime.GOARCH == "arm64" {
+			if out, err := execCommand("sysctl", "-n", "machdep.cpu.brand_string").Output(); err == nil {
+				if f := strings.Fields(strings.TrimSpace(string(out))); len(f) > 0 {
+					return f[0]
+				}
+			}
+			return ""
+		}
+		out, err := execCommand("sysctl", "-n", "machdep.cpu.vendor").Output()
+		if err != nil {
+			return ""
+		}
+		return strings.ReplaceAll(strings.TrimSpace(string(out)), " ", "")
+	}
 	b, err := os.ReadFile("/proc/cpuinfo")
 	if err != nil {
 		return ""

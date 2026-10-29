@@ -96,22 +96,25 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 	}
 
 	// machine type: pc for the legacy guests, q35 otherwise.
-	// configure_bios also forces pc whenever boot="legacy" — the
-	// i440fx/PIIX3 chipset is what SeaBIOS-era guests expect.
+	// configure_bios's else branch forces pc for ANY non-efi boot —
+	// i440fx/PIIX3 is what SeaBIOS-era guests expect.
 	switch {
 	case osName == "batocera" || osName == "freedos" || osName == "haiku" || osName == "solaris",
-		strings.Contains(c.get("boot", ""), "legacy"):
+		osName == "kolibrios" || osName == "reactos",
+		!strings.Contains(resolvedBoot(c, osName), "efi"):
 		t.MachineType = "pc"
 	}
 
-	// SMM on for freedos/windows/windows-server (Linux host) and
-	// linux+secureboot — configure_cpu.
-	switch osName {
-	case "freedos", "windows", "windows-server":
-		t.SMM = "on"
-	case "linux":
-		if confOn(c, "secureboot") {
+	// SMM on for freedos/windows/windows-server and linux+secureboot —
+	// Linux hosts only; SMM is unavailable in Homebrew QEMU (Darwin).
+	if runtime.GOOS == "linux" {
+		switch osName {
+		case "freedos", "windows", "windows-server":
 			t.SMM = "on"
+		case "linux":
+			if confOn(c, "secureboot") {
+				t.SMM = "on"
+			}
 		}
 	}
 

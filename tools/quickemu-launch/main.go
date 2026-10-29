@@ -171,8 +171,12 @@ func main() {
 	// inside -machine (the two args+= paths in vm.sh). User QEMU_ACCEL
 	// override wins for native guests; cross-arch and qemu/virtualbox
 	// hypervisors force tcg.
+	// USER_QEMU_ACCEL is honoured on the non-Darwin branch only —
+	// configure_cpu forces hvf on macOS hosts regardless.
 	accel := "kvm"
-	if u := conf.get("qemu_accel", os.Getenv("QEMU_ACCEL")); u != "" {
+	if runtime.GOOS == "darwin" {
+		accel = "hvf"
+	} else if u := conf.get("qemu_accel", os.Getenv("QEMU_ACCEL")); u != "" {
 		accel = u
 	}
 	hypervisor := hostHypervisor()
@@ -193,9 +197,7 @@ func main() {
 	// and fail inside QEMU. Fall back to TCG with a visible warning.
 	switch {
 	case accel != "kvm":
-		// user override or already downgraded — keep.
-	case runtime.GOOS == "darwin":
-		accel = "hvf"
+		// user override, hvf, or already downgraded — keep.
 	case !hasKVM():
 		accel = "tcg"
 		if qelib.IsWSL() {
@@ -231,12 +233,8 @@ func main() {
 		// ARM64 pflash firmware exposes code/vars as named blockdev
 		// nodes on the virt machine (vm_boot MACHINE_TYPE suffix) —
 		// only when EFI_MODE stayed pflash, i.e. not the -bios path.
-		efiPflash := strings.Contains(conf.get("boot", ""), "efi")
-		if efiPflash && osName == "windows" && !confOn(conf, "secureboot") &&
-			firmwareFile("edk2/aarch64/QEMU_EFI.fd", "QEMU_EFI.fd") != "" {
-			efiPflash = false
-		}
-		if efiPflash {
+		if strings.Contains(resolvedBoot(conf, osName), "efi") &&
+			a64MonolithicEDK2(conf, osName) == "" {
 			machine += ",pflash0=rom,pflash1=efivars"
 		}
 	}
@@ -423,26 +421,25 @@ func main() {
 		// Hardware-virtualisation gate (configure_cpu): only enforced on
 		// a real launch — argv printing is the --dry-run equivalent and
 		// must not hard-fail on hosts without VT-x/SVM.
-		if hypervisor == "" && accel != "tcg" && arch == hostArch() && runtime.GOOS == "linux" {
+		if hypervisor == "" && accel != "tcg" && arch == hostArch() &&
+			(runtime.GOOS == "linux" || runtime.GOOS == "darwin") {
 			switch hostCPUVendor() {
 			case "GenuineIntel":
 				if !hostHasFlag("vmx") {
-					fmt.Fprintln(os.Stderr, "ERROR! Intel VT-x support is required.")
-					fmt.Fprintln(os.Stderr, "         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
+					fmt.Println("ERROR! Intel VT-x support is required.")
 					os.Exit(1)
 				}
 			case "AuthenticAMD", "HygonGenuine":
 				if !hostHasFlag("svm") {
-					fmt.Fprintln(os.Stderr, "ERROR! AMD SVM support is required.")
-					fmt.Fprintln(os.Stderr, "         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
+					fmt.Println("ERROR! AMD SVM support is required.")
 					os.Exit(1)
 				}
 			default:
 				// ARM hosts have no x86 virt flags (handled by the
 				// hypervisor); anything else gets the Bash warning.
-				if arch != "aarch64" && hostArch() != "aarch64" {
-					fmt.Fprintf(os.Stderr, "WARNING! Unknown CPU vendor '%s' - cannot verify virtualisation support.\n", hostCPUVendor())
-					fmt.Fprintln(os.Stderr, "         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
+				if hostArch() != "aarch64" {
+					fmt.Printf("WARNING! Unknown CPU vendor '%s' - cannot verify virtualisation support.\n", hostCPUVendor())
+					fmt.Println("         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
 				}
 			}
 		}

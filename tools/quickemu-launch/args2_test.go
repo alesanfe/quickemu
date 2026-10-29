@@ -641,6 +641,34 @@ func TestBootLegacyMachinePC(t *testing.T) {
 	if osQuirks(Conf{"boot": "efi"}, "linux", "x86_64").MachineType != "q35" {
 		t.Fatal("efi boot must keep q35")
 	}
+	// configure_cpu: kolibrios/reactos also get MACHINE_TYPE=pc.
+	for _, g := range []string{"kolibrios", "reactos"} {
+		if mt := osQuirks(Conf{"guest_os": g}, g, "x86_64").MachineType; mt != "pc" {
+			t.Fatalf("%s must use machine type pc, got %s", g, mt)
+		}
+	}
+}
+
+// a64MonolithicEDK2: EFI_MODE=bios probe — only resolves when the
+// Fedora monolithic EDK2 blob exists under a firmware root.
+func TestA64MonolithicEDK2(t *testing.T) {
+	fw := t.TempDir()
+	t.Setenv("QE_FIRMWARE_DIR", fw)
+	c := Conf{"guest_os": "windows"}
+	if got := a64MonolithicEDK2(c, "windows"); got != "" {
+		t.Fatalf("absent EDK2 must not resolve -bios mode: %s", got)
+	}
+	os.MkdirAll(filepath.Join(fw, "edk2", "aarch64"), 0o755)
+	os.WriteFile(filepath.Join(fw, "edk2", "aarch64", "QEMU_EFI.fd"), []byte("x"), 0o644)
+	if got := a64MonolithicEDK2(c, "windows"); got == "" {
+		t.Fatal("present EDK2 must resolve -bios mode")
+	}
+	if got := a64MonolithicEDK2(Conf{"guest_os": "windows", "secureboot": "on"}, "windows"); got != "" {
+		t.Fatalf("secureboot must stay pflash: %s", got)
+	}
+	if got := a64MonolithicEDK2(Conf{"guest_os": "linux"}, "linux"); got != "" {
+		t.Fatalf("non-windows must stay pflash: %s", got)
+	}
 }
 
 // configure_cpu parity: win11 needs >=2 cores, macOS rounds down to a
@@ -1087,7 +1115,9 @@ func TestAarch64MachineEmit(t *testing.T) {
 	if strings.Contains(out, "smm=") || strings.Contains(out, "vmport") {
 		t.Fatalf("aarch64 must not emit x86-only machine opts: %s", out)
 	}
-	c2 := richConf(t, "arch=\"aarch64\"\nnetwork=\"none\"\ndisplay=\"none\"\nspice_port=\"5931\"\n")
+	// boot unset resolves to the upstream "efi" default; only an
+	// explicit legacy boot takes the non-EFI branch.
+	c2 := richConf(t, "arch=\"aarch64\"\nboot=\"legacy\"\nnetwork=\"none\"\ndisplay=\"none\"\nspice_port=\"5931\"\n")
 	out, rc = launch(t, nil, c2, "--dry-run")
 	if rc != 0 {
 		t.Fatalf("rc=%d %s", rc, out)
