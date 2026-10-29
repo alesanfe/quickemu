@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
@@ -495,13 +496,49 @@ func fetchOnce(url, part, wantSHA string) int {
 		fmt.Println(err)
 		return 1
 	}
-	if _, err := io.Copy(f, resp.Body); err != nil {
+	// curl --speed-limit 1024 --speed-time 60 parity: if the body
+	// stalls for 60s the connection is dropped — io.Copy returns an
+	// error and the outer retry resumes from the .part.
+	var lastRead atomic.Int64
+	lastRead.Store(time.Now().UnixNano())
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-time.After(5 * time.Second):
+				if time.Since(time.Unix(0, lastRead.Load())) > 60*time.Second {
+					resp.Body.Close()
+					return
+				}
+			}
+		}
+	}()
+	_, err = io.Copy(f, &stallWatchReader{r: resp.Body, last: &lastRead})
+	close(done)
+	if err != nil {
 		f.Close()
 		fmt.Println(err)
 		return 1
 	}
 	f.Close()
 	return fetchVerify(part, wantSHA)
+}
+
+// stallWatchReader pings lastRead on every chunk so the watchdog in
+// fetchOnce can drop a stalled connection.
+type stallWatchReader struct {
+	r    io.Reader
+	last *atomic.Int64
+}
+
+func (s *stallWatchReader) Read(b []byte) (int, error) {
+	n, err := s.r.Read(b)
+	if n > 0 {
+		s.last.Store(time.Now().UnixNano())
+	}
+	return n, err
 }
 
 // fetchVerify: sha256-check the staged .part (streaming — multi-GB

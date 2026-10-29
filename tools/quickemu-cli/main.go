@@ -416,7 +416,17 @@ func main() {
 		case "--vm":
 			vmConf = val()
 		case "--format":
-			outFmt = val()
+			// Bash parity: --format must be human|json ("text" tolerated
+			// as the Go spelling of human).
+			f := val()
+			if f != "json" && f != "human" && f != "text" {
+				fmt.Fprintln(os.Stderr, "ERROR! '--format' must be 'human' or 'json'.")
+				os.Exit(1)
+			}
+			if f == "human" {
+				f = "text"
+			}
+			outFmt = f
 		case "--dry-run", "--echo":
 			dryRunFlag = true
 		case "--status":
@@ -483,10 +493,20 @@ func main() {
 			actions = append(actions, "snapshot_verify")
 		case "--snapshot":
 			snapshotAct = val()
+			// Bash options.sh parity: the flag requires an action, and
+			// every action except info|list|tree|verify requires a tag.
+			if snapshotAct == "" {
+				fmt.Fprintln(os.Stderr, "ERROR! '--snapshot' needs an action to perform.")
+				os.Exit(1)
+			}
 			switch snapshotAct {
 			case "info", "list", "tree", "verify":
 			default:
 				snapshotTag = val()
+				if snapshotTag == "" {
+					fmt.Fprintf(os.Stderr, "ERROR! '--snapshot %s' needs a tag.\n", snapshotAct)
+					os.Exit(1)
+				}
 			}
 			actions = append(actions, "snapshot_cmd")
 		case "--external":

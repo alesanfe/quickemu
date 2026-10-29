@@ -11,7 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func newTestServer(payload []byte) *httptest.Server {
@@ -136,5 +138,26 @@ func TestMainSubcommands(t *testing.T) {
 				t.Fatalf("rc=%d want %d out=%s", rc, c.rc, out)
 			}
 		})
+	}
+}
+
+func TestStallWatchReader(t *testing.T) {
+	var last atomic.Int64
+	last.Store(1) // epoch — stale
+	src := &stallWatchReader{r: strings.NewReader("payload"), last: &last}
+	buf := make([]byte, 16)
+	n, err := src.Read(buf)
+	if n <= 0 || err != nil {
+		t.Fatalf("read n=%d err=%v", n, err)
+	}
+	if time.Since(time.Unix(0, last.Load())) > time.Second {
+		t.Fatal("reader must ping lastRead on every chunk")
+	}
+	// EOF must not refresh the timestamp (a closed-but-not-stalled
+	// body would keep the watchdog quiet).
+	last.Store(1)
+	src.Read(buf)
+	if last.Load() != 1 {
+		t.Fatal("EOF/0-byte read must not refresh the stall timer")
 	}
 }
