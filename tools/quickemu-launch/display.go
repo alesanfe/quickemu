@@ -576,7 +576,7 @@ func fileshareArgs(c Conf, dir string) []string {
 	// virtiofs preferred over 9p (vm_boot_fileshare): _virtiofsd is set
 	// in main when the guest is linux, no ISO is attached, and the
 	// daemon is running (--run) or merely resolvable (plan mode).
-	if c["_virtiofsd"] == "1" {
+	if c["_virtiofsd"] == "1" && qemuHasVhostFS(c) {
 		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".virtiofsd-sock"
 		return []string{
 			"-object", "memory-backend-file,id=mem,size=" + qemuOptEsc(c.get("ram", "4G")) + ",mem-path=/dev/shm,share=on",
@@ -585,8 +585,26 @@ func fileshareArgs(c Conf, dir string) []string {
 			"-device", "vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=" + qemuOptEsc(tag),
 		}
 	}
+	if c["_virtiofsd"] == "1" {
+		// QEMU lacks the device — warn, stop the daemon, fall to 9p.
+		fmt.Printf(" - WARNING! QEMU does not support vhost-user-fs-pci; falling back to 9p.\n")
+		stopDaemon(c["_vmdir"], c["_vmname"], "virtiofsd")
+		c["_virtiofsd"] = ""
+	}
 	return []string{
 		"-fsdev", "local,id=fsdev0,path=" + qemuOptEsc(pub) + ",security_model=mapped-xattr",
 		"-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=" + qemuOptEsc(tag),
 	}
+}
+
+// qemuHasVhostFS: vm_boot_fileshare parity — probe `qemu -device help`
+// for the quoted device name; an unresolvable binary keeps the
+// virtiofs decision (QEMU will report its own error at spawn).
+func qemuHasVhostFS(c Conf) bool {
+	qemu, err := exec.LookPath("qemu-system-" + c.get("arch", "x86_64"))
+	if err != nil {
+		return true
+	}
+	out, _ := execCommand(qemu, "-device", "help").CombinedOutput()
+	return strings.Contains(string(out), `"vhost-user-fs-pci"`)
 }

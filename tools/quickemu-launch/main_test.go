@@ -63,15 +63,25 @@ efi="true"
 	return conf
 }
 
+// noLsusbEnv: the usb_devices lsusb gate depends on the host's USB
+// tree — stub lsusb to resolve nothing so the declared device is
+// dropped deterministically (Bash prints the same "!" warnings).
+func noLsusbEnv(t *testing.T) []string {
+	t.Helper()
+	stub := t.TempDir()
+	os.WriteFile(filepath.Join(stub, "lsusb"), []byte("#!/bin/sh\nexit 0\n"), 0o755)
+	return []string{"PATH=" + stub + string(os.PathListSeparator) + os.Getenv("PATH")}
+}
+
 func TestDryRunArgAssembly(t *testing.T) {
 	conf := richConf(t, "")
-	out, rc := launch(t, nil, conf, "--dry-run")
+	out, rc := launch(t, noLsusbEnv(t), conf, "--dry-run")
 	if rc != 0 {
 		t.Fatalf("dry-run rc=%d out=%s", rc, out)
 	}
 	for _, want := range []string{
 		"qemu-system-x86_64", "SystemDisk", "virtio-blk",
-		"hostpass", "8080-:80", "qemu-vdagent", "-serial",
+		"! USB device 046d:c52b", "8080-:80", "qemu-vdagent", "-serial",
 		"OVMF", "-pidfile", "virtio-balloon",
 	} {
 		if !strings.Contains(out, want) {
@@ -88,15 +98,14 @@ tpm="true"
 iso="win.iso"
 floppy="vfd.img"
 driver_iso="drv.iso"
-vfio="true"
-vfio_devices="0000:01:00.0"
+gpu_passthrough="0000:01:00.0"
 spice_port="5930"
 boot="efi"
 secureboot="true"
 `)
 	dir := filepath.Dir(conf)
 	os.WriteFile(filepath.Join(dir, "win.iso"), []byte("i"), 0o600)
-	out, rc := launch(t, nil, conf, "--dry-run")
+	out, rc := launch(t, noLsusbEnv(t), conf, "--dry-run")
 	if rc != 0 {
 		t.Fatalf("spice rc=%d out=%s", rc, out)
 	}

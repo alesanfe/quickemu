@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,11 +39,24 @@ func bootMediaArgs(c Conf, dir string) []string {
 
 func passthruArgs(c Conf) []string {
 	// usb_devices passthrough is emitted by usbArgs (hostpass stack).
+	// gpu_passthrough (vm_boot_passthru): space-separated PCI BDFs bound
+	// to vfio-pci; warn (never fatal) on missing IOMMU or wrong driver.
 	var a []string
-	if confOn(c, "vfio") {
-		for _, dev := range strings.Fields(c.get("vfio_devices", "")) {
-			a = append(a, "-device", "vfio-pci,host="+qemuOptEsc(dev))
+	gp := c.get("gpu_passthrough", "")
+	if gp == "" {
+		return a
+	}
+	if entries, err := os.ReadDir("/sys/kernel/iommu_groups"); err != nil || len(entries) == 0 {
+		fmt.Printf(" - WARNING! No IOMMU groups found. Enable IOMMU (intel_iommu=on / amd_iommu=on) for GPU passthrough.\n")
+	}
+	for _, dev := range strings.Fields(gp) {
+		if link, err := os.Readlink("/sys/bus/pci/devices/" + dev + "/driver"); err == nil {
+			if drv := filepath.Base(link); drv != "vfio-pci" {
+				fmt.Printf(" - WARNING! %s is bound to '%s', not vfio-pci.\n", dev, drv)
+			}
 		}
+		fmt.Printf(" - GPU:      Passthrough %s\n", dev)
+		a = append(a, "-device", "vfio-pci,host="+qemuOptEsc(dev))
 	}
 	return a
 }

@@ -78,7 +78,7 @@ func TestBootChannelPassthruArgs(t *testing.T) {
 	if !has(a, "if=floppy") || !has(a, "virtio-cdrom") {
 		t.Fatalf("floppy/driver %v", a)
 	}
-	a = passthruArgs(Conf{"vfio": "true", "vfio_devices": "0000:01:00.0 0000:01:00.1"})
+	a = passthruArgs(Conf{"gpu_passthrough": "0000:01:00.0 0000:01:00.1"})
 	if len(a) != 4 || !has(a, "host=0000:01:00.1") {
 		t.Fatalf("passthru %v", a)
 	}
@@ -700,6 +700,53 @@ func TestCPUPinningValidation(t *testing.T) {
 	c["_lcores"] = "4"
 	if err := paramCheckPinning(c); err == nil {
 		t.Fatal("count mismatch must error")
+	}
+}
+
+// vm_boot_fileshare: probe qemu -device help for "vhost-user-fs-pci";
+// a QEMU that lacks it falls back to 9p (daemon stopped, flag cleared).
+func TestFileshareVhostFSProbe(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub script needs a POSIX shell")
+	}
+	dir, pub, stub := t.TempDir(), t.TempDir(), t.TempDir()
+	mkq := func(line string) {
+		os.WriteFile(filepath.Join(stub, "qemu-system-x86_64"),
+			[]byte("#!/bin/sh\necho '"+line+"'\n"), 0o755)
+	}
+	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("USER", "qe")
+	mkq(`name "e1000", bus PCI`)
+	c := Conf{"_public": pub, "_virtiofsd": "1", "_vmdir": dir,
+		"_vmname": "vm", "guest_os": "linux"}
+	a := fileshareArgs(c, dir)
+	if !has(a, "virtio-9p-pci") || has(a, "vhost-user-fs-pci") {
+		t.Fatalf("unsupported QEMU must fall back to 9p: %v", a)
+	}
+	if c["_virtiofsd"] != "" {
+		t.Fatal("fallback must clear _virtiofsd")
+	}
+	mkq(`name "vhost-user-fs-pci", bus PCI`)
+	c["_virtiofsd"] = "1"
+	if a := fileshareArgs(c, dir); !has(a, "vhost-user-fs-pci") {
+		t.Fatalf("supported QEMU must emit virtiofs: %v", a)
+	}
+}
+
+// configure_usb_passthrough: a vid:pid lsusb cannot resolve is dropped
+// from the passthrough list (the accessible/permission paths need a
+// real /dev/bus/usb node, so they stay untestable here).
+func TestCheckUSBPassthrough(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("lsusb gate is linux-only")
+	}
+	stub := t.TempDir()
+	os.WriteFile(filepath.Join(stub, "lsusb"), []byte("#!/bin/sh\nexit 0\n"), 0o755)
+	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+	c := Conf{"usb_devices": "046d:c52b dead:beef"}
+	checkUSBPassthrough(c)
+	if c["usb_devices"] != "" {
+		t.Fatalf("unresolved devices must all be dropped: %q", c["usb_devices"])
 	}
 }
 

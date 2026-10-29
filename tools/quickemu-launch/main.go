@@ -157,6 +157,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	// configure_usb_passthrough: probe each declared vid:pid via lsusb —
+	// missing devices are dropped from the passthrough list; present but
+	// unwritable ones abort the launch (host udev rules required).
+	checkUSBPassthrough(conf)
 	machine := t.MachineType
 	if arch == "aarch64" {
 		machine = "virt"
@@ -279,6 +283,7 @@ func main() {
 	switch mon := conf.get("monitor", "socket"); mon {
 	case "none":
 		args = append(args, "-monitor", "none")
+		fmt.Printf(" - Monitor:  (off)\n")
 	case "telnet":
 		host := conf.get("monitor_telnet_host", "localhost")
 		portStr := conf.get("monitor_telnet_port", "4440")
@@ -288,7 +293,7 @@ func main() {
 		}
 		port := getPort(start, 9, os.Getpid(), vmname)
 		if port <= 0 {
-			fmt.Fprintf(os.Stderr, " - Monitor:  All Monitor-Telnet ports have been exhausted.\n")
+			fmt.Printf(" - Monitor:  All Monitor-Telnet ports have been exhausted.\n")
 		} else {
 			args = append(args, "-monitor",
 				fmt.Sprintf("telnet:%s:%d,server,nowait", qemuOptEsc(host), port))
@@ -302,8 +307,13 @@ func main() {
 		// Machine control channel (QMP) next to the HMP socket.
 		args = append(args, "-qmp",
 			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-qmp.socket")+",server,nowait")
+		if _, err := exec.LookPath("socat"); err == nil {
+			fmt.Printf(" - Monitor:  On host:  socat -,echo=0,icanon=0 unix-connect:%s\n", dotdir(vmdir)+vmname+"-monitor.socket")
+		} else if _, err := exec.LookPath("nc"); err == nil {
+			fmt.Printf(" - Monitor:  On host:  nc -U \"%s\"\n", dotdir(vmdir)+vmname+"-monitor.socket")
+		}
 	default:
-		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown monitor option.\n", mon)
+		fmt.Printf("ERROR! \"%s\" is an unknown monitor option.\n", mon)
 		os.Exit(1)
 	}
 	// serial: none for macos/windows default; socket otherwise.
@@ -328,7 +338,7 @@ func main() {
 		}
 		port := getPort(start, 9, os.Getpid(), vmname)
 		if port <= 0 {
-			fmt.Fprintf(os.Stderr, " - Serial:   All Serial Telnet ports have been exhausted.\n")
+			fmt.Printf(" - Serial:   All Serial Telnet ports have been exhausted.\n")
 		} else {
 			args = append(args, "-serial",
 				fmt.Sprintf("telnet:%s:%d,server,nowait", qemuOptEsc(host), port))
@@ -339,8 +349,13 @@ func main() {
 	case "socket":
 		args = append(args, "-serial",
 			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-serial.socket")+",server,nowait")
+		if _, err := exec.LookPath("socat"); err == nil {
+			fmt.Printf(" - Serial:   On host:  socat -,echo=0,icanon=0 unix-connect:%s\n", dotdir(vmdir)+vmname+"-serial.socket")
+		} else if _, err := exec.LookPath("nc"); err == nil {
+			fmt.Printf(" - Serial:   On host:  nc -U \"%s\"\n", dotdir(vmdir)+vmname+"-serial.socket")
+		}
 	default:
-		fmt.Fprintf(os.Stderr, "ERROR! \"%s\" is an unknown serial option.\n", ser)
+		fmt.Printf("ERROR! \"%s\" is an unknown serial option.\n", ser)
 		os.Exit(1)
 	}
 

@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -170,4 +172,54 @@ func usbArgs(c Conf, t OsTuning) []string {
 		a = append(a, "-device", "usb-host,bus=hostpass.0,vendorid=0x"+qemuOptEsc(vp[0])+",productid=0x"+qemuOptEsc(vp[1]))
 	}
 	return a
+}
+
+// checkUSBPassthrough: configure_usb_passthrough — probe each declared
+// vid:pid via lsusb. Devices that do not resolve are dropped from the
+// passthrough list (Bash `continue`s before appending them); a present
+// but unwritable /dev/bus/usb node aborts the launch so udev rules can
+// be fixed first.
+func checkUSBPassthrough(c Conf) {
+	devs := confList(c, "usb_devices")
+	if len(devs) == 0 || runtime.GOOS != "linux" {
+		return
+	}
+	var kept []string
+	notReady := false
+	for _, d := range devs {
+		if strings.Count(d, ":") != 1 {
+			continue
+		}
+		var out []byte
+		if bin, err := exec.LookPath("lsusb"); err == nil {
+			out, _ = execCommand(bin, "-d", d).Output()
+		}
+		// Bus 001 Device 002: ID 046d:c52b Logitech, Inc. Unifying Receiver
+		f := strings.Fields(string(out))
+		name, bus, dev := "", "", ""
+		if len(f) >= 6 {
+			bus = f[1]
+			dev = strings.TrimSuffix(f[3], ":")
+			name = strings.Join(f[6:], " ")
+		}
+		if name == "" {
+			fmt.Printf("             ! USB device %s not found. Check your configuration\n", d)
+			continue
+		}
+		devPath := "/dev/bus/usb/" + bus + "/" + dev
+		if fh, err := os.OpenFile(devPath, os.O_WRONLY, 0); err == nil {
+			fh.Close()
+			fmt.Printf("             o %s on bus %s device %s is accessible.\n", name, bus, dev)
+		} else {
+			fmt.Printf("             x %s on bus %s device %s needs permission changes:\n", name, bus, dev)
+			fmt.Printf("               sudo chown -v %s:root %s\n", os.Getenv("USER"), devPath)
+			notReady = true
+		}
+		kept = append(kept, d)
+	}
+	if notReady {
+		fmt.Printf("               ERROR! USB permission changes are required 👆\n")
+		os.Exit(1)
+	}
+	c["usb_devices"] = strings.Join(kept, " ")
 }
