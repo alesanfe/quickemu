@@ -228,9 +228,9 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "grommunio"):
 		return shaX + "\n", nil
 	case strings.Contains(url, "turnkeylinux") && strings.Contains(url, ".hash"):
-		return shaX + "  turnkey-core-18.1-bookworm-amd64.iso\n", nil
+		return shaX + "  turnkey-core-19.0-trixie-amd64.iso\n", nil
 	case strings.Contains(url, "turnkeylinux"):
-		return `<a href="turnkey-core-18.1-bookworm-amd64.iso">x</a><a href="turnkey-core-19.0-trixie-amd64.iso">w</a><a href="turnkey-lamp-19.0-trixie-amd64.iso">y</a><a href="turnkey-nextcloud-19.0-trixie-amd64.iso">z</a>`, nil
+		return `<a href="turnkey-core-18.1-bookworm-amd64.iso">x</a><a href="turnkey-core-19.0-trixie-amd64.iso">w</a><a href="turnkey-lamp-19.0-trixie-amd64.iso">y</a><a href="turnkey-nextcloud-19.0-trixie-amd64.iso">z</a><a href="turnkey-wordpress-19.0-trixie-amd64.iso">v</a>`, nil
 	case strings.Contains(url, "freenas.org") && strings.Contains(url, "12.0"):
 		return `<a href="TrueNAS-12.0-U8.1.iso?download=1">x</a>`, nil
 	case strings.Contains(url, "freenas.org"):
@@ -347,6 +347,15 @@ func bodyFor(url string) (string, error) {
 		return `"name":"eznixOS13X-260919.iso" "name":"eznixOS13K-260919.iso"`, nil
 	case strings.Contains(url, "extix"):
 		return `"name":"extix-26.4-64bit-gnome-waydroid-3290mb-260410.iso" "name":"extix-26.7-deepin-25.2-refractasnapshot-5540mb-260710.iso" "name":"extix-26.8-64bit-lxqt-refractasnapshot-2800mb-260811.iso"`, nil
+	case strings.Contains(url, "maboxlinux.org/iso/") && strings.HasSuffix(url, ".md5"):
+		return "5d41402abc4b2a76b9719d911017c592  mabox-linux-26.09-Istredd-260911-linux618.iso", nil
+	case strings.Contains(url, "maboxlinux.org/iso/"):
+		return `<a href="mabox-linux-26.09-Istredd-260911-linux618.iso">x</a>`, nil
+	case strings.Contains(url, "almalinux") && strings.HasSuffix(url, "CHECKSUM"):
+		return `SHA256 (AlmaLinux-10-latest-x86_64-dvd.iso) = 90244ac532f67c978831a381b420da8bda363729e1f4cf8fb8991daca70ee287
+SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529789d668041d24e8d6fc697ba6a`, nil
+	case strings.Contains(url, "almalinux"):
+		return `<a href="AlmaLinux-10-latest-x86_64-dvd.iso">a</a><a href="AlmaLinux-10.2-x86_64-boot.iso">b</a><a href="AlmaLinux-10-latest-aarch64-dvd.iso">c</a>`, nil
 	// --- fourth-expansion fixtures ---
 	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, "2026.1"):
 		return `"name":"Rhino-Linux-2026.1-amd64.iso"`, nil
@@ -888,6 +897,16 @@ func TestScrapeAll(t *testing.T) {
 		{"eznixos", "12", "xfce", "amd64", true},
 		{"extix", "26.8", "", "amd64", false},
 		{"extix", "26.5", "", "amd64", true},
+		{"mabox", "latest", "", "amd64", false},
+		{"dynebolic", "4.0.0", "", "amd64", false},
+		{"dynebolic", "4.0.0-beta", "", "amd64", false},
+		{"alma", "10", "dvd", "amd64", false},
+		{"alma", "10.2", "boot", "amd64", false},
+		{"alma", "10", "dvd", "arm64", false},
+		{"alma", "10.1", "dvd", "amd64", true},
+		{"turnkey", "latest", "core", "amd64", false},
+		{"turnkey", "latest", "wordpress", "amd64", false},
+		{"turnkey", "latest", "nosuchapp", "amd64", true},
 	}
 	for _, c := range cases {
 		t.Run(c.os+"/"+c.rel+"/"+c.ed, func(t *testing.T) {

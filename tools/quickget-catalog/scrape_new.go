@@ -1139,6 +1139,36 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		// Files live at the project root; each release is one ISO.
 		return sfISOat("https://sourceforge.net/projects/extix/files",
 			`extix-`+regexp.QuoteMeta(release)+`-[^"]*\.iso`)
+	case "mabox":
+		// repo.maboxlinux.org/iso/ root holds the current ISO + .md5.
+		return indexISOsum("https://repo.maboxlinux.org/iso/",
+			`mabox-linux-[0-9.]+-[A-Za-z]+-[0-9]+-linux[0-9]+\.iso`, ".md5")
+	case "turnkey":
+		// One flat index: turnkey-<appliance>-<ver>-<codename>-amd64.iso
+		// + signed .hash (sha256 embedded before the PGP armor).
+		return indexISOsum("https://mirror.turnkeylinux.org/turnkeylinux/images/iso/",
+			`turnkey-`+regexp.QuoteMeta(edition)+`-[0-9.]+-[a-z]+-amd64\.iso`, ".hash")
+	case "dynebolic":
+		// files.dyne.org listing is JS; names are deterministic.
+		return "https://files.dyne.org/dynebolic/dynebolic-" + release + ".iso", "", nil
+	case "alma":
+		// Majors hold "X-latest" plus the current pinned "X.Y" files.
+		a := "x86_64"
+		if arch == "arm64" {
+			a = "aarch64"
+		}
+		dir := strings.SplitN(release, ".", 2)[0]
+		ver := release
+		if !strings.Contains(release, ".") {
+			ver += "-latest"
+		}
+		ed := edition
+		if ed == "" {
+			ed = "dvd"
+		}
+		return indexISOsums("https://repo.almalinux.org/almalinux/"+dir+"/isos/"+a+"/",
+			`AlmaLinux-`+regexp.QuoteMeta(ver)+`-`+a+`-`+regexp.QuoteMeta(ed)+`\.iso`,
+			"CHECKSUM")
 	case "dragora":
 		// cedia mirror v3/iso/<stage>/; alphas share the "alpha" dir.
 		dir := release

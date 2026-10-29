@@ -91,8 +91,11 @@
   {
    "os": "alma",
    "releases": [
+    "10.2",
     "10",
+    "9.8",
     "9",
+    "8.10",
     "8"
    ],
    "editions": [
@@ -104,10 +107,7 @@
     "amd64",
     "arm64"
    ],
-   "url": "https://repo.almalinux.org/almalinux/%RELEASE%/isos/%ARCH%",
-   "iso": "AlmaLinux-%RELEASE%-latest-%ARCH%-%EDITION%.iso",
-   "hash_url": "${URL}/CHECKSUM",
-   "qarch": true,
+   "scrape": true,
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
@@ -980,7 +980,9 @@
     "8.4"
    ],
    "editions": [
-    "full"
+    "gnome",
+    "kde",
+    "xfce"
    ],
    "arch": [
     "amd64"
@@ -7721,6 +7723,148 @@
    "url": "https://www.paldo.org/",
    "iso": "paldo-%EDITION%-x86_64-%RELEASE%.img",
    "hash_url": "https://www.paldo.org/paldo-%EDITION%-x86_64-%RELEASE%.img.md5",
+   "status": "active"
+  },
+  {
+   "os": "mabox",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "latest"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "dynebolic",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "4.0.0",
+    "4.0.0-beta"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "turnkey",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "ansible",
+    "asp-net-core",
+    "avideo",
+    "bagisto",
+    "bookstack",
+    "bugzilla",
+    "cakephp",
+    "canvas",
+    "codeigniter",
+    "concrete-cms",
+    "core",
+    "couchdb",
+    "django",
+    "dokuwiki",
+    "domain-controller",
+    "drupal10",
+    "drupal7",
+    "e107",
+    "elgg",
+    "espocrm",
+    "etherpad",
+    "faveo-helpdesk",
+    "fileserver",
+    "foswiki",
+    "gallery",
+    "gameserver",
+    "gitea",
+    "gitlab",
+    "ibexa",
+    "icescrum",
+    "invoice-ninja",
+    "jenkins",
+    "joomla4",
+    "lamp",
+    "lapp",
+    "laravel",
+    "leantime",
+    "lighttpd-php-fastcgi",
+    "limesurvey",
+    "mantis",
+    "matomo",
+    "mattermost",
+    "mediaserver",
+    "mediawiki",
+    "mibew",
+    "moodle",
+    "mumble",
+    "mysql",
+    "nextcloud",
+    "nginx-php-fastcgi",
+    "nodejs",
+    "observium",
+    "odoo",
+    "omeka",
+    "opencart",
+    "openldap",
+    "openvpn",
+    "orangehrm",
+    "oscommerce",
+    "otrs",
+    "owncloud",
+    "phpbb",
+    "phplist",
+    "postgresql",
+    "prestashop",
+    "processwire",
+    "rails",
+    "redis",
+    "redmine",
+    "roundup",
+    "silverstripe",
+    "simplemachines",
+    "snipe-it",
+    "suitecrm",
+    "symfony",
+    "syncthing",
+    "tkldev",
+    "tomcat",
+    "tomcat-apache",
+    "torrentserver",
+    "tracks",
+    "typo3",
+    "ushahidi",
+    "web2py",
+    "wireguard",
+    "wordpress",
+    "xoops",
+    "yiiframework",
+    "zencart",
+    "znuny",
+    "zoneminder"
+   ],
+   "scrape": true,
    "status": "active"
   }
  ]

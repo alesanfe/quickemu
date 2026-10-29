@@ -2123,6 +2123,24 @@
    "homepage": "https://www.paldo.org/",
    "info": "upkg-based desktop Linux with live and rescue images",
    "name": "paldo GNU/Linux"
+  },
+  "mabox": {
+   "credentials": "-",
+   "homepage": "https://maboxlinux.org/",
+   "info": "Manjaro-based desktop with Openbox",
+   "name": "Mabox Linux"
+  },
+  "dynebolic": {
+   "credentials": "-",
+   "homepage": "https://dyne.org/dynebolic/",
+   "info": "GNU/Linux-libre live distro for media production",
+   "name": "dyne:bolic"
+  },
+  "turnkey": {
+   "credentials": "-",
+   "homepage": "https://www.turnkeylinux.org/",
+   "info": "Debian-based server appliance library (91 appliances)",
+   "name": "TurnKey GNU/Linux"
   }
  }
 }
