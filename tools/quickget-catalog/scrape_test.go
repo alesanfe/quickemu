@@ -249,6 +249,41 @@ func TestScrapeFedora(t *testing.T) {
 	}
 }
 
+// Regression: user-supplied release/edition strings reach regexp.MustCompile
+// and string slicing in the scrapers — metacharacters widened matches (a
+// ".*" release resolved someone else's ISO) and a lone "(" panicked
+// MustCompile; truenas-scale sliced release[:1] on empty input.
+func TestScrapeInputInjection(t *testing.T) {
+	// truenas-scale: empty release must error, not panic on release[:1].
+	if _, _, err := scrape("truenas-scale", "", "", "amd64"); err == nil {
+		t.Fatal("truenas-scale empty release must fail")
+	}
+	// zenwalk: ".*" release widened the iso regex and returned the
+	// newest file on the mirror instead of failing.
+	fakeFetch(t, map[string]string{
+		"https://download.zenwalk.org/x86_64/.*/": `<a href="zenwalk-8.0-1.iso">a</a>
+		 <a href="zenwalk-9.9-1.iso">b</a>`,
+		"https://download.zenwalk.org/x86_64/8.0(/": `<a href="zenwalk-8.0(-1.iso">a</a>`,
+	})
+	if u, _, err := scrape("zenwalk", ".*", "", "amd64"); err == nil {
+		t.Fatalf("zenwalk '.*' release must not resolve an iso, got %q", u)
+	}
+	// A release containing regex-breaking "(" must not panic MustCompile;
+	// it is a literal version string and may legitimately match.
+	u, _, err := scrape("zenwalk", "8.0(", "", "amd64")
+	if err != nil || !strings.HasSuffix(u, "zenwalk-8.0(-1.iso") {
+		t.Fatalf("zenwalk literal '8.0(' release → %q %v", u, err)
+	}
+	// Same class through the edition arg (furybsd interpolates edition
+	// into a regex for sfLatestDir).
+	fakeFetch(t, map[string]string{
+		"https://sourceforge.net/projects/furybsd/files/": `{"name":"KDE-12.0"}`,
+	})
+	if _, _, err := scrape("furybsd", "12.0", "(", "amd64"); err == nil {
+		t.Fatal("furybsd edition '(' must not panic or resolve")
+	}
+}
+
 func TestScrapeAPIScrapers(t *testing.T) {
 	fakeFetch(t, map[string]string{
 		"https://www.mageia.org/en/downloads/get/?q=Mageia-9-Live-Plasma-x86_64.iso":          `<a href="https://mirror/Mageia-9-Live-Plasma-x86_64.iso">click here</a>`,

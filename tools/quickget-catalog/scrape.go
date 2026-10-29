@@ -308,7 +308,7 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		if err != nil {
 			return "", "", err
 		}
-		iso := latestMatch(body, fmt.Sprintf(`pentoo-%s-[a-zA-Z0-9_-]*\.iso`, edition))
+		iso := latestMatch(body, fmt.Sprintf(`pentoo-%s-[a-zA-Z0-9_-]*\.iso`, regexp.QuoteMeta(edition)))
 		if iso == "" {
 			return "", "", fmt.Errorf("pentoo: no %s iso", edition)
 		}
@@ -356,7 +356,7 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		if err != nil {
 			return "", "", err
 		}
-		iso := latestMatch(body, fmt.Sprintf(`vitalinux-%s[^"<> ]*desktop-amd64\.iso`, release))
+		iso := latestMatch(body, fmt.Sprintf(`vitalinux-%s[^"<> ]*desktop-amd64\.iso`, regexp.QuoteMeta(release)))
 		if iso == "" {
 			iso = "vitalinux-3.5-2026.05.12-desktop-amd64.iso"
 		}
@@ -757,6 +757,9 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		return u + "/" + iso, sha, nil
 	case "truenas-scale":
 		// get_truenas-scale: version dir scrape (latest x.y.z) → iso scrape.
+		if release == "" {
+			return "", "", fmt.Errorf("truenas-scale: empty release")
+		}
 		base := "https://download.sys.truenas.net"
 		dir := "TrueNAS-SCALE-" + strings.ToUpper(release[:1]) + release[1:]
 		body, err := fetchString(base + "/" + dir + "/")

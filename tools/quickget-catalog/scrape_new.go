@@ -260,7 +260,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return ghISOsha("minios-linux/minios-live", `minios-[^"]*-`+ed+`-amd64-[^"]*\.iso`, `minios-[^"]*-`+ed+`-amd64-[^"]*\.iso\.sha256`)
 	case "rescuezilla":
-		return ghISOsha("rescuezilla/rescuezilla", `rescuezilla-[0-9.]+-64bit\.`+edition+`\.iso`, `SHA256SUM`)
+		return ghISOsha("rescuezilla/rescuezilla", `rescuezilla-[0-9.]+-64bit\.`+regexp.QuoteMeta(edition)+`\.iso`, `SHA256SUM`)
 	case "rancheros":
 		return ghISO("rancher/os", `rancheros\.iso`)
 	case "shredos":
@@ -269,7 +269,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	// --- SourceForge (batch 3) ---
 	case "robolinux":
 		// robolinux64-<ed>-vR<ver>.iso and newer robolinux-<ed>-<ver>.iso.
-		return sfISO("robolinux", "", `robolinux(64)?-`+edition+`-(vR)?[0-9.]+[^"/]*\.iso`)
+		return sfISO("robolinux", "", `robolinux(64)?-`+regexp.QuoteMeta(edition)+`-(vR)?[0-9.]+[^"/]*\.iso`)
 	case "voyager":
 		stream := "debian"
 		if edition == "lts" {
@@ -337,17 +337,17 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "lxle":
 		return sfISO("lxle", "Final/OS/Focal-64", `LXLE-[^"/]*\.iso`)
 	case "furybsd":
-		dir, err := sfLatestDir("furybsd", "", `[^"]*-`+strings.ToUpper(edition))
+		dir, err := sfLatestDir("furybsd", "", `[^"]*-`+regexp.QuoteMeta(strings.ToUpper(edition)))
 		if err != nil {
 			return "", "", err
 		}
 		return sfISOat(dir, `FuryBSD-[^"/]*\.iso`)
 	case "caelinux":
-		dir, err := sfLatestDir("caelinux", "", `[A-Za-z]*`+release)
+		dir, err := sfLatestDir("caelinux", "", `[A-Za-z]*`+regexp.QuoteMeta(release))
 		if err != nil {
 			return "", "", err
 		}
-		return sfISOat(dir, `caelinux`+release+`lite\.iso`)
+		return sfISOat(dir, `caelinux`+regexp.QuoteMeta(release)+`lite\.iso`)
 	case "wubuntu":
 		dir, err := sfLatestDir("windows-linux", "", `[0-9][0-9.]+-[^"/]+`)
 		if err != nil {
@@ -419,7 +419,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return sfISO("kamarada", "15.6", `Linux_Kamarada-15\.6-x86_64-Build[^"/]*\.iso`)
 	case "slackel":
-		return sfISO("slackel", edition, `slackellive64-`+edition+`-[0-9.]+\.iso`)
+		return sfISO("slackel", edition, `slackellive64-`+regexp.QuoteMeta(edition)+`-[0-9.]+\.iso`)
 	case "easynas":
 		return sfISO("easynas", "EasyNAS%20v1.1", `EasyNAS\.x86_64-[^"/]*install\.iso`)
 	case "elastix":
@@ -451,7 +451,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		if err != nil {
 			return "", "", err
 		}
-		return sfISOat(dir, `hefftorlinux-`+edition+`-v[^"/]*x86_64\.iso`)
+		return sfISOat(dir, `hefftorlinux-`+regexp.QuoteMeta(edition)+`-v[^"/]*x86_64\.iso`)
 	case "ctlos":
 		dir, err := sfLatestDir("ctlos", "", `v[0-9.]+`)
 		if err != nil {
@@ -475,13 +475,13 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		if edition != "" {
 			ed = edition
 		}
-		return indexISOsum("https://mirrors.openanolis.cn/anolis/"+release+"/isos/GA/x86_64/", `AnolisOS-`+release+`-x86_64-`+ed+`\.iso`, ".md5sum")
+		return indexISOsum("https://mirrors.openanolis.cn/anolis/"+release+"/isos/GA/x86_64/", `AnolisOS-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, ".md5sum")
 	case "openeuler":
 		ed := "netinst"
 		if edition != "" {
 			ed = edition
 		}
-		return indexISOsum("https://repo.openeuler.org/openEuler-"+release+"/ISO/x86_64/", `openEuler-`+regexp.QuoteMeta(release)+`-`+ed+`-x86_64-dvd\.iso`, ".sha256sum")
+		return indexISOsum("https://repo.openeuler.org/openEuler-"+release+"/ISO/x86_64/", `openEuler-`+regexp.QuoteMeta(release)+`-`+regexp.QuoteMeta(ed)+`-x86_64-dvd\.iso`, ".sha256sum")
 	case "astralinux":
 		return indexISO("https://download.astralinux.ru/astra/stable/orel/iso/", `alce-current\.iso`)
 	case "helenos":
@@ -489,7 +489,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "9legacy":
 		return "https://9legacy.org/download/9legacy.iso.bz2", "", nil
 	case "galliumos":
-		return indexISO("https://galliumos.org/releases/"+release+"/", `galliumos-`+edition+`-`+regexp.QuoteMeta(release)+`\.iso`)
+		return indexISO("https://galliumos.org/releases/"+release+"/", `galliumos-`+regexp.QuoteMeta(edition)+`-`+regexp.QuoteMeta(release)+`\.iso`)
 	case "ventoy":
 		return ghISOsha("ventoy/Ventoy", `ventoy-[0-9.]+-livecd\.iso`, `sha256\.txt`)
 	case "minikube":
@@ -516,9 +516,9 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		if err != nil {
 			return "", "", err
 		}
-		return indexISO(dir+"/", `[0-9]{8}-[0-9]+-postmarketOS-edge-`+edition+`-generic-x86_64[^"/]*\.img\.xz`)
+		return indexISO(dir+"/", `[0-9]{8}-[0-9]+-postmarketOS-edge-`+regexp.QuoteMeta(edition)+`-generic-x86_64[^"/]*\.img\.xz`)
 	case "ovirt-node":
-		return indexISO("https://resources.ovirt.org/pub/ovirt-4.5/iso/ovirt-node-ng-installer/", `ovirt-node-ng-installer-latest-`+edition+`\.iso`)
+		return indexISO("https://resources.ovirt.org/pub/ovirt-4.5/iso/ovirt-node-ng-installer/", `ovirt-node-ng-installer-latest-`+regexp.QuoteMeta(edition)+`\.iso`)
 	case "ploplinux":
 		dir, err := latestDir("https://download.plop.at/ploplinux/", `[0-9]{2}\.[0-9]+`)
 		if err != nil {
@@ -573,7 +573,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return u, sumAt(u + ".sha256"), nil
 	case "ubuntu-core":
-		return indexISOsums("https://cdimage.ubuntu.com/ubuntu-core/"+release+"/stable/current/", `ubuntu-core-`+release+`-amd64\.img\.xz`, "SHA256SUMS")
+		return indexISOsums("https://cdimage.ubuntu.com/ubuntu-core/"+release+"/stable/current/", `ubuntu-core-`+regexp.QuoteMeta(release)+`-amd64\.img\.xz`, "SHA256SUMS")
 	case "opencloudos":
 		base := "https://mirrors.opencloudos.tech/opencloudos/" + release + "/isos/x86_64/"
 		ed := "minimal"
@@ -583,12 +583,12 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		// 9.x nests a dated build dir; 8.x is a flat listing where
 		// "everything" is published as dvd1.
 		if dir, err := latestDir(base, `[0-9]{8}\.[0-9]+`); err == nil {
-			return indexISOsums(dir+"/", `OpenCloudOS-`+release+`-[^"/]*-x86_64-`+ed+`\.iso`, "CHECKSUM")
+			return indexISOsums(dir+"/", `OpenCloudOS-`+regexp.QuoteMeta(release)+`-[^"/]*-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
 		}
 		if ed == "everything" {
 			ed = "dvd1"
 		}
-		return indexISOsums(base, `OpenCloudOS-`+release+`-x86_64-`+ed+`\.iso`, "CHECKSUM")
+		return indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
 	case "tencentos":
 		base := "https://mirrors.tencent.com/tencentos/" + release + "/isos/x86_64/"
 		ed := "minimal"
@@ -598,12 +598,12 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		// 4.2+ nests a dated build dir; 4.0 is a flat listing where
 		// the netinst image replaces boot.
 		if dir, err := latestDir(base, `[0-9]{8}\.[0-9]+`); err == nil {
-			return indexISOsums(dir+"/", `TencentOS-Server-`+release+`-[^"/]*-x86_64-`+ed+`\.iso`, "CHECKSUM")
+			return indexISOsums(dir+"/", `TencentOS-Server-`+regexp.QuoteMeta(release)+`-[^"/]*-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
 		}
 		if ed == "boot" {
 			ed = "netinst"
 		}
-		return indexISOsums(base, `TencentOS-Server-`+release+`-`+ed+`-x86_64\.iso`, "CHECKSUM")
+		return indexISOsums(base, `TencentOS-Server-`+regexp.QuoteMeta(release)+`-`+regexp.QuoteMeta(ed)+`-x86_64\.iso`, "CHECKSUM")
 	case "grommunio":
 		file := "grommunio.x86_64-latest"
 		if edition == "offline" {
@@ -632,7 +632,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "hardenedbsd":
 		return indexISOsums("https://installers.hardenedbsd.org/pub/"+release+"/amd64/amd64/installer/LATEST/", `disc1\.iso`, "MANIFEST")
 	case "zenwalk":
-		return indexISOsum("https://download.zenwalk.org/x86_64/"+release+"/", `zenwalk-`+release+`-[0-9]+\.iso`, ".md5")
+		return indexISOsum("https://download.zenwalk.org/x86_64/"+release+"/", `zenwalk-`+regexp.QuoteMeta(release)+`-[0-9]+\.iso`, ".md5")
 	case "freedombox":
 		return indexISO("https://ftp.freedombox.org/pub/freedombox/hardware/amd64/"+release+"/", `freedombox-[^"/]*_all-amd64\.img\.xz`)
 	case "parabola":
