@@ -33,7 +33,7 @@
   "alma": {
    "credentials": "-",
    "homepage": "https://almalinux.org/",
-   "info": "Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL\u00ae.",
+   "info": "Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL®.",
    "name": "AlmaLinux"
   },
   "alpine": {
@@ -111,7 +111,7 @@
   "archlinux": {
    "credentials": "-",
    "homepage": "https://archlinux.org/",
-   "info": "Lightweight and flexible Linux\u00ae distribution that tries to Keep It Simple.",
+   "info": "Lightweight and flexible Linux® distribution that tries to Keep It Simple.",
    "name": "Arch Linux"
   },
   "archman": {
@@ -699,7 +699,7 @@
   "guix": {
    "credentials": "-",
    "homepage": "https://guix.gnu.org/",
-   "info": "Distribution of the GNU operating system developed by the GNU Project\u2014which respects the freedom of computer users.",
+   "info": "Distribution of the GNU operating system developed by the GNU Project—which respects the freedom of computer users.",
    "name": "Guix"
   },
   "haiku": {
@@ -999,7 +999,7 @@
   "maxlinux": {
    "credentials": "-",
    "homepage": "https://www.educa2.madrid.org/web/max",
-   "info": "MAdrid_linuX \u2014 education distro by the Madrid regional government.",
+   "info": "MAdrid_linuX — education distro by the Madrid regional government.",
    "name": "MAX"
   },
   "metamorphose": {
@@ -1347,7 +1347,7 @@
   "ponyos": {
    "credentials": "-",
    "homepage": "https://ponyos.org/",
-   "info": "Hobby Unix-like OS with its own kernel \u2014 not Linux.",
+   "info": "Hobby Unix-like OS with its own kernel — not Linux.",
    "name": "PonyOS"
   },
   "popos": {
@@ -1521,7 +1521,7 @@
   "rockylinux": {
    "credentials": "-",
    "homepage": "https://rockylinux.org/",
-   "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux\u00ae.",
+   "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.",
    "name": "Rocky Linux"
   },
   "rosalinux": {
@@ -1797,7 +1797,7 @@
   "ubuntucinnamon": {
    "credentials": "-",
    "homepage": "https://ubuntucinnamon.org/",
-   "info": "Community-driven, featuring Linux Mint\u2019s Cinnamon Desktop with Ubuntu at the core, packed fast and full of features, here is the most traditionally modern desktop you will ever love.",
+   "info": "Community-driven, featuring Linux Mint’s Cinnamon Desktop with Ubuntu at the core, packed fast and full of features, here is the most traditionally modern desktop you will ever love.",
    "name": "Ubuntu Cinnamon"
   },
   "ubuntudde": {
@@ -1905,7 +1905,7 @@
   "windows": {
    "credentials": "-",
    "homepage": "https://www.microsoft.com/en-us/windows/",
-   "info": "Whether you\u2019re gaming, studying, running a business, or running a household, Windows helps you get it done.",
+   "info": "Whether you’re gaming, studying, running a business, or running a household, Windows helps you get it done.",
    "name": "Windows"
   },
   "windows-server": {
@@ -2032,7 +2032,7 @@
    "credentials": "-",
    "homepage": "https://www.adelielinux.org/",
    "info": "Musl+Linux-libre distribution for many architectures, including legacy PPC.",
-   "name": "Ad\u00e9lie Linux"
+   "name": "Adélie Linux"
   },
   "mofolinux": {
    "credentials": "-",
@@ -2169,8 +2169,62 @@
   "clearndr": {
    "credentials": "-",
    "homepage": "https://www.stamus-networks.com/",
-   "info": "Stamus Networks SELKS successor \u2014 Suricata IDS/NSM appliance (ClearNDR community)",
+   "info": "Stamus Networks SELKS successor — Suricata IDS/NSM appliance (ClearNDR community)",
    "name": "ClearNDR"
+  },
+  "abora": {
+   "credentials": "-",
+   "homepage": "https://www.aboraos.org/",
+   "info": "NixOS-based desktop OS with atomic updates and 23 desktop profiles (COSMIC, GNOME, KDE, Hyprland)",
+   "name": "Abora OS"
+  },
+  "kiro": {
+   "credentials": "-",
+   "homepage": "https://kiroproject.com/",
+   "info": "Arch-based KDE Plasma distribution with its own repositories",
+   "name": "Kiro"
+  },
+  "jatayuos": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/jatayuos/",
+   "info": "Debian-based Indian distribution with KDE Plasma",
+   "name": "JatayuOS"
+  },
+  "graphite": {
+   "credentials": "-",
+   "homepage": "https://graphiteos.org/",
+   "info": "Arch-based distro focused on simplicity and aesthetics (alpha)",
+   "name": "Graphite OS"
+  },
+  "asterinas": {
+   "credentials": "-",
+   "homepage": "https://asterinas.github.io/",
+   "info": "Rust framekernel OS implementing the Linux ABI (NixOS live image)",
+   "name": "Asterinas"
+  },
+  "vinix": {
+   "credentials": "-",
+   "homepage": "https://vinix.gg/",
+   "info": "Independent OS written in V, not Linux (amd64 and arm64 ISOs)",
+   "name": "Vinix"
+  },
+  "cervus": {
+   "credentials": "-",
+   "homepage": "https://github.com/VeoQeoOrg/Cervus",
+   "info": "Complete self-hosted x86_64 OS written from scratch with live ISO",
+   "name": "Cervus OS"
+  },
+  "rou2exos": {
+   "credentials": "-",
+   "homepage": "https://github.com/krustowski/rou2exOS",
+   "info": "Hobby protected-mode operating system (Rust/assembly)",
+   "name": "Rou2exOS"
+  },
+  "lateralus": {
+   "credentials": "-",
+   "homepage": "https://github.com/bad-antics/lateralus-lang",
+   "info": "Research operating system built around the Lateralus language",
+   "name": "LateralusOS"
   }
  }
 }

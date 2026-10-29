@@ -54,6 +54,37 @@ func ghISOsha(repo, isoRe, sumRe string) (string, string, error) {
 	return iso, sum, nil
 }
 
+// ghISOsums is ghISOsha for manifest checksum assets (SHA256SUMS): the
+// sha is extracted for the specific matched ISO filename.
+func ghISOsums(repo, isoRe, sumRe string) (string, string, error) {
+	body, err := fetchString("https://api.github.com/repos/" + repo + "/releases")
+	if err != nil {
+		return "", "", err
+	}
+	ir := regexp.MustCompile(isoRe)
+	sr := regexp.MustCompile(sumRe)
+	var iso, sums string
+	for _, m := range matchAll(body, `"browser_download_url": ?"([^"]+)"`) {
+		if iso == "" && ir.MatchString(m) {
+			iso = m
+		}
+		if sums == "" && sr.MatchString(m) {
+			sums = m
+		}
+	}
+	if iso == "" {
+		return "", "", fmt.Errorf("%s: no asset matching %s", repo, isoRe)
+	}
+	if sums == "" {
+		return iso, "", nil
+	}
+	b, err := fetchString(sums)
+	if err != nil {
+		return iso, "", nil
+	}
+	return iso, sumForISO(b, iso[strings.LastIndex(iso, "/")+1:]), nil
+}
+
 // ghLatestTag returns the tag_name of a repo's latest stable release.
 func ghLatestTag(repo string) (string, error) {
 	body, err := fetchString("https://api.github.com/repos/" + repo + "/releases/latest")
@@ -1264,6 +1295,74 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return indexISO("https://mirror.cedia.org.ec/dragora/v3/iso/"+dir+"/",
 			`dragora-3\.0-(x86_64|amd64)-`+regexp.QuoteMeta(release)+`(-live|-dvd)?\.iso`)
+
+	case "abora":
+		// abora-<ed>-<date>-x86_64-v<ver>.iso + SHA256SUMS-v<ver>.txt manifest.
+		ed := edition
+		if ed == "" {
+			ed = "gnome"
+		}
+		ver := `[0-9.]+`
+		if release != "latest" && release != "" {
+			ver = regexp.QuoteMeta(strings.TrimPrefix(release, "v"))
+		}
+		return ghISOsums("AnimatedGTVR/Abora-OS",
+			`abora-`+ed+`-[0-9.]+-x86_64-v`+ver+`\.iso`, `SHA256SUMS-[^/"]*\.txt`)
+	case "kiro":
+		// SF root dir: kiro-v<ver>-x86_64.iso
+		ver := `[0-9.]+`
+		if release != "latest" && release != "" {
+			ver = regexp.QuoteMeta(release)
+		}
+		return sfISO("kiro", "", `kiro-v`+ver+`-x86_64\.iso`)
+	case "jatayuos":
+		// SF per-release dir + SHA256SUMS manifest file.
+		u, _, err := sfISO("jatayuos", release,
+			`JatayuOS-`+regexp.QuoteMeta(release)+`-amd64\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		sha := ""
+		if b, err := fetchString("https://sourceforge.net/projects/jatayuos/files/" +
+			release + "/SHA256SUMS/download"); err == nil {
+			sha = sumForISO(b, "JatayuOS-"+release+"-amd64.iso")
+		}
+		return u, sha, nil
+	case "graphite":
+		// Download page links download.graphiteos.org/graphite-<ver>-x86_64.iso;
+		// a flat SHA256SUMS manifest sits next to it.
+		body, err := fetchString("https://graphiteos.org/")
+		if err != nil {
+			return "", "", err
+		}
+		u := latestMatch(body, `https://download\.graphiteos\.org/graphite-[^"'<> ]*\.iso`)
+		if u == "" {
+			return "", "", fmt.Errorf("graphite: no iso link on download page")
+		}
+		sha := ""
+		if b, err := fetchString("https://download.graphiteos.org/SHA256SUMS"); err == nil {
+			sha = sumForISO(b, u[strings.LastIndex(u, "/")+1:])
+		}
+		return u, sha, nil
+	case "asterinas":
+		// asterinas-nixos-<ver>-x86_64.iso (Rust framekernel; Linux ABI).
+		return ghISO("asterinas/asterinas", `asterinas-nixos-[0-9.]+-x86_64\.iso`)
+	case "vinix":
+		// vlang/vinix: vinix-{amd64,arm64}.iso + SHA256SUMS manifest.
+		a := "amd64"
+		if arch == "arm64" {
+			a = "arm64"
+		}
+		return ghISOsums("vlang/vinix", `vinix-`+a+`\.iso`, `/SHA256SUMS$`)
+	case "cervus":
+		// CervusOS-v<ver>.iso — self-hosted x86_64 OS written from scratch.
+		return ghISO("VeoQeoOrg/Cervus", `CervusOS-[^"/]*\.iso`)
+	case "rou2exos":
+		// Hobby protected-mode OS; r2.iso is the bootable asset.
+		return ghISO("krustowski/rou2exOS", `/r2\.iso$`)
+	case "lateralus":
+		// lateralus-os.iso research OS (only the v3.2.0 release ships it).
+		return ghISO("bad-antics/lateralus-lang", `lateralus-os\.iso`)
 
 	// --- JSON APIs ---
 	case "fedora-coreos":

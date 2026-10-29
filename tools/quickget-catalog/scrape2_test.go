@@ -54,7 +54,20 @@ func bodyFor(url string) (string, error) {
 			{"browser_download_url":"https://gh/ventoy-1.1.18-livecd.iso"},
 			{"browser_download_url":"https://gh/ventoy-sha256.txt"},
 			{"browser_download_url":"https://gh/minikube-v1.32.0-amd64.iso"},
-			{"browser_download_url":"https://gh/minikube-v1.32.0-amd64.iso.sha256"}]`, nil
+			{"browser_download_url":"https://gh/minikube-v1.32.0-amd64.iso.sha256"},
+			{"browser_download_url":"https://gh/abora-gnome-2026.10.03-x86_64-v4.1.iso"},
+			{"browser_download_url":"https://gh/abora-cosmic-2026.10.03-x86_64-v4.1.iso"},
+			{"browser_download_url":"https://gh/abora-hyprland-2026.10.03-x86_64-v4.1.iso"},
+			{"browser_download_url":"https://gh/abora-kde-2026.10.03-x86_64-v4.1.iso"},
+			{"browser_download_url":"https://gh/abora-other-2026.10.03-x86_64-v4.1.iso"},
+			{"browser_download_url":"https://gh/abora-kde-2026.08.28-x86_64-v4.0.iso"},
+			{"browser_download_url":"https://gh/SHA256SUMS-v4.1.txt"},
+			{"browser_download_url":"https://gh/asterinas-nixos-0.19.0-x86_64.iso"},
+			{"browser_download_url":"https://gh/vinix-amd64.iso"},
+			{"browser_download_url":"https://gh/vinix-arm64.iso"},
+			{"browser_download_url":"https://gh/CervusOS-v0.0.1.iso"},
+			{"browser_download_url":"https://gh/r2.iso"},
+			{"browser_download_url":"https://gh/lateralus-os.iso"}]`, nil
 	case strings.Contains(url, "broadcom.com"):
 		return `<a href="photon-5.0-dde71ec57.x86_64.iso">x</a><a href="photon-minimal-5.0-dde71ec57.x86_64.iso">y</a><a href="photon-5.0-dde71ec57.x86_64.debug.iso">z</a><a href="photon-3.0-26156e2.iso">p</a><a href="photon-3.0-26156e2.debug.iso">q</a>`, nil
 	case strings.Contains(url, "bandshed"):
@@ -542,6 +555,20 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 		return `<a href="finnix-125.iso">x</a>`, nil
 	case strings.Contains(url, "finnix"):
 		return `<a href="125/">a</a><a href="124/">b</a>`, nil
+	case strings.Contains(url, "jatayuos") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  JatayuOS-1.0-Udaan-amd64.iso\n", nil
+	case strings.Contains(url, "jatayuos"):
+		return `"name":"JatayuOS-1.0-Udaan-amd64.iso" "name":"SHA256SUMS"`, nil
+	case strings.Contains(url, "kiro/files"):
+		return `"name":"kiro-v26.11.01-x86_64.iso" "name":"kiro-v26.10.01-x86_64.iso" "name":"kiro-v26.09.01-x86_64.iso"`, nil
+	case strings.Contains(url, "graphiteos") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  graphite-2026.10.24b-x86_64.iso\n", nil
+	case strings.Contains(url, "graphiteos"):
+		return `<a href="https://download.graphiteos.org/graphite-2026.10.24b-x86_64.iso">dl</a>`, nil
+	case strings.Contains(url, "SHA256SUMS-v"):
+		return shaX + "  abora-gnome-2026.10.03-x86_64-v4.1.iso\n" + shaX + "  abora-kde-2026.10.03-x86_64-v4.1.iso\n" + shaX + "  abora-kde-2026.08.28-x86_64-v4.0.iso\n", nil
+	case strings.Contains(url, "gh/SHA256SUMS"):
+		return shaX + "  vinix-amd64.iso\n" + shaX + "  vinix-arm64.iso\n", nil
 	default:
 		// generic index page: iso links + version dirs + current.iso
 		return `<a href="backbox-8-desktop-amd64.iso">b</a>
@@ -697,6 +724,20 @@ func TestScrapeAll(t *testing.T) {
 		{"nomadbsd", "140R-20240126", "ufs", "amd64", false},
 		{"clearndr", "1.0.0", "desktop", "amd64", false},
 		{"clearndr", "1.0.0", "nodesktop", "amd64", false},
+		{"abora", "latest", "gnome", "amd64", false},
+		{"abora", "latest", "kde", "amd64", false},
+		{"abora", "v4.0", "kde", "amd64", false},
+		{"abora", "latest", "bogus", "amd64", true},
+		{"kiro", "latest", "", "amd64", false},
+		{"kiro", "26.10.01", "", "amd64", false},
+		{"jatayuos", "1.0-Udaan", "", "amd64", false},
+		{"graphite", "latest", "", "amd64", false},
+		{"asterinas", "latest", "", "amd64", false},
+		{"vinix", "latest", "", "amd64", false},
+		{"vinix", "latest", "", "arm64", false},
+		{"cervus", "v0.0.1", "", "amd64", false},
+		{"rou2exos", "latest", "", "amd64", false},
+		{"lateralus", "latest", "", "amd64", false},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},
