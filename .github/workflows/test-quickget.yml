@@ -66,9 +66,11 @@ jobs:
           sudo apt-get -y install curl qemu-utils
       - name: "Check ${{ matrix.distro }} downloads 💿️"
         id: check
+        env:
+          DISTRO: ${{ matrix.distro }}
         run: |
           mkdir -p results
-          ./bin/quickget --check-all-arch "${{ matrix.distro }}" | tee results/check.txt
+          ./bin/quickget --check-all-arch "$DISTRO" | tee results/check.txt
 
           # Count results (the || true guards against grep -c's exit code
           # when there are no matches)
@@ -85,15 +87,20 @@ jobs:
           # Extract failed URLs for reporting
           grep '^FAIL' results/check.txt > results/failed.txt || true
 
-          echo "Results for ${{ matrix.distro }}: PASS=${PASSED} FAIL=${FAILED} SKIP=${SKIPPED}"
+          echo "Results for $DISTRO: PASS=${PASSED} FAIL=${FAILED} SKIP=${SKIPPED}"
       - name: "Create result JSON 📝"
+        env:
+          DISTRO: ${{ matrix.distro }}
+          PASSED_OUT: ${{ steps.check.outputs.passed }}
+          FAILED_OUT: ${{ steps.check.outputs.failed }}
+          SKIPPED_OUT: ${{ steps.check.outputs.skipped }}
         run: |
           mkdir -p result
           jq -n \
-            --arg distro "${{ matrix.distro }}" \
-            --argjson passed "${{ steps.check.outputs.passed }}" \
-            --argjson failed "${{ steps.check.outputs.failed }}" \
-            --argjson skipped "${{ steps.check.outputs.skipped }}" \
+            --arg distro "$DISTRO" \
+            --argjson passed "${PASSED_OUT:-0}" \
+            --argjson failed "${FAILED_OUT:-0}" \
+            --argjson skipped "${SKIPPED_OUT:-0}" \
             '{distro: $distro, passed: $passed, failed: $failed, skipped: $skipped}' \
             > result/result.json
 
@@ -111,8 +118,11 @@ jobs:
           retention-days: 1
       - name: "Fail if any failures ❌"
         if: steps.check.outputs.failed != '0'
+        env:
+          DISTRO: ${{ matrix.distro }}
+          FAILED_OUT: ${{ steps.check.outputs.failed }}
         run: |
-          echo "::error::${{ matrix.distro }} has ${{ steps.check.outputs.failed }} failed downloads"
+          echo "::error::$DISTRO has $FAILED_OUT failed downloads"
           exit 1
 
   report-results:
