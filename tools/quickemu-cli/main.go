@@ -331,6 +331,56 @@ var subcommandAliases = map[string]bool{
 	"operation-watch": true, "op-list": true,
 }
 
+// knownFlags: every --flag the parse switch accepts. Gates the
+// -x -> --x normalisation so flag-shaped VALUES pass through raw.
+var knownFlags = func() map[string]bool {
+	m := map[string]bool{}
+	for _, f := range strings.Fields(`--access --autostart --backup --backup-list
+--backup-prune --backup-restore --backup-verify --braille --capabilities
+--check --clone --cpu-pinning --delete --delete-disk --delete-plan
+--delete-shortcut --delete-vm --disk-compact --disk-resize --display
+--doctor --dry-run --echo --events --export --external --extra-args
+--extra_args --fix --format --full --full-screen --fullscreen --height
+--help --host-info --hotplug-disk --hotplug-usb --hotunplug --ignore-msrs
+--ignore-msrs-always --ignore-tsc-warning --import --inspect-conf
+--inventory --keyboard --keyboard-layout --keyboard_layout --kill
+--linked-clone --list --list-vms --migrate-conf --monitor --monitor-cmd
+--monitor-console --monitor-telnet-host --monitor-telnet-port --mouse
+--move --offline --op-cancel --op-list --op-status --op-watch
+--operation-cancel --operation-list --operation-status --operation-watch
+--pause --persist --plan-id --plugin --plugins --profile --public-dir
+--publicdir --rename --reset --restart --resume --screenshot --send-keys
+--serial --serial-console --serial-telnet-host --serial-telnet-port
+--shortcut --shutdown --snapshot --snapshot-apply --snapshot-create
+--snapshot-delete --snapshot-list --snapshot-tree --snapshot-verify
+--sound-card --sound-duplex --spice-console --spice-port --ssh-access
+--ssh-port --start --stats --status --status-quo --stop --trash
+--trash-empty --trash-list --trash-restore --type --usb-controller
+--usb-passthrough --version --vfio-scan --viewer --vm --vnc --width`) {
+		m[f] = true
+	}
+	return m
+}()
+
+// normalizeArgs: Bash accepts -flag and --flag equally, plus
+// --flag=value. The -x -> --x rewrite applies ONLY to real flag
+// names — a value that merely looks like a flag (--extra_args
+// "-accel tcg") must reach the parser untouched.
+func normalizeArgs(args []string) []string {
+	var norm []string
+	for _, a := range args {
+		if strings.HasPrefix(a, "--") && strings.Contains(a, "=") {
+			kv := strings.SplitN(a, "=", 2)
+			norm = append(norm, kv[0], kv[1])
+		} else if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && knownFlags["-"+a] {
+			norm = append(norm, "-"+a)
+		} else {
+			norm = append(norm, a)
+		}
+	}
+	return norm
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		usage()
@@ -341,19 +391,7 @@ func main() {
 	if !strings.HasPrefix(args[0], "-") && subcommandAliases[args[0]] {
 		args[0] = "--" + args[0]
 	}
-	// Normalise: Bash accepts -flag and --flag equally, plus --flag=value.
-	var norm []string
-	for _, a := range args {
-		if strings.HasPrefix(a, "--") && strings.Contains(a, "=") {
-			kv := strings.SplitN(a, "=", 2)
-			norm = append(norm, kv[0], kv[1])
-		} else if strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && len(a) > 2 {
-			norm = append(norm, "-"+a)
-		} else {
-			norm = append(norm, a)
-		}
-	}
-	args = norm
+	args = normalizeArgs(args)
 	dryRunFlag = false
 	for i := 0; i < len(args); i++ {
 		a := args[i]
@@ -384,6 +422,7 @@ func main() {
 		case "--status":
 			actions = append(actions, "status_vm")
 		case "--status-quo":
+			scOpt()
 			confOpts["snapshot"] = "on"
 		case "--capabilities":
 			actions = append(actions, "capabilities")
@@ -504,7 +543,8 @@ func main() {
 		case "--start":
 			actions = append(actions, "start")
 		case "--monitor-cmd":
-			extra["monitor-cmd"] = val()
+			scOptVal()
+			extra["monitor-cmd"] = args[i]
 			actions = append(actions, "monitor_cmd")
 		case "--send-keys":
 			extra["send-keys"] = val()
@@ -573,17 +613,23 @@ func main() {
 			actions = append(actions, "operation_watch")
 		// conf overrides consumed by quickemu-launch
 		case "--display":
-			confOpts["display"] = val()
+			scOptVal()
+			confOpts["display"] = args[i]
 		case "--access":
-			confOpts["access"] = val()
+			scOptVal()
+			confOpts["access"] = args[i]
 		case "--public-dir":
-			confOpts["public_dir"] = val()
+			scOptVal()
+			confOpts["public_dir"] = args[i]
 		case "--monitor":
-			confOpts["monitor"] = val()
+			scOptVal()
+			confOpts["monitor"] = args[i]
 		case "--serial":
-			confOpts["serial"] = val()
+			scOptVal()
+			confOpts["serial"] = args[i]
 		case "--viewer":
-			confOpts["viewer"] = val()
+			scOptVal()
+			confOpts["viewer"] = args[i]
 		case "--spice-console":
 			actions = append(actions, "spice_console")
 		case "--vnc":
@@ -595,15 +641,26 @@ func main() {
 		case "--monitor-console":
 			actions = append(actions, "monitor_console")
 		case "--fullscreen", "--full-screen":
+			scOpt()
 			confOpts["fullscreen"] = "true"
 		case "--braille":
+			scOpt()
 			confOpts["braille"] = "true"
 		case "--keyboard_layout", "--keyboard-layout":
-			confOpts["keyboard_layout"] = val()
+			scOptVal()
+			confOpts["keyboard_layout"] = args[i]
 		case "--cpu-pinning":
-			confOpts["cpu_pinning"] = val()
+			scOptVal()
+			confOpts["cpu_pinning"] = args[i]
 		case "--extra_args", "--extra-args":
-			confOpts["extra_args"] = val()
+			scOptVal()
+			// extra_args ACCUMULATES in Bash (extra_args+=), repeated
+			// flags are joined with a space rather than last-wins.
+			if prev := confOpts["extra_args"]; prev != "" {
+				confOpts["extra_args"] = prev + " " + args[i]
+			} else {
+				confOpts["extra_args"] = args[i]
+			}
 		case "--ignore-tsc-warning":
 			confOpts["ignore_tsc_warning"] = "on"
 		case "--ignore-msrs-always":

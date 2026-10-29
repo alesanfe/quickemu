@@ -133,7 +133,9 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 	if osName == "macos" {
 		t.ExtraArgs = append(t.ExtraArgs, "-global", "ICH9-LPC.disable_s3=1", "-global", "ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off", "-device", "isa-applesmc,osk="+rot13("bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap"))
 	}
-	if osName == "linux" && confOn(c, "snapshot") {
+	// --status-quo (snapshot=on) appends -snapshot to every guest's
+	// drive args in Bash — not linux-only.
+	if confOn(c, "snapshot") {
 		t.ExtraArgs = append(t.ExtraArgs, "-snapshot")
 	}
 	return t

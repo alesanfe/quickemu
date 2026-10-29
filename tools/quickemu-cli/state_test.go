@@ -160,3 +160,25 @@ func TestInventoryTouch(t *testing.T) {
 		t.Errorf("inventory entry wrong: %+v", m)
 	}
 }
+
+func TestNormalizeArgs(t *testing.T) {
+	// -x -> --x only for real flags; flag-shaped values stay verbatim.
+	got := normalizeArgs([]string{"--vm", "c", "-status", "-bogus", "--extra_args", "-accel tcg", "-x"})
+	want := []string{"--vm", "c", "--status", "-bogus", "--extra_args", "-accel tcg", "-x"}
+	if len(got) != len(want) {
+		t.Fatalf("len %v != %v", got, want)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("arg %d: %q != %q", i, got[i], want[i])
+		}
+	}
+	// --k=v splits; the v half is verbatim.
+	got = normalizeArgs([]string{"--format=json", "--extra_args=-cpu max"})
+	want = []string{"--format", "json", "--extra_args", "-cpu max"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("split arg %d: %q != %q", i, got[i], want[i])
+		}
+	}
+}
