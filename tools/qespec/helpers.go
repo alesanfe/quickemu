@@ -249,11 +249,15 @@ func VMFixture(t *testing.T, dir string) string {
 	conf := VMConf(t, dir, "")
 	disk := filepath.Join(dir, "disk.qcow2")
 	if img, err := exec.LookPath("qemu-img"); err == nil {
-		exec.Command(img, "create", "-f", "qcow2", disk, "64M").Run()
-	} else {
-		os.WriteFile(disk, []byte{0}, 0o644)
+		if out, err := exec.Command(img, "create", "-f", "qcow2", disk, "64M").CombinedOutput(); err != nil {
+			t.Fatalf("qemu-img create: %v\n%s", err, out)
+		}
+	} else if err := os.WriteFile(disk, []byte{0}, 0o644); err != nil {
+		t.Fatalf("fixture disk: %v", err)
 	}
-	os.WriteFile(filepath.Join(dir, "stub.iso"), []byte("x"), 0o644)
+	if err := os.WriteFile(filepath.Join(dir, "stub.iso"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("fixture iso: %v", err)
+	}
 	return conf
 }
 
