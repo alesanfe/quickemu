@@ -560,41 +560,72 @@ func resolvePublic(c Conf) {
 }
 
 func fileshareArgs(c Conf, dir string) []string {
-	// configure_file_sharing: no 9p for windows (Samba via netdev
-	// instead); windows-server keeps 9p.
-	if c.get("guest_os", "") == "windows" {
-		return nil
-	}
+	osn := c.get("guest_os", "")
 	pub := c["_public"]
+	// configure_file_sharing echoes run whenever PUBLIC resolves —
+	// even for windows guests (WebDAV hint still prints there).
+	if pub != "" {
+		switch osn {
+		case "macos":
+			if d := c.get("display", "none"); d == "none" || d == "spice" || d == "spice-app" {
+				fmt.Printf(" - WebDAV:   On guest: build spice-webdavd (https://gitlab.gnome.org/GNOME/phodav/-/merge_requests/24)\n")
+				fmt.Printf(" - WebDAV:   On guest: Finder -> Connect to Server -> http://localhost:9843/\n")
+			}
+		default:
+			fmt.Printf(" - WebDAV:   On guest: dav://localhost:9843/\n")
+		}
+	}
 	if pub == "" {
 		return nil
 	}
-	tag := "Public-" + strings.ToLower(os.Getenv("USER"))
-	if len(tag) > 31 {
-		tag = tag[:31]
-	}
-	// virtiofs preferred over 9p (vm_boot_fileshare): _virtiofsd is set
-	// in main when the guest is linux, no ISO is attached, and the
-	// daemon is running (--run) or merely resolvable (plan mode).
-	if c["_virtiofsd"] == "1" && qemuHasVhostFS(c) {
-		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".virtiofsd-sock"
-		return []string{
-			"-object", "memory-backend-file,id=mem,size=" + qemuOptEsc(c.get("ram", "4G")) + ",mem-path=/dev/shm,share=on",
-			"-numa", "node,memdev=mem",
-			"-chardev", "socket,id=char0,path=" + qemuOptEsc(sock),
-			"-device", "vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=" + qemuOptEsc(tag),
+	// no 9p for windows (Samba via netdev instead); windows-server keeps it.
+	var a []string
+	if osn != "windows" {
+		tag := "Public-" + strings.ToLower(os.Getenv("USER"))
+		if len(tag) > 31 {
+			tag = tag[:31]
+		}
+		// virtiofs preferred over 9p (vm_boot_fileshare): _virtiofsd is
+		// set in main when the guest is linux, no ISO is attached, and
+		// the daemon is running (--run) or merely resolvable (plan mode).
+		if c["_virtiofsd"] == "1" && qemuHasVhostFS(c) {
+			sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".virtiofsd-sock"
+			fmt.Printf(" - virtiofs: On guest: sudo mount -t virtiofs %s ~/%s\n", tag, filepath.Base(pub))
+			a = []string{
+				"-object", "memory-backend-file,id=mem,size=" + qemuOptEsc(c.get("ram", "4G")) + ",mem-path=/dev/shm,share=on",
+				"-numa", "node,memdev=mem",
+				"-chardev", "socket,id=char0,path=" + qemuOptEsc(sock),
+				"-device", "vhost-user-fs-pci,queue-size=1024,chardev=char0,tag=" + qemuOptEsc(tag),
+			}
+		} else {
+			if c["_virtiofsd"] == "1" {
+				// QEMU lacks the device — warn, stop the daemon, fall to 9p.
+				fmt.Printf(" - WARNING! QEMU does not support vhost-user-fs-pci; falling back to 9p.\n")
+				stopDaemon(c["_vmdir"], c["_vmname"], "virtiofsd")
+				c["_virtiofsd"] = ""
+			}
+			switch osn {
+			case "linux":
+				fmt.Printf(" - 9P:       On guest: sudo mount -t 9p -o trans=virtio,version=9p2000.L,msize=512000 %s ~/%s\n", tag, filepath.Base(pub))
+			case "macos":
+				fmt.Printf(" - 9P:       On guest: sudo mount_9p %s\n", tag)
+				if fi, err := os.Stat(pub); err == nil && fi.Mode().Perm() != 0o777 {
+					fmt.Printf(" - 9P:       On host:  chmod 777 %s\n", pub)
+					fmt.Printf("             Required for macOS integration 👆\n")
+				}
+			}
+			a = []string{
+				"-fsdev", "local,id=fsdev0,path=" + qemuOptEsc(pub) + ",security_model=mapped-xattr",
+				"-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=" + qemuOptEsc(tag),
+			}
 		}
 	}
-	if c["_virtiofsd"] == "1" {
-		// QEMU lacks the device — warn, stop the daemon, fall to 9p.
-		fmt.Printf(" - WARNING! QEMU does not support vhost-user-fs-pci; falling back to 9p.\n")
-		stopDaemon(c["_vmdir"], c["_vmname"], "virtiofsd")
-		c["_virtiofsd"] = ""
+	// configure_file_sharing's smbd echo runs last for every guest —
+	// the ,smb= option itself is already on the user netdev.
+	if smbdPresent() {
+		fmt.Printf(" - smbd:     On guest: smb://10.0.2.4/qemu\n")
 	}
-	return []string{
-		"-fsdev", "local,id=fsdev0,path=" + qemuOptEsc(pub) + ",security_model=mapped-xattr",
-		"-device", "virtio-9p-pci,fsdev=fsdev0,mount_tag=" + qemuOptEsc(tag),
-	}
+	return a
 }
 
 // qemuHasVhostFS: vm_boot_fileshare parity — probe `qemu -device help`

@@ -27,9 +27,19 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 	// usbredir/smartcard below are emitted for every display mode.
 	if d == "none" || d == "spice" || d == "spice-app" {
 		spice := "disable-ticketing=on"
+		// spicy hint tail: --spice-shared-dir (non-macOS, PUBLIC set)
+		// plus the --fullscreen flag's --full-screen suffix.
+		share, fs := "", ""
+		if pub := c["_public"]; pub != "" && osName != "macos" {
+			share = " --spice-shared-dir " + pub
+		}
+		if confOn(c, "fullscreen") {
+			fs = " --full-screen"
+		}
 		switch {
 		case d == "spice-app":
 			spice += ",gl=" + qemuOptEsc(c.get("gl", "on"))
+			fmt.Printf(" - SPICE:    Enabled\n")
 		case d == "spice":
 			switch access := c.get("access", "local"); access {
 			case "", "local":
@@ -38,6 +48,8 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 				spice += ",unix=on,addr=" + qemuOptEsc(dotdir(dir)+vmname+".sock")
 				portsRecord(dir, vmname, "unix,"+sock, c["_run"] == "1")
 				spiceRecord(dir, vmname, sock, c["_run"] == "1")
+				fmt.Printf(" - SPICE:    On host:  spicy --uri=\"spice+unix://%s\" --title \"%s\"%s%s\n",
+					sock, vmname, share, fs)
 			default:
 				addr := access
 				if addr == "remote" {
@@ -45,13 +57,15 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 				}
 				port := firstFreePort(c.get("spice_port", ""), 5930, 5939)
 				if port == "" {
-					fmt.Fprintln(os.Stderr, " - SPICE:    All SPICE ports have been exhausted.")
-					fmt.Fprintln(os.Stderr, "             ERROR! Requested SPICE display, but no SPICE ports are free.")
+					fmt.Println(" - SPICE:    All SPICE ports have been exhausted.")
+					fmt.Println("             ERROR! Requested SPICE display, but no SPICE ports are free.")
 					os.Exit(1)
 				}
 				spice += ",port=" + qemuOptEsc(port) + ",addr=" + qemuOptEsc(addr)
 				portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
 				spiceRecord(dir, vmname, port, c["_run"] == "1")
+				fmt.Printf(" - SPICE:    On host:  spicy --title \"%s\" --port %s%s%s\n",
+					vmname, port, share, fs)
 			}
 		default: // none
 			addr := "127.0.0.1"
@@ -64,13 +78,19 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 			}
 			port := firstFreePort(c.get("spice_port", ""), 5930, 5939)
 			if port == "" {
-				fmt.Fprintln(os.Stderr, " - SPICE:    All SPICE ports have been exhausted.")
-				fmt.Fprintln(os.Stderr, "             ERROR! Requested SPICE display, but no SPICE ports are free.")
+				fmt.Println(" - SPICE:    All SPICE ports have been exhausted.")
+				fmt.Println("             ERROR! Requested SPICE display, but no SPICE ports are free.")
 				os.Exit(1)
 			}
 			spice += ",port=" + qemuOptEsc(port) + ",addr=" + qemuOptEsc(addr)
 			portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
 			spiceRecord(dir, vmname, port, c["_run"] == "1")
+			host := ""
+			if addr != "" {
+				host = " --host " + addr
+			}
+			fmt.Printf(" - SPICE:    On host:  spicy --title \"%s\"%s --port %s%s%s\n",
+				vmname, host, port, share, fs)
 		}
 		a = append(a, "-spice", spice)
 		a = append(a, "-device", "virtio-serial-pci")

@@ -557,7 +557,6 @@ func networkArgs(c Conf, t OsTuning) []string {
 			fwd += ",restrict=y"
 		} else if pub := c["_public"]; pub != "" && smbdPresent() {
 			fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
-			fmt.Printf(" - smbd:     On guest: smb://10.0.2.4/qemu\n")
 		}
 		// Bash prints the Network line in vm_boot — after configure_ports'
 		// ssh/PORTS echoes.
