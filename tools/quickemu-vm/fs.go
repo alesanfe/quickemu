@@ -61,9 +61,16 @@ func tarGz(src, dst string) error {
 			return nil
 		}
 		info, _ := d.Info()
-		h, _ := tar.FileInfoHeader(info, "")
+		var link string
+		if d.Type()&os.ModeSymlink != 0 {
+			link, _ = os.Readlink(p) // store the link, never its target
+		}
+		h, _ := tar.FileInfoHeader(info, link)
 		h.Name = rel
 		tw.WriteHeader(h)
+		if link != "" {
+			return nil // symlink entries carry no body
+		}
 		f, err := os.Open(p)
 		if err != nil {
 			return err
@@ -84,6 +91,18 @@ func cpDir(src, dst string) error {
 		info, _ := d.Info()
 		if d.IsDir() {
 			return os.MkdirAll(t, info.Mode())
+		}
+		// Symlinks are copied as links (mv/cp -r parity): opening the
+		// entry would dereference it — dragging the whole target tree
+		// into the copy or dying on a dir target mid-move.
+		if d.Type()&os.ModeSymlink != 0 {
+			target, err := os.Readlink(p)
+			if err != nil {
+				return err
+			}
+			os.MkdirAll(filepath.Dir(t), 0755)
+			os.Remove(t)
+			return os.Symlink(target, t)
 		}
 		return cpFile(p, t, info.Mode())
 	})

@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -20,6 +21,19 @@ func TestFsHelpers(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(dst, "sub", "b.txt")); string(b) != "bb" {
 		t.Fatal("cpDir content")
+	}
+	// Symlinks must be preserved as links (mv/cp -r parity) — a VM
+	// shared-folder link must not drag the whole target into the copy.
+	if runtime.GOOS != "windows" {
+		os.Symlink("sub", filepath.Join(src, "link"))
+		dst2 := t.TempDir() + "/copy2"
+		if err := cpDir(src, dst2); err != nil {
+			t.Fatalf("cpDir symlink %v", err)
+		}
+		l, err := os.Readlink(filepath.Join(dst2, "link"))
+		if err != nil || l != "sub" {
+			t.Fatalf("symlink not preserved (readlink=%q err=%v)", l, err)
+		}
 	}
 	cf := filepath.Join(t.TempDir(), "f.txt")
 	if err := cpFile(filepath.Join(src, "a.txt"), cf, 0o600); err != nil {
