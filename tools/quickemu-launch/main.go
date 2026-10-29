@@ -254,6 +254,26 @@ func main() {
 	if ea := conf.get("extra_args", ""); ea != "" {
 		args = append(args, strings.Fields(ea)...)
 	}
+	// kernel/initrd/boot_args override (vm.sh): direct kernel boot —
+	// the unattended ubuntu-server flow writes these into the conf.
+	if k := conf.get("kernel", ""); k != "" {
+		args = append(args, "-kernel", joinConf(dir, k))
+		if i := conf.get("initrd", ""); i != "" {
+			args = append(args, "-initrd", joinConf(dir, i))
+		}
+		if b := conf.get("boot_args", ""); b != "" {
+			args = append(args, "-append", b)
+		}
+	}
+	// NoCloud/cloud-init seed image attached as a cdrom (vm.sh).
+	if s := conf.get("seed", ""); s != "" {
+		sp := joinConf(dir, s)
+		if _, err := os.Stat(sp); err == nil {
+			args = append(args, "-drive", "file="+qemuOptEsc(sp)+",media=cdrom,if=virtio,format=raw")
+		} else {
+			fmt.Printf(" - WARNING! seed '%s' not found, skipping.\n", s)
+		}
+	}
 	// monitor + serial channels — vm_boot_channels parity. monitor=socket
 	// also gives the QMP socket; telnet/none have no structured channel.
 	switch mon := conf.get("monitor", "socket"); mon {

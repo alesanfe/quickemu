@@ -41,7 +41,7 @@ func TestUsbAndStorageArgs(t *testing.T) {
 	sc := Conf{"disk_img": "d.qcow2", "iso": "i.iso", "img": "r.img",
 		"fixed_iso": "f.iso", "storage": "nvme"}
 	a = storageArgs(sc, dir, OsTuning{})
-	for _, want := range []string{"virtio-blk-pci", "SystemDisk", "cdrom", "format=raw", "f.iso", "nvme"} {
+	for _, want := range []string{"virtio-blk-pci", "SystemDisk", "index=0", "index=1", "f.iso", "nvme"} {
 		if !has(a, want) {
 			t.Fatalf("storageArgs missing %q in %v", want, a)
 		}
@@ -774,5 +774,48 @@ func TestBootMediaSpecialCases(t *testing.T) {
 	// floppy carries format=raw.
 	if b := bootMediaArgs(Conf{"floppy": "f.img"}, dir); !has(b, "format=raw") {
 		t.Fatalf("floppy: %v", b)
+	}
+}
+
+// SystemDisk emit matrix (vm.sh): windows-server ide-hd, reactos/
+// templeos plain if=ide, aarch64 bootindex=2, batocera BootDisk,
+// extra_disks with :format + missing-file skip.
+func TestSystemDiskMatrix(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "d.qcow2"), []byte("d"), 0o600)
+	cases := []struct {
+		os     string
+		arch   string
+		want   string
+		absent string
+	}{
+		{"windows-server", "x86_64", "ide-hd,drive=SystemDisk", "virtio-blk-pci,drive=SystemDisk"},
+		{"reactos", "x86_64", "if=ide,index=0,media=disk", "drive=SystemDisk"},
+		{"templeos", "x86_64", "if=ide,index=0,media=disk", "drive=SystemDisk"},
+		{"linux", "aarch64", "bootindex=2", ""},
+		{"batocera", "x86_64", "BootDisk", ""},
+	}
+	for _, tc := range cases {
+		c := Conf{"guest_os": tc.os, "arch": tc.arch, "disk_img": "d.qcow2",
+			"img": "b.img"}
+		a := storageArgs(c, dir, OsTuning{})
+		if !has(a, tc.want) {
+			t.Fatalf("%s/%s missing %q: %v", tc.os, tc.arch, tc.want, a)
+		}
+		if tc.absent != "" && has(a, tc.absent) {
+			t.Fatalf("%s/%s must not emit %q: %v", tc.os, tc.arch, tc.absent, a)
+		}
+	}
+	// batocera img must not double-emit a generic virtio drive too.
+	a := storageArgs(Conf{"guest_os": "batocera", "disk_img": "d.qcow2",
+		"img": "b.img"}, dir, OsTuning{})
+	if has(a, "if=virtio") {
+		t.Fatalf("batocera img must be BootDisk only: %v", a)
+	}
+	// extra_disks: :fmt suffix + missing skip.
+	os.WriteFile(filepath.Join(dir, "x.raw"), []byte("x"), 0o600)
+	a = storageArgs(Conf{"extra_disks": "x.raw:raw missing.qcow2"}, dir, OsTuning{})
+	if !has(a, "ExtraDisk0") || !has(a, "format=raw") || has(a, "missing.qcow2") {
+		t.Fatalf("extra_disks: %v", a)
 	}
 }

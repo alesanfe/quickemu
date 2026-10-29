@@ -403,12 +403,18 @@ func prepareStorage(c Conf, dir string) error {
 		c["iso"] = ""
 		c["img"] = ""
 	}
+	// STATUS_QUO: -snapshot means writes are ephemeral — announce it
+	// once the installer media has settled.
+	if confOn(c, "snapshot") && c.get("iso", "") == "" && c.get("img", "") == "" {
+		fmt.Printf("             Existing disk state will be preserved, no writes will be committed.\n")
+	}
 	return nil
 }
 
 func storageArgs(c Conf, dir string, t OsTuning) []string {
 	var a []string
-	mac := c.get("guest_os", "") == "macos"
+	osn := c.get("guest_os", "")
+	mac := osn == "macos"
 	dfmt := c.get("disk_format", "qcow2")
 	if mac {
 		// vm.sh macOS emit: AHCI bus + OpenCore/ESP bootloader at
@@ -432,13 +438,36 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		if t.MacDiskDev != "" {
 			dev = t.MacDiskDev
 		}
-		// Bash: split -drive (if=none,id=SystemDisk) + -device pattern.
-		a = append(a, "-device", dev+",drive=SystemDisk",
-			"-drive", "id=SystemDisk,if=none,format="+dfmt+",file="+qemuOptEsc(joinConf(dir, d))+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
+		sys := "-drive id=SystemDisk,if=none,format=" + dfmt + ",file=" +
+			qemuOptEsc(joinConf(dir, d)) + ",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads"
+		// Per-guest SystemDisk emit (vm.sh): ahci/ide variants, then
+		// the virtio default; aarch64 gets bootindex=2 so the installer
+		// CD-ROM (bootindex=1) wins during installation.
+		switch {
+		case mac:
+			a = append(a, "-device", dev+",drive=SystemDisk", sys)
+		case osn == "kolibrios":
+			a = append(a, "-device", "ahci,id=ahci",
+				"-device", "ide-hd,bus=ahci.0,drive=SystemDisk", sys)
+		case osn == "batocera":
+			if img := c.get("img", ""); img != "" {
+				a = append(a, "-device", "virtio-blk-pci,drive=BootDisk",
+					"-drive", "id=BootDisk,if=none,format=raw,file="+qemuOptEsc(joinConf(dir, img)))
+			}
+			a = append(a, "-device", "virtio-blk-pci,drive=SystemDisk", sys)
+		case osn == "reactos" || osn == "templeos":
+			// ATA/IDE only — no -device, a plain if=ide disk.
+			a = append(a, "-drive", "if=ide,index=0,media=disk,file="+qemuOptEsc(joinConf(dir, d)))
+		case osn == "windows-server":
+			a = append(a, "-device", "ide-hd,drive=SystemDisk", sys)
+		case c.get("arch", "x86_64") == "aarch64":
+			a = append(a, "-device", "virtio-blk-pci,drive=SystemDisk,bootindex=2", sys)
+		default:
+			a = append(a, "-device", dev+",drive=SystemDisk", sys)
+		}
 	}
 	// vm_boot_media emits kolibrios/reactos ISOs at index=2 (phantom-
 	// iso workaround); the generic emit must skip them.
-	osn := c.get("guest_os", "")
 	specialISO := osn == "kolibrios" || osn == "reactos"
 	a64 := c.get("arch", "x86_64") == "aarch64"
 	if a64 && (c.get("iso", "") != "" || c.get("fixed_iso", "") != "") {
@@ -458,8 +487,10 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 			fmt.Printf(" - Boot ISO: %s\n", joinConf(dir, d))
 		}
 	}
-	if d := c.get("img", ""); d != "" && !mac {
-		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",format=raw,if=virtio")
+	// img only becomes a drive for macOS (RecoveryImage, above) and
+	// batocera (BootDisk, above) — for everyone else it is a marker
+	// Bash only echoes, and only when there is no boot ISO (elif).
+	if d := c.get("img", ""); d != "" && !mac && c.get("iso", "") == "" {
 		if _, err := os.Stat(joinConf(dir, d)); err == nil {
 			fmt.Printf(" - Recovery: %s\n", joinConf(dir, d))
 		}
@@ -469,11 +500,31 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 			a = append(a, "-device", "scsi-cd,drive=cd1,bus=scsi0.0,bootindex=3",
 				"-drive", "id=cd1,if=none,format=raw,media=cdrom,readonly=on,file="+qemuOptEsc(joinConf(dir, d)))
 		} else {
-			a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",media=cdrom")
+			a = append(a, "-drive", "media=cdrom,index=1,file="+qemuOptEsc(joinConf(dir, d)))
 		}
 		if _, err := os.Stat(joinConf(dir, d)); err == nil {
 			fmt.Printf(" - CD-ROM:   %s\n", joinConf(dir, d))
 		}
+	}
+	// extra_disks: optional :format suffix (default qcow2); missing
+	// files warn and skip, never fatal.
+	for i, ed := range confList(c, "extra_disks") {
+		if ed == "" {
+			continue
+		}
+		edu, ef := ed, "qcow2"
+		if j := strings.LastIndex(ed, ":"); j >= 0 {
+			edu, ef = ed[:j], ed[j+1:]
+		}
+		ep := joinConf(dir, edu)
+		if _, err := os.Stat(ep); err != nil {
+			fmt.Printf(" - WARNING! extra_disks[%d] '%s' not found; skipping.\n", i, edu)
+			continue
+		}
+		id := fmt.Sprintf("ExtraDisk%d", i)
+		a = append(a, "-device", "virtio-blk-pci,drive="+id,
+			"-drive", "id="+id+",if=none,format="+ef+",file="+qemuOptEsc(ep)+
+				",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
 	}
 	if c.get("storage", "") == "nvme" {
 		a = append(a, "-device", "nvme,drive=nvme0,serial=nvme0")
