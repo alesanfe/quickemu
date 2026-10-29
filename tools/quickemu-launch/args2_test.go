@@ -920,3 +920,155 @@ func TestSystemDiskMatrix(t *testing.T) {
 		t.Fatalf("extra_disks: %v", a)
 	}
 }
+
+// DISPLAY_DEVICE table parity (display.sh).
+func TestDisplayDeviceMatrix(t *testing.T) {
+	cases := []struct{ os_, arch, disp, want string }{
+		{"freebsd", "x86_64", "gtk", "VGA"},
+		{"openbsd", "x86_64", "none", "VGA"},
+		{"templeos", "x86_64", "sdl", "VGA"},
+		{"linux_old", "x86_64", "gtk", "vmware-svga"},
+		{"solaris", "x86_64", "gtk", "vmware-svga"},
+		{"linux", "aarch64", "gtk", "virtio-gpu-pci"},
+		{"linux", "x86_64", "none", "virtio-gpu"},
+		{"linux", "x86_64", "spice", "virtio-gpu"},
+		{"linux", "x86_64", "spice-app", "virtio-gpu"},
+		{"linux", "x86_64", "gtk", "virtio-vga"},
+		{"macos", "x86_64", "none", "vmware-svga"},
+		{"macos", "x86_64", "sdl", "vmware-svga"},
+		{"windows", "aarch64", "sdl", "virtio-gpu-pci"},
+		{"windows", "x86_64", "spice", "qxl-vga"},
+		{"windows", "x86_64", "none", "qxl-vga"},
+		{"windows", "x86_64", "vnc", "virtio-vga"},
+		{"windows-server", "x86_64", "gtk", "virtio-vga"},
+		{"reactos", "x86_64", "gtk", "qxl-vga"},
+	}
+	for _, tc := range cases {
+		if got := displayDevice(Conf{}, tc.os_, tc.arch, tc.disp); got != tc.want {
+			t.Errorf("%s/%s/%s: got %s, want %s", tc.os_, tc.arch, tc.disp, got, tc.want)
+		}
+	}
+	// conf override always wins.
+	if got := displayDevice(Conf{"video": "ati-vga"}, "linux", "x86_64", "gtk"); got != "ati-vga" {
+		t.Fatalf("conf video override lost: %s", got)
+	}
+}
+
+// GL device swap is gated on  listing the variant.
+func TestDisplayGLDeviceProbe(t *testing.T) {
+	stub := t.TempDir()
+	os.WriteFile(filepath.Join(stub, "qemu-system-x86_64"),
+		[]byte("#!/bin/sh\necho 'name \"virtio-vga-gl\", bus PCI'\n"), 0o755)
+	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+	a := displayArgs(Conf{"display": "sdl", "gl": "on"}, t.TempDir(), "linux", "x86_64")
+	if !has(a, "virtio-vga-gl") {
+		t.Fatalf("supported gl variant must be used: %v", a)
+	}
+	os.WriteFile(filepath.Join(stub, "qemu-system-x86_64"),
+		[]byte("#!/bin/sh\necho 'name \"virtio-vga\", bus PCI'\n"), 0o755)
+	a = displayArgs(Conf{"display": "sdl", "gl": "on"}, t.TempDir(), "linux", "x86_64")
+	if !has(a, "virtio-vga") || has(a, "virtio-vga-gl") {
+		t.Fatalf("unsupported gl variant must keep base device: %v", a)
+	}
+	// gl=off never swaps even when supported.
+	os.WriteFile(filepath.Join(stub, "qemu-system-x86_64"),
+		[]byte("#!/bin/sh\necho 'name \"virtio-vga-gl\", bus PCI'\n"), 0o755)
+	a = displayArgs(Conf{"display": "sdl", "gl": "off"}, t.TempDir(), "linux", "x86_64")
+	if has(a, "virtio-vga-gl") {
+		t.Fatalf("gl=off must not swap device: %v", a)
+	}
+}
+
+// xres/yres whitelist, VRAM per family, max_outputs, -vga none, ramfb.
+func TestDisplayVideoOptions(t *testing.T) {
+	dir := t.TempDir()
+	// qxl-vga (windows+spice): res-capable + qxl vram + -vga none.
+	a := displayArgs(Conf{"display": "spice", "access": "remote"}, dir, "windows", "x86_64")
+	j := strings.Join(a, " ")
+	for _, want := range []string{"qxl-vga,xres=1280,yres=800",
+		"ram_size=65536", "vram_size=65536", "vgamem_mb=64"} {
+		if !strings.Contains(j, want) {
+			t.Fatalf("spice/qxl missing %q: %v", want, a)
+		}
+	}
+
+	// spice-app gets -vga none too; vnc does NOT.
+	if !func() bool {
+		for i, arg := range a[:len(a)-1] {
+			if arg == "-vga" && a[i+1] == "none" {
+				return true
+			}
+		}
+		return false
+	}() {
+		t.Fatalf("spice must emit -vga none: %v", a)
+	}
+	vgaNone := func(args []string) bool {
+		for i, arg := range args[:len(args)-1] {
+			if arg == "-vga" && args[i+1] == "none" {
+				return true
+			}
+		}
+		return false
+	}
+	a = displayArgs(Conf{"display": "spice-app"}, dir, "linux", "x86_64")
+	if !vgaNone(a) {
+		t.Fatalf("spice-app must emit -vga none: %v", a)
+	}
+	a = displayArgs(Conf{"display": "vnc"}, dir, "linux", "x86_64")
+	if vgaNone(a) {
+		t.Fatalf("vnc must not emit -vga none: %v", a)
+	}
+	// VGA family: vgamem_mb=256, no xres.
+	a = displayArgs(Conf{"display": "none"}, dir, "freebsd", "x86_64")
+	if !has(a, "vgamem_mb=256") || strings.Contains(strings.Join(a, " "), "xres") {
+		t.Fatalf("VGA device: %v", a)
+	}
+	// bochs-display: 64M vgamem + res-capable.
+	a = displayArgs(Conf{"display": "sdl", "video": "bochs-display"}, dir, "linux", "x86_64")
+	if !has(a, "vgamem=67108864") || !has(a, "xres=1280") {
+		t.Fatalf("bochs: %v", a)
+	}
+	// max_outputs appends to the device opts.
+	a = displayArgs(Conf{"display": "none", "max_outputs": "2"}, dir, "linux", "x86_64")
+	if !has(a, "max_outputs=2") {
+		t.Fatalf("max_outputs: %v", a)
+	}
+	// fullscreen → --full-screen arg after the device.
+	a = displayArgs(Conf{"display": "sdl", "fullscreen": "true"}, dir, "linux", "x86_64")
+	exact := false
+	for _, arg := range a {
+		if arg == "--full-screen" {
+			exact = true
+		}
+	}
+	if !exact {
+		t.Fatalf("fullscreen must emit --full-screen arg: %v", a)
+	}
+	// aarch64 non-virtio-gpu gets ramfb first.
+	a = displayArgs(Conf{"display": "none"}, dir, "freebsd", "aarch64")
+	if len(a) < 2 || a[0] != "-device" || a[1] != "ramfb" {
+		t.Fatalf("aarch64 non-gpu device must prepend ramfb: %v", a)
+	}
+	a = displayArgs(Conf{"display": "none"}, dir, "linux", "aarch64")
+	if has(a, "ramfb") {
+		t.Fatalf("virtio-gpu-pci must not emit ramfb: %v", a)
+	}
+}
+
+// SPICE render selection (display.sh).
+func TestDisplaySpiceRender(t *testing.T) {
+	dir := t.TempDir()
+	a := displayArgs(Conf{"display": "spice", "access": "local", "gl": "on"}, dir, "linux", "x86_64")
+	if !has(a, "egl-headless,rendernode=/dev/dri/renderD128") {
+		t.Fatalf("local spice+gl must use egl-headless: %v", a)
+	}
+	a = displayArgs(Conf{"display": "spice", "access": "local", "gl": "off"}, dir, "linux", "x86_64")
+	if !has(a, "none") || has(a, "egl-headless") {
+		t.Fatalf("local spice without gl renders none: %v", a)
+	}
+	a = displayArgs(Conf{"display": "spice", "access": "remote", "gl": "on"}, dir, "linux", "x86_64")
+	if has(a, "egl-headless") {
+		t.Fatalf("remote spice must not use egl-headless: %v", a)
+	}
+}

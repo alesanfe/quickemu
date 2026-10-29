@@ -16,43 +16,117 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	var a []string
 	display := c.get("display", "none")
 	gl := c.get("gl", "on")
+	// DISPLAY_RENDER by mode (display.sh) — also settles the effective
+	// gl used by the device swap and the - Display: echo.
+	var render string
 	switch display {
 	case "sdl", "spice-app":
 		if display == "sdl" {
 			// commands.sh: grab-on-hover fix — QEMU #541.
 			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
 		}
-		a = append(a, "-display", display+",gl="+qemuOptEsc(gl))
+		render = display + ",gl=" + gl
 	case "cocoa":
-		// display.sh: gl=on + check_cocoa_gl_es_support → gl=es;
-		// otherwise bare "cocoa" (gl param omitted entirely).
+		// gl=on + check_cocoa_gl_es_support → gl=es; otherwise bare
+		// "cocoa" (gl param omitted entirely, gl forced off).
 		if gl == "on" && cocoaGLES() {
 			gl = "es"
-			a = append(a, "-display", display+",gl=es")
+			render = display + ",gl=es"
 		} else {
-			a = append(a, "-display", display)
+			gl = "off"
+			render = display
 		}
 	case "gtk":
-		// display.sh: GTK needs a reachable display server AND QEMU
-		// gtk support — headless hosts fall back to SDL.
+		// GTK needs a reachable display server AND the QEMU gtk
+		// backend — headless hosts fall back to SDL.
 		if !gtkAvailable() {
 			fmt.Println(" - NOTE: GTK display not available, falling back to SDL")
+			display = "sdl"
 			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
-			a = append(a, "-display", "sdl,gl="+qemuOptEsc(gl))
+			render = "sdl,gl=" + gl
 			break
 		}
-		render := display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + qemuOptEsc(gl)
-		if c.get("fullscreen", "") == "true" {
+		render = display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + gl
+		if confOn(c, "fullscreen") {
 			render += ",full-screen=on"
 		}
-		a = append(a, "-display", render)
+	case "none":
+		render, gl = "none", "off" // no backend → no GL context
+	case "spice":
+		// Local SPICE + GL: egl-headless provides the VirGL context
+		// (gl stays on); remote/local without gl renders none.
+		access := c.get("access", "local")
+		switch {
+		case (access == "" || access == "local") && gl == "on":
+			render = "egl-headless,rendernode=/dev/dri/renderD128"
+		case access == "" || access == "local":
+			render = "none"
+		default:
+			render, gl = "none", "off"
+		}
 	case "vnc":
-		// vm.sh: args+=(-vnc "${vnc_listen}") — host:display pair,
-		// default 127.0.0.1:0 from bin/quickemu.
+		render, gl = "none", "off"
+	default:
+		render = display
+	}
+	// DISPLAY_DEVICE + GL swap (probe-gated) + VirGL echo.
+	dev := displayDevice(c, osName, arch, display)
+	virgl := "off"
+	if gl != "off" && (dev == "virtio-vga" || dev == "virtio-gpu" || dev == "virtio-gpu-pci") {
+		virgl = "on"
+		gldev := map[string]string{
+			"virtio-vga":     "virtio-vga-gl",
+			"virtio-gpu":     "virtio-gpu-gl",
+			"virtio-gpu-pci": "virtio-gpu-gl-pci",
+		}[dev]
+		if qemuHasDevice(arch, gldev) {
+			dev = gldev
+		}
+	}
+	fmt.Printf(" - Display:  %s, %s, GL (%s), VirGL (%s)", strings.ToUpper(display), dev, gl, virgl)
+	// xres/yres lands on the res-capable device set only.
+	xres := c.get("width", "1280")
+	yres := c.get("height", "800")
+	res := ""
+	switch {
+	case strings.HasPrefix(dev, "virtio-"), dev == "qxl", dev == "qxl-vga", dev == "bochs-display":
+		res = ",xres=" + qemuOptEsc(xres) + ",yres=" + qemuOptEsc(yres)
+		fmt.Printf(" @ (%s x %s)\n", xres, yres)
+	default:
+		fmt.Println(" ")
+	}
+	// VRAM per legacy device family (display.sh).
+	vram := ""
+	switch dev {
+	case "bochs-display":
+		vram = ",vgamem=67108864"
+	case "qxl", "qxl-vga":
+		vram = ",ram_size=65536,vram_size=65536,vgamem_mb=64"
+	case "ati-vga", "cirrus-vga", "VGA", "vmware-svga":
+		vram = ",vgamem_mb=256"
+	}
+	if mo := c.get("max_outputs", ""); mo != "" {
+		vram += ",max_outputs=" + qemuOptEsc(mo)
+	}
+	// Emit order (vm.sh): ${VIDEO} -display ${RENDER} — ramfb first,
+	// -vga none second, the device, then FULLSCREEN, then -display.
+	if arch == "aarch64" && !strings.HasPrefix(dev, "virtio-gpu") && !strings.HasPrefix(dev, "virtio-gpu-pci") {
+		a = append(a, "-device", "ramfb")
+	}
+	if display == "none" || display == "spice" || display == "spice-app" {
+		a = append(a, "-vga", "none")
+	}
+	a = append(a, "-device", dev+res+vram)
+	if confOn(c, "fullscreen") {
+		a = append(a, "--full-screen")
+	}
+	a = append(a, "-display", render)
+	if display == "vnc" {
+		// args+=(-vnc "${vnc_listen}") in the emit tail — host:display
+		// pair, default 127.0.0.1:0 from bin/quickemu.
 		listen := c.get("vnc_listen", "127.0.0.1:0")
-		a = append(a, "-vnc", qemuOptEsc(listen), "-display", "none")
-		// Publish the RFB endpoint so frontends can attach a viewer:
-		// "host:display" maps onto TCP 5900+display.
+		a = append(a, "-vnc", qemuOptEsc(listen))
+		// Publish the RFB endpoint: "host:display" → TCP 5900+display.
 		host, disp, found := strings.Cut(listen, ":")
 		if !found {
 			host, disp = "127.0.0.1", listen
@@ -64,67 +138,59 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 			portsRecord(dir, c["_vmname"],
 				fmt.Sprintf("vnc,%d,%s", 5900+n, host), c["_run"] == "1")
 		}
-	case "none":
-		a = append(a, "-display", "none")
-	case "spice":
-		a = append(a, "-display", "none") // egl-headless when gl=on; none is safe default
-	default:
-		a = append(a, "-display", display)
 	}
 	if c.get("viewer", "") == "none" {
 		a = append(a, "-display", "none")
 	}
-	// DISPLAY_DEVICE resolution (display.sh): per guest_os + mode.
-	dev := displayDevice(c, osName, arch, display)
-	if display == "none" {
-		a = append(a, "-vga", "none")
-	}
-	// Bash appends xres/yres to virtio-gpu devices.
-	res := ""
-	if strings.HasPrefix(dev, "virtio-") {
-		res = ",xres=" + qemuOptEsc(c.get("width", "1280")) + ",yres=" + qemuOptEsc(c.get("height", "800"))
-	}
-	a = append(a, "-device", dev+res)
 	return a
 }
 
-// displayDevice: the DISPLAY_DEVICE table from display.sh — includes
-// the GL variant swap when the display backend supports it and gl!=off.
+// displayDevice: the DISPLAY_DEVICE table from display.sh — the raw
+// guest/mode pick; the -gl variant swap happens in displayArgs, gated
+// on `qemu -device help` actually listing the variant.
 func displayDevice(c Conf, osName, arch, display string) string {
 	if v := c.get("video", ""); v != "" {
 		return v
 	}
-	var dev string
 	switch {
-	case osName == "linux_old" || strings.HasSuffix(osName, "solaris"):
-		dev = "vmware-svga"
-	case arch == "aarch64":
-		dev = "virtio-gpu-pci"
+	case strings.HasSuffix(osName, "bsd") || osName == "templeos":
+		return "VGA"
+	case osName == "linux_old" || osName == "solaris":
+		return "vmware-svga"
+	case osName == "linux":
+		if arch == "aarch64" {
+			return "virtio-gpu-pci"
+		}
+		if display == "none" || display == "spice" || display == "spice-app" {
+			return "virtio-gpu"
+		}
+		return "virtio-vga"
 	case osName == "macos":
+		// Native VMware display driver; aligns with OSX-KVM.
+		return "vmware-svga"
+	case osName == "windows" || osName == "windows-server":
+		if arch == "aarch64" {
+			return "virtio-gpu-pci"
+		}
 		if display == "none" || display == "spice" {
-			dev = "qxl-vga"
-		} else {
-			dev = "virtio-vga"
+			return "qxl-vga"
 		}
-	case display == "none" || display == "spice" || display == "spice-app":
-		dev = "virtio-gpu"
+		return "virtio-vga"
 	default:
-		dev = "virtio-vga"
+		return "qxl-vga"
 	}
-	// GL swap: sdl/gtk/cocoa displays with gl!=off use the -gl variant
-	// (display.sh: virtio-vga->virtio-vga-gl, gpu->gpu-gl, gpu-pci->gpu-gl-pci).
-	gl := c.get("gl", "on")
-	if gl != "off" && (display == "sdl" || display == "gtk" || display == "cocoa" || display == "spice-app") {
-		switch dev {
-		case "virtio-vga":
-			dev = "virtio-vga-gl"
-		case "virtio-gpu":
-			dev = "virtio-gpu-gl"
-		case "virtio-gpu-pci":
-			dev = "virtio-gpu-gl-pci"
-		}
+}
+
+// qemuHasDevice: `qemu -device help` probe for a quoted device name —
+// gates the virtio -gl variant swap. An unresolvable binary keeps the
+// base device (Bash's grep would find nothing the same way).
+func qemuHasDevice(arch, name string) bool {
+	qemu, err := exec.LookPath("qemu-system-" + arch)
+	if err != nil {
+		return false
 	}
-	return dev
+	out, _ := execCommand(qemu, "-device", "help").CombinedOutput()
+	return strings.Contains(string(out), `"`+name+`"`)
 }
 
 // cocoaGLES mirrors check_cocoa_gl_es_support (macOS-only): probe
