@@ -271,6 +271,19 @@ func TestVmdirRejectsEscapingDisk(t *testing.T) {
 	}
 }
 
+// The plugin name joins the binary name passed to LookPath — a "/" or
+// ".." turns the lookup into a relative-path exec. Names must stay a
+// single safe component (same policy as plugin-market's template names).
+func TestPluginNameTraversal(t *testing.T) {
+	stubTools(t)
+	withConf(t, "")
+	for _, bad := range []string{"../x", "a/b", "..", "-x", ""} {
+		if rc := actPlugin(bad, nil); rc == 0 {
+			t.Fatalf("plugin name %q must be rejected", bad)
+		}
+	}
+}
+
 func TestApplyOverridesRejectsInjection(t *testing.T) {
 	stubTools(t)
 	withConf(t, "guest_os=\"linux\"\n")
