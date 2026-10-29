@@ -667,7 +667,15 @@ func confDisk(dir string) string {
 			if filepath.IsAbs(v) {
 				return v
 			}
-			return filepath.Join(dir, v)
+			// A relative disk must stay inside the VM dir — ops act on
+			// the resolved path (compact/resize/delete), so '..' that
+			// escapes would hit files outside the VM.
+			joined := filepath.Join(dir, v)
+			if rel, err := filepath.Rel(dir, joined); err != nil ||
+				rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				return ""
+			}
+			return joined
 		}
 	}
 	return ""

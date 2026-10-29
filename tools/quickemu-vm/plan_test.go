@@ -43,6 +43,26 @@ func TestConfDisk(t *testing.T) {
 	}
 }
 
+// A relative disk_img must stay inside the VM dir — compact, resize
+// and delete-disk act on the resolved path, so ../ would let a
+// crafted conf move or destroy files outside the VM.
+func TestConfDiskRejectsEscapes(t *testing.T) {
+	dir := t.TempDir()
+	for _, v := range []string{"../out.qcow2", "sub/../../out.qcow2", ".."} {
+		os.WriteFile(filepath.Join(dir, "vm.conf"),
+			[]byte("disk_img=\""+v+"\"\n"), 0o600)
+		if got := confDisk(dir); got != "" {
+			t.Fatalf("disk_img %q escaped vmdir: %q", v, got)
+		}
+	}
+	// A '..' that resolves back inside is still legal.
+	os.WriteFile(filepath.Join(dir, "vm.conf"),
+		[]byte("disk_img=\"sub/../d.qcow2\"\n"), 0o600)
+	if got := confDisk(dir); got != filepath.Join(dir, "d.qcow2") {
+		t.Fatalf("in-dir .. must resolve normally: %q", got)
+	}
+}
+
 // deletePlanItems must exclude lock/runtime/socket sidecars and put
 // the conf first.
 func TestDeletePlanItemsExclusions(t *testing.T) {
