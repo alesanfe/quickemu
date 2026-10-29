@@ -92,12 +92,13 @@ func deleteDisk(dir, pidFile string) int {
 	os.Remove(disk)
 	// Remove any EFI vars, but not for macOS (Bash removes them
 	// unconditionally — macos uses OVMF_VARS-1920x1080.fd which the
-	// glob also catches, same as Bash).
-	for _, pat := range []string{"OVMF_VARS*.fd", name + "-vars.fd"} {
-		for _, f := range glob(dir, pat) {
-			os.Remove(f)
-		}
+	// glob also catches, same as Bash). The VM's own vars file is a
+	// LITERAL name — putting the conf basename inside a glob pattern
+	// lets "a[bc]" match (and delete) other VMs' ab-vars.fd.
+	for _, f := range glob(dir, "OVMF_VARS*.fd") {
+		os.Remove(f)
 	}
+	os.Remove(filepath.Join(dir, name+"-vars.fd"))
 	info(" - Deleted " + disk)
 	shortcutDelete(name)
 	okMap(map[string]any{"deleted": disk})

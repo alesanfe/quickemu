@@ -185,6 +185,31 @@ func TestTrashRestoreNameTraversal(t *testing.T) {
 	}
 }
 
+// delete-disk globbed "<name>-vars.fd" with the conf basename inside
+// the pattern — a conf named "a[bc].conf" makes the pattern match
+// other VMs' vars files (abbc-vars.fd, acbc-vars.fd) and removes
+// them. The suffix is fixed: it must be a literal filename.
+func TestDeleteDiskLiteralVarsName(t *testing.T) {
+	// Conf basename ("a[bc]") differs from the VM dir so the glob
+	// actually fires — when they match, the metachars mask the bug
+	// by failing to match the dir's own literal name too.
+	parent, dir := mkVM(t, "victim")
+	conf := filepath.Join(parent, "a[bc].conf")
+	os.WriteFile(conf, []byte("guest_os=\"linux\"\ndisk_img=\""+
+		filepath.Join(dir, "disk.qcow2")+"\"\n"), 0o644)
+	other := filepath.Join(dir, "ab-vars.fd")
+	own := filepath.Join(dir, "a[bc]-vars.fd")
+	os.WriteFile(other, []byte("vars"), 0o600)
+	os.WriteFile(own, []byte("vars"), 0o600)
+	out, rc := runTool(t, []string{"QE_VMCONF=" + conf}, "delete-disk", dir)
+	if rc != 0 {
+		t.Fatalf("delete-disk failed: %s", out)
+	}
+	if _, err := os.Stat(other); err != nil {
+		t.Fatalf("foreign vars file removed by glob metachars: %v", err)
+	}
+}
+
 func TestAutostartShortcutInjection(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
