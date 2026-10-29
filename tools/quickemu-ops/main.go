@@ -230,7 +230,12 @@ func run() int {
 		case "completed", "failed", "cancelled":
 			die("OP_FINISHED", "operation already finished")
 		}
-		if o.WorkerPid > 0 && qelib.Alive(o.WorkerPid) {
+		// workerPid comes from file content — a crafted ops/*.json
+		// could point SIGTERM at an unrelated process. Same ownership
+		// proof the .pid consumers require: the pid's cmdline must
+		// carry this ops tree or a quickemu*/quickget* binary; an
+		// unreadable cmdline (foreign owner) is not a worker either.
+		if o.WorkerPid > 0 && qelib.Alive(o.WorkerPid) && isWorker(o.WorkerPid, dir) {
 			syscall.Kill(o.WorkerPid, syscall.SIGTERM)
 			o.State = "cancelRequested" // worker confirms via set/cancelled
 			writeOp(dir, o)
@@ -332,6 +337,31 @@ func rbCompensate(dir, typ string) {
 func globVM(dir, pat string) []string {
 	ents, _ := filepath.Glob(filepath.Join(filepath.Dir(dir), pat))
 	return ents
+}
+
+// isWorker: pid ownership proof for cancel — the process must carry
+// the ops tree (a --vmdir/vm path argument) or run a quickemu*/
+// quickget* binary. Unreadable cmdline (foreign user, kernel thread,
+// non-linux) proves nothing, so the pid is not a worker.
+func isWorker(pid int, dir string) bool {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+	if err != nil || len(b) == 0 {
+		return false
+	}
+	argv := strings.Split(strings.TrimRight(string(b), "\x00"), "\x00")
+	if len(argv) == 0 {
+		return false
+	}
+	if base := filepath.Base(argv[0]); strings.HasPrefix(base, "quickemu") || strings.HasPrefix(base, "quickget") {
+		return true
+	}
+	vmdir := filepath.Dir(dir)
+	for _, a := range argv[1:] {
+		if strings.Contains(a, vmdir) || strings.Contains(a, dir) {
+			return true
+		}
+	}
+	return false
 }
 
 func flag(args []string, name string) string {

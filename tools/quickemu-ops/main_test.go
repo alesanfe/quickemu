@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -121,6 +122,42 @@ func TestFailAndCancel(t *testing.T) {
 	}
 	if opState(t, v2, id2)["state"] != "cancelled" {
 		t.Fatal("cancel must be final without worker")
+	}
+}
+
+// A hostile op file can name any live workerPid — cancel must verify
+// the pid is actually a quickemu worker (its cmdline carries the ops
+// dir or a quickemu* binary) before SIGTERM, the same ownership proof
+// .pid consumers already require. Otherwise a crafted ops/*.json
+// points the signal at an unrelated user process.
+func TestCancelForeignWorkerPid(t *testing.T) {
+	vmdir, id := newOp(t, "v")
+	sl := exec.Command("sleep", "60")
+	if err := sl.Start(); err != nil {
+		t.Skip("no sleep binary")
+	}
+	defer sl.Process.Kill()
+
+	// Rewrite the op as running with the foreign pid as its worker.
+	var o Op
+	b, err := os.ReadFile(filepath.Join(vmdir, "ops", id+".json"))
+	if err != nil || json.Unmarshal(b, &o) != nil {
+		t.Fatal(err)
+	}
+	o.State, o.WorkerPid = "running", sl.Process.Pid
+	nb, _ := json.Marshal(o)
+	if err := os.WriteFile(filepath.Join(vmdir, "ops", id+".json"), nb, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, rc := runTool(t, "cancel", "--vmdir", vmdir, "--id", id); rc != 0 {
+		t.Fatalf("cancel rc=%d", rc)
+	}
+	if err := sl.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatal("foreign workerPid was signalled by cancel")
+	}
+	if st := opState(t, vmdir, id); st["state"] != "cancelled" {
+		t.Fatalf("unverified worker must not defer cancel, state=%v", st["state"])
 	}
 }
 
