@@ -312,23 +312,24 @@ func TestInputAudioNetArgs(t *testing.T) {
 	// vm_net_mode parity: restrict and slirp are user netdevs and take
 	// the ssh hostfwd (Bash applies it to user AND restrict); a bare
 	// value is a bridge iface. ssh_access picks the fwd bind address.
+	// ssh_port is pinned — auto-allocation probes real host TCP state.
 	dir2 := t.TempDir()
-	na := networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "network": "restrict"},
+	na := networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "network": "restrict", "ssh_port": "22999"},
 		OsTuning{NetDevice: "virtio-net-pci"})
 	if !has(na, "restrict=y") || !has(na, "hostfwd=tcp:127.0.0.1:") {
 		t.Fatalf("restrict hostfwd: %v", na)
 	}
-	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "network": "slirp"},
+	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "network": "slirp", "ssh_port": "22999"},
 		OsTuning{NetDevice: "virtio-net-pci"})
 	if !has(na, "user,hostname=") || has(na, "restrict=y") || has(na, "bridge") {
 		t.Fatalf("slirp must map to user netdev: %v", na)
 	}
-	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "ssh_access": "remote"},
+	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "ssh_access": "remote", "ssh_port": "22999"},
 		OsTuning{NetDevice: "virtio-net-pci"})
 	if !has(na, "hostfwd=tcp::") {
 		t.Fatalf("ssh_access=remote must bind wildcard: %v", na)
 	}
-	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "ssh_access": "192.168.1.5"},
+	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "ssh_access": "192.168.1.5", "ssh_port": "22999"},
 		OsTuning{NetDevice: "virtio-net-pci"})
 	if !has(na, "hostfwd=tcp:192.168.1.5:") {
 		t.Fatalf("ssh_access=<ip> must bind that addr: %v", na)
@@ -632,5 +633,48 @@ func TestBootLegacyMachinePC(t *testing.T) {
 	}
 	if osQuirks(Conf{"boot": "efi"}, "linux", "x86_64").MachineType != "q35" {
 		t.Fatal("efi boot must keep q35")
+	}
+}
+
+// configure_cpu parity: win11 needs >=2 cores, macOS rounds down to a
+// power of two, -smp carries the host socket count.
+func TestCPUArgsContract(t *testing.T) {
+	a := cpuArgs(Conf{"cpu_cores": "1", "guest_os": "windows", "_vmname": "windows-11"},
+		"windows", "x86_64", OsTuning{})
+	if !has(a, "cores=2") && !has(a, "cores=1") {
+		t.Fatalf("win11 smp %v", a)
+	}
+	// macOS 6 cores -> 4 logical (nearest lower power of 2); with SMT
+	// the -smp line shows cores=2,threads=2 — either is 4 vCPUs total.
+	a = cpuArgs(Conf{"cpu_cores": "6", "guest_os": "macos"}, "macos", "x86_64", OsTuning{})
+	found := false
+	for _, s := range a {
+		if strings.HasPrefix(s, "cores=") {
+			found = strings.Contains(s, "cores=4") ||
+				(strings.Contains(s, "cores=2") && strings.Contains(s, "threads=2"))
+		}
+	}
+	if !found {
+		t.Fatalf("macOS power-of-2 rounding failed: %v", a)
+	}
+	// sockets= is always present.
+	found = false
+	for _, s := range a {
+		if strings.Contains(s, "sockets=") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("smp missing sockets: %v", a)
+	}
+}
+
+func TestRamArgsTiering(t *testing.T) {
+	a := ramArgs(Conf{"ram": "12G"})
+	if !has(a, "12G") {
+		t.Fatalf("explicit ram %v", a)
+	}
+	if a = ramArgs(Conf{}); len(a) < 2 || a[0] != "-m" {
+		t.Fatalf("ramArgs %v", a)
 	}
 }

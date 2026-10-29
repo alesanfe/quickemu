@@ -66,6 +66,26 @@ func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
 			cores = "1"
 		}
 	}
+	n := 2
+	fmt.Sscanf(cores, "%d", &n)
+	// Windows 11 minimum: 2 cores (issue #1423) — keyed off the VM
+	// name, same as Bash.
+	if osName == "windows" && n < 2 {
+		vm := c["_vmname"]
+		if strings.Contains(vm, "windows-11") || strings.Contains(vm, "win11") {
+			fmt.Printf(" - CPU:      Adjusting CPU cores from %d to 2 (Windows 11 minimum requirement)\n", n)
+			n = 2
+		}
+	}
+	// macOS only boots with power-of-2 core counts — nearest lower one.
+	if osName == "macos" {
+		for p := 1024; p >= 1; p >>= 1 {
+			if p <= n {
+				n = p
+				break
+			}
+		}
+	}
 	cpu := "host"
 	if m := os.Getenv("CPU_MODEL"); m != "" {
 		cpu = m
@@ -75,24 +95,77 @@ func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
 	} else {
 		cpu += t.CPUFlags
 	}
+	// AMD hosts get topoext for every non-macOS x86_64 guest.
+	if arch == "x86_64" && osName != "macos" && hostCPUVendor() == "AuthenticAMD" {
+		cpu += ",topoext"
+	}
 	var a []string
 	a = append(a, "-cpu", cpu)
-	n := 2
-	fmt.Sscanf(cores, "%d", &n)
 	threads := 1
 	if n >= 2 && hostSMT() {
 		threads = 2
 	}
-	a = append(a, "-smp", fmt.Sprintf("cores=%d,threads=%d,sockets=1", n/threads, threads))
+	sockets := hostSockets()
+	a = append(a, "-smp", fmt.Sprintf("cores=%d,threads=%d,sockets=%d", n/threads, threads, sockets))
+	fmt.Printf(" - CPU:      %s\n", hostCPUModel())
+	fmt.Printf(" - CPU VM:   %s, %d Socket(s), %d Core(s), %d Thread(s)\n",
+		strings.SplitN(cpu, ",", 2)[0], sockets, n/threads, threads)
 	return a
 }
 
+// hostSockets: HOST_CPU_SOCKETS parity — lscpu "Socket(s)", 1 when
+// unresolved.
+func hostSockets() int {
+	out, err := exec.Command("lscpu").Output()
+	if err != nil {
+		return 1
+	}
+	for _, l := range strings.Split(string(out), "\n") {
+		if strings.HasPrefix(l, "Socket(s):") {
+			n := 1
+			fmt.Sscanf(strings.TrimSpace(strings.SplitN(l, ":", 2)[1]), "%d", &n)
+			return n
+		}
+	}
+	return 1
+}
+
+// hostCPUModel: HOST_CPU_MODEL parity — first "model name" from
+// cpuinfo (lscpu Model name on any arch).
+func hostCPUModel() string {
+	b, err := os.ReadFile("/proc/cpuinfo")
+	if err == nil {
+		for _, l := range strings.Split(string(b), "\n") {
+			if strings.HasPrefix(l, "model name") {
+				return strings.TrimSpace(strings.SplitN(l, ":", 2)[1])
+			}
+		}
+	}
+	return ""
+}
+
 func ramArgs(c Conf) []string {
-	ram := c.get("ram", "4G")
+	ram := c.get("ram", "")
+	if ram == "" {
+		// configure_ram tiering on host GiB: ≥128→32G, ≥64→16G,
+		// ≥16→8G, ≥8→4G, else 2G.
+		ram = "2G"
+		switch gb := hostTotalMemMB() / 1024; {
+		case gb >= 128:
+			ram = "32G"
+		case gb >= 64:
+			ram = "16G"
+		case gb >= 16:
+			ram = "8G"
+		case gb >= 8:
+			ram = "4G"
+		}
+	}
 	a := []string{"-m", ram}
 	if c.get("balloon", "") == "true" {
 		a = append(a, "-device", "virtio-balloon")
 	}
+	fmt.Printf(" - RAM VM:   %s RAM\n", ram)
 	return a
 }
 
@@ -325,6 +398,7 @@ func biosArgs(c Conf, osName, arch string) []string {
 	efi := confOn(c, "efi") || strings.Contains(c.get("boot", ""), "efi") ||
 		osName == "windows" || mac
 	if !efi {
+		fmt.Printf(" - BOOT:     Legacy BIOS (%s)\n", title(osName))
 		return a
 	}
 	if arch == "aarch64" {
@@ -332,6 +406,8 @@ func biosArgs(c Conf, osName, arch string) []string {
 		// no persistent pflash store (configure_bios EFI_MODE=bios).
 		if osName == "windows" && !confOn(c, "secureboot") {
 			if f := firmwareFile("edk2/aarch64/QEMU_EFI.fd", "QEMU_EFI.fd"); f != "" {
+				fmt.Printf(" - BOOT:     EFI (%s), firmware (%s), mode (-bios), SecureBoot (off).\n",
+					title(osName), f)
 				return []string{"-bios", f}
 			}
 		}
@@ -343,6 +419,8 @@ func biosArgs(c Conf, osName, arch string) []string {
 				code = "/usr/share/AAVMF/AAVMF_CODE.fd"
 			}
 		}
+		fmt.Printf(" - BOOT:     EFI (%s), OVMF (%s), EFI Vars (%s), SecureBoot (%s).\n",
+			title(osName), code, vars, c.get("secureboot", "off"))
 		// ARM64 pflash uses named blockdev nodes on the virt machine —
 		// no cfi.pflash01 secure global (x86 SMM-specific).
 		return []string{
@@ -379,6 +457,13 @@ func biosArgs(c Conf, osName, arch string) []string {
 	}
 	if isFirmwareQcow2(vars) {
 		varsFmt = "qcow2"
+	}
+	if mac {
+		fmt.Printf(" - BOOT:     EFI (macOS), OVMF (%s), SecureBoot (%s).\n",
+			filepath.Base(code), c.get("secureboot", "off"))
+	} else {
+		fmt.Printf(" - BOOT:     EFI (%s), OVMF (%s), EFI Vars (%s), SecureBoot (%s).\n",
+			title(osName), code, vars, c.get("secureboot", "off"))
 	}
 	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
 	a = append(a, "-drive", "if=pflash,format="+codeFmt+",unit=0,file="+qemuOptEsc(code)+",readonly=on")
@@ -443,11 +528,15 @@ func networkArgs(c Conf, t OsTuning) []string {
 		} else {
 			fmt.Println(" - ssh:      All ssh ports have been exhausted.")
 		}
-		for _, pf := range strings.Fields(c.get("port_forwards", "")) {
-			kv := strings.SplitN(pf, ":", 2)
-			if len(kv) == 2 {
-				fwd += ",hostfwd=tcp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1]) +
-					",hostfwd=udp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1])
+		if pfs := strings.Fields(c.get("port_forwards", "")); len(pfs) > 0 {
+			fmt.Println(" - PORTS:    Port forwards requested:")
+			for _, pf := range pfs {
+				kv := strings.SplitN(pf, ":", 2)
+				if len(kv) == 2 {
+					fmt.Printf("              - %s => %s\n", kv[0], kv[1])
+					fwd += ",hostfwd=tcp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1]) +
+						",hostfwd=udp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1])
+				}
 			}
 		}
 		if net == "restrict" {
@@ -562,6 +651,15 @@ func hostHypervisor() string {
 		return v
 	}
 	return ""
+}
+
+// title: Bash ${var^} — capitalize the first letter (guest names in
+// the BOOT status line).
+func title(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // hostCPUVendor: vendor_id from cpuinfo (GenuineIntel|AuthenticAMD|HygonGenuine).

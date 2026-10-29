@@ -267,6 +267,9 @@ func audioArgs(c Conf, osName string, t OsTuning) []string {
 	if t.SoundCard != "" {
 		sc = t.SoundCard
 	}
+	duplex := c.get("sound_duplex", "hda-micro")
+	// configure_audio prints this unconditionally — even for none.
+	fmt.Printf(" - Sound:    %s (%s)\n", sc, duplex)
 	if sc == "none" {
 		return nil
 	}
@@ -282,7 +285,6 @@ func audioArgs(c Conf, osName string, t OsTuning) []string {
 	default:
 		backend = audioDriver() + ",id=audio0"
 	}
-	duplex := c.get("sound_duplex", "hda-micro")
 	var a []string
 	switch sc {
 	case "ich9-intel-hda", "intel-hda":
@@ -339,6 +341,7 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		}
 	}
 	if d := c.get("disk_img", ""); d != "" {
+		fmt.Printf(" - Disk:     %s (%s)\n", joinConf(dir, d), c.get("disk_size", "16G"))
 		dev := "virtio-blk-pci"
 		if t.MacDiskDev != "" {
 			dev = t.MacDiskDev
@@ -350,12 +353,21 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 	if d := c.get("iso", ""); d != "" {
 		// Bash: plain cdrom drive (IDE), indexed.
 		a = append(a, "-drive", "media=cdrom,index=0,file="+qemuOptEsc(joinConf(dir, d)))
+		if _, err := os.Stat(joinConf(dir, d)); err == nil {
+			fmt.Printf(" - Boot ISO: %s\n", joinConf(dir, d))
+		}
 	}
 	if d := c.get("img", ""); d != "" && !mac {
 		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",format=raw,if=virtio")
+		if _, err := os.Stat(joinConf(dir, d)); err == nil {
+			fmt.Printf(" - Recovery: %s\n", joinConf(dir, d))
+		}
 	}
 	if d := c.get("fixed_iso", ""); d != "" {
 		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",media=cdrom")
+		if _, err := os.Stat(joinConf(dir, d)); err == nil {
+			fmt.Printf(" - CD-ROM:   %s\n", joinConf(dir, d))
+		}
 	}
 	if c.get("storage", "") == "nvme" {
 		a = append(a, "-device", "nvme,drive=nvme0,serial=nvme0")
