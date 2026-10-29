@@ -141,7 +141,17 @@ func main() {
 		conf["_swtpm"] = "1"
 	}
 	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
-	osName := conf.get("guest_os", "linux")
+	osName := strings.ToLower(conf.get("guest_os", "linux"))
+	// vm_boot warns on unrecognised guest_os values — 'custom' configs
+	// may use arbitrary values, so warn only (generic defaults apply).
+	switch osName {
+	case "batocera", "freedos", "haiku", "kolibrios", "linux", "linux_old",
+		"macos", "reactos", "solaris", "templeos", "windows", "windows-server":
+	default:
+		if !strings.HasSuffix(osName, "bsd") {
+			fmt.Printf(" - WARNING!  '%s' is not a recognised guest_os value; using generic defaults.\n", osName)
+		}
+	}
 	arch := conf.get("arch", "x86_64")
 	// configure_bios fatal checks: macOS firmware/bootloader presence +
 	// sizes, EFI vars writability. Runs before any arg assembly.
@@ -209,15 +219,40 @@ func main() {
 	machine := t.MachineType
 	if arch == "aarch64" {
 		machine = "virt"
+		// ARM64 pflash firmware exposes code/vars as named blockdev
+		// nodes on the virt machine (vm_boot MACHINE_TYPE suffix) —
+		// only when EFI_MODE stayed pflash, i.e. not the -bios path.
+		efiPflash := strings.Contains(conf.get("boot", ""), "efi")
+		if efiPflash && osName == "windows" && !confOn(conf, "secureboot") &&
+			firmwareFile("edk2/aarch64/QEMU_EFI.fd", "QEMU_EFI.fd") != "" {
+			efiPflash = false
+		}
+		if efiPflash {
+			machine += ",pflash0=rom,pflash1=efivars"
+		}
 	}
 
 	args := []string{"qemu-system-" + arch}
 
 	if accel == "tcg" {
-		args = append(args, "-accel", "tcg,tb-size=256,thread=multi")
-		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off")
+		// tb-size tiers by host RAM: 512M on 16GB+ hosts (vm_boot).
+		tb := 256
+		if (hostTotalMemMB()+512)/1024 >= 16 {
+			tb = 512
+		}
+		args = append(args, "-accel", fmt.Sprintf("tcg,tb-size=%d,thread=multi", tb))
+		if arch == "aarch64" {
+			// SMM/vmport are x86-only; ARM64 emits neither.
+			args = append(args, "-machine", machine+t.Machine)
+		} else {
+			args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off")
+		}
 	} else {
-		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off,accel="+accel)
+		if arch == "aarch64" {
+			args = append(args, "-machine", machine+t.Machine+",accel="+accel)
+		} else {
+			args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off,accel="+accel)
+		}
 	}
 
 	// vm_boot order: cpu->ram->bios->os_quirks->storage->display->audio
@@ -236,7 +271,11 @@ func main() {
 	}
 	args = append(args, ramArgs(conf)...)
 	args = append(args, biosArgs(conf, osName, arch)...)
-	args = append(args, "-global", "kvm-pit.lost_tick_policy=discard")
+	// GUEST_TWEAKS kvm-pit global: launch.sh adds it on the non-Darwin
+	// branch only (macOS hosts take the hvf path instead).
+	if runtime.GOOS != "darwin" {
+		args = append(args, "-global", "kvm-pit.lost_tick_policy=discard")
+	}
 	args = append(args, t.ExtraArgs...)
 	if t.Balloon != "" {
 		args = append(args, strings.Fields(t.Balloon)...)
@@ -249,7 +288,7 @@ func main() {
 	args = append(args, audioArgs(conf, osName, t)...)
 	args = append(args, networkArgs(conf, t)...)
 	args = append(args, portArgs(conf, dir)...)
-	args = append(args, spiceArgs(conf, vmdir, vmname, osName, t)...)
+	args = append(args, spiceArgs(conf, vmdir, vmname, osName, arch, t)...)
 	args = append(args, fileshareArgs(conf, dir)...)
 	args = append(args, passthruArgs(conf)...)
 	args = append(args, bootMediaArgs(conf, dir)...)
@@ -361,12 +400,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// pidfile + daemonize
-	args = append(args, "-name", vmname+",process="+vmname+",debug-threads=on")
+	// pidfile + daemonize. Process renaming is a Linux-only QEMU
+	// feature (vm_boot OS_KERNEL gate).
+	if runtime.GOOS == "linux" {
+		args = append(args, "-name", vmname+",process="+vmname+",debug-threads=on")
+	}
 	args = append(args, "-pidfile", dotdir(vmdir)+vmname+".pid")
 	args = append(args, rtcArgs(osName)...)
-	args = append(args, "-device", "virtio-balloon")
-	args = append(args, "-object", "rng-random,id=rng0,filename=/dev/urandom", "-device", "virtio-rng-pci,rng=rng0")
+	// rng: device first, then the object it references (vm.sh order).
+	args = append(args, "-device", "virtio-rng-pci,rng=rng0", "-object", "rng-random,id=rng0,filename=/dev/urandom")
 
 	if len(os.Args) > 2 && os.Args[2] == "--run" {
 		// Hardware-virtualisation gate (configure_cpu): only enforced on

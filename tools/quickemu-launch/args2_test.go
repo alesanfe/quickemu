@@ -1072,3 +1072,72 @@ func TestDisplaySpiceRender(t *testing.T) {
 		t.Fatalf("remote spice must not use egl-headless: %v", a)
 	}
 }
+
+// aarch64 -machine emit (vm_boot): no x86 smm/vmport; pflash blockdev
+// nodes on the virt machine when boot=efi.
+func TestAarch64MachineEmit(t *testing.T) {
+	c := richConf(t, "arch=\"aarch64\"\nboot=\"efi\"\nnetwork=\"none\"\ndisplay=\"none\"\nspice_port=\"5930\"\n")
+	out, rc := launch(t, nil, c, "--dry-run")
+	if rc != 0 {
+		t.Fatalf("rc=%d %s", rc, out)
+	}
+	if !strings.Contains(out, "-machine virt,pflash0=rom,pflash1=efivars") {
+		t.Fatalf("aarch64 efi machine: %s", out)
+	}
+	if strings.Contains(out, "smm=") || strings.Contains(out, "vmport") {
+		t.Fatalf("aarch64 must not emit x86-only machine opts: %s", out)
+	}
+	c2 := richConf(t, "arch=\"aarch64\"\nnetwork=\"none\"\ndisplay=\"none\"\nspice_port=\"5931\"\n")
+	out, rc = launch(t, nil, c2, "--dry-run")
+	if rc != 0 {
+		t.Fatalf("rc=%d %s", rc, out)
+	}
+	if strings.Contains(out, "pflash0") {
+		t.Fatalf("non-efi aarch64 must not emit pflash nodes: %s", out)
+	}
+}
+
+// virtio-balloon: default for all guests; only dropped for pre-virtio
+// macOS releases (os_quirks BALLOON="").
+func TestBalloonPerGuest(t *testing.T) {
+	c := richConf(t, "")
+	out, _ := launch(t, nil, c, "--dry-run")
+	if n := strings.Count(out, "-device virtio-balloon"); n != 1 {
+		t.Fatalf("linux balloon count=%d: %s", n, out)
+	}
+	for _, rel := range []struct {
+		name string
+		want int
+	}{
+		{"monterey", 1}, {"big-sur", 1}, {"", 0}, {"catalina", 0},
+	} {
+		extra := "guest_os=\"macos\"\ndisplay=\"none\"\nnetwork=\"none\"\nspice_port=\"5932\"\n"
+		if rel.name != "" {
+			extra += "macos_release=\"" + rel.name + "\"\n"
+		}
+		cc := richConf(t, extra)
+		dir := filepath.Dir(cc)
+		os.WriteFile(filepath.Join(dir, "OVMF_CODE.fd"), make([]byte, 2<<20), 0o644)
+		os.WriteFile(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1<<17), 0o644)
+		os.WriteFile(filepath.Join(dir, "OpenCore.qcow2"), []byte("qc"), 0o644)
+		out, rc := launch(t, nil, cc, "--dry-run")
+		if rc != 0 {
+			t.Fatalf("macos %s rc=%d %s", rel.name, rc, out)
+		}
+		if n := strings.Count(out, "-device virtio-balloon"); n != rel.want {
+			t.Fatalf("macos %s balloon count=%d want %d: %s", rel.name, n, rel.want, out)
+		}
+	}
+}
+
+// vm_boot warns (stdout) on unrecognised guest_os values.
+func TestGuestOsUnknownWarning(t *testing.T) {
+	c := richConf(t, "guest_os=\"plan9\"\n")
+	out, rc := launch(t, nil, c, "--dry-run")
+	if rc != 0 {
+		t.Fatalf("rc=%d %s", rc, out)
+	}
+	if !strings.Contains(out, "not a recognised guest_os value") {
+		t.Fatalf("missing guest_os warning: %s", out)
+	}
+}

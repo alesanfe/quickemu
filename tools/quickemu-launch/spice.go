@@ -20,7 +20,7 @@ import (
 //	none           -> disable-ticketing=on,port=<p>,addr=127.0.0.1|<ip|"">
 //
 // `access` in the conf stands in for the Bash --access CLI option.
-func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
+func spiceArgs(c Conf, dir, vmname, osName, arch string, t OsTuning) []string {
 	d := c.get("display", "none")
 	var a []string
 	// -spice + agent/vdagent/webdav channels only in the spice gate;
@@ -103,19 +103,31 @@ func spiceArgs(c Conf, dir, vmname, osName string, t OsTuning) []string {
 	}
 	// usb redirection (3 channels) + smartcard passthrough — the
 	// spicepass controller follows USB_HOST_PASSTHROUGH_CONTROLLER.
-	spctl := t.UsbPassthrough
-	if spctl == "" {
-		spctl = "qemu-xhci"
+	// vm.sh gates the whole block on OS_KERNEL==Linux; macOS QEMU
+	// builds lack the SPICE chardev entirely.
+	if runtime.GOOS == "linux" {
+		spctl := t.UsbPassthrough
+		if spctl == "" {
+			spctl = "qemu-xhci"
+		}
+		a = append(a, "-device", spctl+",id=spicepass")
+		for i := 1; i <= 3; i++ {
+			a = append(a, "-chardev", fmt.Sprintf("spicevmc,id=usbredirchardev%d,name=usbredir", i))
+			a = append(a, "-device", fmt.Sprintf("usb-redir,chardev=usbredirchardev%d,id=usbredirdev%d", i, i))
+		}
+		a = append(a, "-device", "pci-ohci,id=smartpass")
+		a = append(a, "-device", "usb-ccid")
+		// Smartcard passthrough needs QEMU's ccid-card-passthru —
+		// probe like Bash (`qemu -device help | grep "passthrough
+		// smartcard"`), warn instead of emitting when unavailable.
+		if strings.Contains(qemuDeviceHelp(arch), "passthrough smartcard") {
+			a = append(a, "-chardev", "spicevmc,id=ccid,name=smartcard")
+			a = append(a, "-device", "ccid-card-passthru,chardev=ccid")
+		} else {
+			fmt.Printf(" - WARNING!  %s or SPICE was not compiled with support for smartcard devices\n",
+				"qemu-system-"+arch)
+		}
 	}
-	a = append(a, "-device", spctl+",id=spicepass")
-	for i := 1; i <= 3; i++ {
-		a = append(a, "-chardev", fmt.Sprintf("spicevmc,id=usbredirchardev%d,name=usbredir", i))
-		a = append(a, "-device", fmt.Sprintf("usb-redir,chardev=usbredirchardev%d,id=usbredirdev%d", i, i))
-	}
-	a = append(a, "-device", "pci-ohci,id=smartpass")
-	a = append(a, "-device", "usb-ccid")
-	a = append(a, "-chardev", "spicevmc,id=ccid,name=smartcard")
-	a = append(a, "-device", "ccid-card-passthru,chardev=ccid")
 	return a
 }
 
@@ -135,7 +147,7 @@ func inputArgs(c Conf, t OsTuning) []string {
 		a = append(a, "-device", "qemu-xhci,id=input")
 	case "none":
 	default:
-		fmt.Fprintf(os.Stderr, " - WARNING!  Unknown usb-controller value: '%s'\n", ctl)
+		fmt.Printf(" - WARNING!  Unknown usb-controller value: '%s'\n", ctl)
 	}
 	kbd := t.Keyboard
 	if kbd == "" {
@@ -148,7 +160,7 @@ func inputArgs(c Conf, t OsTuning) []string {
 		a = append(a, "-device", "virtio-keyboard")
 	case "ps2":
 	default:
-		fmt.Fprintf(os.Stderr, " - WARNING!  Unknown keyboard value: '%s'; Fallback to ps2\n", kbd)
+		fmt.Printf(" - WARNING!  Unknown keyboard value: '%s'; Fallback to ps2\n", kbd)
 	}
 	if l := c.get("keyboard_layout", ""); l != "" {
 		a = append(a, "-k", l)
@@ -166,7 +178,7 @@ func inputArgs(c Conf, t OsTuning) []string {
 		a = append(a, "-device", "virtio-mouse")
 	case "ps2":
 	default:
-		fmt.Fprintf(os.Stderr, " - WARNING!  Unknown mouse value: '%s'; Falling back to ps2\n", mouse)
+		fmt.Printf(" - WARNING!  Unknown mouse value: '%s'; Falling back to ps2\n", mouse)
 	}
 	return a
 }

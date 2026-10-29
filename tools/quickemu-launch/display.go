@@ -181,16 +181,22 @@ func displayDevice(c Conf, osName, arch, display string) string {
 	}
 }
 
+// qemuDeviceHelp: raw `qemu -device help` output — shared by the GL
+// variant and smartcard probes. An unresolvable binary reports "".
+func qemuDeviceHelp(arch string) string {
+	qemu, err := exec.LookPath("qemu-system-" + arch)
+	if err != nil {
+		return ""
+	}
+	out, _ := execCommand(qemu, "-device", "help").CombinedOutput()
+	return string(out)
+}
+
 // qemuHasDevice: `qemu -device help` probe for a quoted device name —
 // gates the virtio -gl variant swap. An unresolvable binary keeps the
 // base device (Bash's grep would find nothing the same way).
 func qemuHasDevice(arch, name string) bool {
-	qemu, err := exec.LookPath("qemu-system-" + arch)
-	if err != nil {
-		return false
-	}
-	out, _ := execCommand(qemu, "-device", "help").CombinedOutput()
-	return strings.Contains(string(out), `"`+name+`"`)
+	return strings.Contains(qemuDeviceHelp(arch), `"`+name+`"`)
 }
 
 // cocoaGLES mirrors check_cocoa_gl_es_support (macOS-only): probe

@@ -32,7 +32,8 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 	if m := os.Getenv("MACHINE_TYPE"); m != "" {
 		machineType = m
 	}
-	t := OsTuning{NetDevice: "rtl8139", SMM: "off", MachineType: machineType}
+	t := OsTuning{NetDevice: "rtl8139", SMM: "off", MachineType: machineType,
+		Balloon: "-device virtio-balloon"}
 
 	// pre-case overrides
 	if osName == "freebsd" || osName == "ghostbsd" {
@@ -79,6 +80,9 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 			t.SoundCard = "ich9-intel-hda"
 			t.UsbController = "xhci"
 		default:
+			// Pre-virtio macOS (High Sierra/Mojave/unknown release):
+			// no virtio-balloon support (BALLOON="" in os_quirks).
+			t.Balloon = ""
 			if rel == "catalina" {
 				t.MacDiskDev = "virtio-blk-pci"
 			} else {

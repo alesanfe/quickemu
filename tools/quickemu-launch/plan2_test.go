@@ -28,7 +28,7 @@ func TestQuirksMatrix(t *testing.T) {
 			_ = cpuArgs(c, osName, arch, tu)
 			_ = audioArgs(c, osName, tu)
 			_ = networkArgs(c, tu)
-			_ = spiceArgs(c, "/tmp", "vm", osName, tu)
+			_ = spiceArgs(c, "/tmp", "vm", osName, "x86_64", tu)
 			_ = inputArgs(c, tu)
 			_ = usbArgs(c, tu)
 			_ = biosArgs(c, osName, arch)
