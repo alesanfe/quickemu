@@ -146,13 +146,19 @@ spice_port="5930"
 		t.Fatalf("tcg rc=%d %s", rc, out)
 	}
 	// display none + macos + telnet serial — spice_port pinned as in
-	// conf2 so the headless path never probes host TCP state.
+	// conf2 so the headless path never probes host TCP state. macOS
+	// needs the quickget firmware + bootloader even on dry-run
+	// (configure_bios MAC_MISSING is not DRY_RUN-gated).
 	conf3 := richConf(t, `guest_os="macos"
 display="none"
 serial="telnet"
 serial_telnet_port="6660"
 spice_port="5930"
 `)
+	macdir := filepath.Dir(conf3)
+	os.WriteFile(filepath.Join(macdir, "OVMF_CODE.fd"), make([]byte, 2<<20), 0o644)
+	os.WriteFile(filepath.Join(macdir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1<<17), 0o644)
+	os.WriteFile(filepath.Join(macdir, "OpenCore.qcow2"), []byte("qc"), 0o644)
 	out, rc = launch(t, nil, conf3, "--dry-run")
 	if rc != 0 {
 		t.Fatalf("dry-run rc=%d", rc)

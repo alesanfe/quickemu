@@ -89,9 +89,12 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 		}
 	}
 
-	// machine type: pc for the legacy guests, q35 otherwise
-	switch osName {
-	case "batocera", "freedos", "haiku", "solaris":
+	// machine type: pc for the legacy guests, q35 otherwise.
+	// configure_bios also forces pc whenever boot="legacy" — the
+	// i440fx/PIIX3 chipset is what SeaBIOS-era guests expect.
+	switch {
+	case osName == "batocera" || osName == "freedos" || osName == "haiku" || osName == "solaris",
+		strings.Contains(c.get("boot", ""), "legacy"):
 		t.MachineType = "pc"
 	}
 

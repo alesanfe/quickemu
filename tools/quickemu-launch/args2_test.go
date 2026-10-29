@@ -191,18 +191,25 @@ func TestResolvePublicAndXDG(t *testing.T) {
 func TestSeedEFIVars(t *testing.T) {
 	dir := t.TempDir()
 	c := Conf{"_vmdir": dir}
-	// not running → no-op.
-	seedEFIVars(c)
+	// not running → returns the path but writes nothing.
+	seedEFIVars(c, "")
+	if _, err := os.Stat(filepath.Join(dir, "OVMF_VARS.fd")); err == nil {
+		t.Fatal("plan mode must not seed vars")
+	}
 	// running + existing vars → no-op.
 	os.WriteFile(filepath.Join(dir, "OVMF_VARS.fd"), []byte("v"), 0o600)
 	c["_run"] = "1"
-	seedEFIVars(c)
-	// running + template in QE_FIRMWARE_DIR → seeds.
+	seedEFIVars(c, "")
+	if b, _ := os.ReadFile(filepath.Join(dir, "OVMF_VARS.fd")); string(b) != "v" {
+		t.Fatal("existing vars must win (no reseed)")
+	}
+	// running + template → seeds the copy.
 	os.Remove(filepath.Join(dir, "OVMF_VARS.fd"))
-	fw := t.TempDir()
-	t.Setenv("QE_FIRMWARE_DIR", fw)
-	os.WriteFile(filepath.Join(fw, "OVMF_VARS.fd"), []byte("template"), 0o600)
-	seedEFIVars(c)
+	tmpl := filepath.Join(t.TempDir(), "OVMF_VARS.fd")
+	os.WriteFile(tmpl, []byte("template"), 0o600)
+	if got := seedEFIVars(c, tmpl); got != filepath.Join(dir, "OVMF_VARS.fd") {
+		t.Fatalf("vars path %q", got)
+	}
 	if b, err := os.ReadFile(filepath.Join(dir, "OVMF_VARS.fd")); err != nil || string(b) != "template" {
 		t.Fatalf("seeded %v %q", err, b)
 	}
@@ -523,5 +530,107 @@ func TestSDLClickthroughEnv(t *testing.T) {
 	displayArgs(Conf{"display": "sdl"}, t.TempDir(), "linux", "x86_64")
 	if os.Getenv("SDL_MOUSE_FOCUS_CLICKTHROUGH") != "1" {
 		t.Fatal("sdl display must export SDL_MOUSE_FOCUS_CLICKTHROUGH=1")
+	}
+}
+
+// Firmware parity (configure_bios):
+//   - macOS uses the vmdir OVMF_CODE.fd + OVMF_VARS-*.fd downloaded by
+//     quickget, requires OpenCore.qcow2/ESP.qcow2, and sizes are sanity
+//     checked — missing pieces are fatal errors, not silent fallback.
+//   - qcow2 firmware (magic QFI\xfb) emits format=qcow2 pflash drives
+//     and seeds OVMF_VARS.qcow2.
+//   - aarch64 windows prefers monolithic -bios QEMU_EFI.fd; other
+//     aarch64 guests use named -blockdev pflash pairs.
+//   - boot="legacy" forces MACHINE_TYPE=pc.
+//   - SystemDisk honors disk_format from the conf.
+func TestParamCheckFirmwareMacOS(t *testing.T) {
+	dir := t.TempDir()
+	c := Conf{"guest_os": "macos", "_vmdir": dir, "_run": "1"}
+	// Both missing → Bash's MAC_MISSING reports Bootloader (last check
+	// wins); with only firmware present it still reports Bootloader.
+	if err := paramCheckFirmware(c, "x86_64"); err == nil {
+		t.Fatal("missing macOS firmware must error")
+	}
+	os.WriteFile(filepath.Join(dir, "OVMF_CODE.fd"), make([]byte, 2<<20), 0o644)
+	os.WriteFile(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1<<17), 0o644)
+	if err := paramCheckFirmware(c, "x86_64"); err == nil ||
+		!strings.Contains(err.Error(), "Bootloader") {
+		t.Fatalf("missing bootloader must error: %v", err)
+	}
+	// Firmware missing but bootloader present → reports Firmware.
+	os.WriteFile(filepath.Join(dir, "OpenCore.qcow2"), []byte("qc"), 0o644)
+	os.Remove(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"))
+	if err := paramCheckFirmware(c, "x86_64"); err == nil ||
+		!strings.Contains(err.Error(), "Firmware") {
+		t.Fatalf("missing firmware must error: %v", err)
+	}
+	os.WriteFile(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1<<17), 0o644)
+	os.WriteFile(filepath.Join(dir, "OpenCore.qcow2"), []byte("qc"), 0o644)
+	if err := paramCheckFirmware(c, "x86_64"); err != nil {
+		t.Fatalf("complete macOS firmware must pass: %v", err)
+	}
+	// Truncated vars → corrupt-firmware error.
+	os.WriteFile(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1024), 0o644)
+	if err := paramCheckFirmware(c, "x86_64"); err == nil ||
+		!strings.Contains(err.Error(), "corrupt") {
+		t.Fatalf("truncated vars must error: %v", err)
+	}
+}
+
+func TestBiosArgsMacOSFirmware(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "OVMF_CODE.fd"), make([]byte, 2<<20), 0o644)
+	os.WriteFile(filepath.Join(dir, "OVMF_VARS-1024x768.fd"), make([]byte, 1<<17), 0o644)
+	c := Conf{"guest_os": "macos", "_vmdir": dir}
+	a := biosArgs(c, "macos", "x86_64")
+	joined := strings.Join(a, " ")
+	if !strings.Contains(joined, filepath.Join(dir, "OVMF_CODE.fd")) ||
+		!strings.Contains(joined, "OVMF_VARS-1024x768.fd") {
+		t.Fatalf("macOS must use vmdir firmware, got %v", a)
+	}
+}
+
+func TestStorageArgsMacOS(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "OpenCore.qcow2"), []byte("qc"), 0o644)
+	c := Conf{"guest_os": "macos", "disk_img": "disk.qcow2", "img": "RecoveryImage.img", "_vmdir": dir}
+	a := storageArgs(c, dir, OsTuning{MacDiskDev: "virtio-blk-pci"})
+	joined := strings.Join(a, " ")
+	for _, want := range []string{"ahci", "BootLoader", "bootindex=0", "RecoveryImage", "SystemDisk"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("macOS storage missing %q: %v", want, a)
+		}
+	}
+	// img must be the ide RecoveryImage, never the virtio raw disk.
+	if strings.Contains(joined, "if=virtio") {
+		t.Fatalf("macOS img must not use virtio: %v", a)
+	}
+}
+
+func TestFirmwareQcow2Detection(t *testing.T) {
+	dir := t.TempDir()
+	raw := filepath.Join(dir, "raw.fd")
+	os.WriteFile(raw, make([]byte, 64), 0o644)
+	qc := filepath.Join(dir, "vars.qcow2")
+	os.WriteFile(qc, append([]byte{0x51, 0x46, 0x49, 0xfb}, make([]byte, 60)...), 0o644)
+	if isFirmwareQcow2(raw) || !isFirmwareQcow2(qc) {
+		t.Fatal("qcow2 magic detection wrong")
+	}
+}
+
+func TestSystemDiskFormat(t *testing.T) {
+	a := storageArgs(Conf{"disk_img": "d.raw", "disk_format": "raw"}, t.TempDir(), OsTuning{})
+	if !has(a, "format=raw,file=") {
+		t.Fatalf("disk_format=raw must reach SystemDisk: %v", a)
+	}
+}
+
+func TestBootLegacyMachinePC(t *testing.T) {
+	// Bash forces MACHINE_TYPE=pc when boot="legacy" (i440fx/PIIX3).
+	if osQuirks(Conf{"boot": "legacy"}, "linux", "x86_64").MachineType != "pc" {
+		t.Fatal("boot=legacy must force machine type pc")
+	}
+	if osQuirks(Conf{"boot": "efi"}, "linux", "x86_64").MachineType != "q35" {
+		t.Fatal("efi boot must keep q35")
 	}
 }

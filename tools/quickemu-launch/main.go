@@ -143,6 +143,12 @@ func main() {
 	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
 	osName := conf.get("guest_os", "linux")
 	arch := conf.get("arch", "x86_64")
+	// configure_bios fatal checks: macOS firmware/bootloader presence +
+	// sizes, EFI vars writability. Runs before any arg assembly.
+	if err := paramCheckFirmware(conf, arch); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	t := osQuirks(conf, osName, arch)
 	machine := t.MachineType
 	if arch == "aarch64" {

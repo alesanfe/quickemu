@@ -320,6 +320,24 @@ func audioDriver() string {
 
 func storageArgs(c Conf, dir string, t OsTuning) []string {
 	var a []string
+	mac := c.get("guest_os", "") == "macos"
+	dfmt := c.get("disk_format", "qcow2")
+	if mac {
+		// vm.sh macOS emit: AHCI bus + OpenCore/ESP bootloader at
+		// bootindex 0, RecoveryImage on ahci.1, SystemDisk last.
+		vmdir := c["_vmdir"]
+		bl := filepath.Join(vmdir, "OpenCore.qcow2")
+		if _, err := os.Stat(bl); err != nil {
+			bl = filepath.Join(vmdir, "ESP.qcow2")
+		}
+		a = append(a, "-device", "ahci,id=ahci",
+			"-device", "ide-hd,bus=ahci.0,drive=BootLoader,bootindex=0",
+			"-drive", "id=BootLoader,if=none,format=qcow2,file="+qemuOptEsc(bl))
+		if d := c.get("img", ""); d != "" {
+			a = append(a, "-device", "ide-hd,bus=ahci.1,drive=RecoveryImage",
+				"-drive", "id=RecoveryImage,if=none,format=raw,file="+qemuOptEsc(joinConf(dir, d)))
+		}
+	}
 	if d := c.get("disk_img", ""); d != "" {
 		dev := "virtio-blk-pci"
 		if t.MacDiskDev != "" {
@@ -327,13 +345,13 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		}
 		// Bash: split -drive (if=none,id=SystemDisk) + -device pattern.
 		a = append(a, "-device", dev+",drive=SystemDisk",
-			"-drive", "id=SystemDisk,if=none,format=qcow2,file="+qemuOptEsc(joinConf(dir, d))+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
+			"-drive", "id=SystemDisk,if=none,format="+dfmt+",file="+qemuOptEsc(joinConf(dir, d))+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
 	}
 	if d := c.get("iso", ""); d != "" {
 		// Bash: plain cdrom drive (IDE), indexed.
 		a = append(a, "-drive", "media=cdrom,index=0,file="+qemuOptEsc(joinConf(dir, d)))
 	}
-	if d := c.get("img", ""); d != "" {
+	if d := c.get("img", ""); d != "" && !mac {
 		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",format=raw,if=virtio")
 	}
 	if d := c.get("fixed_iso", ""); d != "" {

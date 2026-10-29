@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -95,19 +96,30 @@ func ramArgs(c Conf) []string {
 	return a
 }
 
-// firmwareFile resolves an OVMF/AAVMF firmware blob — QE_FIRMWARE_DIR
-// (nix/deb packaging) overrides the distro search paths, then the
-// usual OVMF and edk2 locations.
-func firmwareFile(names ...string) string {
+// firmwareDirs: the search roots Bash builds via SHARE_PATH
+// (get_qemu_share_path). QE_FIRMWARE_DIR (nix/deb packaging) wins.
+func firmwareDirs() []string {
+	var dirs []string
 	if d := os.Getenv("QE_FIRMWARE_DIR"); d != "" {
-		for _, n := range names {
-			if st, err := os.Stat(filepath.Join(d, n)); err == nil && !st.IsDir() {
-				return filepath.Join(d, n)
-			}
+		dirs = append(dirs, d)
+	}
+	share := "/usr/share"
+	if q, err := exec.LookPath("qemu-system-x86_64"); err == nil {
+		if rp, err := filepath.EvalSymlinks(q); err == nil {
+			share = filepath.Join(filepath.Dir(filepath.Dir(rp)), "share")
 		}
 	}
-	for _, dir := range []string{"/usr/share/OVMF", "/usr/share/edk2/ovmf",
-		"/usr/share/AAVMF", "/usr/share/edk2/aarch64"} {
+	for _, d := range []string{"OVMF", "edk2/ovmf", "OVMF/x64", "edk2-ovmf",
+		"edk2-ovmf/x64", "edk2/x64", "qemu", "AAVMF", "edk2/aarch64"} {
+		dirs = append(dirs, filepath.Join(share, d))
+	}
+	return dirs
+}
+
+// firmwareFile resolves the first existing firmware blob — kept for
+// single-file lookups (aarch64 -bios, the plan-mode fallback).
+func firmwareFile(names ...string) string {
+	for _, dir := range firmwareDirs() {
 		for _, n := range names {
 			if st, err := os.Stat(filepath.Join(dir, n)); err == nil && !st.IsDir() {
 				return filepath.Join(dir, n)
@@ -124,60 +136,253 @@ func firmwareFile(names ...string) string {
 	return "/usr/share/OVMF/" + names[0]
 }
 
-// seedEFIVars: configure_bios parity — copy the OVMF_VARS template
-// into the vmdir so QEMU's writable pflash unit=1 has a real file.
-// Idempotent: re-seeding a live VM's vars would reset the boot config,
-// so an existing file wins.
-func seedEFIVars(c Conf) {
-	if c["_run"] != "1" {
-		return
-	}
-	vars := filepath.Join(c["_vmdir"], "OVMF_VARS.fd")
-	if _, err := os.Stat(vars); err == nil {
-		return
-	}
-	tmpl := firmwareFile("OVMF_VARS_4M.fd", "OVMF_VARS.fd")
-	if confOn(c, "secureboot") {
-		if sb := firmwareFile("OVMF_VARS_4M.ms.fd", "OVMF_VARS.secboot.fd",
-			"OVMF_VARS.fd"); sb != tmpl {
-			tmpl = sb
+// firmwarePair: Bash's ovmfs=() ordered pair search — the first
+// (code,vars) pair where BOTH files exist in the same directory wins.
+// Returns "" when nothing resolves so callers can pick a mode or fail.
+func firmwarePair(pairs [][2]string) (code, vars string) {
+	for _, dir := range firmwareDirs() {
+		for _, p := range pairs {
+			c, v := filepath.Join(dir, p[0]), filepath.Join(dir, p[1])
+			cOK := false
+			if st, err := os.Stat(c); err == nil && !st.IsDir() {
+				cOK = true
+			}
+			vOK := false
+			if st, err := os.Stat(v); err == nil && !st.IsDir() {
+				vOK = true
+			}
+			if cOK && vOK {
+				return c, v
+			}
 		}
 	}
-	b, err := os.ReadFile(tmpl)
+	return "", ""
+}
+
+// isFirmwareQcow2: is_firmware_qcow2 parity — NixOS/packaged EDK2
+// ships qcow2-format firmware (magic QFI\xfb); the pflash drive must
+// declare format=qcow2 or QEMU treats it as raw.
+func isFirmwareQcow2(path string) bool {
+	f, err := os.Open(path)
 	if err != nil {
+		return false
+	}
+	defer f.Close()
+	var b [4]byte
+	if _, err := io.ReadFull(f, b[:]); err != nil {
+		return false
+	}
+	return b[0] == 0x51 && b[1] == 0x46 && b[2] == 0x49 && b[3] == 0xfb
+}
+
+// x86FirmwarePairs: the Bash ovmfs list collapsed to the (code,vars)
+// basename pairs present in the Go search roots.
+func x86FirmwarePairs(secureboot bool) [][2]string {
+	if secureboot {
+		return [][2]string{
+			{"OVMF_CODE_4M.secboot.fd", "OVMF_VARS_4M.ms.fd"},
+			{"OVMF_CODE.secboot.fd", "OVMF_VARS.secboot.fd"},
+			{"OVMF_CODE.secboot.fd", "OVMF_VARS.fd"},
+			{"ovmf-x86_64-smm-ms-code.bin", "ovmf-x86_64-smm-ms-vars.bin"},
+			{"edk2-x86_64-secure-code.fd", "edk2-i386-vars.fd"},
+			{"OVMF_CODE.secboot.4m.fd", "OVMF_VARS.4m.fd"},
+			{"OVMF_CODE_4M.secboot.qcow2", "OVMF_VARS_4M.secboot.qcow2"},
+		}
+	}
+	return [][2]string{
+		{"OVMF_CODE_4M.fd", "OVMF_VARS_4M.fd"},
+		{"OVMF_CODE.fd", "OVMF_VARS.fd"},
+		{"ovmf-x86_64-4m-code.bin", "ovmf-x86_64-4m-vars.bin"},
+		{"edk2-x86_64-code.fd", "edk2-i386-vars.fd"},
+		{"OVMF_CODE.4m.fd", "OVMF_VARS.4m.fd"},
+		{"OVMF_CODE_4M.qcow2", "OVMF_VARS_4M.qcow2"},
+	}
+}
+
+// aarch64FirmwarePairs: AAVMF/edk2 pflash pairs for ARM64 guests.
+func aarch64FirmwarePairs() [][2]string {
+	return [][2]string{
+		{"AAVMF_CODE.fd", "AAVMF_VARS.fd"},
+		{"QEMU_CODE.fd", "QEMU_VARS.fd"},
+		{"QEMU_EFI-pflash.raw", "vars-template-pflash.raw"},
+		{"edk2-aarch64-code.fd", "edk2-arm-vars.fd"},
+	}
+}
+
+// efiVarsName: the in-vmdir vars filename — .qcow2 when the seeded
+// template is qcow2 firmware (Bash writes OVMF_VARS.qcow2 then).
+func efiVarsName(vmdir, template string) string {
+	if template != "" && isFirmwareQcow2(template) {
+		return filepath.Join(vmdir, "OVMF_VARS.qcow2")
+	}
+	return filepath.Join(vmdir, "OVMF_VARS.fd")
+}
+
+// seedEFIVars: configure_bios + efi_vars parity — copy the VARS
+// template into the vmdir so QEMU's writable pflash unit=1 has a real
+// file. Idempotent: re-seeding a live VM's vars would reset the boot
+// config, so an existing file wins. Returns the vars path used.
+func seedEFIVars(c Conf, template string) string {
+	vmdir := c["_vmdir"]
+	vars := efiVarsName(vmdir, template)
+	if c["_run"] != "1" {
+		return vars
+	}
+	// Legacy migrations (configure_bios): a prior release stored the
+	// vars under the VM name or the 4M suffix — rename, don't reseed.
+	if _, err := os.Stat(vars); err != nil {
+		for _, old := range []string{c["_vmname"] + "-vars.fd", "OVMF_VARS_4M.fd"} {
+			op := filepath.Join(vmdir, old)
+			if _, err := os.Stat(op); err == nil {
+				os.Rename(op, vars)
+				break
+			}
+		}
+	}
+	if _, err := os.Stat(vars); err == nil {
+		return vars
+	}
+	if template == "" {
 		fmt.Fprintf(os.Stderr, "warning: no OVMF_VARS template found (looked in QE_FIRMWARE_DIR + /usr/share/OVMF*)\n")
-		return
+		return vars
+	}
+	b, err := os.ReadFile(template)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: could not read %s: %v\n", template, err)
+		return vars
 	}
 	if err := os.WriteFile(vars, b, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: could not seed %s: %v\n", vars, err)
 	}
+	return vars
+}
+
+// paramCheckFirmware: the fatal half of configure_bios — macOS needs
+// the quickget-downloaded OVMF + OpenCore/ESP bootloader, and the
+// files are size-checked (truncated downloads produce unusable pflash).
+// For generic EFI guests the seeded vars must be a writeable file.
+func paramCheckFirmware(c Conf, arch string) error {
+	if c.get("guest_os", "") == "macos" {
+		vmdir := c["_vmdir"]
+		code := filepath.Join(vmdir, "OVMF_CODE.fd")
+		vars := ""
+		for _, n := range []string{"OVMF_VARS-1024x768.fd", "OVMF_VARS-1920x1080.fd"} {
+			if _, err := os.Stat(filepath.Join(vmdir, n)); err == nil {
+				vars = filepath.Join(vmdir, n)
+				break
+			}
+		}
+		missing := ""
+		if _, err := os.Stat(code); err != nil || vars == "" {
+			missing = "Firmware"
+		}
+		bl := ""
+		for _, n := range []string{"OpenCore.qcow2", "ESP.qcow2"} {
+			if _, err := os.Stat(filepath.Join(vmdir, n)); err == nil {
+				bl = filepath.Join(vmdir, n)
+				break
+			}
+		}
+		if bl == "" {
+			missing = "Bootloader"
+		}
+		if missing != "" {
+			return fmt.Errorf("ERROR! macOS %s was not found.\n       Use 'quickget' to download the required files.", missing)
+		}
+		if fi, err := os.Stat(code); err == nil && fi.Size() < 1048576 {
+			return fmt.Errorf("ERROR! macOS firmware in %s appears to be corrupt or incomplete.\n       Delete OVMF_CODE.fd and OVMF_VARS*.fd, then re-run quickget.", vmdir)
+		}
+		if fi, err := os.Stat(vars); err == nil && fi.Size() < 131072 {
+			return fmt.Errorf("ERROR! macOS firmware in %s appears to be corrupt or incomplete.\n       Delete OVMF_CODE.fd and OVMF_VARS*.fd, then re-run quickget.", vmdir)
+		}
+		return nil
+	}
+	// EFI guests: the vars file in the vmdir must be a writeable
+	// regular file once it exists — Bash deletes it and asks for a
+	// re-run (it is a seeded copy, re-seeding is safe).
+	if c["_run"] == "1" {
+		for _, name := range []string{"OVMF_VARS.fd", "OVMF_VARS.qcow2"} {
+			vars := filepath.Join(c["_vmdir"], name)
+			fi, err := os.Stat(vars)
+			if err != nil {
+				continue
+			}
+			f, err := os.OpenFile(vars, os.O_WRONLY, 0)
+			if !fi.Mode().IsRegular() || err != nil {
+				os.Remove(vars)
+				return fmt.Errorf(" - EFI:      ERROR! %s is not a regular file or not writeable.\n             Deleting %s. Please re-run quickemu.", vars, vars)
+			}
+			f.Close()
+		}
+	}
+	return nil
 }
 
 func biosArgs(c Conf, osName, arch string) []string {
 	var a []string
-	if arch == "aarch64" {
-		a = append(a, "-bios", firmwareFile("AAVMF_CODE.fd", "QEMU_EFI.fd"))
-		return a
-	}
-	efi := confOn(c, "efi") || strings.Contains(c.get("boot", ""), "efi") || osName == "windows" || osName == "macos"
+	vmdir := c["_vmdir"]
+	mac := osName == "macos"
+	efi := confOn(c, "efi") || strings.Contains(c.get("boot", ""), "efi") ||
+		osName == "windows" || mac
 	if !efi {
 		return a
 	}
-	// Bash configure_bios: OVMF uses TWO pflash drives — CODE (unit=0,
-	// readonly) + VARS (unit=1, writable per-VM copy) — plus the secure
-	// pflash global. The vars file is copied into the vmdir at launch.
-	seedEFIVars(c)
-	vars := dotdir(c["_vmdir"]) + "OVMF_VARS.fd"
-	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
-	if confOn(c, "secureboot") {
-		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file="+
-			qemuOptEsc(firmwareFile("OVMF_CODE_4M.secboot.fd", "OVMF_CODE.secboot.fd",
-				"OVMF_CODE.fd"))+",readonly=on")
-	} else {
-		a = append(a, "-drive", "if=pflash,format=raw,unit=0,file="+
-			qemuOptEsc(firmwareFile("OVMF_CODE_4M.fd", "OVMF_CODE.fd"))+",readonly=on")
+	if arch == "aarch64" {
+		// Fedora's monolithic EDK2 for Windows ARM64 — loaded via -bios,
+		// no persistent pflash store (configure_bios EFI_MODE=bios).
+		if osName == "windows" && !confOn(c, "secureboot") {
+			if f := firmwareFile("edk2/aarch64/QEMU_EFI.fd", "QEMU_EFI.fd"); f != "" {
+				return []string{"-bios", f}
+			}
+		}
+		code, tmpl := firmwarePair(aarch64FirmwarePairs())
+		vars := seedEFIVars(c, tmpl)
+		if code == "" {
+			code = tmpl
+			if code == "" {
+				code = "/usr/share/AAVMF/AAVMF_CODE.fd"
+			}
+		}
+		// ARM64 pflash uses named blockdev nodes on the virt machine —
+		// no cfi.pflash01 secure global (x86 SMM-specific).
+		return []string{
+			"-blockdev", "node-name=rom,driver=file,filename=" + qemuOptEsc(code) + ",read-only=true",
+			"-blockdev", "node-name=efivars,driver=file,filename=" + qemuOptEsc(vars),
+		}
 	}
-	a = append(a, "-drive", "if=pflash,format=raw,unit=1,file="+qemuOptEsc(vars))
+	var code, vars string
+	if mac {
+		// macOS uses the OSX-KVM firmware quickget downloaded into the
+		// vmdir (paramCheckFirmware already enforced presence/sizes).
+		code = filepath.Join(vmdir, "OVMF_CODE.fd")
+		vars = filepath.Join(vmdir, "OVMF_VARS-1024x768.fd")
+		if _, err := os.Stat(vars); err != nil {
+			vars = filepath.Join(vmdir, "OVMF_VARS-1920x1080.fd")
+		}
+	} else {
+		// Bash configure_bios: OVMF uses TWO pflash drives — CODE
+		// (unit=0, readonly) + VARS (unit=1, writable per-VM copy).
+		code, tmpl := firmwarePair(x86FirmwarePairs(confOn(c, "secureboot")))
+		if code == "" {
+			// Plan-mode fallback so the emitted argv still names a file.
+			if confOn(c, "secureboot") {
+				code = firmwareFile("OVMF_CODE_4M.secboot.fd", "OVMF_CODE.secboot.fd", "OVMF_CODE.fd")
+			} else {
+				code = firmwareFile("OVMF_CODE_4M.fd", "OVMF_CODE.fd")
+			}
+		}
+		vars = seedEFIVars(c, tmpl)
+	}
+	codeFmt, varsFmt := "raw", "raw"
+	if isFirmwareQcow2(code) {
+		codeFmt = "qcow2"
+	}
+	if isFirmwareQcow2(vars) {
+		varsFmt = "qcow2"
+	}
+	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
+	a = append(a, "-drive", "if=pflash,format="+codeFmt+",unit=0,file="+qemuOptEsc(code)+",readonly=on")
+	a = append(a, "-drive", "if=pflash,format="+varsFmt+",unit=1,file="+qemuOptEsc(vars))
 	// swtpm_socket_ready: emit the chardev only when the control socket
 	// will exist — always on --dry-run, only after startSwtpm on --run.
 	if confOn(c, "tpm") && (c["_run"] == "" || c["_swtpm"] == "1") {
