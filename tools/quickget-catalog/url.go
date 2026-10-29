@@ -19,8 +19,13 @@ var finalURL = func(u string) (string, error) { return qelib.FinalURL(u) }
 
 // findLine greps the body for lines matching re and returns the first,
 // extracting group `field` (1-indexed) or the whole match when field==0.
+// The regex may come from the catalog (hash_re) — an invalid pattern is
+// a miss, never a panic.
 func findLine(body, re string, field int) string {
-	r := regexp.MustCompile(re)
+	r, err := regexp.Compile(re)
+	if err != nil {
+		return ""
+	}
 	for _, line := range strings.Split(body, "\n") {
 		if m := r.FindStringSubmatch(line); m != nil {
 			if field > 0 && len(m) > field {
@@ -131,7 +136,7 @@ func expandVars(s, base, iso, release, edition string) string {
 			if len(parts) > 0 {
 				fmt.Sscanf(parts[0], "%d", &off)
 			}
-			if off < len(release) {
+			if off >= 0 && off < len(release) {
 				if len(parts) > 1 {
 					l := 0
 					if _, err := fmt.Sscanf(parts[1], "%d", &l); err == nil && l >= 0 {

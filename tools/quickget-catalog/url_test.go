@@ -102,3 +102,25 @@ func TestExpandVars(t *testing.T) {
 		}
 	}
 }
+
+// Regression: catalog-driven templates/regexes must not crash the tool —
+// ${RELEASE:off:len} accepted a negative offset (release[-1:] panic) and
+// findLine compiled the catalog's hash_re with MustCompile (panic on an
+// invalid pattern). Both now degrade to empty results.
+func TestHostileCatalogInputs(t *testing.T) {
+	if got := expandVars("${RELEASE:-1:2}", "BASE", "ISO", "3.20", "ed"); got != "" {
+		t.Fatalf("negative offset %q", got)
+	}
+	if got := expandVars("${RELEASE:-1}", "BASE", "ISO", "3.20", "ed"); got != "" {
+		t.Fatalf("negative bare offset %q", got)
+	}
+	if got := findLine("abc", "(", 0); got != "" {
+		t.Fatalf("invalid regex %q", got)
+	}
+	// End to end: an entry whose hash_re does not compile still resolves.
+	e := &Entry{URL: "https://cdn/", ISO: "a.iso",
+		HashURL: "http://127.0.0.1:1/x", HashRE: "("}
+	if full, _ := resolveURL(e, "1", "", "amd64"); full == "" {
+		t.Fatal("resolveURL must survive a broken hash_re")
+	}
+}
