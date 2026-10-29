@@ -7661,6 +7661,44 @@
    ],
    "scrape": true,
    "status": "archived"
+  },
+  {
+   "os": "eznixos",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "13"
+   ],
+   "editions": [
+    "xfce",
+    "kde"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "extix",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "26.8",
+    "26.7",
+    "26.4"
+   ],
+   "scrape": true,
+   "status": "active"
   }
  ]
 }

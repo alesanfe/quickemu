@@ -1127,6 +1127,18 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "openthos":
 		return sfISOat("https://sourceforge.net/projects/openthos/files",
 			`openthos-[0-9.]+\.img`)
+	case "eznixos":
+		// files/EznixOS<rel>/eznixOS<rel>{X,K}-<date>.iso
+		ed := "X"
+		if edition == "kde" {
+			ed = "K"
+		}
+		return sfISO("eznixos", "EznixOS"+release,
+			`eznixOS`+regexp.QuoteMeta(release)+ed+`-[0-9]+\.iso`)
+	case "extix":
+		// Files live at the project root; each release is one ISO.
+		return sfISOat("https://sourceforge.net/projects/extix/files",
+			`extix-`+regexp.QuoteMeta(release)+`-[^"]*\.iso`)
 	case "dragora":
 		// cedia mirror v3/iso/<stage>/; alphas share the "alpha" dir.
 		dir := release

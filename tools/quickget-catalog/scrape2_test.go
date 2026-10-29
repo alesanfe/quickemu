@@ -343,6 +343,10 @@ func bodyFor(url string) (string, error) {
 		return `"name":"openthos-8.1.0.191102.img"`, nil
 	case strings.Contains(url, "dragora"):
 		return `<a href="dragora-3.0-amd64-beta2-dvd.iso">a</a><a href="dragora-3.0-x86_64-beta1-live.iso">b</a><a href="dragora-3.0-x86_64-beta1-packages.iso">c</a><a href="dragora-3.0-x86_64-alpha2.iso">d</a><a href="dragora-3.0-x86_64-alpha1.iso">e</a>`, nil
+	case strings.Contains(url, "eznixos"):
+		return `"name":"eznixOS13X-260919.iso" "name":"eznixOS13K-260919.iso"`, nil
+	case strings.Contains(url, "extix"):
+		return `"name":"extix-26.4-64bit-gnome-waydroid-3290mb-260410.iso" "name":"extix-26.7-deepin-25.2-refractasnapshot-5540mb-260710.iso" "name":"extix-26.8-64bit-lxqt-refractasnapshot-2800mb-260811.iso"`, nil
 	// --- fourth-expansion fixtures ---
 	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, "2026.1"):
 		return `"name":"Rhino-Linux-2026.1-amd64.iso"`, nil
@@ -879,6 +883,11 @@ func TestScrapeAll(t *testing.T) {
 		{"dragora", "beta2", "", "amd64", false},
 		{"dragora", "beta1", "", "amd64", false},
 		{"dragora", "alpha2", "", "amd64", false},
+		{"eznixos", "13", "xfce", "amd64", false},
+		{"eznixos", "13", "kde", "amd64", false},
+		{"eznixos", "12", "xfce", "amd64", true},
+		{"extix", "26.8", "", "amd64", false},
+		{"extix", "26.5", "", "amd64", true},
 	}
 	for _, c := range cases {
 		t.Run(c.os+"/"+c.rel+"/"+c.ed, func(t *testing.T) {

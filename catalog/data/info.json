@@ -2105,6 +2105,18 @@
    "homepage": "https://www.openthos.com/",
    "info": "Android-x86-based desktop (Chinese)",
    "name": "openTHOS"
+  },
+  "eznixos": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/eznixos/",
+   "info": "Debian-based live respin with Xfce or KDE",
+   "name": "EznixOS"
+  },
+  "extix": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/extix/",
+   "info": "Debian/Ubuntu-based live respins by Exton",
+   "name": "ExTiX"
   }
  }
 }
