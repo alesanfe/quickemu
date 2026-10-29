@@ -2033,6 +2033,78 @@
    "homepage": "https://www.adelielinux.org/",
    "info": "Musl+Linux-libre distribution for many architectures, including legacy PPC.",
    "name": "Adélie Linux"
+  },
+  "mofolinux": {
+   "credentials": "-",
+   "homepage": "https://mofolinux.com/",
+   "info": "live distro with privacy tools preinstalled",
+   "name": "MOFO Linux"
+  },
+  "peropesis": {
+   "credentials": "-",
+   "homepage": "https://peropesis.org/",
+   "info": "minimal CLI-centric live Linux",
+   "name": "Peropesis"
+  },
+  "predator-os": {
+   "credentials": "-",
+   "homepage": "https://predator-os.ir/",
+   "info": "security-focused distro",
+   "name": "Predator-OS"
+  },
+  "solydxk": {
+   "credentials": "-",
+   "homepage": "https://solydxk.com/",
+   "info": "Debian-based desktop (solydX=Xfce, solydK=KDE)",
+   "name": "SolydXK"
+  },
+  "armbian": {
+   "credentials": "-",
+   "homepage": "https://www.armbian.com/",
+   "info": "Debian/Ubuntu-based images incl. UEFI x86 ISOs",
+   "name": "Armbian"
+  },
+  "archstrike": {
+   "credentials": "-",
+   "homepage": "https://archstrike.org/",
+   "info": "Arch-based security testing distro (archived)",
+   "name": "ArchStrike"
+  },
+  "zentyal": {
+   "credentials": "-",
+   "homepage": "https://zentyal.com/",
+   "info": "Linux small business server",
+   "name": "Zentyal"
+  },
+  "memtest86plus": {
+   "credentials": "-",
+   "homepage": "https://memtest.org/",
+   "info": "memory testing tool",
+   "name": "Memtest86+"
+  },
+  "hirens": {
+   "credentials": "-",
+   "homepage": "https://www.hirensbootcd.org/",
+   "info": "Windows PE rescue environment",
+   "name": "Hirens BootCD PE"
+  },
+  "funtoo": {
+   "credentials": "-",
+   "homepage": "https://www.funtoo.org/",
+   "info": "Gentoo-derived distro (ISO archived)",
+   "name": "Funtoo"
+  },
+  "dragora": {
+   "credentials": "-",
+   "homepage": "https://www.dragora.org/",
+   "info": "independent GNU/Linux-Libre distro",
+   "name": "Dragora"
+  },
+  "openthos": {
+   "credentials": "-",
+   "homepage": "https://www.openthos.com/",
+   "info": "Android-x86-based desktop (Chinese)",
+   "name": "openTHOS"
   }
  }
 }

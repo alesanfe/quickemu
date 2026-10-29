@@ -1072,6 +1072,69 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		// Springdale%20Linux-<rel>-x86_64-netinst.iso (name has a space).
 		base := "https://mirror.math.princeton.edu/pub/springdale/springdale/" + release + "/x86_64/iso/"
 		return indexISO(base, `Springdale%20Linux-`+regexp.QuoteMeta(release)+`-x86_64-netinst\.iso`)
+	case "solydxk":
+		// nluug mirror: solyd{x,k}_<deb>_64_<yyyymm>.iso; x=XFCE, k=KDE.
+		flav := map[string]string{"solydx": "x", "solydk": "k"}[edition]
+		if flav == "" {
+			flav = "x"
+		}
+		return indexISO("https://ftp.nluug.nl/pub/os/Linux/distr/solydxk/downloads/",
+			`solyd`+flav+`_`+regexp.QuoteMeta(release)+`_64_[0-9]+\.iso`)
+	case "armbian":
+		// Armbian_<ver>_Uefi-x86_<suite>_<channel>_<kernel>_<flav>.iso +
+		// .sha sidecar. minimal=plain minimal; DEs -> <de>_desktop.
+		flav := edition
+		switch flav {
+		case "", "minimal":
+			flav = "minimal"
+		default:
+			flav += "_desktop"
+		}
+		return indexISOsum("https://dl.armbian.com/uefi-x86/archive/",
+			`Armbian_[0-9.]+_Uefi-x86_[a-z]+_[a-z]+_[0-9.]+_`+regexp.QuoteMeta(flav)+`\.iso`, ".sha")
+	case "predator-os":
+		// Dir not listable: deterministic filename per edition.
+		infix := map[string]string{
+			"sec-plasma":     "SecurityEdition-plasma-lxqt",
+			"sec-mate":       "SecurityEdition-mate-lxde",
+			"sec-nodesktop":  "Security-NoDesktopEdition",
+			"home-plasma":    "HomeEdition-plasma-lxqt",
+			"home-mate":      "HomeEdition-mate-lxde",
+			"home-nodesktop": "HomeEdition-NoDesktop",
+			"home-windows":   "HomeEdition-windows",
+			"home-mac":       "HomeEdition-MAC",
+		}[edition]
+		if infix == "" {
+			infix = "SecurityEdition-plasma-lxqt"
+		}
+		// Release dir drops the dot: v3.5 -> v35.
+		return "https://www.seilany.ir/predator-os/download/" + strings.ReplaceAll(release, ".", "") +
+			"/Predator-OS-" + release + "-amd64-" + infix + ".iso", "", nil
+	case "zentyal":
+		// 7.x lives at files/ root; older releases under "Old versions"
+		// with point releases like zentyal-2.0-4-amd64.iso.
+		dir := ""
+		if !strings.HasPrefix(release, "7") {
+			dir = "Old%20versions"
+		}
+		return sfISOat("https://sourceforge.net/projects/zentyal/files/"+dir,
+			`zentyal-`+regexp.QuoteMeta(release)+`-amd64\.iso`)
+	case "funtoo":
+		return sfISO("funtoo", "old-multilib", `Funtoo-x86_64-[0-9-]+\.iso`)
+	case "mofolinux":
+		return sfISOat("https://sourceforge.net/projects/mofolinux/files",
+			`mofolinux-[0-9.]+\.iso`)
+	case "openthos":
+		return sfISOat("https://sourceforge.net/projects/openthos/files",
+			`openthos-[0-9.]+\.img`)
+	case "dragora":
+		// cedia mirror v3/iso/<stage>/; alphas share the "alpha" dir.
+		dir := release
+		if strings.HasPrefix(release, "alpha") {
+			dir = "alpha"
+		}
+		return indexISO("https://mirror.cedia.org.ec/dragora/v3/iso/"+dir+"/",
+			`dragora-3\.0-(x86_64|amd64)-`+regexp.QuoteMeta(release)+`(-live|-dvd)?\.iso`)
 
 	// --- JSON APIs ---
 	case "fedora-coreos":

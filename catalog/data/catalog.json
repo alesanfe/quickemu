@@ -7427,6 +7427,240 @@
    "license": "redistributable",
    "boot_mode": "both",
    "support_level": "experimental"
+  },
+  {
+   "os": "mofolinux",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "latest"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "peropesis",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "3.3"
+   ],
+   "url": "https://peropesis.org/peropesis/",
+   "iso": "Peropesis-%RELEASE%-live.iso",
+   "status": "active"
+  },
+  {
+   "os": "predator-os",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "v3.5"
+   ],
+   "editions": [
+    "sec-plasma",
+    "sec-mate",
+    "sec-nodesktop",
+    "home-plasma",
+    "home-mate",
+    "home-nodesktop",
+    "home-windows",
+    "home-mac"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "solydxk",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "13"
+   ],
+   "editions": [
+    "solydx",
+    "solydk"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "armbian",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "minimal",
+    "gnome",
+    "kde-plasma",
+    "xfce",
+    "cinnamon",
+    "mate",
+    "i3-wm"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "archstrike",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "2021.12.31"
+   ],
+   "url": "https://www.mirrorservice.org/sites/mirror.archstrike.org/os/new_iso/",
+   "iso": "archstrike-%RELEASE%-x86_64.iso",
+   "status": "archived"
+  },
+  {
+   "os": "zentyal",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "7.0-development",
+    "6.2-development",
+    "6.1-development",
+    "6.0-development",
+    "5.1-development",
+    "4.0",
+    "3.5",
+    "3.4",
+    "3.3",
+    "3.2",
+    "3.0",
+    "2.2"
+   ],
+   "scrape": true,
+   "status": "active"
+  },
+  {
+   "os": "memtest86plus",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "zip",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "9.00"
+   ],
+   "url": "https://memtest.org/download/v%RELEASE%/",
+   "iso": "mt86plus_%RELEASE%_x86_64.grub.iso.zip",
+   "hash_url": "https://memtest.org/download/v%RELEASE%/sha256sum.txt",
+   "status": "active"
+  },
+  {
+   "os": "hirens",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "restricted",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "pe"
+   ],
+   "url": "https://www.hirensbootcd.org/files/",
+   "iso": "HBCD_PE_x64.iso",
+   "status": "active"
+  },
+  {
+   "os": "funtoo",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "latest"
+   ],
+   "scrape": true,
+   "status": "archived"
+  },
+  {
+   "os": "dragora",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "beta2",
+    "beta1",
+    "alpha2",
+    "alpha1"
+   ],
+   "scrape": true,
+   "status": "experimental"
+  },
+  {
+   "os": "openthos",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "8.1.0"
+   ],
+   "scrape": true,
+   "status": "archived"
   }
  ]
 }

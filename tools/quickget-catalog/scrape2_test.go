@@ -96,6 +96,8 @@ func bodyFor(url string) (string, error) {
 		return `<a href="2.29-core204/">d</a><a href="2.29-core203/">d</a>`, nil
 	case strings.Contains(url, "fatdog"):
 		return `<a href="Fatdog64-903.iso">x</a><a href="Fatdog64-500.iso">y</a>`, nil
+	case strings.Contains(url, "solydxk"):
+		return `<a href="solydx_13_64_202512.iso">x</a><a href="solydk_13_64_202512.iso">y</a>`, nil
 	case strings.Contains(url, "nluug"):
 		return `<a href="KNOPPIX_V9.1CD-2021-01-25-EN.iso">x</a>`, nil
 	case strings.Contains(url, "minix3"):
@@ -326,6 +328,21 @@ func bodyFor(url string) (string, error) {
 		return `"name":"peppermint_devuan-amd64.iso"`, nil
 	case strings.Contains(url, "android-x86"):
 		return `"name":"android-x86_64-9.0-r2.iso" "name":"android-x86_64-8.1-r6.iso"`, nil
+	// --- seventh-expansion fixtures ---
+	case strings.Contains(url, "armbian"):
+		return `<a href="Armbian_26.8.3_Uefi-x86_trixie_edge_7.1.9_minimal.iso">a</a><a href="Armbian_26.8.3_Uefi-x86_resolute_edge_7.1.9_gnome_desktop.iso">b</a><a href="Armbian_26.8.3_Uefi-x86_resolute_edge_7.1.9_kde-plasma_desktop.iso">c</a>`, nil
+	case strings.Contains(url, "zentyal") && strings.Contains(url, "Old"):
+		return `"name":"zentyal-4.0-amd64.iso" "name":"zentyal-3.5-amd64.iso"`, nil
+	case strings.Contains(url, "zentyal"):
+		return `"name":"zentyal-7.0-development-amd64.iso"`, nil
+	case strings.Contains(url, "funtoo"):
+		return `"name":"Funtoo-x86_64-29-01-2019.iso"`, nil
+	case strings.Contains(url, "mofolinux"):
+		return `"name":"mofolinux-9.7.0.iso"`, nil
+	case strings.Contains(url, "openthos"):
+		return `"name":"openthos-8.1.0.191102.img"`, nil
+	case strings.Contains(url, "dragora"):
+		return `<a href="dragora-3.0-amd64-beta2-dvd.iso">a</a><a href="dragora-3.0-x86_64-beta1-live.iso">b</a><a href="dragora-3.0-x86_64-beta1-packages.iso">c</a><a href="dragora-3.0-x86_64-alpha2.iso">d</a><a href="dragora-3.0-x86_64-alpha1.iso">e</a>`, nil
 	// --- fourth-expansion fixtures ---
 	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, "2026.1"):
 		return `"name":"Rhino-Linux-2026.1-amd64.iso"`, nil
@@ -847,6 +864,21 @@ func TestScrapeAll(t *testing.T) {
 		{"chimeralinux", "latest", "plasma", "amd64", false},
 		{"adelie", "1.0", "mate", "amd64", false},
 		{"adelie", "1.0", "xfce", "amd64", false},
+		// seventh-expansion resolvers.
+		{"solydxk", "13", "solydx", "amd64", false},
+		{"solydxk", "13", "solydk", "amd64", false},
+		{"armbian", "latest", "minimal", "amd64", false},
+		{"armbian", "latest", "gnome", "amd64", false},
+		{"predator-os", "v3.5", "sec-plasma", "amd64", false},
+		{"predator-os", "v3.5", "home-mate", "amd64", false},
+		{"zentyal", "7.0-development", "", "amd64", false},
+		{"zentyal", "4.0", "", "amd64", false},
+		{"funtoo", "latest", "", "amd64", false},
+		{"mofolinux", "latest", "", "amd64", false},
+		{"openthos", "8.1.0", "", "amd64", false},
+		{"dragora", "beta2", "", "amd64", false},
+		{"dragora", "beta1", "", "amd64", false},
+		{"dragora", "alpha2", "", "amd64", false},
 	}
 	for _, c := range cases {
 		t.Run(c.os+"/"+c.rel+"/"+c.ed, func(t *testing.T) {
