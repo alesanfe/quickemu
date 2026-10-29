@@ -33,6 +33,17 @@ func actPlugins() int {
 // actPlugin: plugin_dispatch parity — exec quickemu-plugin-<name> with
 // the plugin env contract.
 func actPlugin(name string, pargs []string) int {
+	// The name joins the binary name — a separator or leading dash
+	// turns LookPath into a relative-path exec.
+	if name == "" || strings.ContainsAny(name, `/\`) ||
+		strings.Contains(name, "..") || strings.HasPrefix(name, "-") {
+		if outFmt == "json" {
+			emitFail("vm.plugin", "INVALID_ARGUMENT", "invalid plugin name")
+		} else {
+			fmt.Fprintf(os.Stderr, "ERROR! Invalid plugin name %q.\n", name)
+		}
+		return 1
+	}
 	bin, err := exec.LookPath("quickemu-plugin-" + name)
 	if err != nil {
 		if outFmt == "json" {

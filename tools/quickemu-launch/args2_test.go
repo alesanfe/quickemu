@@ -125,6 +125,21 @@ func TestValidateConfMatrix(t *testing.T) {
 	}
 }
 
+// Bash ports/cpu checks are strict [0-9]+ — fmt.Sscanf("%d") reads a
+// numeric PREFIX, so "22x" validates and then reaches QEMU verbatim.
+func TestValidateConfStrictDigits(t *testing.T) {
+	dir := t.TempDir()
+	conf := filepath.Join(dir, "v.conf")
+	os.WriteFile(conf, nil, 0o644)
+	for k, v := range map[string]string{
+		"ssh_port": "22x", "spice_port": "5930bad", "cpu_cores": "4x",
+	} {
+		if errs := validateConf(Conf{k: v}, conf); len(errs) == 0 {
+			t.Fatalf("%s=%q accepted — junk suffix must fail", k, v)
+		}
+	}
+}
+
 func TestResolvePublicAndXDG(t *testing.T) {
 	// public_dir=none → early return.
 	c := Conf{"public_dir": "none"}

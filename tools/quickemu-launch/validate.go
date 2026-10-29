@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
@@ -17,6 +18,17 @@ import (
 // no catalog membership check. Empty warns and assumes linux heuristics.
 var guestOSRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+// digitsOnly: the Bash port/core checks are strict [0-9]+ — Sscanf("%d")
+// accepts a numeric prefix ("22x" → 22) and lets junk reach QEMU.
+func digitsOnly(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return s != ""
+}
+
 func validateConf(c Conf, confPath string) []string {
 	var errs []string
 	gos := c.get("guest_os", "")
@@ -25,9 +37,9 @@ func validateConf(c Conf, confPath string) []string {
 	} else if !guestOSRe.MatchString(gos) {
 		errs = append(errs, "'"+gos+"' is not a valid guest_os (expected [a-z0-9-]+)")
 	}
-	if c.get("cpu_cores", "") != "" {
-		var n int
-		if fmt.Sscanf(c["cpu_cores"], "%d", &n); n < 1 || n > 256 {
+	if p := c.get("cpu_cores", ""); p != "" {
+		n, _ := strconv.Atoi(p)
+		if !digitsOnly(p) || n < 1 || n > 256 {
 			errs = append(errs, "cpu_cores out of range")
 		}
 	}
@@ -54,14 +66,14 @@ func validateConf(c Conf, confPath string) []string {
 		}
 	}
 	if p := c.get("ssh_port", ""); p != "" {
-		var n int
-		if fmt.Sscanf(p, "%d", &n); n < 1 || n > 65535 {
+		n, _ := strconv.Atoi(p)
+		if !digitsOnly(p) || n < 1 || n > 65535 {
 			errs = append(errs, "ssh_port must be a number in 1-65535")
 		}
 	}
 	if p := c.get("spice_port", ""); p != "" {
-		var n int
-		if fmt.Sscanf(p, "%d", &n); n < 1 || n > 65535 {
+		n, _ := strconv.Atoi(p)
+		if !digitsOnly(p) || n < 1 || n > 65535 {
 			errs = append(errs, "spice_port must be a number in 1-65535")
 		}
 	}
