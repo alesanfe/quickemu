@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -291,6 +292,31 @@ func PidAlive(pid int) bool {
 	}
 	err := syscall.Kill(pid, 0)
 	return err == nil || err == syscall.EPERM
+}
+
+// procByToken finds a live process whose /proc/<pid>/cmdline contains
+// token — used by e2e cleanups to locate a QEMU whose pidfile is gone
+// (it always carries `-name <vm>,process=<vm>` in argv).
+func procByToken(t *testing.T, token string) int {
+	t.Helper()
+	ents, err := os.ReadDir("/proc")
+	if err != nil {
+		return 0
+	}
+	for _, e := range ents {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil || pid <= 0 {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join("/proc", e.Name(), "cmdline"))
+		if err != nil {
+			continue
+		}
+		if strings.Contains(string(b), token) {
+			return pid
+		}
+	}
+	return 0
 }
 
 // VMState runs `quickemu --vm conf --status` and returns the first word.

@@ -386,6 +386,27 @@ func quickemuBoot(t *testing.T, conf string) *exec.Cmd {
 	t.Cleanup(func() {
 		cmd.Process.Kill()
 		Run(t, "quickemu", nil, "--vm", conf, "--kill")
+		// Last resort: --kill can no-op when QEMU is still booting
+		// (launcher holds the VM lock → LOCK_BUSY, or the pidfile is
+		// not written yet → "not running"). A surviving QEMU keeps
+		// its SPICE/SSH ports and starves later e2e tests — kill it
+		// by pidfile, or by the -name process=<vm> token when the
+		// pidfile was already reaped.
+		name := strings.TrimSuffix(filepath.Base(conf), ".conf")
+		for i := 0; i < 15; i++ {
+			pid := 0
+			if b, err := os.ReadFile(filepath.Join(filepath.Dir(conf), name+".pid")); err == nil {
+				fmt.Sscanf(strings.TrimSpace(string(b)), "%d", &pid)
+			}
+			if pid <= 0 {
+				pid = procByToken(t, "process="+name)
+			}
+			if pid <= 0 || !PidAlive(pid) {
+				break
+			}
+			syscall.Kill(pid, syscall.SIGKILL)
+			time.Sleep(200 * time.Millisecond)
+		}
 	})
 	return cmd
 }
