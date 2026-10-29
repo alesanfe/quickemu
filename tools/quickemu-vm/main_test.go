@@ -5,7 +5,12 @@
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
+	"crypto/sha256"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,6 +90,69 @@ func TestExportImportRoundtrip(t *testing.T) {
 	dest := t.TempDir()
 	runTool(t, nil, "import", dir, out)
 	_ = dest
+}
+
+// Regression: exportVm opened every member — a symlink inside the VM dir
+// was followed, embedding the link *target's* bytes in the archive (and
+// diverging from the import side, which refuses links outright).
+func TestExportSkipsSymlinks(t *testing.T) {
+	parent, dir := mkVM(t, "vmsym")
+	outside := filepath.Join(parent, "secret.img")
+	os.WriteFile(outside, []byte("SECRET-DATA"), 0o600)
+	if err := os.Symlink(outside, filepath.Join(dir, "leak.iso")); err != nil {
+		t.Skip("symlinks unsupported")
+	}
+	out := filepath.Join(t.TempDir(), "vmsym.quickvm.tar.gz")
+	if o, rc := runTool(t, nil, "export", dir, out); rc != 0 {
+		t.Fatalf("export rc=%d %s", rc, o)
+	}
+	f, _ := os.Open(out)
+	defer f.Close()
+	gz, _ := gzip.NewReader(f)
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		b, _ := io.ReadAll(tr)
+		if bytes.Contains(b, []byte("SECRET-DATA")) {
+			t.Fatalf("member %q leaked the symlink target's contents", h.Name)
+		}
+	}
+}
+
+// Regression: importVm verified checksum lines by joining the recorded
+// path onto the staging dir without a locality check — a sums line for
+// "../../x" validated content outside the archive.
+func TestImportChecksumTraversal(t *testing.T) {
+	// Build a hostile archive in-memory: conf + manifest + a checksums
+	// file whose only record points outside the staging root.
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp) // staging lands inside our sandbox
+	outside := filepath.Join(tmp, "planted.bin")
+	os.WriteFile(outside, []byte("x"), 0o600)
+	sum := fmt.Sprintf("%x", sha256.Sum256([]byte("x")))
+	manifest := `{"formatVersion":1,"vm":"evil"}`
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	add := func(name, body string) {
+		tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(body))})
+		tw.Write([]byte(body))
+	}
+	add("evil.conf", "guest_os=\"linux\"\n")
+	add("quickvm-manifest.json", manifest)
+	add("quickvm-checksums.sha256", sum+"  ../planted.bin\n")
+	tw.Close()
+	gz.Close()
+	in := filepath.Join(t.TempDir(), "evil.quickvm.tar.gz")
+	os.WriteFile(in, buf.Bytes(), 0o600)
+	dest := t.TempDir()
+	o, rc := runToolIn(t, nil, dest, "import", "x", in)
+	if rc == 0 {
+		t.Fatalf("traversal checksum record must not validate: %s", o)
+	}
 }
 
 func TestBackupLifecycle(t *testing.T) {

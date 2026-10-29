@@ -59,6 +59,12 @@ func exportVm(dir, out string) int {
 			if err != nil || d.IsDir() {
 				return nil
 			}
+			// Only regular files: os.Open follows symlinks, so archiving
+			// a link would embed the *target's* contents (and import
+			// refuses links anyway — they could never round-trip).
+			if !d.Type().IsRegular() {
+				return nil
+			}
 			rel, _ := filepath.Rel(parent, p)
 			if !isRuntimeArtifact(d.Name()) {
 				members = append(members, filepath.ToSlash(rel))
@@ -137,6 +143,7 @@ func importVm(in, destDir string) int {
 	if err != nil {
 		die("IMPORT_FAILED", err.Error())
 	}
+	defer f.Close()
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "ERROR! Not a gzip tar.")
@@ -169,7 +176,6 @@ func importVm(in, destDir string) int {
 			base = strings.TrimSuffix(filepath.Base(h.Name), ".conf")
 		}
 	}
-	f.Close()
 	if base == "" {
 		fmt.Fprintln(os.Stderr, "ERROR! No .conf found inside "+in+".")
 		return 1
@@ -186,10 +192,15 @@ func importVm(in, destDir string) int {
 		fmt.Fprintf(os.Stderr, "ERROR! %s already exists.\n", base)
 		return 1
 	}
-	// Pass 2: extract to a private staging dir.
-	f2, _ := os.Open(in)
-	defer f2.Close()
-	gz2, _ := gzip.NewReader(f2)
+	// Pass 2: extract to a private staging dir — same fd as pass 1
+	// (reopening the path would let a swapped file bypass validation).
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		die("IMPORT_FAILED", err.Error())
+	}
+	gz2, err := gzip.NewReader(f)
+	if err != nil {
+		die("IMPORT_FAILED", err.Error())
+	}
 	tr2 := tar.NewReader(gz2)
 	tmp, err := os.MkdirTemp("", "quickemu-import.")
 	if err != nil {
@@ -238,6 +249,11 @@ func importVm(in, destDir string) int {
 			flds := strings.Fields(l)
 			if len(flds) != 2 {
 				continue
+			}
+			// The sums file is archive content: its paths must stay
+			// inside the staging dir.
+			if !filepath.IsLocal(flds[1]) {
+				die("CHECKSUM_MISMATCH", "Archive checksum verification failed.")
 			}
 			mb, err := os.ReadFile(filepath.Join(tmp, filepath.FromSlash(flds[1])))
 			if err != nil || fmt.Sprintf("%x", sha256.Sum256(mb)) != flds[0] {
