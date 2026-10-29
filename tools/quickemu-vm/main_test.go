@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -237,5 +238,28 @@ func TestSnapshotListAndBadArgs(t *testing.T) {
 	}
 	if _, rc := runTool(t, nil, "bogus", dir); rc != 2 {
 		t.Fatalf("unknown rc=%d", rc)
+	}
+}
+
+func TestBackupKeepEnv(t *testing.T) {
+	dir := t.TempDir()
+	bk := filepath.Join(dir, "backups")
+	os.MkdirAll(bk, 0o755)
+	base := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	for i, n := range []string{"a", "b", "c"} {
+		f := filepath.Join(bk, "2020-01-0"+fmt.Sprint(i+1)+"-"+n+".quickvm.tar.gz")
+		if err := os.WriteFile(f, []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		m := base.Add(time.Duration(i) * 24 * time.Hour)
+		os.Chtimes(f, m, m)
+	}
+	// BACKUP_KEEP env beats the positional arg (Bash 5).
+	if o, rc := runTool(t, []string{"BACKUP_KEEP=1"}, "backup-prune", dir, "3"); rc != 0 {
+		t.Fatalf("prune rc=%d %s", rc, o)
+	}
+	ents, _ := filepath.Glob(filepath.Join(bk, "*.tar.gz"))
+	if len(ents) != 1 {
+		t.Fatalf("BACKUP_KEEP=1 must keep 1 of 3, have %d", len(ents))
 	}
 }

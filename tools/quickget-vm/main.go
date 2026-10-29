@@ -210,7 +210,26 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 		return 0
 	}
 	var b strings.Builder
-	qe, _ := exec.LookPath("quickemu")
+	// resolve_quickemu parity: sibling/dev-tree quickemu wins, PATH is
+	// checked inside FindTool, QG_BINDIR is the packaging override.
+	qe := ""
+	if p, err := qelib.FindTool("quickemu"); err == nil {
+		qe = p
+	}
+	if qe == "" {
+		// ./quickemu then $QG_BINDIR — the resolve_quickemu fallbacks
+		// for running from a source tree or a custom install dir.
+		if st, err := os.Stat("./quickemu"); err == nil && !st.IsDir() {
+			qe, _ = filepath.Abs("./quickemu")
+		}
+	}
+	if qe == "" {
+		if bd := os.Getenv("QG_BINDIR"); bd != "" {
+			if st, err := os.Stat(filepath.Join(bd, "quickemu")); err == nil && !st.IsDir() {
+				qe = filepath.Join(bd, "quickemu")
+			}
+		}
+	}
 	if qe == "" {
 		qe = "quickemu"
 	}

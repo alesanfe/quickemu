@@ -282,3 +282,12 @@ func TestEmbeddedIDTraversal(t *testing.T) {
 		t.Fatal("rollback wrote outside the ops dir")
 	}
 }
+
+func TestVerbosityRank(t *testing.T) {
+	want := map[string]int{"quiet": 0, "normal": 1, "verbose": 2, "debug": 3, "bogus": 1, "": 1}
+	for s, w := range want {
+		if g := verbosityRank(s); g != w {
+			t.Errorf("verbosityRank(%q)=%d want %d", s, g, w)
+		}
+	}
+}

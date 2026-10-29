@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 	"golang.org/x/sys/unix"
@@ -164,6 +165,37 @@ func actInventory() int {
 		}
 	}
 	return 0
+}
+
+// inventoryTouch: inventory_touch parity — upserts this instance into
+// the global vms.json keyed by QE_INSTANCE_ID (pid when unset).
+// Best-effort like the Bash guard (`command -v jq` made it optional):
+// any failure is silent.
+func inventoryTouch(state string) {
+	db := filepath.Join(qelib.XDGData(), "quickemu", "vms.json")
+	if err := os.MkdirAll(filepath.Dir(db), 0755); err != nil {
+		return
+	}
+	id := os.Getenv("QE_INSTANCE_ID")
+	if id == "" {
+		id = fmt.Sprint(os.Getpid())
+	}
+	m := map[string]any{}
+	if b, err := os.ReadFile(db); err == nil {
+		json.Unmarshal(b, &m)
+	}
+	m[id] = map[string]any{"vm": vmname(), "state": state,
+		"dir": vmdir(), "lastSeen": time.Now().UTC().Format(time.RFC3339)}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	tmp := db + ".tmp"
+	if os.WriteFile(tmp, b, 0644) == nil {
+		os.Rename(tmp, db)
+	} else {
+		os.Remove(tmp)
+	}
 }
 
 // actStats: vm_stats parity — QMP cpus/block/balloon in one envelope.

@@ -19,7 +19,10 @@ import (
 
 var (
 	arch              = hostArch()
-	minTrust          = ""
+	// MINIMUM_TRUST env seeds the trust gate (Bash ${MINIMUM_TRUST:-E}
+	// semantics: unset/invalid env is permissive, --minimum-trust wins
+	// and is validated).
+	minTrust          = strings.ToUpper(os.Getenv("MINIMUM_TRUST"))
 	insecure          = false
 	cloudInit         = false
 	unattended        = false

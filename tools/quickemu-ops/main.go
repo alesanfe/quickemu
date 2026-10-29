@@ -49,6 +49,31 @@ func safeID(id string) bool {
 // checkID rejects operation ids that could escape the ops dir —
 // --id is joined into a filesystem path, so separators and .. must
 // never reach filepath.Join.
+// verbosityRank/qeVerbose: QUICKEMU_VERBOSITY/VERBOSITY env gate —
+// Bash verbosity.sh parity (quiet<normal<verbose<debug; the verbose
+// line fires only at level >= verbose, on stderr).
+func verbosityRank(s string) int {
+	switch s {
+	case "quiet":
+		return 0
+	case "verbose":
+		return 2
+	case "debug":
+		return 3
+	}
+	return 1
+}
+
+func qeVerbose(msg string) {
+	v := os.Getenv("QUICKEMU_VERBOSITY")
+	if v == "" {
+		v = os.Getenv("VERBOSITY")
+	}
+	if verbosityRank(v) >= 2 {
+		fmt.Fprintln(os.Stderr, msg)
+	}
+}
+
 func checkID(id string) {
 	if !safeID(id) {
 		die("INVALID_ARGS", "bad operation id")
@@ -270,6 +295,11 @@ func run() int {
 			o.Error = json.RawMessage(`{"code":"OPERATION_INTERRUPTED","message":"worker dead"}`)
 			writeOp(dir, &o)
 			reaped++
+			owner := "none"
+			if o.WorkerPid > 0 {
+				owner = fmt.Sprint(o.WorkerPid)
+			}
+			qeVerbose(fmt.Sprintf("op_recover: marked %s interrupted (owner=%s)", o.OperationID, owner))
 		}
 		fmt.Printf("{\"reaped\":%d}\n", reaped)
 	case "rollback":

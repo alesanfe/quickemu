@@ -300,6 +300,9 @@ func run() int {
 		if len(args) > 2 {
 			fmt.Sscanf(args[2], "%d", &keep)
 		}
+		if k := os.Getenv("BACKUP_KEEP"); k != "" {
+			fmt.Sscanf(k, "%d", &keep)
+		}
 		return backupPrune(dir, keep)
 	case "export":
 		out := ""

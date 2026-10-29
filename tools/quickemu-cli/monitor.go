@@ -83,8 +83,17 @@ func actMonitorCmd() int {
 // the reply until the (qemu) prompt. The greeting and the per-char
 // readline echo are drained so only the reply body is returned (the
 // Bash socat+sed pipeline leaves the echo in; the payload is the same).
+// qmpTimeout: QMP_TIMEOUT env parity (Bash's socat -t idle bound).
+func qmpTimeout() time.Duration {
+	t := 2.0
+	if v := os.Getenv("QMP_TIMEOUT"); v != "" {
+		fmt.Sscan(v, &t)
+	}
+	return time.Duration(t * float64(time.Second))
+}
+
 func monitorSend(network, addr, msg string) (string, error) {
-	d := net.Dialer{Timeout: 2 * time.Second}
+	d := net.Dialer{Timeout: qmpTimeout()}
 	c, err := d.Dial(network, addr)
 	if err != nil {
 		return "", err
@@ -150,7 +159,10 @@ func actType() int {
 func actScreenshot() int {
 	dst := extra["screenshot"]
 	if dst == "" {
-		dst = filepath.Join(vmdir(), vmname()+".ppm")
+		dst = os.Getenv("SCREENSHOT_OUT")
+	}
+	if dst == "" {
+		dst = filepath.Join(vmdir(), vmname()+"-"+time.Now().Format("20060102-150405")+".ppm")
 	}
 	out, err := hmp("screendump " + dst)
 	fmt.Print(out)

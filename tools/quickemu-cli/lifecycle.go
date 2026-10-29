@@ -168,6 +168,13 @@ func paused() bool {
 }
 
 func state() (string, int) {
+	// Archived = trashed: checked first, a trashed VM reports archived
+	// regardless of pid debris (vm_state parity).
+	if td := os.Getenv("QE_TRASH_DIR"); td != "" {
+		if st, err := os.Stat(filepath.Join(td, vmname())); err == nil && st.IsDir() {
+			return "archived", 0
+		}
+	}
 	pid := readPID()
 	if !vmPidAlive() {
 		if pid > 0 {
@@ -199,6 +206,7 @@ func runtimeCleanup() {
 	}
 	os.RemoveAll(filepath.Join(dir, name+".lock"))
 	os.RemoveAll(filepath.Join(dir, name+".lock.shared"))
+	inventoryTouch("stopped")
 	qeEvent("vm.stopped", "")
 }
 
@@ -317,6 +325,7 @@ func actLaunch() int {
 	if err != nil {
 		return 1
 	}
+	inventoryTouch("running")
 	startViewer(get)
 	// Auto-skip the press-any-key prompt on uninstalled Windows guests.
 	if get("iso") != "" && strings.HasPrefix(get("guest_os"), "windows") {

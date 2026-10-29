@@ -122,3 +122,18 @@ func TestFinalURL(t *testing.T) {
 		t.Fatalf("FinalURL=%q %v", u, err)
 	}
 }
+
+func TestTLSInsecure(t *testing.T) {
+	t.Setenv("QUICKGET_INSECURE", "")
+	if TLSInsecure() {
+		t.Fatal("empty env must not enable insecure")
+	}
+	t.Setenv("QUICKGET_INSECURE", "1")
+	if !TLSInsecure() {
+		t.Fatal("QUICKGET_INSECURE=1 must enable insecure")
+	}
+	t.Setenv("QUICKGET_INSECURE", "true")
+	if !TLSInsecure() {
+		t.Fatal("QUICKGET_INSECURE=true must enable insecure")
+	}
+}

@@ -106,3 +106,13 @@ func TestMainPositionalAndConfig(t *testing.T) {
 		t.Fatalf("actCreateConfig rc=%d", rc)
 	}
 }
+
+func TestMinimumTrustEnv(t *testing.T) {
+	setupCatalog(t)
+	t.Setenv("QC_TRUST", "D")
+	t.Setenv("MINIMUM_TRUST", "A")
+	out, rc := runCLI(t, "alpine", "3.19")
+	if rc != 1 || !strings.Contains(out, "below --minimum-trust A") {
+		t.Fatalf("env-seeded trust gate must reject D<A: rc=%d %s", rc, out)
+	}
+}

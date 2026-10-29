@@ -4,11 +4,13 @@
 package qelib
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -18,6 +20,20 @@ var HTTPTransport = &http.Transport{
 	DialContext:           (&net.Dialer{Timeout: 15 * time.Second}).DialContext,
 	TLSHandshakeTimeout:   15 * time.Second,
 	ResponseHeaderTimeout: 30 * time.Second,
+}
+
+// TLSInsecure: QUICKGET_INSECURE parity — "1"/"true" disables
+// certificate verification (curl --insecure). The flag sets the env
+// for spawned tools, so it is read once at transport init.
+func TLSInsecure() bool {
+	v := os.Getenv("QUICKGET_INSECURE")
+	return v == "1" || v == "true"
+}
+
+func init() {
+	if TLSInsecure() {
+		HTTPTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // deliberate curl -k parity
+	}
 }
 
 // ProbeClient for bounded reachability/metadata probes.
