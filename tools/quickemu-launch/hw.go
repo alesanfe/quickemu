@@ -66,6 +66,9 @@ func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
 		}
 	}
 	cpu := "host"
+	if m := os.Getenv("CPU_MODEL"); m != "" {
+		cpu = m
+	}
 	if strings.HasPrefix(t.CPUFlags, "@") {
 		cpu = strings.TrimPrefix(t.CPUFlags, "@") // qemu32 etc: model replaces
 	} else {

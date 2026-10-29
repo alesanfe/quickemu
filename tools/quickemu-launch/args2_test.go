@@ -306,6 +306,19 @@ func TestInputAudioNetArgs(t *testing.T) {
 	_ = ramArgs(Conf{})
 	_ = cpuArgs(Conf{"cpu_cores": "4"}, "windows", "x86_64", OsTuning{CPUFlags: "+x2apic"})
 	_ = cpuArgs(Conf{}, "macos", "aarch64", OsTuning{})
+	// env contract (Bash parity): CPU_MODEL overrides the -cpu base model;
+	// MACHINE_TYPE overrides the q35 default but not OS quirks.
+	t.Setenv("CPU_MODEL", "qemu64")
+	if a := cpuArgs(Conf{}, "linux", "x86_64", OsTuning{}); len(a) < 2 || a[0] != "-cpu" || a[1] != "qemu64" {
+		t.Fatalf("CPU_MODEL env ignored: %v", a)
+	}
+	t.Setenv("MACHINE_TYPE", "microvm")
+	if mt := osQuirks(Conf{}, "linux", "x86_64").MachineType; mt != "microvm" {
+		t.Fatalf("MACHINE_TYPE env ignored: %q", mt)
+	}
+	if mt := osQuirks(Conf{}, "freedos", "x86_64").MachineType; mt != "pc" {
+		t.Fatalf("MACHINE_TYPE env must not override OS quirk: %q", mt)
+	}
 	// fileshareArgs via resolved public.
 	dir := t.TempDir()
 	c := Conf{"_public": dir, "file_share": "true"}

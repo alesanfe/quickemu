@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"os"
+	"strings"
+)
 
 // OsTuning: the variables configure_os_quirks resolves in Bash —
 // consumed by the downstream configure_* builders (same two-phase
@@ -25,7 +28,11 @@ type OsTuning struct {
 // configure_bios — resolves per-guest-OS device defaults. Case order
 // matches Bash (first match wins).
 func osQuirks(c Conf, osName, arch string) OsTuning {
-	t := OsTuning{NetDevice: "rtl8139", SMM: "off", MachineType: "q35"}
+	machineType := "q35"
+	if m := os.Getenv("MACHINE_TYPE"); m != "" {
+		machineType = m
+	}
+	t := OsTuning{NetDevice: "rtl8139", SMM: "off", MachineType: machineType}
 
 	// pre-case overrides
 	if osName == "freebsd" || osName == "ghostbsd" {
