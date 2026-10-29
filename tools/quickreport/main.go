@@ -203,6 +203,32 @@ func quickReport() int {
 		}
 		fmt.Printf(" - %-12s %s\n", tool, status)
 	}
+	// curl block (quick_report parity): version + linked libraries +
+	// protocols/features lines parsed out of `curl --version`.
+	if _, err := exec.LookPath("curl"); err == nil {
+		cv := cmdOut("curl", "--version")
+		lines := strings.Split(cv, "\n")
+		ver := ""
+		if f := strings.Fields(lines[0]); len(f) >= 2 {
+			ver = f[1]
+		}
+		fmt.Printf("%s\n            curl %s\n%s\n", sep, ver, sep)
+		libs := ""
+		if i := strings.Index(lines[0], ")"); i >= 0 {
+			libs = lines[0][i+1:]
+		}
+		fmt.Printf("Libraries:%s\n", libs)
+		for _, l := range lines[2:] {
+			if strings.HasPrefix(l, "Protocols:") {
+				fmt.Printf("Protocols:%s\n", cutAfter(l, ":"))
+			}
+			if strings.HasPrefix(l, "Features:") {
+				fmt.Printf("Features: %s\n", cutAfter(l, ":"))
+			}
+		}
+	} else {
+		fmt.Println(sep + "\n            curl missing\n" + sep)
+	}
 	qarch := probeQemuArch()
 	qemu := "qemu-system-" + qarch
 	if _, err := exec.LookPath(qemu); err == nil {
