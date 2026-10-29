@@ -201,4 +201,20 @@ func TestEmbeddedIDTraversal(t *testing.T) {
 	if _, err := os.Stat(escape); !os.IsNotExist(err) {
 		t.Fatal("embedded operationId escaped the ops dir")
 	}
+	// recover/rollback unmarshal op files directly — the write path
+	// itself must reject an escaping embedded id.
+	escape2 := filepath.Join(filepath.Dir(vmdir), "escaped2.json")
+	plant2 := `{"schemaVersion":1,"operationId":"../../escaped2","type":"export","state":"queued"}`
+	os.WriteFile(filepath.Join(ops, "evil2.json"), []byte(plant2), 0o600)
+	runTool(t, "recover", "--vmdir", vmdir)
+	if _, err := os.Stat(escape2); !os.IsNotExist(err) {
+		t.Fatal("recover wrote outside the ops dir")
+	}
+	escape3 := filepath.Join(filepath.Dir(vmdir), "escaped3.json")
+	plant3 := `{"schemaVersion":1,"operationId":"../../escaped3","type":"export","state":"queued"}`
+	os.WriteFile(filepath.Join(ops, "evil3.json"), []byte(plant3), 0o600)
+	runTool(t, "rollback", "--vmdir", vmdir, "--id", "evil3")
+	if _, err := os.Stat(escape3); !os.IsNotExist(err) {
+		t.Fatal("rollback wrote outside the ops dir")
+	}
 }

@@ -77,6 +77,12 @@ func load(dir, id string) *Op {
 // renameio handles staging on the same filesystem, atomic replace and
 // cleanup; Sync() gives the file-level durability guarantee.
 func (o *Op) save(dir string) {
+	// The embedded id is joined into the destination path — validate
+	// at the sink so EVERY caller (set/done/recover/rollback/…) is
+	// covered, not just paths that go through load().
+	if !safeID(o.OperationID) {
+		die("OP_CORRUPT", "unsafe embedded operation id "+o.OperationID)
+	}
 	b, _ := json.Marshal(o)
 	f, err := renameio.TempFile(dir, filepath.Join(dir, o.OperationID+".json"))
 	if err != nil {
