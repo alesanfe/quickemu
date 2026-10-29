@@ -55,6 +55,10 @@ func actListVMs() int {
 		PID   any    `json:"pid"`
 	}
 	vms := []ent{}
+	// state() reads the global vmConf — a listing must not leak its
+	// scratch path into later actions on the same command line.
+	savedConf := vmConf
+	defer func() { vmConf = savedConf }()
 	// A VM may appear twice — once as ./name.conf and once as
 	// name/name.conf (quickget layout). Identity is the basename, so
 	// dedupe by it; top-level confs list first.

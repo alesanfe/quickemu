@@ -219,6 +219,29 @@ func TestApplyOverridesAndStats(t *testing.T) {
 // An override value is written verbatim as key="v" — a " or newline in
 // it injects extra conf lines (disk_img="/etc/passwd") that the launcher
 // then honours. Reject the value instead of corrupting the merge conf.
+// actListVMs rewrote the global vmConf to whatever conf it scanned
+// last — a following --status/--stop on the SAME command line then
+// acted on the wrong VM. The listing must not leak its scratch path.
+func TestListVMsPreservesVMConf(t *testing.T) {
+	stubTools(t)
+	d := t.TempDir()
+	wd, _ := os.Getwd()
+	os.Chdir(d)
+	defer os.Chdir(wd)
+	os.MkdirAll(filepath.Join(d, "other"), 0o755)
+	os.WriteFile(filepath.Join(d, "other", "other.conf"),
+		[]byte("guest_os=\"linux\"\n"), 0o644)
+	sentinel := filepath.Join(d, "mine.conf")
+	os.WriteFile(sentinel, []byte("guest_os=\"linux\"\n"), 0o644)
+	old := vmConf
+	vmConf = sentinel
+	defer func() { vmConf = old }()
+	actListVMs()
+	if vmConf != sentinel {
+		t.Fatalf("list_vms polluted vmConf -> %s", vmConf)
+	}
+}
+
 func TestApplyOverridesRejectsInjection(t *testing.T) {
 	stubTools(t)
 	withConf(t, "guest_os=\"linux\"\n")
