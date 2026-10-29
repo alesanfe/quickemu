@@ -164,6 +164,33 @@ func TestDispatchCloneDelete(t *testing.T) {
 	}
 }
 
+// clone/rename join the new name into a sibling path — traversal or
+// separator-bearing names must die before any mkdir/rename runs.
+func TestDispatchNameTraversal(t *testing.T) {
+	parent, dir := mkVM(t, "tvm")
+	conf := dir + ".conf"
+	env := []string{"QE_VMCONF=" + conf, "HOME=" + parent, "XDG_DATA_HOME=" + t.TempDir()}
+	outside := filepath.Join(filepath.Dir(parent), "escape")
+
+	for _, bad := range []string{"../escape", "a/b", "..", ".", "-x"} {
+		if out, rc := runTool(t, env, "clone", dir, bad); rc == 0 {
+			t.Fatalf("clone accepted name %q: %s", bad, out)
+		}
+		if out, rc := runTool(t, env, "rename", dir, bad); rc == 0 {
+			t.Fatalf("rename accepted name %q: %s", bad, out)
+		}
+	}
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		t.Fatal("a name arg escaped the VM parent dir")
+	}
+	if _, err := os.Stat(filepath.Join(parent, "a")); !os.IsNotExist(err) {
+		t.Fatal("clone created a nested dir from a separator name")
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatal("a rejected rename still moved the VM")
+	}
+}
+
 func TestDispatchRenameMoveMisc(t *testing.T) {
 	parent, dir := mkVM(t, "rmvm")
 	conf := dir + ".conf"

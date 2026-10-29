@@ -139,6 +139,13 @@ func deletePlanItems(dir string) []string {
 
 // deletePlanID: sha256 over the canonical plan serialization —
 // "vm=<name>\n" then "<path>|<size>|<mtime>|<type>" per item.
+// validVMName: a VM name becomes a sibling dir plus <name>.conf —
+// it must stay a single safe path component.
+func validVMName(n string) bool {
+	return n != "" && n != "." && n != ".." &&
+		!strings.ContainsAny(n, `/\`) && !strings.HasPrefix(n, "-")
+}
+
 func deletePlanID(name string, items []string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "vm=%s\n", name)
@@ -407,8 +414,8 @@ func run() int {
 				name = a
 			}
 		}
-		if name == "" {
-			die("INVALID_ARGS", "clone needs a new name")
+		if !validVMName(name) {
+			die("INVALID_ARGS", "clone needs a valid new name")
 		}
 		return cloneVm(dir, name, full)
 	case "delete":
@@ -486,8 +493,8 @@ func run() int {
 		if len(args) > 2 {
 			name = args[2]
 		}
-		if name == "" {
-			die("INVALID_ARGS", "rename needs a new name")
+		if !validVMName(name) {
+			die("INVALID_ARGS", "rename needs a valid new name")
 		}
 		// Renaming a live VM moves the pidfile/sockets out from under
 		// the running guest — liveness tracking then reports stopped
