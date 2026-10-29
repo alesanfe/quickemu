@@ -152,6 +152,13 @@ func getUbuntu(osName, release, dir, arch string) int {
 		fmt.Printf("%s %s is currently unavailable. Please select other OS/Release combination\n", osName, release)
 		return 1
 	}
+	// The ISO name comes from a remote sums file — it must be a plain
+	// filename, never a path: "../x" would write outside the VM dir
+	// and "../../x" would also corrupt the download URL.
+	if !filepath.IsLocal(iso) || strings.ContainsAny(iso, `/\`) {
+		fmt.Printf("ERROR! Hostile ISO name in sums file: %q\n", iso)
+		return 1
+	}
 	if isDaily {
 		if zsyncGet(url+"/"+iso, dir, osName+"-devel.iso") != 0 {
 			return 1

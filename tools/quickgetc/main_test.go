@@ -145,6 +145,16 @@ func TestWebGet(t *testing.T) {
 	if rc := webGet("::bad::", dir, "x", nil); rc != 1 {
 		t.Fatalf("bad url rc=%d", rc)
 	}
+	// Hostile file_name from a foreign catalog must not escape dir —
+	// the download destination is joined raw, so "../" writes outside.
+	for _, name := range []string{"../evil", "a/../../evil", "/abs/evil"} {
+		if rc := webGet(srv.URL+"/file.iso", dir, name, nil); rc == 0 {
+			t.Fatalf("hostile file name %q must fail", name)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(dir), "evil")); err == nil {
+		t.Fatal("download escaped the VM dir")
+	}
 }
 
 func TestCreateVMLocal(t *testing.T) {

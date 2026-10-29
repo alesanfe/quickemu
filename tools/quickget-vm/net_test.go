@@ -130,6 +130,43 @@ func TestGetUbuntu(t *testing.T) {
 	}
 }
 
+// A hostile/malformed SHA256SUMS names the ISO — a filename with
+// separators or .. must never reach the destination path or the
+// download URL is derived from a parent dir. Everything remote is
+// untrusted even when the host is releases.ubuntu.com.
+func TestGetUbuntuIsoNameConfined(t *testing.T) {
+	stubFetchers(t)
+	oldFs := fetchString
+	fetchString = func(url string) (string, error) {
+		if strings.Contains(url, "SHA256SUMS") {
+			return strings.Repeat("a", 64) + " *../escaped-desktop-amd64.iso\n", nil
+		}
+		return "", io.EOF
+	}
+	defer func() { fetchString = oldFs }()
+
+	var dest string
+	oldF := fetch
+	fetch = func(url, d, sha string) int {
+		dest = d
+		return 0
+	}
+	defer func() { fetch = oldF }()
+
+	dir := t.TempDir()
+	_ = getUbuntu("ubuntu", "24.04", dir, "amd64")
+	if dest != "" {
+		if rel, err := filepath.Rel(dir, dest); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+			t.Fatalf("iso name escaped the VM dir: dest=%q", dest)
+		}
+	}
+	// The hostile name must be rejected outright — silently writing it
+	// inside dir under a mangled name still trusts attacker input.
+	if _, err := os.Stat(filepath.Join(filepath.Dir(dir), "escaped-desktop-amd64.iso")); err == nil {
+		t.Fatal("hostile iso name wrote outside the VM dir")
+	}
+}
+
 func TestZsyncGet(t *testing.T) {
 	stubFetchers(t)
 	dir := t.TempDir()

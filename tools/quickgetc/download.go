@@ -123,6 +123,12 @@ func webGet(url, dir, file string, headers [][2]string) int {
 	if file == "" {
 		file = filepath.Base(url)
 	}
+	// file_name can come from a foreign catalog (QUICKEMU_CATALOG) —
+	// it must be a plain name inside dir, never a path that escapes.
+	if !filepath.IsLocal(file) {
+		fmt.Printf("ERROR! Refusing unsafe file name %q\n", file)
+		return 1
+	}
 	if dir != "" {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			fmt.Printf("ERROR! Unable to create directory %s\n", dir)
