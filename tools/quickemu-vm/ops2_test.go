@@ -157,6 +157,34 @@ func TestSnapshotConsolidateForeignFile(t *testing.T) {
 	}
 }
 
+// trash-restore took the name verbatim into filepath.Join for both
+// the source (slot/vm/<name>) and destination (confDir/<name>) — a
+// "../x" name moves files from a crafted slot outside the conf dir.
+func TestTrashRestoreNameTraversal(t *testing.T) {
+	parent, dir := mkVM(t, "trashvm")
+	_ = parent
+	conf := dir + ".conf"
+	// Plant a trash slot named "evil-.." whose nested layout the
+	// traversal resolves: pattern *-../escape -> <root>/evil-../escape,
+	// then srcConf = slot/vm/../escape.conf -> slot/escape.conf, dst =
+	// confDir/../escape.conf — outside every intended root.
+	data := t.TempDir()
+	trash := filepath.Join(data, "quickemu", "trash")
+	slot := filepath.Join(trash, "evil-..", "escape")
+	os.MkdirAll(filepath.Join(slot, "vm"), 0o755)
+	os.WriteFile(filepath.Join(slot, "escape.conf"), []byte("x=1\n"), 0o600)
+	os.WriteFile(filepath.Join(slot, "trash-meta.json"),
+		[]byte(`{"originConfDir":"`+filepath.Dir(conf)+`"}`), 0o600)
+	env := []string{"QE_VMCONF=" + conf, "XDG_DATA_HOME=" + data}
+	out, rc := runTool(t, env, "trash-restore", dir, "../escape")
+	if rc == 0 {
+		t.Fatalf("traversal name accepted: %s", out)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(conf), "..", "escape.conf")); err == nil {
+		t.Fatal("conf escaped into the parent dir")
+	}
+}
+
 func TestAutostartShortcutInjection(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

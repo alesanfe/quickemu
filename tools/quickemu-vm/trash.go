@@ -64,7 +64,17 @@ func trashEmpty() int {
 
 func trashRestore(name string) int {
 	root := trashRoot()
-	m, _ := filepath.Glob(filepath.Join(root, "*-"+name))
+	// Literal suffix match, not a glob: a name like "a[bc]" is a valid
+	// VM name but a metachar pattern — Glob would match other VMs'
+	// slots (same fix as the doctor patterns).
+	var m []string
+	if ents, err := os.ReadDir(root); err == nil {
+		for _, e := range ents {
+			if e.IsDir() && strings.HasSuffix(e.Name(), "-"+name) {
+				m = append(m, filepath.Join(root, e.Name()))
+			}
+		}
+	}
 	if len(m) == 0 {
 		fmt.Fprintf(os.Stderr, "ERROR! No trash entry for '%s'.\n", name)
 		return 1

@@ -346,6 +346,12 @@ func run() int {
 		if len(args) > 2 {
 			name = args[2]
 		}
+		// The name lands in filepath.Join for BOTH the slot source
+		// and the restore destination — "../x" moves a crafted
+		// slot's files outside the conf dir.
+		if !validVMName(name) {
+			die("INVALID_ARGS", "trash-restore needs a valid VM name")
+		}
 		return trashRestore(name)
 	case "vfio-scan":
 		return vfioScan("")
