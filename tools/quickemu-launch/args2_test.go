@@ -678,3 +678,27 @@ func TestRamArgsTiering(t *testing.T) {
 		t.Fatalf("ramArgs %v", a)
 	}
 }
+
+// cpu_pinning (vm.sh): ^[0-9]+(,[0-9]+)*$ and the count must equal the
+// guest logical core count (Linux-only application).
+func TestCPUPinningValidation(t *testing.T) {
+	if _, err := parseCPUPinning("0,2,4,6"); err != nil || len([]int{}) < 0 {
+		t.Fatalf("valid pinning rejected: %v", err)
+	}
+	for _, bad := range []string{"0-3", "a,b", "1,,2", "", "1;2"} {
+		if bad == "" {
+			continue
+		}
+		if _, err := parseCPUPinning(bad); err == nil {
+			t.Fatalf("bad pinning %q accepted", bad)
+		}
+	}
+	c := Conf{"cpu_pinning": "0,1", "_lcores": "2"}
+	if err := paramCheckPinning(c); err != nil {
+		t.Fatalf("count match rejected: %v", err)
+	}
+	c["_lcores"] = "4"
+	if err := paramCheckPinning(c); err == nil {
+		t.Fatal("count mismatch must error")
+	}
+}

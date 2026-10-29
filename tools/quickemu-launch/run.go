@@ -34,7 +34,7 @@ func shq(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
-func runQEMU(confPath string, vmdir string, args []string) error {
+func runQEMU(confPath string, vmdir string, args []string, conf ...Conf) error {
 	dir := vmdir
 	if abs, err := filepath.Abs(dir); err == nil {
 		dir = abs
@@ -73,6 +73,11 @@ func runQEMU(confPath string, vmdir string, args []string) error {
 		return err
 	}
 	pid := cmd.Process.Pid
+	// configure_cpu_pinning runs right after spawn (vm_boot): maps the
+	// guest's CPU threads onto the conf's host core list via taskset.
+	if len(conf) > 0 {
+		applyCPUPinning(pid, conf[0])
+	}
 	// Reap in background — without Wait() a dead QEMU stays a zombie
 	// and kill(pid,0) still succeeds, so the liveness probe below
 	// would report "Started" for a guest that already crashed.

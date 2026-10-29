@@ -215,6 +215,12 @@ func main() {
 		t.CPUFlags = "@" + baseModel
 	}
 	args = append(args, cpuArgs(conf, osName, arch, t)...)
+	// vm.sh validates cpu_pinning against the logical core count
+	// mid-assembly — same position.
+	if err := paramCheckPinning(conf); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	args = append(args, ramArgs(conf)...)
 	args = append(args, biosArgs(conf, osName, arch)...)
 	args = append(args, "-global", "kvm-pit.lost_tick_policy=discard")
@@ -362,7 +368,7 @@ func main() {
 			}
 			fmt.Fprintf(os.Stderr, " - TSC:      WARNING! Unstable TSC detected (clocksource: %s), proceeding.\n", clock)
 		}
-		if err := runQEMU(os.Args[1], vmdir, args); err != nil {
+		if err := runQEMU(os.Args[1], vmdir, args, conf); err != nil {
 			fmt.Fprintln(os.Stderr, "launch failed:", err)
 			os.Exit(1)
 		}
