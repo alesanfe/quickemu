@@ -379,3 +379,40 @@ func TestIgnoreMSRs(t *testing.T) {
 		t.Errorf("actIgnoreMSRsAlways rc=%d want %d", rc, want)
 	}
 }
+
+// A vm name with glob metacharacters ([bc], *, ?) is legal on POSIX —
+// doctor must match its files literally, never interpret the name as
+// a pattern that hits a sibling VM's runtime artifacts.
+func TestDoctorGlobMetaName(t *testing.T) {
+	stubTools(t)
+	parent := t.TempDir()
+	// vmdir comes from disk_img here, so the state dir itself is
+	// metachar-free while vmname still carries glob syntax — the
+	// doctor patterns then fire for real.
+	vd := filepath.Join(parent, "state")
+	os.MkdirAll(vd, 0o755)
+	old := vmConf
+	vmConf = filepath.Join(parent, "a[bc].conf")
+	os.WriteFile(vmConf, []byte("guest_os=\"linux\"\ndisk_img=\""+filepath.Join(vd, "d.qcow2")+"\"\n"), 0o644)
+	t.Cleanup(func() { vmConf = old })
+
+	// Foreign VM socket inside the state dir: pattern a[bc]*.socket
+	// also matches ab* — doctor must not unlink what is not ours.
+	fs := filepath.Join(vd, "ab-foreign.socket")
+	l, err := net.Listen("unix", fs)
+	if err != nil {
+		t.Skip("unix sockets: " + err.Error())
+	}
+	defer l.Close()
+	// Another VM's lock dir must not be reclaimed either.
+	flk := filepath.Join(vd, "ab.lock.shared", "99999999")
+	os.MkdirAll(flk, 0o755)
+
+	qeDoctor(true)
+	if _, err := os.Stat(fs); err != nil {
+		t.Fatal("doctor removed a foreign socket")
+	}
+	if _, err := os.Stat(flk); err != nil {
+		t.Fatal("doctor removed a foreign lock")
+	}
+}

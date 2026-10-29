@@ -107,8 +107,13 @@ func qeDoctor(fix bool) {
 	}
 
 	lockPaths := []string{filepath.Join(dir, name+".lock")}
-	if ents, _ := filepath.Glob(filepath.Join(dir, name+".lock.shared", "*")); len(ents) > 0 {
-		lockPaths = append(lockPaths, ents...)
+	// Literal path, not a glob: a vm name may legitimately contain
+	// glob metacharacters — treating it as a pattern would sweep a
+	// sibling VM's lock dir.
+	if ents, _ := os.ReadDir(filepath.Join(dir, name+".lock.shared")); len(ents) > 0 {
+		for _, e := range ents {
+			lockPaths = append(lockPaths, filepath.Join(dir, name+".lock.shared", e.Name()))
+		}
 	}
 	for _, l := range lockPaths {
 		st, err := os.Stat(l)
@@ -131,9 +136,13 @@ func qeDoctor(fix bool) {
 	}
 
 	var socks []string
-	for _, pat := range []string{name + "*.socket", name + ".monitor", name + ".qmp"} {
-		if m, _ := filepath.Glob(filepath.Join(dir, pat)); len(m) > 0 {
-			socks = append(socks, m...)
+	if ents, _ := os.ReadDir(dir); len(ents) > 0 {
+		for _, e := range ents {
+			// Literal prefix/exact matching — see lock.shared note.
+			if strings.HasPrefix(e.Name(), name) && strings.HasSuffix(e.Name(), ".socket") ||
+				e.Name() == name+".monitor" || e.Name() == name+".qmp" {
+				socks = append(socks, filepath.Join(dir, e.Name()))
+			}
 		}
 	}
 	for _, s := range socks {
