@@ -342,6 +342,61 @@ func bodyFor(url string) (string, error) {
 		return `<a href="https://genode.org/files/sculpt/sculpt-26-04.img">x</a>`, nil
 	case strings.Contains(url, "mikrotik"):
 		return `7.19.4 1700221125`, nil
+	// --- fifth-expansion fixtures ---
+	case strings.Contains(url, "issabelpbx") && strings.Contains(url, "Issabel%205"):
+		return `"name":"issabel5-USB-DVD-x86_64-20261021.iso" "name":"issabel5-USB-DVD-x86_64-20261001.iso"`, nil
+	case strings.Contains(url, "issabelpbx"):
+		return `"name":"Issabel 5" "name":"Issabel 4"`, nil
+	case strings.Contains(url, "syslinuxos") && strings.Contains(url, "SysLinuxOS-13"):
+		return `"name":"SysLinuxOS-13.3-GNOME.iso" "name":"SysLinuxOS-13.3-MATE.iso"`, nil
+	case strings.Contains(url, "syslinuxos"):
+		return `"name":"SysLinuxOS-13"`, nil
+	case strings.Contains(url, "cyborghawk"):
+		return `"name":"Cyborg-Hawk-Linux.iso"`, nil
+	case strings.Contains(url, "cuerdos"):
+		return `"name":"CuerdOS-2.1.1-Xfce.iso" "name":"CuerdOS-2.1.1-Sway.iso" "name":"CuerdOS-2.1.1-Shell.iso" "name":"CuerdOS-2.1.1-Plasma.iso"`, nil
+	case strings.Contains(url, "openfiler"):
+		return `"name":"openfileresa-2.99.2-x86_64-disc1.iso" "name":"dd.iso.gz"`, nil
+	case strings.Contains(url, "redobackup") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  redorescue-4.0.0.iso\n", nil
+	case strings.Contains(url, "redobackup"):
+		return `"name":"redorescue-4.0.0.iso" "name":"redorescue-3.0.2.iso"`, nil
+	case strings.Contains(url, "fuduntu"):
+		return `"name":"Fuduntu-2013.2-x86_64-LiveDVD.iso" "name":"Fuduntu-2013.2-x86_64-LiteDVD.iso"`, nil
+	case strings.Contains(url, "apodio"):
+		return `"name":"Apodio13-1.2.7.iso"`, nil
+	case strings.Contains(url, "openartist"):
+		return `"name":"openArtist.iso" "name":"openArtist_base_12.04_alpha1.iso"`, nil
+	case strings.Contains(url, "pinguy-os"):
+		return `"name":"Pinguy_OS_18.04.2_Full-LTS_x86-64.iso" "name":"Pinguy_OS_18.04.2_Mini-LTS_x86-64.iso"`, nil
+	case strings.Contains(url, "blackbuntu"):
+		return `"name":"bb03-amd64-final.iso"`, nil
+	case strings.Contains(url, "nodezero"):
+		return `"name":"NodeZero.iso"`, nil
+	case strings.Contains(url, "matriux"):
+		return `"name":"Matriux_Leandros20130923.iso"`, nil
+	case strings.Contains(url, "antergos"):
+		return `"name":"antergos-minimal-19.4-x86_64.iso" "name":"antergos-19.4-x86_64.iso"`, nil
+	case strings.Contains(url, "academix"):
+		return `"name":"AcademiX_2.7-stable_64bit.iso"`, nil
+	case strings.Contains(url, "arch-linux-gui"):
+		return `"name":"alg-plasma-2025.10-x86_64.iso" "name":"alg-gnome-2025.10-x86_64.iso" "name":"alg-xfce-2025.10-x86_64.iso"`, nil
+	case strings.Contains(url, "freepbxdistro") && strings.Contains(url, ".sha256sum"):
+		return shaX + "  SNGDEB-PBX17-amd64-12-13-0-2603-3.iso\n", nil
+	case strings.Contains(url, "freepbxdistro"):
+		return `<a href="SNGDEB-PBX17-amd64-12-13-0-2603-3.iso">a</a><a href="SNG7-PBX16-64bit-2306-1.iso">b</a>`, nil
+	case strings.Contains(url, "ubuntusway") && strings.Contains(url, "sha256.txt"):
+		return shaX + "  ubuntusway-25.04-desktop-amd64.iso\n", nil
+	case strings.Contains(url, "ubuntusway") && strings.Contains(url, "25.04/"):
+		return `<a href="ubuntusway-25.04-desktop-amd64.iso">x</a>`, nil
+	case strings.Contains(url, "ubuntusway"):
+		return `<a href="25.04/">a</a><a href="24.10/">b</a>`, nil
+	case strings.Contains(url, "mythbuntu"):
+		return `<a href="mythbuntu-16.04.6-desktop-amd64.iso">x</a>`, nil
+	case strings.Contains(url, "finnix") && strings.Contains(url, "125/"):
+		return `<a href="finnix-125.iso">x</a>`, nil
+	case strings.Contains(url, "finnix"):
+		return `<a href="125/">a</a><a href="124/">b</a>`, nil
 	default:
 		// generic index page: iso links + version dirs + current.iso
 		return `<a href="backbox-8-desktop-amd64.iso">b</a>
@@ -607,6 +662,38 @@ func TestScrapeAll(t *testing.T) {
 		{"fiwix", "latest", "", "amd64", false},
 		{"sculpt-os", "latest", "", "amd64", false},
 		{"mikrotik-chr", "latest", "", "amd64", false},
+		// fifth-expansion resolvers.
+		{"issabel", "latest", "", "amd64", false},
+		{"syslinuxos", "latest", "gnome", "amd64", false},
+		{"syslinuxos", "latest", "mate", "amd64", false},
+		{"cyborghawk", "latest", "", "amd64", false},
+		{"cuerdos", "latest", "xfce", "amd64", false},
+		{"cuerdos", "latest", "plasma", "amd64", false},
+		{"cuerdos", "latest", "bogus", "amd64", true},
+		{"openfiler", "latest", "", "amd64", false},
+		{"redo-rescue", "latest", "", "amd64", false},
+		{"fuduntu", "latest", "live", "amd64", false},
+		{"fuduntu", "latest", "lite", "amd64", false},
+		{"fuduntu", "latest", "bogus", "amd64", true},
+		{"apodio", "latest", "", "amd64", false},
+		{"openartist", "latest", "", "amd64", false},
+		{"pinguy", "latest", "full", "amd64", false},
+		{"pinguy", "latest", "mini", "amd64", false},
+		{"blackbuntu", "latest", "", "amd64", false},
+		{"nodezero", "latest", "", "amd64", false},
+		{"matriux", "latest", "", "amd64", false},
+		{"antergos", "latest", "standard", "amd64", false},
+		{"antergos", "latest", "minimal", "amd64", false},
+		{"academix", "latest", "", "amd64", false},
+		{"arch-linux-gui", "latest", "plasma", "amd64", false},
+		{"arch-linux-gui", "latest", "xfce", "amd64", false},
+		{"freepbx", "17", "", "amd64", false},
+		{"freepbx", "16", "", "amd64", false},
+		{"ubuntusway", "stable", "", "amd64", false},
+		{"mythbuntu", "16.04", "", "amd64", false},
+		{"finnix", "latest", "", "amd64", false},
+		{"kaspersky-rescue", "latest", "", "amd64", false},
+		{"ipxe", "latest", "", "amd64", false},
 	}
 	for _, c := range cases {
 		t.Run(c.os+"/"+c.rel+"/"+c.ed, func(t *testing.T) {

@@ -6,6 +6,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -81,17 +82,24 @@ func indexISO(base, re string) (string, string, error) {
 }
 
 // latestDir returns the version-sorted greatest subdirectory of base
-// matching re (e.g. release folders on a mirror).
+// matching re (e.g. release folders on a mirror). The match is anchored
+// to `href="...name/"` so stray numbers in page text (years, sizes)
+// are never mistaken for directories.
 func latestDir(base, re string) (string, error) {
 	body, err := fetchString(base)
 	if err != nil {
 		return "", err
 	}
-	d := latestMatch(body, re)
-	if d == "" {
+	var best string
+	for _, m := range regexp.MustCompile(`href="[^"]*?/?(`+re+`)/"`).FindAllStringSubmatch(body, -1) {
+		if best == "" || versionLess(best, m[1]) {
+			best = m[1]
+		}
+	}
+	if best == "" {
 		return "", fmt.Errorf("no dir matching %s in %s", re, base)
 	}
-	return strings.TrimRight(base, "/") + "/" + strings.Trim(d, "/"), nil
+	return strings.TrimRight(base, "/") + "/" + strings.Trim(best, "/"), nil
 }
 
 // sfLatest resolves a SourceForge project's newest uploaded artifact
@@ -133,7 +141,7 @@ func sfLatestDir(project, sub, re string) (string, error) {
 	if best == "" {
 		return "", fmt.Errorf("sf:%s: no dir matching %s", project, re)
 	}
-	return strings.TrimRight(base, "/") + "/" + best + "/", nil
+	return strings.TrimRight(base, "/") + "/" + url.PathEscape(best) + "/", nil
 }
 
 // indexISOsha is indexISO plus the "<file>.sha256" sidecar digest
@@ -563,6 +571,120 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 			return "", "", fmt.Errorf("mikrotik-chr: no version")
 		}
 		return fmt.Sprintf("https://download.mikrotik.com/routeros/%s/chr-%s.img.zip", f[0], f[0]), "", nil
+
+	// --- batch 5: SourceForge (cont.) ---
+	case "issabel":
+		dir, err := sfLatestDir("issabelpbx", "", `Issabel [0-9]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `issabel[0-9]-USB-DVD-x86_64-[0-9]+\.iso`)
+	case "syslinuxos":
+		dir, err := sfLatestDir("syslinuxos", "", `SysLinuxOS-[0-9]+`)
+		if err != nil {
+			return "", "", err
+		}
+		ed := map[string]string{"gnome": "GNOME", "mate": "MATE"}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("syslinuxos: unknown edition %q", edition)
+		}
+		return sfISOat(dir, `SysLinuxOS-[0-9.]+-`+ed+`\.iso`)
+	case "cyborghawk":
+		return sfISO("cyborghawk", "Cyborg%20Hawk%20v1.0", `Cyborg-Hawk-Linux\.iso`)
+	case "cuerdos":
+		ed := map[string]string{"xfce": "Xfce", "sway": "Sway", "shell": "Shell", "plasma": "Plasma"}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("cuerdos: unknown edition %q", edition)
+		}
+		return sfISO("cuerdos", "CuerdOS-2.1.1-"+ed, `CuerdOS-2\.1\.1-`+ed+`\.iso`)
+	case "openfiler":
+		return sfISO("openfiler", "", `openfileresa-[0-9.]+-x86_64-disc1\.iso`)
+	case "redo-rescue":
+		u, _, err := sfISO("redobackup", "", `redorescue-[0-9.]+\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		body, err := fetchString("https://sourceforge.net/projects/redobackup/files/SHA256SUMS/download")
+		if err != nil {
+			return u, "", nil
+		}
+		iso := strings.TrimSuffix(u, "/download")
+		return u, sumForISO(body, iso[strings.LastIndex(iso, "/")+1:]), nil
+	case "fuduntu":
+		ed := map[string]string{"live": "LiveDVD", "lite": "LiteDVD"}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("fuduntu: unknown edition %q", edition)
+		}
+		return sfISO("fuduntu", "", `Fuduntu-[0-9.]+-x86_64-`+ed+`\.iso`)
+	case "apodio":
+		return sfISO("apodio", "", `Apodio[0-9]+-[0-9.]+\.iso`)
+	case "openartist":
+		return sfISO("openartist", "", `openArtist\.iso`)
+	case "pinguy":
+		ed := map[string]string{"full": "Full", "mini": "Mini"}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("pinguy: unknown edition %q", edition)
+		}
+		return sfISO("pinguy-os", "Pinguy_OS_18.04_LTS/"+ed, `Pinguy_OS_[0-9.]+_`+ed+`-LTS_x86-64\.iso`)
+	case "blackbuntu":
+		return sfISO("blackbuntu", "Community%20Edition/Community%20Edition%200.3", `bb[0-9]+-amd64[^"]*\.iso`)
+	case "nodezero":
+		return sfISO("nodezero", "NodeZero", `NodeZero\.iso`)
+	case "matriux":
+		return sfISO("matriux", "matriux_leandros_RC1", `Matriux_Leandros[0-9]+\.iso`)
+	case "antergos":
+		if edition == "minimal" {
+			return sfISO("antergos", "mirror/iso/release", `antergos-minimal-[0-9.]+-x86_64\.iso`)
+		}
+		return sfISO("antergos", "mirror/iso/release", `antergos-[0-9.]+-x86_64\.iso`)
+	case "academix":
+		return sfISO("academix", "iso", `AcademiX_[0-9.]+-stable_64bit\.iso`)
+	case "arch-linux-gui":
+		return sfISO("arch-linux-gui", "", `alg-`+edition+`-[0-9.]+-x86_64\.iso`)
+
+	// --- batch 5: mirrors/direct ---
+	case "freepbx":
+		if release == "16" {
+			return indexISOsum("https://downloads.freepbxdistro.org/ISO/", `SNG7-PBX16-64bit-[0-9-]+\.iso`, ".sha256sum")
+		}
+		return indexISOsum("https://downloads.freepbxdistro.org/ISO/", `SNGDEB-PBX`+release+`-amd64-[0-9.-]+\.iso`, ".sha256sum")
+	case "ubuntusway":
+		base := "https://downloads.ubuntusway.com/" + release + "/"
+		body, err := fetchString(base)
+		if err != nil {
+			return "", "", err
+		}
+		// Newest version dir may exist before its ISOs land (e.g. 26.04
+		// while empty) — walk dirs newest-first until one yields an ISO.
+		dirs := matchAll(body, `href="[^"]*?/?([0-9]{2}\.[0-9]{2})/"`)
+		for i := 1; i < len(dirs); i++ {
+			for j := i; j > 0 && versionLess(dirs[j-1], dirs[j]); j-- {
+				dirs[j-1], dirs[j] = dirs[j], dirs[j-1]
+			}
+		}
+		isoRe := map[string]string{
+			"stable":  `ubuntusway-[0-9.]+-desktop-amd64\.iso`,
+			"beta":    `ubuntusway-[0-9.]+-beta-desktop-amd64\.iso`,
+			"testing": `ubuntusway-[0-9.]+-dev-[0-9]+-desktop-amd64\.iso`,
+		}[release]
+		for _, d := range dirs {
+			if u, sha, err := indexISOsum(base+d+"/", isoRe, ".sha256.txt"); err == nil {
+				return u, sha, nil
+			}
+		}
+		return "", "", fmt.Errorf("ubuntusway: no iso in %s", base)
+	case "mythbuntu":
+		return indexISO("https://cdimage.ubuntu.com/mythbuntu/releases/"+release+"/release/", `mythbuntu-[0-9.]+-desktop-amd64\.iso`)
+	case "finnix":
+		dir, err := latestDir("https://www.finnix.org/releases/", `[0-9]{1,3}`)
+		if err != nil {
+			return "", "", err
+		}
+		return indexISO(dir+"/", `finnix-[0-9]+\.iso`)
+	case "kaspersky-rescue":
+		return "https://rescuedisk.s.kaspersky-labs.com/updatable/2018/krd.iso", "", nil
+	case "ipxe":
+		return "https://boot.ipxe.org/ipxe.iso", "", nil
 
 	// --- index/mirror (batch 3) ---
 	case "pfsense":

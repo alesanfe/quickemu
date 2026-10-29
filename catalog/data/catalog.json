@@ -37,6 +37,16 @@
    ]
   },
   {
+   "os": "academix",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "adelie",
    "arch": [
     "amd64"
@@ -174,6 +184,20 @@
    ]
   },
   {
+   "os": "antergos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "standard",
+    "minimal"
+   ]
+  },
+  {
    "os": "antix",
    "releases": [
     "23.1",
@@ -198,6 +222,31 @@
    "iso": "antiX-%RELEASE%",
    "hash_url": "${URL}/${README}.txt",
    "scrape": true
+  },
+  {
+   "os": "apodio",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
+   "os": "arch-linux-gui",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "plasma",
+    "gnome",
+    "xfce"
+   ]
   },
   {
    "os": "archbang",
@@ -441,6 +490,16 @@
    ],
    "url": "https://ftp.halifax.rwth-aachen.de/blackarch/iso",
    "iso": "blackarch-linux-%EDITION%-%RELEASE%-x86_64.iso"
+  },
+  {
+   "os": "blackbuntu",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "blankon",
@@ -747,6 +806,32 @@
   },
   {
    "os": "ctlos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
+   "os": "cuerdos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "xfce",
+    "sway",
+    "shell",
+    "plasma"
+   ]
+  },
+  {
+   "os": "cyborghawk",
    "arch": [
     "amd64"
    ],
@@ -1208,6 +1293,16 @@
    "scrape": true
   },
   {
+   "os": "finnix",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "fiwix",
    "arch": [
     "amd64"
@@ -1292,6 +1387,31 @@
    ],
    "url": "https://download.freenas.org/%RELEASE%/latest/x64",
    "iso": "FreeNAS-%RELEASE%-U5.iso"
+  },
+  {
+   "os": "freepbx",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "17",
+    "16"
+   ]
+  },
+  {
+   "os": "fuduntu",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "live",
+    "lite"
+   ]
   },
   {
    "os": "furybsd",
@@ -1698,6 +1818,26 @@
    "scrape": true
   },
   {
+   "os": "ipxe",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
+   "os": "issabel",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "jnode",
    "releases": [
     "latest"
@@ -1772,6 +1912,16 @@
    ],
    "url": "https://downloads.sourceforge.net/project/kaosx/ISO",
    "iso": "KaOS-%RELEASE%-x86_64.iso"
+  },
+  {
+   "os": "kaspersky-rescue",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "kdelinux",
@@ -2175,6 +2325,16 @@
    "hash_url": "${URL}.sha512"
   },
   {
+   "os": "matriux",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "maxlinux",
    "releases": [
     "12.5",
@@ -2331,6 +2491,16 @@
    "hash_url": "${URL}/%ISO%.sha256"
   },
   {
+   "os": "mythbuntu",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "16.04"
+   ]
+  },
+  {
    "os": "neptune",
    "releases": [
     "9",
@@ -2443,6 +2613,16 @@
    "hash_url": "${URL}"
   },
   {
+   "os": "nodezero",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "nomadbsd",
    "releases": [
     "1.4-RC6",
@@ -2536,6 +2716,16 @@
    "scrape": true
   },
   {
+   "os": "openartist",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "openbsd",
    "releases": [
     "8.0",
@@ -2590,6 +2780,16 @@
    "editions": [
     "everything",
     "netinst"
+   ]
+  },
+  {
+   "os": "openfiler",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
    ]
   },
   {
@@ -2960,6 +3160,20 @@
    "scrape": true
   },
   {
+   "os": "pinguy",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "full",
+    "mini"
+   ]
+  },
+  {
    "os": "plan9",
    "releases": [
     "4e",
@@ -3257,6 +3471,16 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "redo-rescue",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "redoxos",
@@ -3676,6 +3900,20 @@
    "iso": "SyllableDesktop-%RELEASE%-1.i586.iso.7z"
   },
   {
+   "os": "syslinuxos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "gnome",
+    "mate"
+   ]
+  },
+  {
    "os": "systemrescue",
    "releases": [
     "13.02",
@@ -4068,6 +4306,18 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "ubuntusway",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "stable",
+    "beta",
+    "testing"
+   ]
   },
   {
    "os": "ultimate-edition",

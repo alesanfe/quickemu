@@ -1811,6 +1811,138 @@
    "homepage": "https://minikube.sigs.k8s.io/",
    "info": "Bootable ISO image used by minikube to run local Kubernetes clusters.",
    "name": "minikube"
+  },
+  "issabel": {
+   "credentials": "-",
+   "homepage": "https://www.issabel.com/",
+   "info": "Elastix-fork unified communications server bundling Asterisk PBX, fax and messaging.",
+   "name": "Issabel PBX"
+  },
+  "syslinuxos": {
+   "credentials": "-",
+   "homepage": "https://syslinuxos.sourceforge.io/",
+   "info": "Debian-based system administrator distribution packed with network tools (GNOME/MATE).",
+   "name": "SysLinuxOS"
+  },
+  "cyborghawk": {
+   "credentials": "-",
+   "homepage": "https://cyborghawk.in/",
+   "info": "Ubuntu-based Indian penetration testing distribution (archived).",
+   "name": "Cyborg Hawk Linux"
+  },
+  "cuerdos": {
+   "credentials": "-",
+   "homepage": "https://cuerdos.es/",
+   "info": "Spanish Debian-based desktop distribution with Xfce, Sway, Shell and Plasma variants.",
+   "name": "CuerdOS"
+  },
+  "openfiler": {
+   "credentials": "-",
+   "homepage": "https://www.openfiler.com/",
+   "info": "RHEL-based NAS/SAN storage appliance with web management (archived).",
+   "name": "Openfiler"
+  },
+  "redo-rescue": {
+   "credentials": "-",
+   "homepage": "https://redorescue.com/",
+   "info": "Simple live backup and restore tool, successor of Redo Backup.",
+   "name": "Redo Rescue"
+  },
+  "fuduntu": {
+   "credentials": "-",
+   "homepage": "https://fuduntu.org/",
+   "info": "Fedora-based rolling desktop distribution with a classic desktop (archived).",
+   "name": "Fuduntu"
+  },
+  "apodio": {
+   "credentials": "-",
+   "homepage": "https://apodio.org/",
+   "info": "Ubuntu-based audio/video production live distribution (archived).",
+   "name": "APODIO"
+  },
+  "openartist": {
+   "credentials": "-",
+   "homepage": "https://openartisthq.org/",
+   "info": "Ubuntu-based artist workstation distribution for media production (archived).",
+   "name": "openArtist"
+  },
+  "pinguy": {
+   "credentials": "-",
+   "homepage": "https://pinguyos.com/",
+   "info": "Ubuntu-based beginner-friendly desktop distribution with GNOME tweaks (archived).",
+   "name": "Pinguy OS"
+  },
+  "blackbuntu": {
+   "credentials": "-",
+   "homepage": "https://blackbuntu.org/",
+   "info": "Ubuntu-based penetration testing distribution (archived).",
+   "name": "BlackBuntu"
+  },
+  "nodezero": {
+   "credentials": "-",
+   "homepage": "https://nodezero-linux.sourceforge.io/",
+   "info": "Ubuntu-based penetration testing live distribution (archived).",
+   "name": "NodeZero"
+  },
+  "matriux": {
+   "credentials": "-",
+   "homepage": "https://matriux.sourceforge.io/",
+   "info": "Debian-based security distribution for penetration testing and forensics (archived).",
+   "name": "Matriux"
+  },
+  "antergos": {
+   "credentials": "-",
+   "homepage": "https://antergos.com/",
+   "info": "Arch-based desktop distribution with graphical installer (discontinued, archive mirror).",
+   "name": "Antergos"
+  },
+  "academix": {
+   "credentials": "-",
+   "homepage": "https://academixproject.com/",
+   "info": "Debian-based educational distribution bundling curricula-aligned software (archived).",
+   "name": "AcademiX"
+  },
+  "arch-linux-gui": {
+   "credentials": "-",
+   "homepage": "https://archlinuxgui.in/",
+   "info": "Arch Linux live ISOs with preconfigured desktops and the Calamares installer.",
+   "name": "Arch Linux GUI"
+  },
+  "freepbx": {
+   "credentials": "-",
+   "homepage": "https://www.freepbx.org/",
+   "info": "Sangoma's open source Asterisk PBX platform distributed as a full distro ISO.",
+   "name": "FreePBX"
+  },
+  "ubuntusway": {
+   "credentials": "-",
+   "homepage": "https://ubuntusway.com/",
+   "info": "Ubuntu flavor remix providing the Sway Wayland tiling compositor.",
+   "name": "Ubuntu Sway Remix"
+  },
+  "mythbuntu": {
+   "credentials": "-",
+   "homepage": "http://www.mythbuntu.org/",
+   "info": "Ubuntu flavor shipping MythTV for digital video recording (archived at 16.04).",
+   "name": "Mythbuntu"
+  },
+  "finnix": {
+   "credentials": "-",
+   "homepage": "https://www.finnix.org/",
+   "info": "Debian-based sysadmin live distribution focused on rescue and maintenance tasks.",
+   "name": "Finnix"
+  },
+  "kaspersky-rescue": {
+   "credentials": "-",
+   "homepage": "https://www.kaspersky.com/downloads/free-rescue-disk",
+   "info": "Kaspersky's bootable antivirus rescue environment.",
+   "name": "Kaspersky Rescue Disk"
+  },
+  "ipxe": {
+   "credentials": "-",
+   "homepage": "https://ipxe.org/",
+   "info": "Open source network boot firmware with an extended feature set (bootable ISO).",
+   "name": "iPXE"
   }
  },
  "generated": "bash-dump"
