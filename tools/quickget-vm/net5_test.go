@@ -87,8 +87,11 @@ func TestFetchOnceRangeEdge(t *testing.T) {
 		t.Fatal("416 with staged .part should be already-complete")
 	}
 	// 416 + wrong SHA → verify still rejects and drops the .part.
+	// (64-hex so hashFor resolves an algorithm — short junk warns+skips
+	// like Bash check_hash, never hard-fails.)
 	os.WriteFile(filepath.Join(dir, "g.part"), payload[:4], 0o644)
-	if rc := fetchOnce(srv.URL+"/g", filepath.Join(dir, "g.part"), "deadbeef"); rc != 1 {
+	if rc := fetchOnce(srv.URL+"/g", filepath.Join(dir, "g.part"),
+		strings.Repeat("0", 64)); rc != 1 {
 		t.Fatal("416 with bad SHA should fail")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "g.part")); !os.IsNotExist(err) {

@@ -4,6 +4,7 @@ package main
 
 import (
 	"crypto/md5"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
@@ -13,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 func TestFetchPaths(t *testing.T) {
@@ -152,6 +155,32 @@ func TestFetchVerifyAlgos(t *testing.T) {
 	os.WriteFile(bad, payload, 0o644)
 	if rc := fetchVerify(bad, strings.Repeat("0", 32)); rc != 1 {
 		t.Fatal("md5 mismatch must fail")
+	}
+	// check_hash parity: sha1 length guess (trisquel .sha1 files) and
+	// explicit algo:hash prefixes incl. blake2b.
+	if rc := fetchVerify(f, fmt.Sprintf("%x", sha1.Sum(payload))); rc != 0 {
+		t.Fatal("sha1 (40-hex) must verify, not fall through to sha256")
+	}
+	if rc := fetchVerify(f, "sha256:"+fmt.Sprintf("%x", sha256.Sum256(payload))); rc != 0 {
+		t.Fatal("sha256: prefix")
+	}
+	if rc := fetchVerify(f, "SHA512:"+fmt.Sprintf("%x", sha512.Sum512(payload))); rc != 0 {
+		t.Fatal("case-insensitive SHA512: prefix")
+	}
+	b2 := blake2b.Sum512(payload)
+	if rc := fetchVerify(f, "b2sum:"+fmt.Sprintf("%x", b2)); rc != 0 {
+		t.Fatal("b2sum: prefix")
+	}
+	if rc := fetchVerify(f, "blake2b:"+fmt.Sprintf("%x", b2)); rc != 0 {
+		t.Fatal("blake2b: alias")
+	}
+	// Unknown prefix / unguessable length warn and skip (rc 0), Bash
+	// "not checking" — never a hard failure.
+	if rc := fetchVerify(f, "crc32:deadbeef"); rc != 0 {
+		t.Fatal("unknown algo must warn+skip")
+	}
+	if rc := fetchVerify(f, "abc"); rc != 0 {
+		t.Fatal("unguessable length must warn+skip")
 	}
 }
 

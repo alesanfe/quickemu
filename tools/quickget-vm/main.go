@@ -10,6 +10,7 @@ package main
 
 import (
 	"crypto/md5"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
+	"golang.org/x/crypto/blake2b"
 )
 
 // HTTP clients come from qelib -- same transport policy everywhere:
@@ -541,26 +543,24 @@ func (s *stallWatchReader) Read(b []byte) (int, error) {
 	return n, err
 }
 
-// fetchVerify: sha256-check the staged .part (streaming — multi-GB
-// images never enter memory) and drop it on mismatch. Called after a
-// completed body and on the 416 already-complete path.
+// fetchVerify: check_hash parity — verify the staged .part (streaming;
+// multi-GB images never enter memory) and drop it on mismatch. Called
+// after a completed body and on the 416 already-complete path. The
+// expected digest carries an optional "algo:" prefix (b2sum/blake2
+// included); bare digests pick the algorithm by hex length.
 func fetchVerify(part, wantSHA string) int {
 	if wantSHA == "" {
+		return 0
+	}
+	want, h := hashFor(wantSHA)
+	if h == nil {
+		fmt.Printf("WARNING! Can't guess hash algorithm, not checking %s hash.\n", part)
 		return 0
 	}
 	f, err := os.Open(part)
 	if err != nil {
 		fmt.Println(err)
 		return 1
-	}
-	// Digest length picks the algorithm: 32-hex md5 (canaima/
-	// rebornos), 64-hex sha256, 128-hex sha512 (mageia, debian).
-	var h hash.Hash = sha256.New()
-	switch len(wantSHA) {
-	case 32:
-		h = md5.New()
-	case 128:
-		h = sha512.New()
 	}
 	_, err = io.Copy(h, f)
 	f.Close()
@@ -569,12 +569,50 @@ func fetchVerify(part, wantSHA string) int {
 		return 1
 	}
 	sum := fmt.Sprintf("%x", h.Sum(nil))
-	if !strings.EqualFold(sum, wantSHA) {
+	if !strings.EqualFold(sum, want) {
 		os.Remove(part)
-		fmt.Printf("checksum mismatch: got %s want %s\n", sum, wantSHA)
+		fmt.Printf("checksum mismatch: got %s want %s\n", sum, want)
 		return 1
 	}
 	return 0
+}
+
+// hashFor resolves the digest string to (bare-hex, hasher): explicit
+// "algo:hex" prefixes win over the length guess — 32 md5, 40 sha1
+// (trisquel), 64 sha256, 128 sha512.
+func hashFor(digest string) (string, hash.Hash) {
+	if i := strings.Index(digest, ":"); i >= 0 {
+		algo := strings.ToLower(digest[:i])
+		digest = digest[i+1:]
+		switch algo {
+		case "md5":
+			return digest, md5.New()
+		case "sha1":
+			return digest, sha1.New()
+		case "sha256":
+			return digest, sha256.New()
+		case "sha512":
+			return digest, sha512.New()
+		case "b2sum", "blake2", "blake2b":
+			b, err := blake2b.New512(nil)
+			if err != nil {
+				return "", nil
+			}
+			return digest, b
+		}
+		return "", nil // unknown prefix: warn+skip like Bash
+	}
+	switch len(digest) {
+	case 32:
+		return digest, md5.New()
+	case 40:
+		return digest, sha1.New()
+	case 64:
+		return digest, sha256.New()
+	case 128:
+		return digest, sha512.New()
+	}
+	return "", nil
 }
 
 // getOS: the quickget pipeline — resolve url+hash via the catalog

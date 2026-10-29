@@ -34,11 +34,13 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go4.org v0.0.0-20260112195520-a5071408f32f // indirect
-	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 )
 
-require github.com/alesanfe/quickemu/tools/qelib v0.0.0
+require (
+	github.com/alesanfe/quickemu/tools/qelib v0.0.0
+	golang.org/x/crypto v0.46.0
+)
 
 replace github.com/alesanfe/quickemu/tools/qelib => ../qelib
