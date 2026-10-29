@@ -255,7 +255,14 @@ func startVirtiofsd(bin string, c Conf) bool {
 // swtpm_socket_ready).
 func startSwtpm(c Conf) bool {
 	dir, name := c["_vmdir"], c["_vmname"]
+	// swtpm parses --ctrl type=unixio,path=X and --tpmstate dir=D by
+	// splitting on ',' with no escape mechanism — a comma anywhere in
+	// the dir or VM name would inject extra daemon options. Refuse.
 	sock := filepath.Join(dir, name+".swtpm-sock")
+	if strings.ContainsAny(sock+dir, ",") {
+		fmt.Fprintf(os.Stderr, "ERROR! TPM unavailable: VM dir %q contains ',' (breaks swtpm options).\n", dir)
+		return false
+	}
 	os.Remove(sock)
 	bin, err := exec.LookPath("swtpm")
 	if err != nil {

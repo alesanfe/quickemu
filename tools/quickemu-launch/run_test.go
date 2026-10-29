@@ -175,6 +175,34 @@ exec python3 -c "import socket,time;s=socket.socket(socket.AF_UNIX);s.bind('$soc
 	}
 }
 
+// swtpm parses --ctrl type=unixio,path=X and --tpmstate dir=D with
+// its own comma splitting and supports no escaping — a vmdir that
+// contains ',' would inject extra daemon options ("a,b" -> path=a
+// plus option b). startSwtpm must refuse the launch rather than
+// corrupt the daemon's option list.
+func TestStartSwtpmRejectsCommaDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("posix")
+	}
+	stub := t.TempDir()
+	mark := filepath.Join(stub, "called")
+	os.WriteFile(filepath.Join(stub, "swtpm"),
+		[]byte("#!/bin/sh\necho \"$@\" > \""+mark+"\"\nsleep 5\n"), 0o755)
+	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+	base := t.TempDir()
+	dir := filepath.Join(base, "vm,opts")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	conf := Conf{"_vmdir": dir, "_vmname": "vm"}
+	if startSwtpm(conf) {
+		t.Fatal("swtpm launched with a comma in the state dir")
+	}
+	if b, err := os.ReadFile(mark); err == nil {
+		t.Fatalf("swtpm received corruptible options: %s", b)
+	}
+}
+
 func TestRunQEMU(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("posix")
