@@ -46,6 +46,38 @@ func TestFindTool(t *testing.T) {
 	}
 }
 
+func TestFindToolSiblingBeatsPath(t *testing.T) {
+	// A stale/hostile earlier-PATH binary must not shadow the
+	// version-matched sibling this executable ships with (qespec
+	// caught a ~/go/bin/quickget-catalog hijacking bin/quickget).
+	tmp := t.TempDir()
+	self := filepath.Join(tmp, "bin", "entry")
+	sibling := filepath.Join(tmp, "tools", "qt-foo", "qt-foo")
+	pathBin := filepath.Join(tmp, "pathbin", "qt-foo")
+	for _, f := range []string{self, sibling, pathBin} {
+		os.MkdirAll(filepath.Dir(f), 0o755)
+		os.WriteFile(f, []byte("#!/bin/sh\n"), 0o755)
+	}
+	old := selfExe
+	selfExe = func() (string, error) { return self, nil }
+	t.Cleanup(func() { selfExe = old })
+	t.Setenv("PATH", filepath.Dir(pathBin)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	got, err := FindTool("qt-foo")
+	if err != nil {
+		t.Fatalf("FindTool: %v", err)
+	}
+	if got != sibling {
+		t.Fatalf("sibling must beat PATH: got %q want %q", got, sibling)
+	}
+	// No sibling anywhere: PATH is the fallback.
+	got, err = FindTool("qt-pathonly")
+	os.MkdirAll(filepath.Join(tmp, "pathbin"), 0o755)
+	os.WriteFile(filepath.Join(tmp, "pathbin", "qt-pathonly"), []byte("#!/bin/sh\n"), 0o755)
+	if got, err = FindTool("qt-pathonly"); err != nil || !strings.HasSuffix(got, "qt-pathonly") {
+		t.Fatalf("PATH fallback: %q %v", got, err)
+	}
+}
+
 func TestMemMB(t *testing.T) {
 	for in, want := range map[string]int{"4G": 4096, "512M": 512, "256K": 0, "128": 128, "junk": 0, "": 0} {
 		if got := MemMB(in); got != want {

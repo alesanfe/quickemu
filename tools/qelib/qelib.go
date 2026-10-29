@@ -110,14 +110,17 @@ func Fail(cmd, tool, code, msg string) {
 	os.Exit(1)
 }
 
-// FindTool resolves a sibling tool binary: PATH first, then next to
-// this executable (packaged libexec/ layout), then the dev-tree
-// layout ../<name>/<name> where each tool builds into its own dir.
+// selfExe is the executable seam — tests stub it so sibling
+// resolution points at a fixture tree.
+var selfExe = os.Executable
+
+// FindTool resolves a sibling tool binary: next to this executable
+// FIRST (packaged libexec/ + dev-tree layouts — a sibling is the
+// version-matched tool this build was shipped with), then ../<name>/
+// <name> dev dirs, then PATH as the last resort. PATH first would let
+// a stale or hostile earlier-PATH binary impersonate the backend.
 func FindTool(name string) (string, error) {
-	if bin, err := exec.LookPath(name); err == nil {
-		return bin, nil
-	}
-	if exe, err := os.Executable(); err == nil {
+	if exe, err := selfExe(); err == nil {
 		dir := filepath.Dir(exe)
 		for _, p := range []string{
 			filepath.Join(dir, name),
@@ -132,6 +135,9 @@ func FindTool(name string) (string, error) {
 				return p, nil
 			}
 		}
+	}
+	if bin, err := exec.LookPath(name); err == nil {
+		return bin, nil
 	}
 	return "", fmt.Errorf("%s: not on PATH", name)
 }
