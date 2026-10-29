@@ -684,6 +684,8 @@ func main() {
 			op = "homepage"
 		case "--update", "-update":
 			op = "update"
+		case "--chunkcheck", "-chunkcheck", "chunkcheck":
+			op = "chunkcheck"
 		case "--version", "-version":
 			fmt.Println(qelib.QEVersion)
 			return
@@ -714,9 +716,9 @@ func main() {
 		edition = strings.Join(pos[2:], " ")
 	}
 	// os_supported gate (main.sh:194): any positional OS is validated
-	// before dispatch. --create-config positionals are vm-path+input,
-	// not an OS, so that op is exempt.
-	if osName != "" && op != "config" && op != "homepage" && !validateOS(osName) {
+	// before dispatch. --create-config positionals are vm-path+input
+	// and chunkcheck's is a vmdir — neither is an OS, so exempt.
+	if osName != "" && op != "config" && op != "homepage" && op != "chunkcheck" && !validateOS(osName) {
 		os.Exit(1)
 	}
 	rc := 0
@@ -777,6 +779,14 @@ func main() {
 		rc = actCreateConfig(osName, release)
 	case "update":
 		rc = actUpdate(osName)
+	case "chunkcheck":
+		// Public surface for the libexec chunkcheck.py contract:
+		// `quickget chunkcheck <vmdir>` delegates to quickget-vm.
+		if len(pos) == 0 {
+			fmt.Fprintln(os.Stdout, "ERROR! chunkcheck needs a <vmdir>.")
+			os.Exit(1)
+		}
+		rc = runPassthru("quickget-vm", append([]string{"chunkcheck"}, pos...)...)
 	default:
 		// Positional default: download + create config (create_vm parity).
 		if osName == "" {

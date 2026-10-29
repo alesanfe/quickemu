@@ -337,8 +337,32 @@ func main() {
 		}
 		os.Exit(customConf(vmPath, input, flag))
 	}
+	if os.Args[1] == "chunkcheck" {
+		// chunkcheck.py parity (the libexec helper the Bash backend
+		// called): verify <vmdir>/RecoveryImage.dmg against its CNKL
+		// chunklist. QuickGUI's verifyImage reaches this command.
+		if len(os.Args) < 3 {
+			fmt.Println("usage: quickget-vm chunkcheck <vmdir>")
+			os.Exit(2)
+		}
+		dir := os.Args[2]
+		// QuickGUI passes the iso= path (…/RecoveryImage.dmg); the
+		// original helper expected the containing vmdir.
+		if st, err := os.Stat(dir); err == nil && !st.IsDir() {
+			dir = filepath.Dir(dir)
+		}
+		err := checkChunklist(
+			filepath.Join(dir, "RecoveryImage.dmg"),
+			filepath.Join(dir, "RecoveryImage.chunklist"))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "chunkcheck: "+err.Error())
+			os.Exit(1)
+		}
+		fmt.Println("Verification passed")
+		os.Exit(0)
+	}
 	if os.Args[1] != "mkconf" {
-		fmt.Println("usage: quickget-vm <get|mkconf|fetch|customconf> ...")
+		fmt.Println("usage: quickget-vm <get|mkconf|fetch|customconf|chunkcheck> ...")
 		os.Exit(2)
 	}
 	var osName, release, edition, image, iso, dir, arch string

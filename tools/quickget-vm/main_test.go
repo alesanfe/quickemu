@@ -3,6 +3,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -41,6 +43,47 @@ func runVM(t *testing.T, args ...string) (string, int) {
 		rc = ee.ExitCode()
 	}
 	return out.String() + errb.String(), rc
+}
+
+func TestChunkcheckSubcommand(t *testing.T) {
+	// Missing arg -> usage rc2; empty dir -> rc1 (files absent).
+	if _, rc := runVM(t, "chunkcheck"); rc != 2 {
+		t.Fatalf("missing vmdir rc=%d want 2", rc)
+	}
+	empty := t.TempDir()
+	if _, rc := runVM(t, "chunkcheck", empty); rc != 1 {
+		t.Fatalf("empty dir rc=%d want 1", rc)
+	}
+	// Valid CNKL pair (signature_method=2) -> rc0 "Verification passed".
+	dir := t.TempDir()
+	dmg := []byte("chunkcheck fixture payload")
+	h := sha256.New()
+	hdr := make([]byte, 36)
+	copy(hdr[:4], "CNKL")
+	binary.LittleEndian.PutUint32(hdr[4:8], 36)
+	hdr[8], hdr[9], hdr[10] = 1, 1, 2
+	binary.LittleEndian.PutUint64(hdr[12:20], 1)
+	binary.LittleEndian.PutUint64(hdr[20:28], 36)
+	binary.LittleEndian.PutUint64(hdr[28:36], 72)
+	h.Write(hdr)
+	var rec [36]byte
+	binary.LittleEndian.PutUint32(rec[:4], uint32(len(dmg)))
+	sum := sha256.Sum256(dmg)
+	copy(rec[4:36], sum[:])
+	h.Write(rec[:])
+	cl := append(append(hdr, rec[:]...), h.Sum(nil)...)
+	os.WriteFile(filepath.Join(dir, "RecoveryImage.dmg"), dmg, 0o644)
+	os.WriteFile(filepath.Join(dir, "RecoveryImage.chunklist"), cl, 0o644)
+	out, rc := runVM(t, "chunkcheck", dir)
+	if rc != 0 || !strings.Contains(out, "Verification passed") {
+		t.Fatalf("valid pair rc=%d out=%q", rc, out)
+	}
+	// QuickGUI passes the configured iso= path — the .dmg file
+	// itself — which must resolve to its containing vmdir.
+	out, rc = runVM(t, "chunkcheck", filepath.Join(dir, "RecoveryImage.dmg"))
+	if rc != 0 || !strings.Contains(out, "Verification passed") {
+		t.Fatalf("dmg-path arg rc=%d out=%q", rc, out)
+	}
 }
 
 func TestMainSubcommands(t *testing.T) {
