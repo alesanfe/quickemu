@@ -27,6 +27,31 @@
    "scrape": true
   },
   {
+   "os": "9legacy",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
+   "os": "adelie",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "1.0"
+   ],
+   "editions": [
+    "install",
+    "kde",
+    "lxqt"
+   ]
+  },
+  {
    "os": "alma",
    "releases": [
     "9",
@@ -133,6 +158,22 @@
    "hash_url": "https://www.fosshub.com/Android-x86-old.html"
   },
   {
+   "os": "anolis",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "8.8",
+    "8.9"
+   ],
+   "editions": [
+    "boot",
+    "dvd",
+    "minimal"
+   ]
+  },
+  {
    "os": "antix",
    "releases": [
     "23.1",
@@ -197,6 +238,19 @@
    "scrape": true
   },
   {
+   "os": "archman",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "xfce"
+   ]
+  },
+  {
    "os": "artixlinux",
    "releases": [
     "20260813"
@@ -225,6 +279,16 @@
    "iso": "artix-%EDITION%-%RELEASE%-x86_64.iso",
    "hash_url": "${URL}/sha256sums",
    "scrape": true
+  },
+  {
+   "os": "astralinux",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "athenaos",
@@ -661,6 +725,16 @@
    "scrape": true
   },
   {
+   "os": "crux",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "crystal-linux",
    "releases": [
     "latest"
@@ -670,6 +744,16 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "ctlos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "dahliaos",
@@ -707,6 +791,16 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "dban",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "debian",
@@ -854,6 +948,26 @@
    "scrape": true
   },
   {
+   "os": "drbl",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
+   "os": "easynas",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "easyos",
    "releases": [
     "5.9",
@@ -898,6 +1012,16 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "elastix",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "elementary",
@@ -1084,6 +1208,16 @@
    "scrape": true
   },
   {
+   "os": "fiwix",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "flatcar",
    "releases": [
     "stable",
@@ -1172,6 +1306,25 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "galliumos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "2.1"
+   ],
+   "editions": [
+    "baytrail",
+    "braswell",
+    "broadwell",
+    "haswell",
+    "samus",
+    "sandy",
+    "skylake"
+   ]
   },
   {
    "os": "garuda",
@@ -1487,6 +1640,31 @@
    "scrape": true
   },
   {
+   "os": "hefftorlinux",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "kodi",
+    "plasma",
+    "xfce"
+   ]
+  },
+  {
+   "os": "helenos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "hellosystem",
    "releases": [
     "latest"
@@ -1568,6 +1746,20 @@
    ],
    "url": "https://cdimage.kali.org/%RELEASE%",
    "hash_url": "${URL}/?C=M;O=D"
+  },
+  {
+   "os": "kamarada",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "kde",
+    "gnome"
+   ]
   },
   {
    "os": "kaos",
@@ -1652,6 +1844,16 @@
    "url": "http://builds.kolibrios.org/%EDITION%",
    "iso": "latest-iso.7z",
    "hash_url": "${URL}/sha256sums.txt"
+  },
+  {
+   "os": "koozali",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "kubuntu",
@@ -1875,6 +2077,16 @@
    "scrape": true
   },
   {
+   "os": "m0n0wall",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "maboxlinux",
    "releases": [
     "latest"
@@ -2004,6 +2216,26 @@
    "url": "https://discovery.midnightbsd.org/ftp/releases/amd64/ISO-IMAGES/%RELEASE%",
    "iso": "MidnightBSD-%RELEASE%--amd64-disc1.iso",
    "hash_url": "${URL}/CHECKSUM.SHA256"
+  },
+  {
+   "os": "mikrotik-chr",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
+   "os": "minikube",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "minino",
@@ -2346,6 +2578,21 @@
    "scrape": true
   },
   {
+   "os": "openeuler",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "24.03-LTS",
+    "22.03-LTS-SP4"
+   ],
+   "editions": [
+    "everything",
+    "netinst"
+   ]
+  },
+  {
    "os": "openfyde",
    "releases": [
     "r132",
@@ -2576,6 +2823,20 @@
    "scrape": true
   },
   {
+   "os": "ovirt-node",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "el8",
+    "el9"
+   ]
+  },
+  {
    "os": "parabola",
    "releases": [
     "latest"
@@ -2713,6 +2974,16 @@
    "scrape": true
   },
   {
+   "os": "ploplinux",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "ponyos",
    "releases": [
     "9.0",
@@ -2765,6 +3036,23 @@
    "url": "https://mirrors.dotsrc.org/porteus/x86_64/Porteus-v%RELEASE%",
    "iso": "Porteus-${edition}-v%RELEASE%-x86_64.iso",
    "hash_url": "${URL}/sha256sums.txt"
+  },
+  {
+   "os": "postmarketos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "console",
+    "gnome",
+    "phosh",
+    "plasma-desktop",
+    "sway"
+   ]
   },
   {
    "os": "primeos",
@@ -3001,6 +3289,21 @@
    "scrape": true
   },
   {
+   "os": "regataos",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "en-us",
+    "pt-br",
+    "nv"
+   ]
+  },
+  {
    "os": "rescatux",
    "releases": [
     "latest"
@@ -3026,6 +3329,16 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "rhino-linux",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "risios",
@@ -3098,6 +3411,16 @@
    "scrape": true
   },
   {
+   "os": "sculpt-os",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "securityonion",
    "releases": [
     "latest"
@@ -3107,6 +3430,16 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "septor",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "shredos",
@@ -3138,6 +3471,20 @@
    "iso": "siduction-%VERSION%-${NAME}-%EDITION%-amd64-%DATE%.iso",
    "hash_url": "https://mirror.math.princeton.edu/pub/siduction/iso/",
    "scrape": true
+  },
+  {
+   "os": "slackel",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "openbox",
+    "mate"
+   ]
   },
   {
    "os": "slackware",
@@ -3227,6 +3574,16 @@
    "url": "https://downloads.getsol.us/isos/%RELEASE%",
    "iso": "Solus-%EDITION%-Release-%RELEASE%.iso",
    "hash_url": "${URL}/%ISO%.sha256sum"
+  },
+  {
+   "os": "sortix",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "sparkylinux",
@@ -3360,6 +3717,17 @@
     "amd64"
    ],
    "scrape": true
+  },
+  {
+   "os": "t2sde",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "24.10",
+    "24.11"
+   ]
   },
   {
    "os": "tails",
@@ -3656,6 +4024,16 @@
    "scrape": true
   },
   {
+   "os": "ubuntudde",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
+  },
+  {
    "os": "ubuntukylin",
    "releases": [
     "16.04",
@@ -3758,6 +4136,16 @@
    "url": "${ISO//.iso/.sha256.txt}",
    "hash_url": "https://api.github.com/repos/Vanilla-OS/live-iso/releases",
    "scrape": true
+  },
+  {
+   "os": "ventoy",
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "releases": [
+    "latest"
+   ]
   },
   {
    "os": "vitalinux",

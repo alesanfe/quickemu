@@ -372,6 +372,198 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return u, sumAt("https://sourceforge.net/projects/refracta/files/isohybrid/SHA256SUMS/download"), nil
 
+	// --- batch 4: SF (cont.) ---
+	case "rhino-linux":
+		dir, err := sfLatestDir("rhino-linux-builder", "", `[0-9]{4}\.[0-9]+`)
+		if err != nil {
+			return "", "", err
+		}
+		u, _, err := sfISOat(dir, `Rhino-Linux-[0-9.]+-amd64\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(strings.TrimSuffix(u, "/download") + ".sha256/download"), nil
+	case "ubuntudde":
+		dir, err := sfLatestDir("ubuntudde", "", `[0-9.]+`)
+		if err != nil {
+			return "", "", err
+		}
+		u, _, err := sfISOat(dir, `ubuntudde-[^"/]*amd64-desktop\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(strings.TrimSuffix(u, "/download") + ".sha256.txt/download"), nil
+	case "regataos":
+		ed := map[string]string{"en-us": "en-US", "pt-br": "pt-BR", "nv": "NV_en-US"}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("regataos: unknown edition %q", edition)
+		}
+		dir, err := sfLatestDir("regataos", "", `regataos-[0-9.]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `Regata_OS_[0-9]+_`+ed+`\.x86_64-[^"/]*\.iso`)
+	case "archman":
+		dir, err := sfLatestDir("archman-os", "stable-iso/", `[0-9]{4}-[0-9]{2}`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir+"xfce/", `Archman_Xfce_[0-9]+\.iso`)
+	case "kamarada":
+		if edition == "gnome" {
+			u, _, err := sfISO("kamarada", "manjaro", `kamarada-gnome-[^"/]*\.iso`)
+			if err != nil {
+				return "", "", err
+			}
+			return u, sumAt(strings.TrimSuffix(u, "/download") + ".sha256/download"), nil
+		}
+		return sfISO("kamarada", "15.6", `Linux_Kamarada-15\.6-x86_64-Build[^"/]*\.iso`)
+	case "slackel":
+		return sfISO("slackel", edition, `slackellive64-`+edition+`-[0-9.]+\.iso`)
+	case "easynas":
+		return sfISO("easynas", "EasyNAS%20v1.1", `EasyNAS\.x86_64-[^"/]*install\.iso`)
+	case "elastix":
+		return sfISO("elastix", "Elastix%20PBX%20Appliance%20Software/5.0.0", `debian-amd64-netinst-elastix\.iso`)
+	case "m0n0wall":
+		// Dirs: 1.3,1.31..1.33 are stable; the 1.23x betas are older — the
+		// 1-2 digit pattern keeps the stable series.
+		dir, err := sfLatestDir("m0n0wall", "m0n0wall/", `1\.[0-9]{1,2}`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `cdrom-[^"/]*\.iso`)
+	case "dban":
+		return sfISO("dban", "dban/dban-2.3.0", `dban-2\.3\.0_i586\.iso`)
+	case "drbl":
+		dir, err := sfLatestDir("drbl", "drbl_live_stable/", `[0-9.-]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `drbl-live-xfce-[^"/]*amd64\.iso`)
+	case "septor":
+		u, _, err := sfISO("septor", "download_", `Septor-[0-9]+-amd64\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(strings.TrimSuffix(u, "/download") + ".md5.txt/download"), nil
+	case "hefftorlinux":
+		dir, err := sfLatestDir("hefftorlinux", "", `v[0-9-]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `hefftorlinux-`+edition+`-v[^"/]*x86_64\.iso`)
+	case "ctlos":
+		dir, err := sfLatestDir("ctlos", "", `v[0-9.]+`)
+		if err != nil {
+			return "", "", err
+		}
+		u, _, err := sfISOat(dir, `ctlos_v[^"/]*\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(strings.TrimSuffix(u, "/download") + ".sha256/download"), nil
+
+	// --- batch 4: mirrors/direct ---
+	case "adelie":
+		ed := "inst"
+		if edition == "kde" || edition == "lxqt" {
+			ed = "live-" + edition
+		}
+		return indexISO("https://distfiles.adelielinux.org/adelie/"+release+"/iso/", `adelie-`+ed+`-x86_64-[^"/]*\.iso`)
+	case "anolis":
+		ed := "minimal"
+		if edition != "" {
+			ed = edition
+		}
+		return indexISOsum("https://mirrors.openanolis.cn/anolis/"+release+"/isos/GA/x86_64/", `AnolisOS-`+release+`-x86_64-`+ed+`\.iso`, ".md5sum")
+	case "openeuler":
+		ed := "netinst"
+		if edition != "" {
+			ed = edition
+		}
+		return indexISOsum("https://repo.openeuler.org/openEuler-"+release+"/ISO/x86_64/", `openEuler-`+regexp.QuoteMeta(release)+`-`+ed+`-x86_64-dvd\.iso`, ".sha256sum")
+	case "astralinux":
+		return indexISO("https://download.astralinux.ru/astra/stable/orel/iso/", `alce-current\.iso`)
+	case "helenos":
+		return indexISO("https://www.helenos.org/releases/", `HelenOS-[0-9.]+-amd64\.iso`)
+	case "9legacy":
+		return "https://9legacy.org/download/9legacy.iso.bz2", "", nil
+	case "galliumos":
+		return indexISO("https://galliumos.org/releases/"+release+"/", `galliumos-`+edition+`-`+regexp.QuoteMeta(release)+`\.iso`)
+	case "ventoy":
+		return ghISOsha("ventoy/Ventoy", `ventoy-[0-9.]+-livecd\.iso`, `sha256\.txt`)
+	case "minikube":
+		return ghISOsha("kubernetes/minikube", `minikube-v[0-9.]+-amd64\.iso`, `minikube-v[0-9.]+-amd64\.iso\.sha256`)
+	case "crux":
+		dir, err := latestDir("https://mirror.freedif.org/crux/", `crux-[0-9.]+`)
+		if err != nil {
+			return "", "", err
+		}
+		u, _, err := indexISO(dir+"/iso/", `crux-[0-9.]+\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(u + ".sha256"), nil
+	case "sortix":
+		dir, err := latestDir("https://pub.sortix.org/sortix/release/", `[0-9]+\.[0-9]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return indexISO(dir+"/builds/", `sortix-[^"/]*x86_64\.iso`)
+	case "postmarketos":
+		base := "https://images.postmarketos.org/bpo/edge/generic-x86_64/" + edition + "/"
+		dir, err := latestDir(base, `[0-9]{8}-[0-9]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return indexISO(dir+"/", `[0-9]{8}-[0-9]+-postmarketOS-edge-`+edition+`-generic-x86_64[^"/]*\.img\.xz`)
+	case "ovirt-node":
+		return indexISO("https://resources.ovirt.org/pub/ovirt-4.5/iso/ovirt-node-ng-installer/", `ovirt-node-ng-installer-latest-`+edition+`\.iso`)
+	case "ploplinux":
+		dir, err := latestDir("https://download.plop.at/ploplinux/", `[0-9]{2}\.[0-9]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return indexISO(dir+"/live/", `ploplinux-[0-9.]+-x86_64\.iso`)
+	case "koozali":
+		return indexISOsum("http://mirror.contribs.org/releases/10/iso/x86_64/", `smeserver-[0-9.]+-x86_64\.iso`, ".sha1sum")
+	case "t2sde":
+		u, _, err := indexISO("https://dl.t2sde.org/binary/2024/", `t2-`+regexp.QuoteMeta(release)+`-x86-64-base-wayland-glibc-gcc-nocona\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(strings.TrimSuffix(u, ".iso") + ".sha256"), nil
+	case "fiwix":
+		body, err := fetchString("https://www.fiwix.org/downloads.html")
+		if err != nil {
+			return "", "", err
+		}
+		m := latestMatch(body, `FiwixOS-[0-9.]+-i386\.iso`)
+		if m == "" {
+			return "", "", fmt.Errorf("fiwix: no iso")
+		}
+		return "https://www.fiwix.org/" + m, "", nil
+	case "sculpt-os":
+		body, err := fetchString("https://genode.org/download/sculpt")
+		if err != nil {
+			return "", "", err
+		}
+		u := latestMatch(body, `https://genode\.org/files/sculpt/sculpt-[0-9-]+\.img`)
+		if u == "" {
+			return "", "", fmt.Errorf("sculpt-os: no img")
+		}
+		return u, "", nil
+	case "mikrotik-chr":
+		body, err := fetchString("https://upgrade.mikrotik.com/routeros/NEWEST7.stable")
+		if err != nil {
+			return "", "", err
+		}
+		f := strings.Fields(body)
+		if len(f) == 0 {
+			return "", "", fmt.Errorf("mikrotik-chr: no version")
+		}
+		return fmt.Sprintf("https://download.mikrotik.com/routeros/%s/chr-%s.img.zip", f[0], f[0]), "", nil
+
 	// --- index/mirror (batch 3) ---
 	case "pfsense":
 		base := "https://atxfiles.netgate.com/mirror/downloads/"

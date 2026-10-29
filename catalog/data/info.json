@@ -1613,6 +1613,204 @@
    "homepage": "https://www.zenwalk.org/",
    "info": "Slackware-based lightweight desktop distribution.",
    "name": "Zenwalk"
+  },
+  "adelie": {
+   "credentials": "-",
+   "homepage": "https://adelielinux.org/",
+   "info": "Independent musl-based Linux distribution focused on standards compliance and supporting multiple architectures.",
+   "name": "Adélie Linux"
+  },
+  "anolis": {
+   "credentials": "-",
+   "homepage": "https://openanolis.cn/",
+   "info": "CentOS-compatible open source server distribution maintained by the OpenAnolis community and Alibaba Cloud.",
+   "name": "Anolis OS"
+  },
+  "openeuler": {
+   "credentials": "-",
+   "homepage": "https://www.openeuler.org/",
+   "info": "Open source enterprise Linux distribution for servers, cloud, edge and embedded, originated by Huawei.",
+   "name": "openEuler"
+  },
+  "astralinux": {
+   "credentials": "-",
+   "homepage": "https://astralinux.ru/",
+   "info": "Russian Debian-based Linux distribution; the Common Edition is freely downloadable.",
+   "name": "Astra Linux"
+  },
+  "helenos": {
+   "credentials": "-",
+   "homepage": "https://www.helenos.org/",
+   "info": "Microkernel-based multiserver operating system designed and implemented from scratch.",
+   "name": "HelenOS"
+  },
+  "9legacy": {
+   "credentials": "-",
+   "homepage": "https://9legacy.org/",
+   "info": "Patchset distribution of Plan 9 from Bell Labs with community fixes and improvements.",
+   "name": "9legacy"
+  },
+  "galliumos": {
+   "credentials": "-",
+   "homepage": "https://galliumos.org/",
+   "info": "Ubuntu-based Linux distribution optimized for Chromebooks with per-model kernel builds.",
+   "name": "GalliumOS"
+  },
+  "ventoy": {
+   "credentials": "-",
+   "homepage": "https://www.ventoy.net/",
+   "info": "Bootable live environment for the Ventoy multi-boot USB toolkit.",
+   "name": "Ventoy Live"
+  },
+  "rhino-linux": {
+   "credentials": "-",
+   "homepage": "https://rhinolinux.org/",
+   "info": "Rolling-release Ubuntu-based distribution developed by former Ubuntu Unity developers.",
+   "name": "Rhino Linux"
+  },
+  "ubuntudde": {
+   "credentials": "-",
+   "homepage": "https://ubuntudde.com/",
+   "info": "Ubuntu flavor remix shipping the Deepin Desktop Environment.",
+   "name": "UbuntuDDE Remix"
+  },
+  "regataos": {
+   "credentials": "-",
+   "homepage": "https://regataos.com/",
+   "info": "Brazilian openSUSE-based desktop distribution focused on gaming and ease of use.",
+   "name": "Regata OS"
+  },
+  "archman": {
+   "credentials": "-",
+   "homepage": "https://archman.org/",
+   "info": "Turkish Arch-based distribution with its own repositories and Xfce desktop.",
+   "name": "Archman Linux"
+  },
+  "kamarada": {
+   "credentials": "-",
+   "homepage": "https://kamarada.github.io/",
+   "info": "Brazilian Linux distribution originally based on openSUSE Leap, now also offered on a Manjaro base.",
+   "name": "Kamarada Linux"
+  },
+  "slackel": {
+   "credentials": "-",
+   "homepage": "https://slackel.sourceforge.net/",
+   "info": "Slackware-based Greek distribution sharing Salix tools, available with Openbox or MATE.",
+   "name": "Slackel"
+  },
+  "easynas": {
+   "credentials": "-",
+   "homepage": "https://easynas.org/",
+   "info": "openSUSE-based NAS appliance with a web management interface.",
+   "name": "EasyNAS"
+  },
+  "elastix": {
+   "credentials": "-",
+   "homepage": "https://www.elastix.com/",
+   "info": "Unified communications server appliance bundling Asterisk PBX, fax and messaging (archived).",
+   "name": "Elastix"
+  },
+  "m0n0wall": {
+   "credentials": "-",
+   "homepage": "https://m0n0.ch/wall/",
+   "info": "Historic embedded FreeBSD firewall distribution; forerunner of pfSense/OPNsense (archived).",
+   "name": "m0n0wall"
+  },
+  "dban": {
+   "credentials": "-",
+   "homepage": "https://dban.org/",
+   "info": "Darik's Boot and Nuke, a classic self-contained disk-wiping live environment (archived).",
+   "name": "DBAN"
+  },
+  "drbl": {
+   "credentials": "-",
+   "homepage": "https://drbl.org/",
+   "info": "Diskless Remote Boot in Linux live environment for mass PC cloning and classrooms.",
+   "name": "DRBL Live"
+  },
+  "septor": {
+   "credentials": "-",
+   "homepage": "https://septor.sourceforge.io/",
+   "info": "Debian-based privacy distribution that routes all traffic through Tor.",
+   "name": "Septor"
+  },
+  "hefftorlinux": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/hefftorlinux/",
+   "info": "Arch-based desktop distribution with Kodi, Plasma and Xfce spins (archived 2021).",
+   "name": "HefftorLinux"
+  },
+  "ctlos": {
+   "credentials": "-",
+   "homepage": "https://ctlos.github.io/",
+   "info": "Arch-based Russian desktop distribution with its own installer and repositories.",
+   "name": "Ctlos Linux"
+  },
+  "crux": {
+   "credentials": "-",
+   "homepage": "https://crux.nu/",
+   "info": "Lightweight source-based Linux distribution for experienced users; parent of Arch Linux.",
+   "name": "CRUX"
+  },
+  "sortix": {
+   "credentials": "-",
+   "homepage": "https://sortix.org/",
+   "info": "Small self-hosting Unix-like hobby operating system built with its own toolchain.",
+   "name": "Sortix"
+  },
+  "postmarketos": {
+   "credentials": "-",
+   "homepage": "https://postmarketos.org/",
+   "info": "Alpine-based sustainable phone OS; also publishes generic x86_64 prebuilt images.",
+   "name": "postmarketOS"
+  },
+  "ovirt-node": {
+   "credentials": "-",
+   "homepage": "https://ovirt.org/",
+   "info": "Minimal CentOS-based hypervisor node image for the oVirt virtualization platform (archived).",
+   "name": "oVirt Node NG"
+  },
+  "ploplinux": {
+   "credentials": "-",
+   "homepage": "https://plop.at/",
+   "info": "Small Linux distribution for system administrators with rescue and live variants.",
+   "name": "Plop Linux"
+  },
+  "koozali": {
+   "credentials": "-",
+   "homepage": "https://www.koozali.org/",
+   "info": "Community-maintained CentOS-based server gateway distribution, successor of SME/e-smith.",
+   "name": "SME Server (Koozali)"
+  },
+  "t2sde": {
+   "credentials": "-",
+   "homepage": "https://t2sde.org/",
+   "info": "Source-based system development environment and distribution supporting many architectures.",
+   "name": "T2 SDE"
+  },
+  "fiwix": {
+   "credentials": "-",
+   "homepage": "https://www.fiwix.org/",
+   "info": "Small educational UNIX-like operating system written from scratch for i386.",
+   "name": "Fiwix"
+  },
+  "sculpt-os": {
+   "credentials": "-",
+   "homepage": "https://genode.org/",
+   "info": "Genode-based secure desktop operating system with a component capability model.",
+   "name": "Sculpt OS"
+  },
+  "mikrotik-chr": {
+   "credentials": "-",
+   "homepage": "https://mikrotik.com/",
+   "info": "Cloud Hosted Router: RouterOS image for virtual machines and cloud environments.",
+   "name": "MikroTik CHR"
+  },
+  "minikube": {
+   "credentials": "-",
+   "homepage": "https://minikube.sigs.k8s.io/",
+   "info": "Bootable ISO image used by minikube to run local Kubernetes clusters.",
+   "name": "minikube"
   }
  },
  "generated": "bash-dump"
