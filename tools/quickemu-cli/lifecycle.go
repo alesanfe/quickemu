@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
@@ -354,6 +355,12 @@ func applyOverrides() string {
 	b, _ := os.ReadFile(vmConf)
 	c := string(b)
 	for k, v := range confOpts {
+		// The value lands verbatim inside key="v" — a quote or control
+		// char injects extra conf lines the launcher then honours.
+		if strings.ContainsAny(v, "\"\n\r") || strings.IndexFunc(v, unicode.IsControl) >= 0 {
+			fmt.Fprintf(os.Stderr, "WARNING: --%s value contains quote/control characters — ignored\n", k)
+			continue
+		}
 		kv := k + `="` + v + `"`
 		if strings.Contains(c, k+"=") {
 			lines := strings.Split(c, "\n")

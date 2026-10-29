@@ -216,6 +216,28 @@ func TestApplyOverridesAndStats(t *testing.T) {
 	_ = vd
 }
 
+// An override value is written verbatim as key="v" — a " or newline in
+// it injects extra conf lines (disk_img="/etc/passwd") that the launcher
+// then honours. Reject the value instead of corrupting the merge conf.
+func TestApplyOverridesRejectsInjection(t *testing.T) {
+	stubTools(t)
+	withConf(t, "guest_os=\"linux\"\n")
+	old := confOpts
+	confOpts = map[string]string{
+		"ram":   "4G",
+		"width": `800"\ndisk_img="/etc/passwd`,
+	}
+	defer func() { confOpts = old }()
+	ov := applyOverrides()
+	b, _ := os.ReadFile(ov)
+	if strings.Contains(string(b), "disk_img") {
+		t.Fatalf("override injected a conf line:\n%s", b)
+	}
+	if !strings.Contains(string(b), `ram="4G"`) {
+		t.Fatalf("legit override lost:\n%s", b)
+	}
+}
+
 func TestDoctorStatsInventory(t *testing.T) {
 	stubTools(t)
 	withConf(t, "guest_os=\"linux\"\n")
