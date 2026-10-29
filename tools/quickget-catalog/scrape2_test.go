@@ -109,6 +109,9 @@ func bodyFor(url string) (string, error) {
 		return `<a href="Neptune9-20260314.iso">x</a>`, nil
 	case strings.Contains(url, "nomadbsd") && strings.Contains(url, ".sha256"):
 		return shaX + "  nomadbsd-141R-20240711.amd64.ufs.img.lzma\n", nil
+	case strings.Contains(url, "stamus-networks"):
+		return `<a href="https://my.stamus-networks.com/sn-dl/ClearNDRCommunity/0c6cf7ac31bb211ea3b21c05c291d5145f624ad0164c456b9bf07db9f080d47f/ClearNDR-nodesktop-1.0.0.iso">x</a>
+			<a href="https://my.stamus-networks.com/sn-dl/ClearNDRCommunity/6d46518e85f546bddcc82d9d1143fbe0ce2749abc862646fda470bad3335f1aa/ClearNDR-desktop-1.0.0.iso">y</a>`, nil
 	case strings.Contains(url, "nomadbsd"):
 		return `<a href="nomadbsd-141R-20240711.amd64.ufs.img.lzma">x</a>
 			<a href="nomadbsd-141R-20240711.amd64.zfs.img.lzma">x</a>
@@ -692,6 +695,8 @@ func TestScrapeAll(t *testing.T) {
 		{"nomadbsd", "141R-20240711", "ufs", "amd64", false},
 		{"nomadbsd", "141R-20240711", "zfs", "amd64", false},
 		{"nomadbsd", "140R-20240126", "ufs", "amd64", false},
+		{"clearndr", "1.0.0", "desktop", "amd64", false},
+		{"clearndr", "1.0.0", "nodesktop", "amd64", false},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},

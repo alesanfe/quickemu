@@ -971,6 +971,25 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return indexISOsum("https://nomadbsd.org/download/",
 			`nomadbsd-`+regexp.QuoteMeta(release)+`\.amd64\.`+regexp.QuoteMeta(ed)+`\.img\.lzma`, ".sha256")
+	case "clearndr":
+		// SELKS successor: the /selks page links signed CDN paths.
+		ed := edition
+		if ed == "" {
+			ed = "desktop"
+		}
+		rel := `[0-9.]+`
+		if release != "" && release != "latest" {
+			rel = regexp.QuoteMeta(release)
+		}
+		body, err := fetchString("https://www.stamus-networks.com/selks")
+		if err != nil {
+			return "", "", err
+		}
+		u := latestMatch(body, `https://my\.stamus-networks\.com/sn-dl/ClearNDRCommunity/[0-9a-f]+/ClearNDR-`+regexp.QuoteMeta(ed)+`-`+rel+`\.iso`)
+		if u == "" {
+			return "", "", fmt.Errorf("clearndr: no iso for %s %s", release, ed)
+		}
+		return u, "", nil
 	case "omnios":
 		return indexISO("https://downloads.omnios.org/media/stable/", `omnios-r[^"]*\.iso`)
 	case "openmamba":

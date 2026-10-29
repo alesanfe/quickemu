@@ -33,7 +33,7 @@
   "alma": {
    "credentials": "-",
    "homepage": "https://almalinux.org/",
-   "info": "Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL®.",
+   "info": "Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL\u00ae.",
    "name": "AlmaLinux"
   },
   "alpine": {
@@ -111,7 +111,7 @@
   "archlinux": {
    "credentials": "-",
    "homepage": "https://archlinux.org/",
-   "info": "Lightweight and flexible Linux® distribution that tries to Keep It Simple.",
+   "info": "Lightweight and flexible Linux\u00ae distribution that tries to Keep It Simple.",
    "name": "Arch Linux"
   },
   "archman": {
@@ -699,7 +699,7 @@
   "guix": {
    "credentials": "-",
    "homepage": "https://guix.gnu.org/",
-   "info": "Distribution of the GNU operating system developed by the GNU Project—which respects the freedom of computer users.",
+   "info": "Distribution of the GNU operating system developed by the GNU Project\u2014which respects the freedom of computer users.",
    "name": "Guix"
   },
   "haiku": {
@@ -999,7 +999,7 @@
   "maxlinux": {
    "credentials": "-",
    "homepage": "https://www.educa2.madrid.org/web/max",
-   "info": "MAdrid_linuX — education distro by the Madrid regional government.",
+   "info": "MAdrid_linuX \u2014 education distro by the Madrid regional government.",
    "name": "MAX"
   },
   "metamorphose": {
@@ -1347,7 +1347,7 @@
   "ponyos": {
    "credentials": "-",
    "homepage": "https://ponyos.org/",
-   "info": "Hobby Unix-like OS with its own kernel — not Linux.",
+   "info": "Hobby Unix-like OS with its own kernel \u2014 not Linux.",
    "name": "PonyOS"
   },
   "popos": {
@@ -1521,7 +1521,7 @@
   "rockylinux": {
    "credentials": "-",
    "homepage": "https://rockylinux.org/",
-   "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.",
+   "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux\u00ae.",
    "name": "Rocky Linux"
   },
   "rosalinux": {
@@ -1797,7 +1797,7 @@
   "ubuntucinnamon": {
    "credentials": "-",
    "homepage": "https://ubuntucinnamon.org/",
-   "info": "Community-driven, featuring Linux Mint’s Cinnamon Desktop with Ubuntu at the core, packed fast and full of features, here is the most traditionally modern desktop you will ever love.",
+   "info": "Community-driven, featuring Linux Mint\u2019s Cinnamon Desktop with Ubuntu at the core, packed fast and full of features, here is the most traditionally modern desktop you will ever love.",
    "name": "Ubuntu Cinnamon"
   },
   "ubuntudde": {
@@ -1905,7 +1905,7 @@
   "windows": {
    "credentials": "-",
    "homepage": "https://www.microsoft.com/en-us/windows/",
-   "info": "Whether you’re gaming, studying, running a business, or running a household, Windows helps you get it done.",
+   "info": "Whether you\u2019re gaming, studying, running a business, or running a household, Windows helps you get it done.",
    "name": "Windows"
   },
   "windows-server": {
@@ -2032,7 +2032,7 @@
    "credentials": "-",
    "homepage": "https://www.adelielinux.org/",
    "info": "Musl+Linux-libre distribution for many architectures, including legacy PPC.",
-   "name": "Adélie Linux"
+   "name": "Ad\u00e9lie Linux"
   },
   "mofolinux": {
    "credentials": "-",
@@ -2165,6 +2165,12 @@
    "homepage": "https://free.drweb.com/aid_admin/",
    "info": "Dr.Web LiveDisk antivirus rescue CD",
    "name": "Dr.Web LiveDisk"
+  },
+  "clearndr": {
+   "credentials": "-",
+   "homepage": "https://www.stamus-networks.com/",
+   "info": "Stamus Networks SELKS successor \u2014 Suricata IDS/NSM appliance (ClearNDR community)",
+   "name": "ClearNDR"
   }
  }
 }

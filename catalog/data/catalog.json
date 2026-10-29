@@ -8009,6 +8009,27 @@
    "url": "https://cdn-download.drweb.com/pub/drweb/livedisk/",
    "iso": "drweb-livedisk-%RELEASE%-cd.iso",
    "status": "active"
+  },
+  {
+   "os": "clearndr",
+   "releases": [
+    "latest",
+    "1.0.0"
+   ],
+   "editions": [
+    "desktop",
+    "nodesktop"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   }
  ]
 }
