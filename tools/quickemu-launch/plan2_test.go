@@ -80,6 +80,19 @@ func TestTomlConfAndVmDir(t *testing.T) {
 	if vd := vmDir(c, toml); vd != "/data/vm" {
 		t.Fatalf("vmDir disk_img %q", vd)
 	}
+	// A relative disk_img escaping the conf dir must not pull runtime
+	// state outside it — same clamp as quickemu-cli's vmdir() so both
+	// sides agree where .pid/.sock/.ports live.
+	c["disk_img"] = "../out/d.qcow2"
+	want := filepath.Join(dir, "vm")
+	if vd := vmDir(c, toml); vd != want {
+		t.Fatalf("vmDir must clamp ../ escape to %q, got %q", want, vd)
+	}
+	// A nested relative disk_img stays under the conf dir.
+	c["disk_img"] = "vm/disks/d.qcow2"
+	if vd := vmDir(c, toml); vd != filepath.Join(dir, "vm", "disks") {
+		t.Fatalf("vmDir nested %q", vd)
+	}
 }
 
 func TestPortsHelpers(t *testing.T) {

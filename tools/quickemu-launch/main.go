@@ -408,13 +408,19 @@ func dotdir(dir string) string {
 // a per-VM directory named after the conf, alongside it.
 func vmDir(conf Conf, confPath string) string {
 	dir := filepath.Dir(confPath)
+	name := strings.TrimSuffix(filepath.Base(confPath), filepath.Ext(confPath))
 	if d := strings.TrimSpace(conf.get("disk_img", "")); d != "" {
 		if filepath.IsAbs(d) {
 			return filepath.Dir(d)
 		}
-		return filepath.Join(dir, filepath.Dir(d))
+		// Relative disk_img must stay inside the conf dir — "../x"
+		// would scatter .pid/.sock/.ports outside the VM tree, and
+		// diverge from the CLI's vmdir() which clamps the same way.
+		j := filepath.Join(dir, d)
+		if rel, err := filepath.Rel(dir, j); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			return filepath.Dir(j)
+		}
 	}
-	name := strings.TrimSuffix(filepath.Base(confPath), filepath.Ext(confPath))
 	return filepath.Join(dir, name)
 }
 
