@@ -1967,7 +1967,36 @@
    "homepage": "https://zorin.com/os/",
    "info": "Alternative to Windows and macOS designed to make your computer faster, more powerful, secure, and privacy-respecting.",
    "name": "Zorin OS"
+  },
+  "aosc": {
+   "name": "AOSC OS",
+   "credentials": "-",
+   "homepage": "https://aosc.io/",
+   "info": "Independent Linux distribution (Anthon OS) with rolling releases and an offline installer."
+  },
+  "proxmox-datacenter-manager": {
+   "name": "Proxmox Datacenter Manager",
+   "credentials": "-",
+   "homepage": "https://www.proxmox.com/en/proxmox-datacenter-manager",
+   "info": "Central management appliance for Proxmox VE/Backup clusters."
+  },
+  "smartos": {
+   "name": "SmartOS",
+   "credentials": "-",
+   "homepage": "https://www.smartos.org/",
+   "info": "OpenSolaris-derived hypervisor OS by Triton; runs from live media (no install)."
+  },
+  "vicibox": {
+   "name": "ViciBox",
+   "credentials": "root / vicidial",
+   "homepage": "https://www.vicibox.com/",
+   "info": "OpenSUSE-based appliance installer for the ViciDial call-center suite."
+  },
+  "pisilinux": {
+   "name": "Pisi Linux",
+   "credentials": "-",
+   "homepage": "https://pisilinux.org/",
+   "info": "Independent Turkish distribution continuing the PiSi package system; KDE6/Minimal/LXQt images."
   }
- },
- "generated": "bash-dump"
+ }
 }

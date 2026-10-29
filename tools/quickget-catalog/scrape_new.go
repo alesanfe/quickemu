@@ -488,7 +488,16 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		if edition != "" {
 			ed = edition
 		}
-		return indexISOsum("https://mirrors.openanolis.cn/anolis/"+release+"/isos/GA/x86_64/", `AnolisOS-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, ".md5sum")
+		base := "https://mirrors.openanolis.cn/anolis/" + release + "/isos/GA/x86_64/"
+		// 8.6+/23.x is AnolisOS-<rel>-x86_64-<ed>.iso; older drops are
+		// AnolisOS-<rel>-(GA-|Minimal-)x86_64-dvd.iso word orders.
+		if u, s, err := indexISOsum(base, `AnolisOS-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, ".md5sum"); err == nil {
+			return u, s, nil
+		}
+		if ed == "dvd" || ed == "boot" {
+			return indexISOsum(base, `AnolisOS-`+regexp.QuoteMeta(release)+`-(?:GA-)?x86_64-dvd\.iso`, ".md5sum")
+		}
+		return indexISOsum(base, `AnolisOS-`+regexp.QuoteMeta(release)+`-(?i:`+regexp.QuoteMeta(ed)+`)-x86_64(?:-dvd)?\.iso`, ".md5sum")
 	case "openeuler":
 		ed := "netinst"
 		if edition != "" {
@@ -734,7 +743,11 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		if ed == "everything" {
 			ed = "dvd1"
 		}
-		return indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
+		if u, s, err := indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM"); err == nil {
+			return u, s, nil
+		}
+		// 8.10 names carry a build date: OpenCloudOS-8.10-20241210.0-x86_64-<ed>.iso
+		return indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-[0-9]{8}\.[0-9]+-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
 	case "tencentos":
 		base := "https://mirrors.tencent.com/tencentos/" + release + "/isos/x86_64/"
 		ed := "minimal"
@@ -811,6 +824,26 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 			return sfISO("loc-os", base, re+`\.iso`)
 		}
 		return sfISO("loc-os", base, `Loc-OS-`+regexp.QuoteMeta(release)+`-[^"]*(amd64|x86_64)\.iso`)
+	case "pisilinux":
+		// SF "2.4" dir has KDE6/Minimal; lxqt lives in its own dir.
+		if edition == "lxqt" {
+			return sfISO("pisilinux", "lxqt", `Pisi-Linux-lxqt-[0-9.]+-x86_64\.iso`)
+		}
+		ed := map[string]string{"kde6": "KDE6", "minimal": "Minimal"}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("pisilinux: unknown edition %q", edition)
+		}
+		return sfISO("pisilinux", release,
+			`Pisi-Linux-`+regexp.QuoteMeta(release)+`\.[0-9]+-`+ed+`-x86_64\.iso`)
+	case "vicibox":
+		// ViciBox_V<maj>.x86_64-<rel>.iso (+ optional -md minimal variant).
+		suf := ""
+		if edition == "md" {
+			suf = "-md"
+		}
+		maj := strings.SplitN(release, ".", 2)[0]
+		return indexISO("https://download.vicidial.com/iso/vicibox/server/",
+			`ViciBox_V`+regexp.QuoteMeta(maj)+`\.x86_64-`+regexp.QuoteMeta(release)+suf+`\.iso`)
 	case "primeos":
 		return sfISO("primeos", "64-bit", `PrimeOS-[^"]*\.iso`)
 	case "xigmanas":
@@ -857,7 +890,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		return u, u[:strings.LastIndex(u, "/")] + "/SHA256SUMS", nil
 	case "centos":
 		// 5.x ships a 9-disc bin set; 6+ uses DVD1; 7 uses DVD-<date>.
-		return indexISO("https://vault.centos.org/"+release+"/isos/x86_64/", `CentOS-[^"]*x86_64-([Bb]in-[Dd][Vv][Dd]1|[Dd][Vv][Dd]1|[Dd][Vv][Dd]-[0-9]+|[Bb]in-1of[0-9]+)\.iso`)
+		return indexISO("https://vault.centos.org/"+release+"/isos/x86_64/", `CentOS-[^"]*x86_64-([Bb]in-[Dd][Vv][Dd]1|[Dd][Vv][Dd]1|[Dd][Vv][Dd]-[0-9.-]+|[0-9]+-[Dd][Vv][Dd]1|[Bb]in-?1of[0-9]+|[Dd][Vv][Dd])\.iso`)
 	case "dietpi":
 		return indexISO("https://dietpi.com/downloads/images/", `DietPi_NativePC-BIOS-x86_64[^"]*\.img\.xz`)
 	case "eurolinux":
@@ -899,9 +932,12 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "opensuse-microos":
 		return "https://download.opensuse.org/tumbleweed/iso/openSUSE-MicroOS-DVD-x86_64-Current.iso", "", nil
 	case "proxmox-backup-server":
-		return indexISO("https://enterprise.proxmox.com/iso/", `proxmox-backup-server_[^"]*\.iso`)
+		// release-aware: proxmox-backup-server_4.2-1.iso etc.
+		return indexISO("https://enterprise.proxmox.com/iso/", `proxmox-backup-server_`+regexp.QuoteMeta(release)+`\.iso`)
 	case "proxmox-mail-gateway":
-		return indexISO("https://enterprise.proxmox.com/iso/", `proxmox-mailgateway_[^"]*\.iso`)
+		// 7.x was proxmox-mailgateway_<v>.iso; 8.x+ is
+		// proxmox-mail-gateway_<v>.iso.
+		return indexISO("https://enterprise.proxmox.com/iso/", `proxmox-mail-?gateway_`+regexp.QuoteMeta(release)+`\.iso`)
 	case "raspberrypios-desktop":
 		d, err := latestDir("https://downloads.raspberrypi.org/rpd_x86/images/", `(rpd_x86-[^"/]+)`)
 		if err != nil {

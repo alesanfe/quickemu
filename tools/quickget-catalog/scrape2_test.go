@@ -118,8 +118,16 @@ func bodyFor(url string) (string, error) {
 		return `<a href="grml-full-2026.09-amd64.iso">x</a>`, nil
 	case strings.Contains(url, "omnios"):
 		return `<a href="omnios-r151058.iso">x</a>`, nil
+	case strings.Contains(url, "enterprise.proxmox") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  proxmox-datacenter-manager_1.1-1.iso\n", nil
 	case strings.Contains(url, "enterprise.proxmox"):
-		return `<a href="proxmox-backup-server_4.0-1.iso">x</a><a href="proxmox-mailgateway_8.1.iso">y</a>`, nil
+		return `<a href="proxmox-backup-server_4.2-1.iso">a</a><a href="proxmox-backup-server_4.1-1.iso">b</a><a href="proxmox-mailgateway_7.3-1.iso">c</a><a href="proxmox-mail-gateway_9.1-1.iso">d</a><a href="proxmox-mail-gateway_9.0-1.iso">e</a><a href="proxmox-mail-gateway_8.2-1.iso">f</a><a href="proxmox-datacenter-manager_1.1-1.iso">g</a><a href="proxmox-ve_9.2-1.iso">h</a>`, nil
+	case strings.Contains(url, "pisilinux/files/lxqt"):
+		return `<a href="Pisi-Linux-lxqt-2.4.1-x86_64.iso">x</a>`, nil
+	case strings.Contains(url, "pisilinux"):
+		return `<a href="Pisi-Linux-2.4.3-KDE6-x86_64.iso">x</a><a href="Pisi-Linux-2.4.3-Minimal-x86_64.iso">y</a>`, nil
+	case strings.Contains(url, "vicidial"):
+		return `<a href="ViciBox_V12.x86_64-12.0.2.iso">x</a><a href="ViciBox_V12.x86_64-12.0.2-md.iso">y</a>`, nil
 	case strings.Contains(url, "images/rpd"):
 		return `<a href="2024-11-19-rpd-x86.iso">x</a>`, nil
 	case strings.Contains(url, "rpd_x86"):
@@ -169,6 +177,10 @@ func bodyFor(url string) (string, error) {
 		return shaX + "  OpenCloudOS-8.8-x86_64-dvd1.iso\n", nil
 	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.8"):
 		return `<a href="OpenCloudOS-8.8-x86_64-dvd1.iso">x</a>`, nil
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.10") && strings.Contains(url, "CHECKSUM"):
+		return shaX + "  OpenCloudOS-8.10-20241210.0-x86_64-minimal.iso\n", nil
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.10"):
+		return `<a href="OpenCloudOS-8.10-20241210.0-x86_64-boot.iso">a</a><a href="OpenCloudOS-8.10-20241210.0-x86_64-minimal.iso">b</a><a href="OpenCloudOS-8.10-20241210.0-x86_64-dvd1.iso">c</a>`, nil
 	case strings.Contains(url, "opencloudos") && strings.Contains(url, "CHECKSUM"):
 		return shaX + "  OpenCloudOS-9.4-20260313.0-x86_64-minimal.iso\n", nil
 	case strings.Contains(url, "opencloudos") && strings.Contains(url, "20260313.0"):
@@ -324,6 +336,8 @@ func bodyFor(url string) (string, error) {
 		return `"name":"v2.5.0"`, nil
 	case strings.Contains(url, "adelielinux"):
 		return `<a href="adelie-inst-x86_64-1.0-rc1.iso">x</a><a href="adelie-live-kde-x86_64-1.0-rc1.iso">y</a><a href="adelie-live-lxqt-x86_64-1.0-rc1.iso">z</a>`, nil
+	case strings.Contains(url, "openanolis") && strings.Contains(url, "7.9"):
+		return `<a href="AnolisOS-7.9-GA-x86_64-dvd.iso">x</a><a href="AnolisOS-7.9-Minimal-x86_64-dvd.iso">y</a>`, nil
 	case strings.Contains(url, "openanolis"):
 		return `<a href="AnolisOS-8.8-x86_64-boot.iso">x</a><a href="AnolisOS-8.8-x86_64-dvd.iso">y</a><a href="AnolisOS-8.8-x86_64-minimal.iso">z</a><a href="AnolisOS-23.5-x86_64-boot.iso">p</a><a href="AnolisOS-23.5-x86_64-dvd.iso">q</a>`, nil
 	case strings.Contains(url, "openeuler"):
@@ -588,8 +602,17 @@ func TestScrapeAll(t *testing.T) {
 		{"grml", "latest", "", "amd64", false},
 		{"omnios", "stable", "", "amd64", false},
 		{"opensuse-microos", "latest", "", "amd64", false},
-		{"proxmox-backup-server", "4.0-1", "", "amd64", false},
-		{"proxmox-mail-gateway", "8.1", "", "amd64", false},
+		{"proxmox-backup-server", "4.2-1", "", "amd64", false},
+		{"proxmox-backup-server", "4.0-1", "", "amd64", true},
+		{"proxmox-mail-gateway", "9.1-1", "", "amd64", false},
+		{"proxmox-mail-gateway", "7.3-1", "", "amd64", false},
+		{"proxmox-mail-gateway", "8.1", "", "amd64", true},
+		{"pisilinux", "2.4", "kde6", "amd64", false},
+		{"pisilinux", "2.4", "minimal", "amd64", false},
+		{"pisilinux", "2.4", "lxqt", "amd64", false},
+		{"pisilinux", "2.4", "bogus", "amd64", true},
+		{"vicibox", "12.0.2", "standard", "amd64", false},
+		{"vicibox", "12.0.2", "md", "amd64", false},
 		{"raspberrypios-desktop", "latest", "", "amd64", false},
 		{"steamos", "alchemist", "", "amd64", false},
 		{"tribblix", "latest", "", "amd64", false},
@@ -637,6 +660,8 @@ func TestScrapeAll(t *testing.T) {
 		{"opencloudos", "9.0", "minimal", "amd64", false},
 		{"opencloudos", "9.0", "netinst", "amd64", false},
 		{"opencloudos", "8.8", "everything", "amd64", false},
+		{"opencloudos", "8.10", "minimal", "amd64", false},
+		{"opencloudos", "8.10", "everything", "amd64", false},
 		{"tencentos", "4.2", "boot", "amd64", false},
 		{"tencentos", "4.0", "boot", "amd64", false},
 		{"grommunio", "latest", "offline", "amd64", false},
@@ -679,6 +704,8 @@ func TestScrapeAll(t *testing.T) {
 		{"anolis", "8.8", "boot", "amd64", false},
 		{"anolis", "8.8", "dvd", "amd64", false},
 		{"anolis", "8.8", "minimal", "amd64", false},
+		{"anolis", "7.9", "dvd", "amd64", false},
+		{"anolis", "7.9", "minimal", "amd64", false},
 		{"openeuler", "24.03-LTS", "everything", "amd64", false},
 		{"openeuler", "24.03-LTS", "netinst", "amd64", false},
 		{"openeuler", "22.03-LTS-SP4", "netinst", "amd64", false},
