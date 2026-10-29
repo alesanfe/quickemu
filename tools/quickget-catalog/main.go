@@ -88,6 +88,16 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "catalog: %v\n", err)
 		return 1
 	}
+	// Every subcommand except list indexes args[1] — missing operand
+	// is a usage error, not a panic.
+	needsOS := map[string]bool{
+		"releases": true, "editions": true, "arch": true, "url": true,
+		"check": true, "info": true, "info-json": true, "trust": true,
+	}
+	if needsOS[args[0]] && len(args) < 2 {
+		fmt.Fprintf(os.Stderr, "usage: quickget-catalog %s <os> [release] [edition] [arch]\n", args[0])
+		return 2
+	}
 	switch args[0] {
 	case "list":
 		for _, e := range cat.Entries {
