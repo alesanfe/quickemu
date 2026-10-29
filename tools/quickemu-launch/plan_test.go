@@ -46,7 +46,7 @@ func TestAudioStorageNetwork(t *testing.T) {
 	c, dir := confFrom(t, "guest_os=\"linux\"\nsound_card=\"intel-hda\"\n"+
 		"sound_duplex=\"hda-micro\"\nnetwork=\"user\"\nport_forwards=\"2222:22 8080:80\"\n")
 	_ = audioArgs(c, "linux", OsTuning{})
-	_ = audioDriver()
+	_ = audioDriver("x86_64")
 	_ = storageArgs(c, dir, OsTuning{})
 	if a := networkArgs(c, OsTuning{}); len(a) == 0 {
 		t.Fatal("network args empty")

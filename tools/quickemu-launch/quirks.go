@@ -115,6 +115,17 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 	case "windows", "windows-server":
 		if arch == "x86_64" {
 			t.CPUFlags = ",+hypervisor,+invtsc,l3-cache=on"
+			// KVM-specific flags (configure_os_quirks): QEMU>6.0 takes
+			// hv_passthrough; older builds get the legacy hv_* list.
+			if c["_accel"] == "kvm" {
+				if v := qemuVersionShort(arch); v < 0 || v > 60 {
+					t.CPUFlags += ",migratable=no,hv_passthrough"
+				} else {
+					t.CPUFlags += ",migratable=no,hv_frequencies,hv_reenlightenment," +
+						"hv_relaxed,hv_spinlocks=8191,hv_stimer,hv_synic,hv_time," +
+						"hv_vapic,hv_vendor_id=1234567890ab,hv_vpindex"
+				}
+			}
 		}
 	case "kolibrios", "reactos":
 		t.CPUFlags = "@qemu32"
@@ -124,17 +135,21 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 		}
 	}
 
-	// machine opts: hpet=off for macos+windows on x86_64 (QEMU>=70)
-	if arch == "x86_64" && (osName == "macos" || osName == "windows" || osName == "windows-server") {
-		t.Machine = ",hpet=off"
-	}
-
 	// GUEST_TWEAKS emitted as args
 	if osName == "windows" || osName == "windows-server" {
 		t.ExtraArgs = append(t.ExtraArgs, "-global", "ICH9-LPC.disable_s3=1")
 	}
 	if osName == "macos" {
 		t.ExtraArgs = append(t.ExtraArgs, "-global", "ICH9-LPC.disable_s3=1", "-global", "ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off", "-device", "isa-applesmc,osk="+rot13("bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap"))
+	}
+	// machine opts: hpet=off for macos+windows on x86_64 — QEMU>=70 has
+	// the machine property; older builds take -no-hpet instead.
+	if arch == "x86_64" && (osName == "macos" || osName == "windows" || osName == "windows-server") {
+		if v := qemuVersionShort(arch); v < 0 || v >= 70 {
+			t.Machine = ",hpet=off"
+		} else {
+			t.ExtraArgs = append(t.ExtraArgs, "-no-hpet")
+		}
 	}
 	// --status-quo (snapshot=on) appends -snapshot to every guest's
 	// drive args in Bash — not linux-only.

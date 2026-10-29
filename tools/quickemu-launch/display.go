@@ -283,7 +283,7 @@ func audioArgs(c Conf, osName string, t OsTuning) []string {
 	case "none", "spice", "spice-app":
 		backend = "spice,id=audio0"
 	default:
-		backend = audioDriver() + ",id=audio0"
+		backend = audioDriver(c.get("arch", "x86_64")) + ",id=audio0"
 	}
 	var a []string
 	switch sc {
@@ -300,18 +300,22 @@ func audioArgs(c Conf, osName string, t OsTuning) []string {
 // audioDriver: pipewire > pa > alsa, selected by host socket presence —
 // same precedence as configure_display (QEMU -audio-help check skipped:
 // driver availability varies by build, sockets are the stable signal).
-func audioDriver() string {
+func audioDriver(arch string) string {
 	rt := os.Getenv("XDG_RUNTIME_DIR")
 	if rt == "" {
 		rt = "/run/user/1000"
 	}
 	// Bash also gates on the QEMU build supporting the driver
-	// (-audio-help lists driver=pa/pipewire when compiled in).
-	drvs, _ := execCommand("qemu-system-x86_64", "-audio-help").Output()
+	// (-audio-help lists driver=pa/pipewire when compiled in) — and
+	// PipeWire needs QEMU >= 8.1, where the backend first shipped.
+	qemu := "qemu-system-" + arch
+	drvs, _ := execCommand(qemu, "-audio-help").Output()
 	supported := string(drvs)
-	if _, err := os.Stat(filepath.Join(rt, "pipewire-0")); err == nil &&
-		strings.Contains(supported, "driver=pipewire") {
-		return "pipewire"
+	if v := qemuVersionShort(arch); v < 0 || v >= 81 {
+		if _, err := os.Stat(filepath.Join(rt, "pipewire-0")); err == nil &&
+			strings.Contains(supported, "driver=pipewire") {
+			return "pipewire"
+		}
 	}
 	if _, err := os.Stat(filepath.Join(rt, "pulse/native")); err == nil &&
 		strings.Contains(supported, "driver=pa") {

@@ -660,8 +660,8 @@ func smbdPresent() bool {
 	return false
 }
 
-// qemuVersionShort: QEMU_VER_SHORT parity — the dotted version with
-// dots stripped compared as an integer (8.1.2 → 812, 10.1 → 101).
+// qemuVersionShort: QEMU_VER_SHORT parity — major and minor digits
+// concatenated, patch dropped (6.0 → 60, 6.5 → 65, 10.1 → 101).
 // Unresolvable binary → -1 so version gates stay permissive.
 func qemuVersionShort(arch string) int {
 	qemu, err := exec.LookPath("qemu-system-" + arch)
@@ -670,8 +670,9 @@ func qemuVersionShort(arch string) int {
 	}
 	out, _ := execCommand(qemu, "--version").Output()
 	for _, f := range strings.Fields(string(out)) {
-		if f[0] >= '0' && f[0] <= '9' && strings.Contains(f, ".") {
-			v, err := strconv.Atoi(strings.ReplaceAll(f, ".", ""))
+		parts := strings.SplitN(f, ".", 3)
+		if len(parts) >= 2 && parts[0] != "" && parts[0][0] >= '0' && parts[0][0] <= '9' {
+			v, err := strconv.Atoi(parts[0] + parts[1])
 			if err == nil {
 				return v
 			}

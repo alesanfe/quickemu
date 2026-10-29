@@ -262,18 +262,18 @@ func TestDisplayAndAudioPaths(t *testing.T) {
 	rt := t.TempDir()
 	t.Setenv("XDG_RUNTIME_DIR", rt)
 	os.WriteFile(filepath.Join(rt, "pipewire-0"), nil, 0o600)
-	if d := audioDriver(); d != "pipewire" {
+	if d := audioDriver("x86_64"); d != "pipewire" {
 		t.Fatalf("pipewire %q", d)
 	}
 	os.Remove(filepath.Join(rt, "pipewire-0"))
 	os.WriteFile(filepath.Join(rt, "pulse-native"), nil, 0o600)
 	os.MkdirAll(filepath.Join(rt, "pulse"), 0o755)
 	os.WriteFile(filepath.Join(rt, "pulse", "native"), nil, 0o600)
-	if d := audioDriver(); d != "pa" {
+	if d := audioDriver("x86_64"); d != "pa" {
 		t.Fatalf("pa %q", d)
 	}
 	os.RemoveAll(filepath.Join(rt, "pulse"))
-	if d := audioDriver(); d != "alsa" {
+	if d := audioDriver("x86_64"); d != "alsa" {
 		t.Fatalf("alsa %q", d)
 	}
 }
@@ -737,6 +737,53 @@ func TestFileshareVhostFSProbe(t *testing.T) {
 	c["_virtiofsd"] = "1"
 	if a := fileshareArgs(c, dir); !has(a, "vhost-user-fs-pci") {
 		t.Fatalf("supported QEMU must emit virtiofs: %v", a)
+	}
+}
+
+// configure_os_quirks version gates: windows on KVM gets hv_passthrough
+// on QEMU>6.0 (legacy hv_* list below), and hpet=off lands in -machine
+// on QEMU>=70 (-no-hpet arg below). _accel is stashed by main().
+func TestOsQuirksVersionGates(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("stub script needs a POSIX shell")
+	}
+	stub := t.TempDir()
+	t.Setenv("PATH", stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+	mkver := func(v string) {
+		os.WriteFile(filepath.Join(stub, "qemu-system-x86_64"),
+			[]byte("#!/bin/sh\necho 'QEMU emulator version "+v+"'\n"), 0o755)
+	}
+	mkver("10.1.0")
+	c := Conf{"_accel": "kvm"}
+	tu := osQuirks(c, "windows", "x86_64")
+	if !strings.Contains(tu.CPUFlags, "hv_passthrough") ||
+		strings.Contains(tu.CPUFlags, "hv_frequencies") {
+		t.Fatalf("QEMU 10.1 wants hv_passthrough: %s", tu.CPUFlags)
+	}
+	if tu.Machine != ",hpet=off" {
+		t.Fatalf("QEMU 10.1 wants ,hpet=off: %q", tu.Machine)
+	}
+	mkver("5.2.0")
+	tu = osQuirks(Conf{"_accel": "kvm"}, "windows", "x86_64")
+	if !strings.Contains(tu.CPUFlags, "hv_frequencies") ||
+		strings.Contains(tu.CPUFlags, "hv_passthrough") {
+		t.Fatalf("QEMU 5.2 wants the legacy hv_* list: %s", tu.CPUFlags)
+	}
+	if tu.Machine == ",hpet=off" || !has(tu.ExtraArgs, "-no-hpet") {
+		t.Fatalf("QEMU 5.2 wants -no-hpet arg: %q %v", tu.Machine, tu.ExtraArgs)
+	}
+	// 6.x: new hv flags but still -no-hpet (65 < 70).
+	mkver("6.5.2")
+	tu = osQuirks(Conf{"_accel": "kvm"}, "windows", "x86_64")
+	if !strings.Contains(tu.CPUFlags, "hv_passthrough") ||
+		has(tu.ExtraArgs, "-no-hpet") == false || tu.Machine == ",hpet=off" {
+		t.Fatalf("QEMU 6.5: hv_passthrough + -no-hpet: %s %v", tu.CPUFlags, tu.ExtraArgs)
+	}
+	// TCG: no hv flags at all.
+	mkver("10.1.0")
+	tu = osQuirks(Conf{"_accel": "tcg"}, "windows", "x86_64")
+	if strings.Contains(tu.CPUFlags, "hv_") {
+		t.Fatalf("TCG must not emit hv flags: %s", tu.CPUFlags)
 	}
 }
 

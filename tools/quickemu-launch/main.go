@@ -149,29 +149,11 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	t := osQuirks(conf, osName, arch)
-	// configure_storage sits between os_quirks and display in Bash:
-	// create missing disks, probe write locks, and drop iso/img when
-	// the disk is already used (installed guests boot from disk).
-	if err := prepareStorage(conf, dir); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	// configure_usb_passthrough: probe each declared vid:pid via lsusb —
-	// missing devices are dropped from the passthrough list; present but
-	// unwritable ones abort the launch (host udev rules required).
-	checkUSBPassthrough(conf)
-	machine := t.MachineType
-	if arch == "aarch64" {
-		machine = "virt"
-	}
-
-	args := []string{"qemu-system-" + arch}
-
-	// accel + machine: tcg is a separate -accel arg; kvm goes inside
-	// -machine (the two args+= paths in vm.sh). Same resolution as
-	// Bash configure_cpu: user QEMU_ACCEL override wins for native
-	// guests; cross-arch and qemu/virtualbox hypervisors force tcg.
+	// accel resolves in configure_cpu — before os_quirks, whose KVM-only
+	// hv_* windows flags need it. TCG is a separate -accel arg; kvm goes
+	// inside -machine (the two args+= paths in vm.sh). User QEMU_ACCEL
+	// override wins for native guests; cross-arch and qemu/virtualbox
+	// hypervisors force tcg.
 	accel := "kvm"
 	if u := conf.get("qemu_accel", os.Getenv("QEMU_ACCEL")); u != "" {
 		accel = u
@@ -211,6 +193,26 @@ func main() {
 	if accel == "tcg" && baseModel == "" && arch == "x86_64" {
 		baseModel = "qemu64"
 	}
+	conf["_accel"] = accel
+	t := osQuirks(conf, osName, arch)
+	// configure_storage sits between os_quirks and display in Bash:
+	// create missing disks, probe write locks, and drop iso/img when
+	// the disk is already used (installed guests boot from disk).
+	if err := prepareStorage(conf, dir); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	// configure_usb_passthrough: probe each declared vid:pid via lsusb —
+	// missing devices are dropped from the passthrough list; present but
+	// unwritable ones abort the launch (host udev rules required).
+	checkUSBPassthrough(conf)
+	machine := t.MachineType
+	if arch == "aarch64" {
+		machine = "virt"
+	}
+
+	args := []string{"qemu-system-" + arch}
+
 	if accel == "tcg" {
 		args = append(args, "-accel", "tcg,tb-size=256,thread=multi")
 		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off")
