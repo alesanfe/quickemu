@@ -113,6 +113,12 @@ func run() int {
 		}
 	}
 
+	// --port is joined into a registry path — only a real TCP/UDP port
+	// number is a legal reservation key (no traversal, no junk names).
+	if port != "" && !portOK(port) {
+		return die("BAD_ARGS", "invalid port "+port)
+	}
+
 	switch sub {
 	case "reserve":
 		if port == "" || pidS == "" {
@@ -136,6 +142,9 @@ func run() int {
 		os.Remove(filepath.Join(reg, port))
 		return ok(map[string]any{"port": port})
 	case "check":
+		if port == "" {
+			return die("BAD_ARGS", "check needs --port")
+		}
 		if proto == "" {
 			proto = "tcp"
 		}
@@ -162,6 +171,9 @@ func run() int {
 		}
 		return ok(map[string]any{"port": port, "proto": proto, "bind": bind, "free": true})
 	case "find":
+		if lo < 1 || hi > 65535 || lo > hi {
+			return die("BAD_ARGS", "find needs --lo/--hi as a valid port range")
+		}
 		for p := lo; p <= hi; p++ {
 			f := filepath.Join(reg, strconv.Itoa(p))
 			if _, err := os.Stat(f); err == nil {
@@ -213,4 +225,9 @@ func run() int {
 func isNum(s string) bool {
 	_, err := strconv.Atoi(s)
 	return err == nil
+}
+
+func portOK(s string) bool {
+	n, err := strconv.Atoi(s)
+	return err == nil && n >= 1 && n <= 65535
 }

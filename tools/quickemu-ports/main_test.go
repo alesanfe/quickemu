@@ -103,6 +103,39 @@ func TestReserveWithLease(t *testing.T) {
 	}
 }
 
+// --port is joined into a registry path: a traversal or non-port
+// value must be rejected before it can write (reserve) or delete
+// (release) files outside the registry.
+func TestPortArgTraversal(t *testing.T) {
+	reg := filepath.Join(t.TempDir(), "reg")
+	os.MkdirAll(reg, 0o755)
+	escape := filepath.Join(filepath.Dir(reg), "escape")
+	for _, p := range []string{"../escape", "a/b", "0", "-1", "70000", "x"} {
+		if _, _, rc := runTool(t, "reserve", "--registry", reg,
+			"--port", p, "--pid", "1"); rc == 0 {
+			t.Fatalf("reserve accepted port %q", p)
+		}
+		if _, _, rc := runTool(t, "release", "--registry", reg,
+			"--port", p); rc == 0 {
+			t.Fatalf("release accepted port %q", p)
+		}
+	}
+	if _, err := os.Stat(escape); !os.IsNotExist(err) {
+		t.Fatal("a port arg escaped the registry")
+	}
+	// release of a planted file outside the registry must not delete.
+	os.WriteFile(escape, []byte("x"), 0o600)
+	runTool(t, "release", "--registry", reg, "--port", "../escape")
+	if _, err := os.Stat(escape); err != nil {
+		t.Fatal("release deleted a file outside the registry")
+	}
+	// find without a positive range must fail, never print port 0.
+	out, _, rc := runTool(t, "find", "--registry", reg)
+	if rc == 0 || strings.TrimSpace(out) == "0" {
+		t.Fatalf("find without range: rc=%d out=%s", rc, out)
+	}
+}
+
 func TestCheckFreeAndBound(t *testing.T) {
 	reg := filepath.Join(t.TempDir(), "reg")
 	ln, err := net.Listen("tcp", ":0")
