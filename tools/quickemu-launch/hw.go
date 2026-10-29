@@ -216,19 +216,27 @@ func networkArgs(c Conf, t OsTuning) []string {
 	switch net {
 	case "none":
 		a = []string{"-nic", "none"}
-	case "restrict":
-		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
-			"-netdev", "user,hostname=" + qemuOptEsc(vm) + ",restrict=y,id=nic"}
-	case "passt":
-		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
-			"-netdev", "passt,id=nic"}
-	case "":
-		// user mode: hostfwd appended to the user netdev.
-		// configure_ports auto-allocates ssh_port 22220-22229 when unset.
+	case "restrict", "", "slirp":
+		// user + restrict modes both take hostfwd (launch.sh): restrict
+		// isolates the guest but forwards still reach it. configure_ports
+		// auto-allocates ssh_port 22220-22229 when unset.
 		fwd := ""
 		if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229); p != "" {
-			fwd = ",hostfwd=tcp:127.0.0.1:" + qemuOptEsc(p) + "-:22"
+			// ssh_access picks the bind address (local→loopback,
+			// remote→wildcard, otherwise a specific interface IP).
+			addr, sshHost := "127.0.0.1", "localhost"
+			switch sa := c.get("ssh_access", ""); sa {
+			case "", "local":
+			case "remote":
+				addr = ""
+			default:
+				addr, sshHost = sa, sa
+			}
+			fwd = ",hostfwd=tcp:" + addr + ":" + qemuOptEsc(p) + "-:22"
 			portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p, c["_run"] == "1")
+			fmt.Printf(" - ssh:      On host:  ssh user@%s -p %s\n", sshHost, p)
+		} else {
+			fmt.Println(" - ssh:      All ssh ports have been exhausted.")
 		}
 		for _, pf := range strings.Fields(c.get("port_forwards", "")) {
 			kv := strings.SplitN(pf, ":", 2)
@@ -237,11 +245,16 @@ func networkArgs(c Conf, t OsTuning) []string {
 					",hostfwd=udp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1])
 			}
 		}
-		if pub := c["_public"]; pub != "" {
+		if net == "restrict" {
+			fwd += ",restrict=y"
+		} else if pub := c["_public"]; pub != "" {
 			fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
 		}
 		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
 			"-netdev", "user,hostname=" + qemuOptEsc(vm) + fwd + ",id=nic"}
+	case "passt":
+		a = []string{"-device", t.NetDevice + ",netdev=nic" + mac,
+			"-netdev", "passt,id=nic"}
 	default:
 		// bridge mode: network value IS the interface name
 		helper, _ := exec.LookPath("qemu-bridge-helper")

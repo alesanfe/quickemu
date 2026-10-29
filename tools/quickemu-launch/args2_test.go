@@ -302,6 +302,43 @@ func TestInputAudioNetArgs(t *testing.T) {
 	} {
 		_ = networkArgs(c, OsTuning{NetDevice: "virtio-net-pci"})
 	}
+	// vm_net_mode parity: restrict and slirp are user netdevs and take
+	// the ssh hostfwd (Bash applies it to user AND restrict); a bare
+	// value is a bridge iface. ssh_access picks the fwd bind address.
+	dir2 := t.TempDir()
+	na := networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "network": "restrict"},
+		OsTuning{NetDevice: "virtio-net-pci"})
+	if !has(na, "restrict=y") || !has(na, "hostfwd=tcp:127.0.0.1:") {
+		t.Fatalf("restrict hostfwd: %v", na)
+	}
+	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "network": "slirp"},
+		OsTuning{NetDevice: "virtio-net-pci"})
+	if !has(na, "user,hostname=") || has(na, "restrict=y") || has(na, "bridge") {
+		t.Fatalf("slirp must map to user netdev: %v", na)
+	}
+	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "ssh_access": "remote"},
+		OsTuning{NetDevice: "virtio-net-pci"})
+	if !has(na, "hostfwd=tcp::") {
+		t.Fatalf("ssh_access=remote must bind wildcard: %v", na)
+	}
+	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "ssh_access": "192.168.1.5"},
+		OsTuning{NetDevice: "virtio-net-pci"})
+	if !has(na, "hostfwd=tcp:192.168.1.5:") {
+		t.Fatalf("ssh_access=<ip> must bind that addr: %v", na)
+	}
+	// sound_card conf key (was read as 'sound' — silent ignore) and
+	// sound_card_param_check's usb-audio→xhci force.
+	aa := audioArgs(Conf{"sound_card": "ac97"}, "linux", OsTuning{})
+	if !has(aa, "ac97") {
+		t.Fatalf("sound_card key ignored: %v", aa)
+	}
+	c2 := Conf{"sound_card": "usb-audio"}
+	if err := paramCheckDisplay(c2); err != nil {
+		t.Fatal(err)
+	}
+	if c2["usb_controller"] != "xhci" {
+		t.Fatalf("usb-audio must force xhci: %v", c2)
+	}
 	// ramArgs/cpuArgs variants.
 	_ = ramArgs(Conf{"ram": "8G"})
 	_ = ramArgs(Conf{"ram": "512M"})

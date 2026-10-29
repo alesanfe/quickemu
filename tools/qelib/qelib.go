@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -158,6 +160,77 @@ func Tool(name string, env []string, args ...string) (string, error) {
 	cmd.Stderr = os.Stderr
 	err = cmd.Run()
 	return buf.String(), err
+}
+
+// ParamCheckConf: commands.sh parity — resolution_param_check,
+// access_param_check and network_param_check applied to the merged
+// conf (Bash sources the .conf then applies flag vars, so both paths
+// land here). Messages mirror the Bash wording verbatim.
+func ParamCheckConf(c map[string]string) []string {
+	var errs []string
+	get := func(k string) string { return c[k] }
+	w, h := get("width"), get("height")
+	if w != "" && h == "" {
+		errs = append(errs, "'--width "+w+"' requires '--height'.")
+	}
+	if h != "" && w == "" {
+		errs = append(errs, "'--height "+h+"' requires '--width'.")
+	}
+	if w != "" && !digits(w) {
+		errs = append(errs, "--width must be a number!")
+	}
+	if h != "" && !digits(h) {
+		errs = append(errs, "--height must be a number!")
+	}
+	for k, v := range map[string]string{"width": w, "height": h} {
+		if v != "" && digits(v) {
+			if n, _ := strconv.Atoi(v); n < 1 || n > 16384 {
+				errs = append(errs, "--"+k+" must be between 1 and 16384.")
+			}
+		}
+	}
+	for _, k := range []string{"access", "ssh_access"} {
+		v := get(k)
+		if v == "" || v == "local" || v == "remote" {
+			continue
+		}
+		if !accessTokRe.MatchString(v) {
+			errs = append(errs, "'"+v+"' is not recognised for "+strings.ToUpper(k)+". Use 'local', 'remote' or a host/IP.")
+		}
+	}
+	if m := get("macaddr"); m == "" {
+	} else if !macRe.MatchString(m) {
+		errs = append(errs, "'"+m+"' is not a valid MAC address for macaddr.")
+	}
+	// sound_card_param_check: card whitelist + duplex mode whitelist.
+	if sc := get("sound_card"); sc != "" {
+		switch sc {
+		case "ac97", "es1370", "ich9-intel-hda", "intel-hda", "sb16",
+			"usb-audio", "virtio-sound-pci", "none":
+		default:
+			errs = append(errs, "Requested sound card '"+sc+"' is not recognised.")
+		}
+	}
+	if sd := get("sound_duplex"); sd != "" {
+		switch sd {
+		case "hda-duplex", "hda-micro", "hda-output":
+		default:
+			errs = append(errs, "Requested sound duplex '"+sd+"' is not recognised.")
+		}
+	}
+	return errs
+}
+
+var accessTokRe = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
+var macRe = regexp.MustCompile(`^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$`)
+
+func digits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return s != ""
 }
 
 // DataFile resolves a packaged/dev-tree data file (e.g. catalog/data/

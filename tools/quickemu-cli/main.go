@@ -29,6 +29,27 @@ var (
 	dryRunFlag   bool                  // --dry-run/--echo
 )
 
+// confKeyFor maps a --flag name to its .conf key (options.sh parity):
+// the shared case strips dashes into underscores, except
+// --usb-passthrough which feeds the usb_devices list.
+func confKeyFor(flag string) string {
+	if flag == "usb-passthrough" {
+		return "usb_devices"
+	}
+	return strings.ReplaceAll(flag, "-", "_")
+}
+
+// setConfOpt records a CLI conf override; list-valued keys accumulate
+// (Bash usb_devices+=("v")).
+func setConfOpt(flag, val string) {
+	k := confKeyFor(flag)
+	if k == "usb_devices" && confOpts[k] != "" {
+		confOpts[k] += " " + val
+		return
+	}
+	confOpts[k] = val
+}
+
 func tool(name string, args ...string) (string, error) {
 	return toolEnv(name, nil, args...)
 }
@@ -543,7 +564,7 @@ func main() {
 			"--keyboard", "--mouse", "--usb-controller", "--usb-passthrough",
 			"--sound-card", "--sound-duplex":
 			scOptVal()
-			confOpts[strings.TrimPrefix(a, "--")] = args[i]
+			setConfOpt(strings.TrimPrefix(a, "--"), args[i])
 		case "--list-vms", "--list":
 			actions = append(actions, "list_vms")
 		case "--pause":
@@ -698,6 +719,14 @@ func main() {
 				os.Exit(1)
 			}
 		}
+	}
+	// commands.sh param-checks: resolution/access/network validation on
+	// the merged CLI overrides — errors before any action runs.
+	if errs := qelib.ParamCheckConf(confOpts); len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Println("ERROR! " + e)
+		}
+		os.Exit(1)
 	}
 	if vmConf == "" && len(actions) == 0 {
 		usage()

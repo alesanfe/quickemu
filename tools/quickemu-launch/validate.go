@@ -93,11 +93,17 @@ func validateConf(c Conf, confPath string) []string {
 	}
 	switch net := c.get("network", ""); net {
 	case "", "none", "restrict", "passt", "slirp":
+		// vm_net_mode: ""|slirp→user, none|restrict|passt literal,
+		// everything else is a bridge interface name.
 	default:
 		if _, err := os.Stat("/sys/class/net/" + net); err != nil {
 			errs = append(errs, "bridge interface "+net+" does not exist")
 		}
 	}
+	// commands.sh resolution/access/network param-checks applied to the
+	// conf on disk — width/height pairing, access/ssh_access tokens and
+	// macaddr shape. CLI-side overrides run through the same check.
+	errs = append(errs, qelib.ParamCheckConf(map[string]string(c))...)
 	return errs
 }
 

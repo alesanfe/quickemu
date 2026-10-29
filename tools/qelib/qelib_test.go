@@ -224,3 +224,44 @@ func TestHTTPSuite(t *testing.T) {
 		t.Fatalf("FinalURL %q %v", got, err)
 	}
 }
+
+// ParamCheckConf — commands.sh resolution/access/network checks:
+// width must pair with height, both numeric in 1-16384; access scopes
+// take local|remote|host-token; macaddr must be a real MAC.
+func TestParamCheckConf(t *testing.T) {
+	if errs := ParamCheckConf(map[string]string{"width": "1024"}); len(errs) != 1 ||
+		!strings.Contains(errs[0], "requires '--height'") {
+		t.Fatalf("width without height: %v", errs)
+	}
+	if errs := ParamCheckConf(map[string]string{"height": "768"}); len(errs) != 1 ||
+		!strings.Contains(errs[0], "requires '--width'") {
+		t.Fatalf("height without width: %v", errs)
+	}
+	if errs := ParamCheckConf(map[string]string{"height": "x", "width": "1024"}); len(errs) == 0 {
+		t.Fatal("non-numeric height must fail")
+	}
+	if errs := ParamCheckConf(map[string]string{"width": "20000", "height": "10"}); len(errs) == 0 {
+		t.Fatal("width>16384 must fail")
+	}
+	if errs := ParamCheckConf(map[string]string{"width": "1024", "height": "768"}); len(errs) != 0 {
+		t.Fatalf("valid resolution: %v", errs)
+	}
+	if errs := ParamCheckConf(map[string]string{"access": "bad host"}); len(errs) != 1 ||
+		!strings.Contains(errs[0], "is not recognised for ACCESS") {
+		t.Fatalf("bad access token: %v", errs)
+	}
+	for _, v := range []string{"local", "remote", "192.168.1.10", "vm.local"} {
+		if errs := ParamCheckConf(map[string]string{"access": v}); len(errs) != 0 {
+			t.Fatalf("access=%s must pass: %v", v, errs)
+		}
+	}
+	if errs := ParamCheckConf(map[string]string{"ssh_access": "a b"}); len(errs) == 0 {
+		t.Fatal("bad ssh_access token must fail")
+	}
+	if errs := ParamCheckConf(map[string]string{"macaddr": "de:ad:be:ef"}); len(errs) == 0 {
+		t.Fatal("short MAC must fail")
+	}
+	if errs := ParamCheckConf(map[string]string{"macaddr": "de:ad:be:ef:00:01"}); len(errs) != 0 {
+		t.Fatalf("valid MAC: %v", errs)
+	}
+}

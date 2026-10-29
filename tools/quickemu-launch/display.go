@@ -156,6 +156,10 @@ func paramCheckDisplay(c Conf) error {
 		c["display"] = "sdl"
 		c["usb_controller"] = "xhci"
 	}
+	// sound_card_param_check: USB audio requires an XHCI controller.
+	if c.get("sound_card", "") == "usb-audio" {
+		c["usb_controller"] = "xhci"
+	}
 	display := c.get("display", "none")
 	if runtime.GOOS == "darwin" {
 		if display != "cocoa" && display != "none" {
@@ -259,7 +263,7 @@ func cocoaGLES() bool {
 }
 
 func audioArgs(c Conf, osName string, t OsTuning) []string {
-	sc := c.get("sound", "intel-hda")
+	sc := c.get("sound_card", "intel-hda")
 	if t.SoundCard != "" {
 		sc = t.SoundCard
 	}
