@@ -108,16 +108,42 @@ func reapVM(pid int, dir, name string) {
 	for alivePid(pid) {
 		time.Sleep(2 * time.Second)
 	}
-	// Ownership guard: if the pidfile now records a DIFFERENT pid, a
-	// relaunch took over this VM dir — its state files belong to the
-	// live QEMU, so this reaper must not delete anything. Without the
-	// check, a reaper firing after a same-dir relaunch wipes the new
-	// instance's pidfile/sockets while it still runs.
-	if b, err := os.ReadFile(filepath.Join(dir, name+".pid")); err == nil {
+	// Ownership guard (fail-closed): the pidfile may now belong to a
+	// relaunched instance — either recording a DIFFERENT pid or caught
+	// mid-write with unparseable content. Only clean when the pidfile
+	// still says "this reaper's pid"; anything else means the state
+	// belongs to someone else (or is unknown — never delete on doubt).
+	// A missing pidfile is ambiguous (QEMU unlinks it on clean exit,
+	// but a relaunch may not have written it yet), so it earns a
+	// re-check before the runtime.json fallback decides.
+	pf := filepath.Join(dir, name+".pid")
+	owned := false
+	for i := 0; i < 2; i++ {
+		b, err := os.ReadFile(pf)
+		if err != nil {
+			if i == 0 {
+				time.Sleep(time.Second)
+			}
+			continue
+		}
 		cur := 0
 		fmt.Sscanf(strings.TrimSpace(string(b)), "%d", &cur)
-		if cur > 0 && cur != pid {
+		if cur != pid {
 			return
+		}
+		owned = true
+		break
+	}
+	if !owned {
+		// Still no pidfile — QEMU may run without one. A live foreign
+		// pid in runtime.json is the last proof the dir changed hands.
+		if b, err := os.ReadFile(filepath.Join(dir, name+".runtime.json")); err == nil {
+			var rt struct {
+				Pid int `json:"pid"`
+			}
+			if json.Unmarshal(b, &rt) == nil && rt.Pid > 0 && rt.Pid != pid && alivePid(rt.Pid) {
+				return
+			}
 		}
 	}
 	if lp := launcherPid; lp > 0 {

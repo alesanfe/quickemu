@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestAlivePidAndStopDaemon(t *testing.T) {
@@ -61,7 +63,10 @@ func TestReapVM(t *testing.T) {
 	dir := t.TempDir()
 	name := "vm"
 	// Dead pid → immediate cleanup: all runtime artifacts removed.
-	for _, ext := range []string{".pid", ".sock", ".ports", ".runtime.json", "-qmp.socket", ".paused"} {
+	// The pidfile must record the reaper's own pid for the ownership
+	// guard to allow cleanup.
+	os.WriteFile(filepath.Join(dir, name+".pid"), []byte("99999999"), 0o600)
+	for _, ext := range []string{".sock", ".ports", ".runtime.json", "-qmp.socket", ".paused"} {
 		os.WriteFile(filepath.Join(dir, name+ext), []byte("x"), 0o600)
 	}
 	os.WriteFile(filepath.Join(dir, name+".lock"), []byte("x"), 0o600)
@@ -81,6 +86,41 @@ func TestReapVM(t *testing.T) {
 	reapVM(99999998, dir, name)
 	if _, err := os.Stat(filepath.Join(dir, name+".ports")); err != nil {
 		t.Fatal("foreign instance state was reaped")
+	}
+	// Corrupt pidfile → fail-closed: an existing-but-unparseable
+	// pidfile may belong to a relaunched instance mid-write, so its
+	// state must NOT be reaped.
+	os.WriteFile(filepath.Join(dir, name+".pid"), []byte("garbage\n"), 0o600)
+	reapVM(99999997, dir, name)
+	if _, err := os.Stat(filepath.Join(dir, name+".ports")); err != nil {
+		t.Fatal("corrupt pidfile treated as unowned — state was reaped")
+	}
+	// Missing pidfile is ambiguous: a relaunch may not have written
+	// it yet. A live foreign runtime.json proves the dir changed
+	// hands → preserve.
+	os.Remove(filepath.Join(dir, name+".pid"))
+	rt, _ := json.Marshal(map[string]any{"pid": 1}) // pid 1 = live foreign
+	os.WriteFile(filepath.Join(dir, name+".runtime.json"), rt, 0o600)
+	reapVM(99999996, dir, name)
+	if _, err := os.Stat(filepath.Join(dir, name+".ports")); err != nil {
+		t.Fatal("missing pidfile + foreign live runtime.json was reaped")
+	}
+	// A pidfile appearing mid-reap (relaunch writing it late) must be
+	// honored on the ownership re-check.
+	os.Remove(filepath.Join(dir, name+".runtime.json"))
+	go func() {
+		time.Sleep(200 * time.Millisecond)
+		os.WriteFile(filepath.Join(dir, name+".pid"), []byte("2"), 0o600)
+	}()
+	reapVM(99999995, dir, name)
+	if _, err := os.Stat(filepath.Join(dir, name+".ports")); err != nil {
+		t.Fatal("pidfile written mid-reap (relaunch) was ignored")
+	}
+	// Truly absent state — clean-exit semantics — → cleanup proceeds.
+	os.Remove(filepath.Join(dir, name+".pid"))
+	reapVM(99999994, dir, name)
+	if _, err := os.Stat(filepath.Join(dir, name+".ports")); err == nil {
+		t.Fatal("state survived a legit reap")
 	}
 }
 
