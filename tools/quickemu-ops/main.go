@@ -276,7 +276,10 @@ func run() int {
 		}
 		rbCompensate(dir, o.Type)
 		o.State = "failed"
-		o.Error = json.RawMessage(`{"code":"OPERATION_ROLLBACK","message":"rolled back ` + o.Type + ` effects"}`)
+		// o.Type is file content — marshal the message so a quote in
+		// type cannot inject fields into the rewritten op.
+		msg, _ := json.Marshal("rolled back " + o.Type + " effects")
+		o.Error = json.RawMessage(`{"code":"OPERATION_ROLLBACK","message":` + string(msg) + `}`)
 		writeOp(dir, &o)
 		fmt.Printf("{\"rolledBack\":\"%s\"}\n", o.Type)
 	default:

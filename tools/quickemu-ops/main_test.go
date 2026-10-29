@@ -172,6 +172,33 @@ func TestListPruneRecoverRollback(t *testing.T) {
 	}
 }
 
+// rollback interpolates o.Type — file content, not a trusted value —
+// into a json.RawMessage literal. A quote in type escapes the message
+// string and injects arbitrary fields into the rewritten op.
+func TestRollbackTypeInjection(t *testing.T) {
+	vmdir, id := newOp(t, "v")
+	o := opState(t, vmdir, id)
+	evil := `x","state":"pwned`
+	o["type"] = evil
+	b, _ := json.Marshal(o)
+	os.WriteFile(filepath.Join(vmdir, "ops", id+".json"), b, 0o600)
+	out, rc := runTool(t, "rollback", "--vmdir", vmdir, "--id", id)
+	if rc != 0 {
+		t.Fatalf("rollback rc=%d %s", rc, out)
+	}
+	got := opState(t, vmdir, id)
+	er, ok := got["error"].(map[string]any)
+	if !ok || len(er) != 2 || er["code"] != "OPERATION_ROLLBACK" {
+		t.Fatalf("type injected extra keys into error: %v", got["error"])
+	}
+	if er["message"] != "rolled back "+evil+" effects" {
+		t.Fatalf("type must stay literal in message: %v", er["message"])
+	}
+	if got["state"] != "failed" {
+		t.Fatalf("state rewritten by injection: %v", got["state"])
+	}
+}
+
 func TestBadArgs(t *testing.T) {
 	if _, rc := runTool(t); rc != 2 {
 		t.Fatalf("usage rc=%d", rc)
