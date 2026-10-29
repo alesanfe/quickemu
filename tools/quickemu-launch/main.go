@@ -153,6 +153,13 @@ func main() {
 		}
 	}
 	arch := conf.get("arch", "x86_64")
+	// configure_ports resets the per-boot state files before any port
+	// record is written (run mode only — plan mode must not touch them).
+	if runMode {
+		os.WriteFile(filepath.Join(vmdir, vmname+".ports"), nil, 0o644)
+		os.Remove(filepath.Join(vmdir, vmname+".spice"))
+		os.Remove(dotdir(vmdir) + vmname + ".sock")
+	}
 	// configure_bios fatal checks: macOS firmware/bootloader presence +
 	// sizes, EFI vars writability. Runs before any arg assembly.
 	if err := paramCheckFirmware(conf, arch); err != nil {
@@ -204,6 +211,7 @@ func main() {
 		baseModel = "qemu64"
 	}
 	conf["_accel"] = accel
+	conf["_hypervisor"] = hypervisor
 	t := osQuirks(conf, osName, arch)
 	// configure_storage sits between os_quirks and display in Bash:
 	// create missing disks, probe write locks, and drop iso/img when
@@ -218,7 +226,8 @@ func main() {
 	checkUSBPassthrough(conf)
 	machine := t.MachineType
 	if arch == "aarch64" {
-		machine = "virt"
+		// highmem=on lets virt guests address RAM above 4GB (configure_cpu).
+		machine = "virt,highmem=on"
 		// ARM64 pflash firmware exposes code/vars as named blockdev
 		// nodes on the virt machine (vm_boot MACHINE_TYPE suffix) —
 		// only when EFI_MODE stayed pflash, i.e. not the -bios path.
@@ -428,31 +437,51 @@ func main() {
 					fmt.Fprintln(os.Stderr, "         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
 					os.Exit(1)
 				}
+			default:
+				// ARM hosts have no x86 virt flags (handled by the
+				// hypervisor); anything else gets the Bash warning.
+				if arch != "aarch64" && hostArch() != "aarch64" {
+					fmt.Fprintf(os.Stderr, "WARNING! Unknown CPU vendor '%s' - cannot verify virtualisation support.\n", hostCPUVendor())
+					fmt.Fprintln(os.Stderr, "         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
+				}
 			}
 		}
-		// MSR alert (ignore_msrs_alert): warn when kvm ignore_msrs=N —
-		// macOS/Windows guests crash on unhandled MSRs otherwise.
-		if b, err := os.ReadFile("/sys/module/kvm/parameters/ignore_msrs"); err == nil && strings.TrimSpace(string(b)) == "N" {
-			fmt.Fprintln(os.Stderr, " - MSR:      WARNING! Ignoring unhandled Model-Specific Registers is disabled.")
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "             echo 1 | sudo tee /sys/module/kvm/parameters/ignore_msrs")
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "             If you are unable to run macOS or Windows VMs then run the above")
-			fmt.Fprintln(os.Stderr, "             This will enable ignoring of unhandled MSRs until you reboot the host.")
-			fmt.Fprintln(os.Stderr, "             You can make this change permanent by running: 'quickemu --ignore-msrs-always'")
+		// MSR alert (ignore_msrs_alert): macOS/Windows guests only —
+		// warn (stdout echo) when kvm ignore_msrs=N.
+		if osName == "macos" || osName == "windows" || osName == "windows-server" {
+			if b, err := os.ReadFile("/sys/module/kvm/parameters/ignore_msrs"); err == nil && strings.TrimSpace(string(b)) == "N" {
+				fmt.Println(" - MSR:      WARNING! Ignoring unhandled Model-Specific Registers is disabled.")
+				fmt.Println("")
+				fmt.Println("             echo 1 | sudo tee /sys/module/kvm/parameters/ignore_msrs")
+				fmt.Println("")
+				fmt.Println("             If you are unable to run macOS or Windows VMs then run the above")
+				fmt.Println("             This will enable ignoring of unhandled MSRs until you reboot the host.")
+				fmt.Println("             You can make this change permanent by running: 'quickemu --ignore-msrs-always'")
+			}
 		}
 		// TSC gate (plan_check_tsc): macOS Ventura+ on AMD hosts with an
 		// unstable clocksource can freeze — warn/abort unless bypassed.
+		// Bash echoes the whole block to stdout and logs TSC_WARNING
+		// to the VM log; non-interactive stdin aborts by default.
 		if tsc, clock := hostMacosTSCUnstable(conf); tsc {
+			fmt.Printf(" - TSC:      WARNING! Unstable TSC detected (clocksource: %s)\n", clock)
+			if f, err := os.OpenFile(filepath.Join(vmdir, vmname+".log"),
+				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+				fmt.Fprintf(f, "TSC_WARNING: clocksource=%s macos_release=%s cpu_vendor=%s\n",
+					clock, conf.get("macos_release", ""), hostCPUVendor())
+				f.Close()
+			}
 			if conf.get("ignore_tsc_warning", "") == "" {
-				fmt.Fprintf(os.Stderr, " - TSC:      WARNING! Unstable TSC detected (clocksource: %s)\n", clock)
-				fmt.Fprintln(os.Stderr, "             macOS may freeze on AMD Ryzen mobile CPUs.")
-				fmt.Fprintln(os.Stderr, "             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot.")
-				fmt.Fprintln(os.Stderr, "             Or:  Use macOS Big Sur (11) or Monterey (12) instead.")
-				fmt.Fprintln(os.Stderr, "ERROR! Use ignore_tsc_warning=\"on\" in the conf (or --ignore-tsc-warning) to bypass.")
+				fmt.Println("             macOS may freeze on AMD Ryzen mobile CPUs.")
+				fmt.Println("")
+				fmt.Println("             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot.")
+				fmt.Println("             Or:  Use macOS Big Sur (11) or Monterey (12) instead.")
+				fmt.Println("             See: https://github.com/quickemu-project/quickemu/wiki/03-Create-macOS-virtual-machines#tsc-instability-on-amd-ryzen-mobile-cpus")
+				fmt.Println("")
+				fmt.Println("ERROR! Non-interactive mode detected. Use --ignore-tsc-warning to bypass this check.")
 				os.Exit(1)
 			}
-			fmt.Fprintf(os.Stderr, " - TSC:      WARNING! Unstable TSC detected (clocksource: %s), proceeding.\n", clock)
+			fmt.Println("             Proceeding anyway due to --ignore-tsc-warning flag.")
 		}
 		if err := runQEMU(os.Args[1], vmdir, args, conf); err != nil {
 			fmt.Fprintln(os.Stderr, "launch failed:", err)

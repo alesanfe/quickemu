@@ -813,9 +813,20 @@ func hostCPUVendor() string {
 	return ""
 }
 
-// hostHasFlag: vmx/svm/sse4_2/... presence in cpuinfo (check_cpu_flag).
-// AMD's invtsc is reported as constant_tsc — same equivalence as Bash.
+// hostHasFlag: vmx/svm/sse4_2/... presence (check_cpu_flag). Linux
+// reads cpuinfo — AMD's invtsc is reported as constant_tsc. Darwin
+// greps sysctl machdep.cpu.features with the flag mapped like Bash
+// (upper, _→., X2APIC→x2APIC, AVX→AVX1.0).
 func hostHasFlag(flag string) bool {
+	if runtime.GOOS == "darwin" {
+		f := strings.ToUpper(strings.ReplaceAll(flag, "_", "."))
+		f = strings.ReplaceAll(f, "X2APIC", "x2APIC")
+		if f == "AVX" {
+			f = "AVX1.0"
+		}
+		out, err := execCommand("sysctl", "-n", "machdep.cpu.features").Output()
+		return err == nil && strings.Contains(string(out), f)
+	}
 	b, err := os.ReadFile("/proc/cpuinfo")
 	if err != nil {
 		return false

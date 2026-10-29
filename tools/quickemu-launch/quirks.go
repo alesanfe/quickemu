@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"runtime"
 	"strings"
 )
 
@@ -125,8 +127,13 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 				if v := qemuVersionShort(arch); v < 0 || v > 60 {
 					t.CPUFlags += ",migratable=no,hv_passthrough"
 				} else {
-					t.CPUFlags += ",migratable=no,hv_frequencies,hv_reenlightenment," +
-						"hv_relaxed,hv_spinlocks=8191,hv_stimer,hv_synic,hv_time," +
+					t.CPUFlags += ",migratable=no,hv_frequencies"
+					// kvm_pv_unhalt only on the non-Darwin branch
+					// (CPU_KVM_UNHALT is empty for hvf hosts).
+					if runtime.GOOS != "darwin" {
+						t.CPUFlags += ",kvm_pv_unhalt"
+					}
+					t.CPUFlags += ",hv_reenlightenment,hv_relaxed,hv_spinlocks=8191,hv_stimer,hv_synic,hv_time," +
 						"hv_vapic,hv_vendor_id=1234567890ab,hv_vpindex"
 				}
 			}
@@ -135,7 +142,81 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 		t.CPUFlags = "@qemu32"
 	case "macos":
 		if arch == "x86_64" {
-			t.CPUFlags = ",-pdpe1gb,+hypervisor,vmware-cpuid-freq=on,vendor=GenuineIntel"
+			// configure_cpu macos branch: Intel host + bare metal passes
+			// the host model through; anything else emulates Haswell-v2
+			// with an Intel vendor string so macOS accepts the CPU.
+			intel := hostCPUVendor() == "GenuineIntel"
+			hyper := c["_hypervisor"] != ""
+			if intel && !hyper {
+				t.CPUFlags = ",-pdpe1gb,+hypervisor,vmware-cpuid-freq=on"
+			} else {
+				t.CPUFlags = "@Haswell-v2,vendor=GenuineIntel,-pdpe1gb,+avx,+sse,+sse2,+ssse3,vmware-cpuid-freq=on"
+			}
+			// Feature gates only apply under hardware accel — TCG
+			// emulates the features (macOS x86_64 on ARM hosts).
+			if c["_accel"] != "tcg" {
+				rel := c.get("macos_release", "")
+				switch rel {
+				case "ventura", "sonoma", "sequoia", "tahoe":
+					if hostHasFlag("sse4_2") && hostHasFlag("avx2") {
+						if !intel && !hyper {
+							t.CPUFlags += ",+avx2,+sse4.2"
+						}
+					} else {
+						fmt.Printf("ERROR! macOS %s requires a CPU with SSE 4.2 and AVX2 support.\n", rel)
+						fmt.Println("       Try macOS Monterey or Big Sur.")
+						os.Exit(1)
+					}
+				case "catalina", "big-sur", "monterey":
+					if hostHasFlag("sse4_2") {
+						if !intel && !hyper {
+							t.CPUFlags += ",+sse4.2"
+						}
+					} else {
+						fmt.Printf("ERROR! macOS %s requires a CPU with SSE 4.2 support.\n", rel)
+						os.Exit(1)
+					}
+				default:
+					if hostHasFlag("sse4_1") {
+						if !intel && !hyper {
+							t.CPUFlags += ",+sse4.1"
+						}
+					} else {
+						fmt.Printf("ERROR! macOS %s requires a CPU with SSE 4.1 support.\n", rel)
+						os.Exit(1)
+					}
+				}
+				if !intel && !hyper {
+					// configure_cpu_flag list for non-Intel bare metal:
+					// pass through every feature the host reports.
+					for _, f := range []string{
+						"abm", "adx", "aes", "amd-ssbd", "apic", "arat", "bmi1", "bmi2",
+						"clflush", "cmov", "cx8", "cx16", "de", "eist", "erms", "f16c",
+						"fma", "fp87", "fsgsbase", "fxsr", "invpcid", "invtsc", "lahf_lm",
+						"lm", "mca", "mce", "mmx", "movbe", "mpx", "msr", "mtrr", "nx",
+						"pae", "pat", "pcid", "pge", "pse", "popcnt", "pse36", "rdrand",
+						"rdtscp", "sep", "smep", "syscall", "tsc", "tsc_adjust", "vaes",
+						"vbmi2", "vmx", "vpclmulqdq", "x2apic", "xgetbv1", "xsave", "xsaveopt",
+					} {
+						if hostHasFlag(f) {
+							qf := strings.ReplaceAll(f, "_", "-")
+							qf = strings.ReplaceAll(qf, "4-", "4.")
+							if runtime.GOOS == "darwin" && f == "avx" {
+								qf = "AVX1.0"
+							}
+							t.CPUFlags += ",+" + qf
+						} else if f == "pcid" && hostCPUVendor() == "AuthenticAMD" {
+							// AMD lacks pcid — disable it explicitly.
+							t.CPUFlags += ",-pcid"
+						}
+					}
+					// AMD constant_tsc needs the explicit TSC flags for
+					// macOS stability (configure_cpu_flag equivalents).
+					if hostCPUVendor() == "AuthenticAMD" && hostHasFlag("invtsc") {
+						t.CPUFlags += ",+tsc,+tsc-deadline"
+					}
+				}
+			}
 		}
 	}
 

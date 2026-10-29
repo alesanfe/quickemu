@@ -1081,7 +1081,7 @@ func TestAarch64MachineEmit(t *testing.T) {
 	if rc != 0 {
 		t.Fatalf("rc=%d %s", rc, out)
 	}
-	if !strings.Contains(out, "-machine virt,pflash0=rom,pflash1=efivars") {
+	if !strings.Contains(out, "-machine virt,highmem=on,pflash0=rom,pflash1=efivars") {
 		t.Fatalf("aarch64 efi machine: %s", out)
 	}
 	if strings.Contains(out, "smm=") || strings.Contains(out, "vmport") {
