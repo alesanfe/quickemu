@@ -355,9 +355,21 @@ func isWorker(pid int, dir string) bool {
 	if base := filepath.Base(argv[0]); strings.HasPrefix(base, "quickemu") || strings.HasPrefix(base, "quickget") {
 		return true
 	}
-	vmdir := filepath.Dir(dir)
+	// Abs first: a relative dir degenerates the contains check
+	// (vmdir "." would match nearly any argument).
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	vmdir := filepath.Dir(abs)
+	// Path-boundary match: vmdir "/vms/myvm" must not match a sibling
+	// worker's "/vms/myvm2/disk.qcow2" argument.
+	mentions := func(a, d string) bool {
+		return a == d || strings.HasPrefix(a, d+"/") ||
+			strings.HasSuffix(a, "="+d) || strings.Contains(a, "="+d+"/")
+	}
 	for _, a := range argv[1:] {
-		if strings.Contains(a, vmdir) || strings.Contains(a, dir) {
+		if mentions(a, vmdir) || mentions(a, abs) {
 			return true
 		}
 	}
