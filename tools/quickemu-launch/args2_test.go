@@ -747,3 +747,32 @@ func TestPrepareStorage(t *testing.T) {
 		t.Fatalf("plan mode must not validate preallocation: %v", err)
 	}
 }
+
+// vm_boot_media: kolibrios/reactos emit the ISO at index=2 instead of
+// the generic index=0 (phantom-iso workaround); aarch64 hangs CD-ROMs
+// off virtio-scsi with bootindex.
+func TestBootMediaSpecialCases(t *testing.T) {
+	dir := t.TempDir()
+	for _, osn := range []string{"kolibrios", "reactos"} {
+		a := storageArgs(Conf{"guest_os": osn, "iso": "i.iso"}, dir, OsTuning{})
+		if has(a, "index=0") {
+			t.Fatalf("%s must not emit generic index=0 iso: %v", osn, a)
+		}
+		bm := bootMediaArgs(Conf{"guest_os": osn, "iso": "i.iso"}, dir)
+		if !has(bm, "index=2") {
+			t.Fatalf("%s must emit index=2 iso: %v", osn, bm)
+		}
+	}
+	// aarch64: scsi-cd + bootindex, plus the virtio-scsi controller.
+	a := storageArgs(Conf{"guest_os": "linux", "iso": "i.iso",
+		"fixed_iso": "f.iso", "arch": "aarch64"}, dir, OsTuning{})
+	for _, want := range []string{"virtio-scsi-pci", "scsi-cd", "bootindex=1", "bootindex=3"} {
+		if !has(a, want) {
+			t.Fatalf("aarch64 media missing %q: %v", want, a)
+		}
+	}
+	// floppy carries format=raw.
+	if b := bootMediaArgs(Conf{"floppy": "f.img"}, dir); !has(b, "format=raw") {
+		t.Fatalf("floppy: %v", b)
+	}
+}

@@ -436,9 +436,24 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		a = append(a, "-device", dev+",drive=SystemDisk",
 			"-drive", "id=SystemDisk,if=none,format="+dfmt+",file="+qemuOptEsc(joinConf(dir, d))+",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
 	}
-	if d := c.get("iso", ""); d != "" {
-		// Bash: plain cdrom drive (IDE), indexed.
-		a = append(a, "-drive", "media=cdrom,index=0,file="+qemuOptEsc(joinConf(dir, d)))
+	// vm_boot_media emits kolibrios/reactos ISOs at index=2 (phantom-
+	// iso workaround); the generic emit must skip them.
+	osn := c.get("guest_os", "")
+	specialISO := osn == "kolibrios" || osn == "reactos"
+	a64 := c.get("arch", "x86_64") == "aarch64"
+	if a64 && (c.get("iso", "") != "" || c.get("fixed_iso", "") != "") {
+		// virt machine has no IDE — CD-ROMs hang off virtio-scsi.
+		a = append(a, "-device", "virtio-scsi-pci,id=scsi0")
+	}
+	if d := c.get("iso", ""); d != "" && !specialISO {
+		if a64 {
+			// bootindex=1: UEFI boots the installer before the disk.
+			a = append(a, "-device", "scsi-cd,drive=cd0,bus=scsi0.0,bootindex=1",
+				"-drive", "id=cd0,if=none,format=raw,media=cdrom,readonly=on,file="+qemuOptEsc(joinConf(dir, d)))
+		} else {
+			// Bash: plain cdrom drive (IDE), indexed.
+			a = append(a, "-drive", "media=cdrom,index=0,file="+qemuOptEsc(joinConf(dir, d)))
+		}
 		if _, err := os.Stat(joinConf(dir, d)); err == nil {
 			fmt.Printf(" - Boot ISO: %s\n", joinConf(dir, d))
 		}
@@ -450,7 +465,12 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		}
 	}
 	if d := c.get("fixed_iso", ""); d != "" {
-		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",media=cdrom")
+		if a64 {
+			a = append(a, "-device", "scsi-cd,drive=cd1,bus=scsi0.0,bootindex=3",
+				"-drive", "id=cd1,if=none,format=raw,media=cdrom,readonly=on,file="+qemuOptEsc(joinConf(dir, d)))
+		} else {
+			a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, d))+",media=cdrom")
+		}
 		if _, err := os.Stat(joinConf(dir, d)); err == nil {
 			fmt.Printf(" - CD-ROM:   %s\n", joinConf(dir, d))
 		}

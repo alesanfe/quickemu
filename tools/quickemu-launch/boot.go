@@ -28,7 +28,7 @@ func bootMediaArgs(c Conf, dir string) []string {
 		}
 	}
 	if c.get("floppy", "") != "" {
-		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, c["floppy"]))+",if=floppy")
+		a = append(a, "-drive", "if=floppy,format=raw,file="+qemuOptEsc(joinConf(dir, c["floppy"])))
 	}
 	if c.get("driver_iso", "") != "" {
 		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, c["driver_iso"]))+",media=cdrom,if=none,id=driver", "-device", "virtio-cdrom,drive=driver")
