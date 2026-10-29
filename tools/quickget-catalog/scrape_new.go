@@ -27,7 +27,7 @@ func ghISO(repo, re string) (string, string, error) {
 }
 
 // ghISOsha is ghISO plus a sibling checksum asset (e.g. .iso.sha256 or
-// sha256sum.txt) whose download URL is returned as the checksum field.
+// sha256sum.txt); the checksum returned is the digest inside the asset.
 func ghISOsha(repo, isoRe, sumRe string) (string, string, error) {
 	body, err := fetchString("https://api.github.com/repos/" + repo + "/releases")
 	if err != nil {
@@ -46,6 +46,9 @@ func ghISOsha(repo, isoRe, sumRe string) (string, string, error) {
 	}
 	if iso == "" {
 		return "", "", fmt.Errorf("%s: no asset matching %s", repo, isoRe)
+	}
+	if sum != "" {
+		sum = sumAt(sum)
 	}
 	return iso, sum, nil
 }
@@ -133,14 +136,62 @@ func sfLatestDir(project, sub, re string) (string, error) {
 	return strings.TrimRight(base, "/") + "/" + best + "/", nil
 }
 
-// indexISOsha is indexISO plus the "<file>.sha256" sidecar URL as
-// checksum field (Bandshed-style mirror layout).
+// indexISOsha is indexISO plus the "<file>.sha256" sidecar digest
+// (Bandshed-style mirror layout).
 func indexISOsha(base, re string) (string, string, error) {
+	return indexISOsum(base, re, ".sha256")
+}
+
+// indexISOsum is indexISO plus a "<file><ext>" sidecar digest
+// (e.g. .sha256, .md5).
+func indexISOsum(base, re, ext string) (string, string, error) {
 	u, _, err := indexISO(base, re)
 	if err != nil {
 		return "", "", err
 	}
-	return u, u + ".sha256", nil
+	return u, sumAt(u + ext), nil
+}
+
+// indexISOsums is indexISO plus a digest lookup for the resolved file
+// inside a multi-file sums manifest (SHA256SUMS, CHECKSUM, MANIFEST).
+func indexISOsums(base, isoRe, sumsName string) (string, string, error) {
+	u, _, err := indexISO(base, isoRe)
+	if err != nil {
+		return "", "", err
+	}
+	sha := ""
+	if b, err := fetchString(strings.TrimRight(base, "/") + "/" + sumsName); err == nil {
+		sha = sumForISO(b, u[strings.LastIndex(u, "/")+1:])
+	}
+	return u, sha, nil
+}
+
+var hexRe = regexp.MustCompile(`^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{64}$`)
+
+// sumAt fetches a checksum file/URL and returns the first hex digest.
+func sumAt(u string) string {
+	body, err := fetchString(u)
+	if err != nil {
+		return ""
+	}
+	return regexp.MustCompile(`[a-fA-F0-9]{64}|[a-fA-F0-9]{32}`).FindString(body)
+}
+
+// sumForISO finds iso's digest inside a sums manifest body; supports
+// "<hex> <name>" and BSD-style "SHA256 (<name>) = <hex>" lines.
+func sumForISO(body, iso string) string {
+	for _, l := range strings.Split(body, "\n") {
+		if !strings.Contains(l, iso) {
+			continue
+		}
+		for _, f := range strings.Fields(l) {
+			f = strings.Trim(f, "()= \t")
+			if hexRe.MatchString(f) {
+				return strings.ToLower(f)
+			}
+		}
+	}
+	return ""
 }
 
 // scrapeRescued handles the second expansion batch; called from scrape's
@@ -200,6 +251,200 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		return ghISO("klange/toaruos", `\.iso$`)
 	case "zimaos":
 		return ghISO("IceWhaleTech/ZimaOS", `zimaos.*\.(img|iso)`)
+	case "instantos":
+		return ghISOsha("instantOS/instantOS", `instantos-[^"]*x86_64\.iso`, `instantos-[^"]*x86_64\.iso\.sha256`)
+	case "minios":
+		ed := map[string]string{"standard": "standard", "toolbox": "toolbox", "ultra": "ultra"}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("minios: unknown edition %q", edition)
+		}
+		return ghISOsha("minios-linux/minios-live", `minios-[^"]*-`+ed+`-amd64-[^"]*\.iso`, `minios-[^"]*-`+ed+`-amd64-[^"]*\.iso\.sha256`)
+	case "rescuezilla":
+		return ghISOsha("rescuezilla/rescuezilla", `rescuezilla-[0-9.]+-64bit\.`+edition+`\.iso`, `SHA256SUM`)
+	case "rancheros":
+		return ghISO("rancher/os", `rancheros\.iso`)
+	case "shredos":
+		return ghISO("PartialVolume/shredos.x86_64", `shredos-[0-9._]+_x86-64_v[0-9.]+_[0-9]+\.iso`)
+
+	// --- SourceForge (batch 3) ---
+	case "robolinux":
+		// robolinux64-<ed>-vR<ver>.iso and newer robolinux-<ed>-<ver>.iso.
+		return sfISO("robolinux", "", `robolinux(64)?-`+edition+`-(vR)?[0-9.]+[^"/]*\.iso`)
+	case "voyager":
+		stream := "debian"
+		if edition == "lts" {
+			stream = "LTS"
+		}
+		return sfISO("voyagerlive", "", `Voyager-[0-9.]+-`+stream+`-amd64\.iso`)
+	case "ubuntuce":
+		return sfISO("ubuntuce", "", `ubuntuce-[^"/]*desktop-amd64\.iso`)
+	case "smoothwall":
+		return sfISO("smoothwall", "SmoothWall/3.1%20SP6", `Express-3\.1-SP6-x86_64\.iso`)
+	case "endian":
+		return sfISO("efw", "Development/EFW-3.3.2", `community[^"/]*x86-64[^"/]*\.iso`)
+	case "t1n1wall":
+		return sfISO("t1n1wall", "snapshots/2.11-beta/i386", `generic-pc-[^"/]*\.iso`)
+	case "jnode":
+		dir, err := sfLatestDir("jnode", "JNode-x86/", `[0-9.]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `jnode-x86-[^"/]*\.iso\.gz`)
+	case "ultimate-edition":
+		return sfISO("ultimateedition", "", `ultimate-arch-server-[0-9.]+-x86_64-[a-z]+\.iso`)
+	case "nethserver":
+		return sfISO("nethserver", "", `nethserver-[0-9.]+-x86_64\.iso`)
+	case "archbang":
+		return sfISO("archbang", "ArchBANG", `archbang-[0-9]+-x86_64\.iso`)
+	case "geckolinux":
+		sub := map[string]string{"rolling": "Rolling", "static": "Static", "next": "NEXT"}[release]
+		if sub == "" {
+			return "", "", fmt.Errorf("geckolinux: unknown release %q", release)
+		}
+		ed := map[string]string{
+			"cinnamon": "Cinnamon", "xfce": "XFCE", "gnome": "Gnome",
+			"kde": "Plasma", "mate": "Mate", "lxqt": "LXQt",
+			"budgie": "Budgie", "barebones": "BareBones",
+		}[edition]
+		if ed == "" {
+			return "", "", fmt.Errorf("geckolinux: unknown edition %q", edition)
+		}
+		dir, err := sfLatestDir("geckolinux", sub+"/", `[0-9][0-9.]+`)
+		if err != nil {
+			return "", "", err
+		}
+		// The ISO name embeds the build dir's version: 999.220820.0.
+		ver := strings.Trim(strings.TrimRight(dir, "/")[strings.LastIndex(strings.TrimRight(dir, "/"), "/")+1:], "/")
+		return sfISOat(dir, `GeckoLinux_`+strings.ToUpper(sub)+`[-_]`+ed+`\.x86_64-`+regexp.QuoteMeta(ver)+`[^"/]*\.iso`)
+	case "risios":
+		dir, err := sfLatestDir("risios", "", `[0-9]+-[0-9]{8}`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `risiOS-Live-[^"/]*\.iso`)
+	case "makulu":
+		return sfISO("makulu", "downloads/AIOS", `MakuluLinux-[^"/]*\.iso`)
+	case "ezarcher":
+		return sfISO("ezarch", "Testing_ISO", `ezarcher-kde-[^"/]*\.iso`)
+	case "boot-repair":
+		return sfISO("boot-repair-cd", "", `boot-repair-disk-64bit\.iso`)
+	case "rescatux":
+		dir, err := sfLatestDir("rescatux", "", `rescatux-[0-9.]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `rescatux-[^"/]*\.iso`)
+	case "lxle":
+		return sfISO("lxle", "Final/OS/Focal-64", `LXLE-[^"/]*\.iso`)
+	case "furybsd":
+		dir, err := sfLatestDir("furybsd", "", `[^"]*-`+strings.ToUpper(edition))
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `FuryBSD-[^"/]*\.iso`)
+	case "caelinux":
+		dir, err := sfLatestDir("caelinux", "", `[A-Za-z]*`+release)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `caelinux`+release+`lite\.iso`)
+	case "wubuntu":
+		dir, err := sfLatestDir("windows-linux", "", `[0-9][0-9.]+-[^"/]+`)
+		if err != nil {
+			return "", "", err
+		}
+		return sfISOat(dir, `winux-[0-9]+\.[0-9][^"/]*\.iso`)
+	case "supergrub2":
+		arch := "i386_pc"
+		if edition == "efi" {
+			arch = "i386_efi"
+		}
+		dir := fmt.Sprintf("https://sourceforge.net/projects/supergrub2/files/%s/super_grub2_disk_%s", release, release)
+		u, _, err := sfISOat(dir, `supergrub2-classic-[^"/]*-`+arch+`-CD\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(strings.TrimSuffix(u, "/download") + ".sha256/download"), nil
+	case "refracta":
+		u, _, err := sfISO("refracta", "isohybrid", `refracta[0-9.]+_xfce_amd64[^"/]*\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt("https://sourceforge.net/projects/refracta/files/isohybrid/SHA256SUMS/download"), nil
+
+	// --- index/mirror (batch 3) ---
+	case "pfsense":
+		base := "https://atxfiles.netgate.com/mirror/downloads/"
+		u, _, err := indexISO(base, `pfSense-CE-`+regexp.QuoteMeta(release)+`-RELEASE-amd64\.iso\.gz`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(u + ".sha256"), nil
+	case "ubuntu-core":
+		return indexISOsums("https://cdimage.ubuntu.com/ubuntu-core/"+release+"/stable/current/", `ubuntu-core-`+release+`-amd64\.img\.xz`, "SHA256SUMS")
+	case "opencloudos":
+		base := "https://mirrors.opencloudos.tech/opencloudos/" + release + "/isos/x86_64/"
+		ed := "minimal"
+		if edition != "" {
+			ed = edition
+		}
+		// 9.x nests a dated build dir; 8.x is a flat listing where
+		// "everything" is published as dvd1.
+		if dir, err := latestDir(base, `[0-9]{8}\.[0-9]+`); err == nil {
+			return indexISOsums(dir+"/", `OpenCloudOS-`+release+`-[^"/]*-x86_64-`+ed+`\.iso`, "CHECKSUM")
+		}
+		if ed == "everything" {
+			ed = "dvd1"
+		}
+		return indexISOsums(base, `OpenCloudOS-`+release+`-x86_64-`+ed+`\.iso`, "CHECKSUM")
+	case "tencentos":
+		base := "https://mirrors.tencent.com/tencentos/" + release + "/isos/x86_64/"
+		ed := "minimal"
+		if edition != "" {
+			ed = edition
+		}
+		// 4.2+ nests a dated build dir; 4.0 is a flat listing where
+		// the netinst image replaces boot.
+		if dir, err := latestDir(base, `[0-9]{8}\.[0-9]+`); err == nil {
+			return indexISOsums(dir+"/", `TencentOS-Server-`+release+`-[^"/]*-x86_64-`+ed+`\.iso`, "CHECKSUM")
+		}
+		if ed == "boot" {
+			ed = "netinst"
+		}
+		return indexISOsums(base, `TencentOS-Server-`+release+`-`+ed+`-x86_64\.iso`, "CHECKSUM")
+	case "grommunio":
+		file := "grommunio.x86_64-latest"
+		if edition == "offline" {
+			file = "grommunio-offline-latest"
+		}
+		u := "https://download.grommunio.com/appliance/" + file + ".install.iso"
+		return u, sumAt(u + ".sha256"), nil
+	case "turnkeylinux":
+		u, _, err := indexISO("https://mirror.turnkeylinux.org/turnkeylinux/images/iso/", `turnkey-core-`+regexp.QuoteMeta(release)+`-[a-z]+-amd64\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		return u, sumAt(u + ".hash"), nil
+	case "netrunner":
+		return indexISO("https://pub.netrunner.com/", `netrunner-[0-9]+-64-bit\.iso`)
+	case "daphile":
+		suffix := ""
+		if edition == "rt" {
+			suffix = "-rt"
+		}
+		return indexISO("https://www.daphile.com/firmware/stable/", `daphile-[0-9.]+-x86_64`+suffix+`\.iso`)
+	case "debian-edu":
+		return indexISO("https://get.debian.org/cdimage/release/current/amd64/iso-cd/", `debian-edu-[0-9.]+-amd64-netinst\.iso`)
+	case "opensuse-slowroll":
+		return indexISO("https://download.opensuse.org/slowroll/iso/", `openSUSE-Slowroll-DVD-x86_64-Build[0-9.]+-Media\.iso`)
+	case "hardenedbsd":
+		return indexISOsums("https://installers.hardenedbsd.org/pub/"+release+"/amd64/amd64/installer/LATEST/", `disc1\.iso`, "MANIFEST")
+	case "zenwalk":
+		return indexISOsum("https://download.zenwalk.org/x86_64/"+release+"/", `zenwalk-`+release+`-[0-9]+\.iso`, ".md5")
+	case "freedombox":
+		return indexISO("https://ftp.freedombox.org/pub/freedombox/hardware/amd64/"+release+"/", `freedombox-[^"/]*_all-amd64\.img\.xz`)
+	case "parabola":
+		return indexISO("https://repo.parabola.nu/iso/x86_64-experimental-lxde-2019.06-pre/", `parabola-x86_64-systemd-lxde-[^"/]*complete\.iso`)
 
 	// --- SourceForge ---
 	case "avlinux":

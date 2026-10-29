@@ -41,7 +41,15 @@ func bodyFor(url string) (string, error) {
 			{"browser_download_url":"https://gh/image.iso"},
 			{"browser_download_url":"https://gh/dahliaOS-24.04.img"},
 			{"browser_download_url":"https://gh/zimaos-1.5.0.img"},
-			{"browser_download_url":"https://gh/crystal-1.0.iso"}]`, nil
+			{"browser_download_url":"https://gh/crystal-1.0.iso"},
+			{"browser_download_url":"https://gh/instantos-1.0-x86_64.iso"},
+			{"browser_download_url":"https://gh/instantos-1.0-x86_64.iso.sha256"},
+			{"browser_download_url":"https://gh/minios-4.0-standard-amd64-2026.iso"},
+			{"browser_download_url":"https://gh/minios-4.0-standard-amd64-2026.iso.sha256"},
+			{"browser_download_url":"https://gh/rescuezilla-2.4-64bit.resolute.iso"},
+			{"browser_download_url":"https://gh/SHA256SUMS"},
+			{"browser_download_url":"https://gh/rancheros.iso"},
+			{"browser_download_url":"https://gh/shredos-2024.11.2_23_x86-64_v0.38_20250110.iso"}]`, nil
 	case strings.Contains(url, "broadcom.com"):
 		return `<a href="photon-5.0-dde71ec57.x86_64.iso">x</a><a href="photon-minimal-5.0-dde71ec57.x86_64.iso">y</a><a href="photon-5.0-dde71ec57.x86_64.debug.iso">z</a>`, nil
 	case strings.Contains(url, "bandshed"):
@@ -68,7 +76,7 @@ func bodyFor(url string) (string, error) {
 		return `<a href="CentOS-8.5.2111-x86_64-dvd1.iso">x</a>`, nil
 	case strings.Contains(url, "centos.org/5"):
 		return `<a href="CentOS-5.11-x86_64-bin-1of9.iso">x</a>`, nil
-	case strings.Contains(url, "centos"):
+	case strings.Contains(url, "centos.org"):
 		return `<a href="CentOS-6.10-x86_64-bin-DVD1.iso">x</a>`, nil
 	case strings.Contains(url, "core204"):
 		return `<a href="ipfire-2.29-core204-x86_64.iso">x</a>`, nil
@@ -144,6 +152,103 @@ func bodyFor(url string) (string, error) {
 		return `<a href="24.04.1/">v</a><a href="TrueNAS-SCALE-24.04.1.iso">i</a>`, nil
 	case strings.Contains(url, "kicksecure"):
 		return `<a href="17.9.9/">v</a><a href="Kicksecure-CLI-17.9.9.Intel_AMD64.qcow2.libvirt.xz">i</a>`, nil
+	// --- third-expansion fixtures ---
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.8") && strings.Contains(url, "CHECKSUM"):
+		return shaX + "  OpenCloudOS-8.8-x86_64-dvd1.iso\n", nil
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "8.8"):
+		return `<a href="OpenCloudOS-8.8-x86_64-dvd1.iso">x</a>`, nil
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "CHECKSUM"):
+		return shaX + "  OpenCloudOS-9.4-20260313.0-x86_64-minimal.iso\n", nil
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "20260313.0"):
+		return `<a href="OpenCloudOS-9.4-20260313.0-x86_64-minimal.iso">x</a>`, nil
+	case strings.Contains(url, "opencloudos"):
+		return `<a href="20260313.0/">d</a>`, nil
+	case strings.Contains(url, "tencentos") && strings.Contains(url, "4.0") && strings.Contains(url, "CHECKSUM"):
+		return shaX + "  TencentOS-Server-4.0-netinst-x86_64.iso\n", nil
+	case strings.Contains(url, "tencentos") && strings.Contains(url, "4.0"):
+		return `<a href="TencentOS-Server-4.0-netinst-x86_64.iso">x</a>`, nil
+	case strings.Contains(url, "tencentos") && strings.Contains(url, "CHECKSUM"):
+		return shaX + "  TencentOS-Server-4.2-20250227.0-x86_64-boot.iso\n", nil
+	case strings.Contains(url, "tencentos") && strings.Contains(url, "20250227.0"):
+		return `<a href="TencentOS-Server-4.2-20250227.0-x86_64-boot.iso">x</a>`, nil
+	case strings.Contains(url, "tencentos"):
+		return `<a href="20250227.0/">d</a>`, nil
+	case strings.Contains(url, "netgate"):
+		return `<a href="pfSense-CE-2.7.2-RELEASE-amd64.iso.gz">x</a>`, nil
+	case strings.Contains(url, "ubuntu-core"):
+		return `<a href="ubuntu-core-24-amd64.img.xz">x</a>`, nil
+	case strings.Contains(url, "grommunio"):
+		return shaX + "\n", nil
+	case strings.Contains(url, "turnkeylinux") && strings.Contains(url, ".hash"):
+		return shaX + "  turnkey-core-18.1-bookworm-amd64.iso\n", nil
+	case strings.Contains(url, "turnkeylinux"):
+		return `<a href="turnkey-core-18.1-bookworm-amd64.iso">x</a>`, nil
+	case strings.Contains(url, "netrunner"):
+		return `<a href="netrunner-25-64-bit.iso">x</a>`, nil
+	case strings.Contains(url, "daphile"):
+		return `<a href="daphile-24.02-x86_64.iso">x</a><a href="daphile-24.02-x86_64-rt.iso">y</a>`, nil
+	case strings.Contains(url, "cdimage/release"):
+		return `<a href="debian-edu-12.5.0-amd64-netinst.iso">x</a>`, nil
+	case strings.Contains(url, "slowroll"):
+		return `<a href="openSUSE-Slowroll-DVD-x86_64-Build2024.09.15-Media.iso">x</a>`, nil
+	case strings.Contains(url, "hardenedbsd") && strings.Contains(url, "MANIFEST"):
+		return "SHA256 (disc1.iso) = " + shaX + "\n", nil
+	case strings.Contains(url, "hardenedbsd"):
+		return `<a href="disc1.iso">x</a>`, nil
+	case strings.Contains(url, "zenwalk"):
+		return `<a href="zenwalk-current-250715.iso">x</a>`, nil
+	case strings.Contains(url, "freedombox"):
+		return `<a href="freedombox-trixie_all-amd64.img.xz">x</a>`, nil
+	case strings.Contains(url, "parabola"):
+		return `<a href="parabola-x86_64-systemd-lxde-2019.06-pre-complete.iso">x</a>`, nil
+	case strings.Contains(url, "geckolinux") && strings.HasSuffix(url, "Rolling/"):
+		return `"name":"999.220820"`, nil
+	case strings.Contains(url, "geckolinux") && strings.HasSuffix(url, "Static/"):
+		return `"name":"154.220822"`, nil
+	case strings.Contains(url, "geckolinux"):
+		return `"name":"GeckoLinux_ROLLING_Cinnamon.x86_64-999.220820.0.iso" "name":"GeckoLinux_STATIC_BareBones.x86_64-154.220822.0.iso"`, nil
+	case strings.Contains(url, "robolinux"):
+		return `"name":"robolinux-cinnamon-12.10.iso"`, nil
+	case strings.Contains(url, "voyagerlive"):
+		return `"name":"Voyager-24.04-debian-amd64.iso" "name":"Voyager-11-LTS-amd64.iso"`, nil
+	case strings.Contains(url, "ubuntuce"):
+		return `"name":"ubuntuce-24.04-desktop-amd64.iso"`, nil
+	case strings.Contains(url, "smoothwall"):
+		return `"name":"Express-3.1-SP6-x86_64.iso"`, nil
+	case strings.Contains(url, "efw"):
+		return `"name":"community-3.3.2-devel-x86-64.iso"`, nil
+	case strings.Contains(url, "t1n1wall"):
+		return `"name":"generic-pc-2.11b123.iso"`, nil
+	case strings.Contains(url, "jnode"):
+		return `"name":"0.2.8" "name":"jnode-x86-0.2.8.iso.gz"`, nil
+	case strings.Contains(url, "ultimateedition"):
+		return `"name":"ultimate-arch-server-2026.10.20-x86_64-kde.iso"`, nil
+	case strings.Contains(url, "nethserver"):
+		return `"name":"nethserver-7.9.2009-x86_64.iso"`, nil
+	case strings.Contains(url, "archbang"):
+		return `"name":"archbang-010126-x86_64.iso"`, nil
+	case strings.Contains(url, "risios"):
+		return `"name":"40-20260315" "name":"risiOS-Live-40-20260315.iso"`, nil
+	case strings.Contains(url, "makulu"):
+		return `"name":"MakuluLinux-AI-OS-Debian-2026-09-22.iso"`, nil
+	case strings.Contains(url, "ezarch"):
+		return `"name":"ezarcher-kde-2026.iso"`, nil
+	case strings.Contains(url, "boot-repair-cd"):
+		return `"name":"boot-repair-disk-64bit.iso"`, nil
+	case strings.Contains(url, "rescatux"):
+		return `"name":"rescatux-0.74" "name":"rescatux-0.74.iso"`, nil
+	case strings.Contains(url, "lxle"):
+		return `"name":"LXLE-Focal-64.iso"`, nil
+	case strings.Contains(url, "furybsd"):
+		return `"name":"FuryBSD-12.1-KDE" "name":"FuryBSD-12.1-XFCE" "name":"FuryBSD-12.1-XFCE.iso"`, nil
+	case strings.Contains(url, "caelinux"):
+		return `"name":"CAELinux2020" "name":"caelinux2020lite.iso"`, nil
+	case strings.Contains(url, "windows-linux"):
+		return `"name":"11.26-noble-lts" "name":"winux-11.26.11-noble-lts.iso"`, nil
+	case strings.Contains(url, "supergrub2"):
+		return `"name":"supergrub2-classic-2.06s4-i386_pc-CD.iso" "name":"supergrub2-classic-2.06s4-i386_efi-CD.iso"`, nil
+	case strings.Contains(url, "refracta"):
+		return `"name":"refracta12_xfce_amd64-20240101.iso"`, nil
 	default:
 		// generic index page: iso links + version dirs + current.iso
 		return `<a href="backbox-8-desktop-amd64.iso">b</a>
@@ -305,6 +410,59 @@ func TestScrapeAll(t *testing.T) {
 		{"xcp-ng", "8.3", "", "amd64", false},
 		{"ultramarine", "42", "", "amd64", false},
 		{"fedora-coreos", "stable", "", "amd64", false},
+		// third-expansion resolvers.
+		{"instantos", "latest", "", "amd64", false},
+		{"minios", "latest", "standard", "amd64", false},
+		{"minios", "latest", "bogus", "amd64", true},
+		{"rescuezilla", "latest", "resolute", "amd64", false},
+		{"rancheros", "latest", "", "amd64", false},
+		{"shredos", "latest", "", "amd64", false},
+		{"robolinux", "latest", "cinnamon", "amd64", false},
+		{"voyager", "latest", "debian", "amd64", false},
+		{"voyager", "latest", "lts", "amd64", false},
+		{"ubuntuce", "latest", "", "amd64", false},
+		{"smoothwall", "latest", "", "amd64", false},
+		{"endian", "latest", "", "amd64", false},
+		{"t1n1wall", "latest", "", "amd64", false},
+		{"jnode", "latest", "", "amd64", false},
+		{"ultimate-edition", "latest", "", "amd64", false},
+		{"nethserver", "latest", "", "amd64", false},
+		{"archbang", "latest", "", "amd64", false},
+		{"geckolinux", "rolling", "cinnamon", "amd64", false},
+		{"geckolinux", "static", "barebones", "amd64", false},
+		{"geckolinux", "bogus", "cinnamon", "amd64", true},
+		{"geckolinux", "rolling", "bogus", "amd64", true},
+		{"risios", "latest", "", "amd64", false},
+		{"makulu", "latest", "", "amd64", false},
+		{"ezarcher", "latest", "", "amd64", false},
+		{"boot-repair", "latest", "", "amd64", false},
+		{"rescatux", "latest", "", "amd64", false},
+		{"lxle", "latest", "", "amd64", false},
+		{"furybsd", "latest", "xfce", "amd64", false},
+		{"caelinux", "2020", "lite", "amd64", false},
+		{"wubuntu", "latest", "", "amd64", false},
+		{"supergrub2", "2.06s4", "bios", "amd64", false},
+		{"supergrub2", "2.06s4", "efi", "amd64", false},
+		{"refracta", "latest", "", "amd64", false},
+		{"pfsense", "2.7.2", "", "amd64", false},
+		{"ubuntu-core", "24", "", "amd64", false},
+		{"opencloudos", "9.4", "minimal", "amd64", false},
+		{"opencloudos", "9.4", "bogus", "amd64", true},
+		{"opencloudos", "8.8", "everything", "amd64", false},
+		{"tencentos", "4.2", "boot", "amd64", false},
+		{"tencentos", "4.0", "boot", "amd64", false},
+		{"grommunio", "latest", "offline", "amd64", false},
+		{"grommunio", "latest", "standard", "amd64", false},
+		{"turnkeylinux", "18.1", "", "amd64", false},
+		{"netrunner", "latest", "", "amd64", false},
+		{"daphile", "latest", "standard", "amd64", false},
+		{"daphile", "latest", "rt", "amd64", false},
+		{"debian-edu", "latest", "", "amd64", false},
+		{"opensuse-slowroll", "latest", "", "amd64", false},
+		{"hardenedbsd", "15-stable", "", "amd64", false},
+		{"zenwalk", "current", "", "amd64", false},
+		{"freedombox", "trixie", "", "amd64", false},
+		{"parabola", "latest", "", "amd64", false},
 	}
 	for _, c := range cases {
 		t.Run(c.os+"/"+c.rel+"/"+c.ed, func(t *testing.T) {

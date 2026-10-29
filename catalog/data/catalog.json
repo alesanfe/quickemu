@@ -159,6 +159,17 @@
    "scrape": true
   },
   {
+   "os": "archbang",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "archcraft",
    "releases": [
     "latest"
@@ -423,6 +434,17 @@
    "hash_url": "${URL}/%ISO%.sha256"
   },
   {
+   "os": "boot-repair",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "bosslinux",
    "releases": [
     "8.0"
@@ -470,6 +492,19 @@
    ],
    "scrape": true,
    "hash_url": "${URL}.sha256"
+  },
+  {
+   "os": "caelinux",
+   "releases": [
+    "2020"
+   ],
+   "editions": [
+    "lite"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "caine",
@@ -660,6 +695,20 @@
    "iso": "dsl-%RELEASE%-syslinux.iso"
   },
   {
+   "os": "daphile",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "standard",
+    "rt"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "debian",
    "releases": [
     "13.7.0",
@@ -683,6 +732,17 @@
    "url": "https://cdimage.debian.org/cdimage/archive/%RELEASE%-live/${DEBIAN_ARCH}/iso-hybrid",
    "iso": "debian-live-%RELEASE%-${DEBIAN_ARCH}-%EDITION%.iso",
    "hash_url": "https://cdimage.debian.org/debian-cd/",
+   "scrape": true
+  },
+  {
+   "os": "debian-edu",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
    "scrape": true
   },
   {
@@ -886,6 +946,17 @@
    "scrape": true
   },
   {
+   "os": "endian",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "endless",
    "releases": [
     "6.0.4"
@@ -920,6 +991,17 @@
    "releases": [
     "9",
     "8"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "ezarcher",
+   "releases": [
+    "latest"
    ],
    "editions": [],
    "arch": [
@@ -1036,6 +1118,20 @@
    "hash_url": "${URL}/CHECKSUM.SHA256-FreeBSD-%RELEASE%-RELEASE-amd64"
   },
   {
+   "os": "freedombox",
+   "releases": [
+    "stable",
+    "trixie",
+    "bookworm",
+    "bullseye"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "freedos",
    "releases": [
     "1.4",
@@ -1064,6 +1160,20 @@
    "iso": "FreeNAS-%RELEASE%-U5.iso"
   },
   {
+   "os": "furybsd",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "kde",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "garuda",
    "releases": [
     "latest"
@@ -1085,6 +1195,27 @@
    ],
    "url": "https://iso.builds.garudalinux.org/iso/latest/garuda",
    "hash_url": "${URL}/%ISO%.sha256"
+  },
+  {
+   "os": "geckolinux",
+   "releases": [
+    "rolling",
+    "static"
+   ],
+   "editions": [
+    "cinnamon",
+    "xfce",
+    "gnome",
+    "kde",
+    "mate",
+    "lxqt",
+    "budgie",
+    "barebones"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "gecos",
@@ -1206,6 +1337,20 @@
    "scrape": true
   },
   {
+   "os": "grommunio",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "standard",
+    "offline"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "guadalinex",
    "releases": [
     "v9",
@@ -1318,6 +1463,19 @@
    "scrape": true
   },
   {
+   "os": "hardenedbsd",
+   "releases": [
+    "15-stable",
+    "14-stable",
+    "13-stable"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "harvester",
    "releases": [
     "latest"
@@ -1340,7 +1498,29 @@
    "scrape": true
   },
   {
+   "os": "instantos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "ipfire",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "jnode",
    "releases": [
     "latest"
    ],
@@ -1684,6 +1864,17 @@
    "scrape": true
   },
   {
+   "os": "lxle",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "maboxlinux",
    "releases": [
     "latest"
@@ -1724,6 +1915,17 @@
     "GNOME",
     "Xfce"
    ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "makulu",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
    "arch": [
     "amd64"
    ],
@@ -1820,6 +2022,21 @@
    ],
    "url": "https://sourceforge.net/projects/archiveos/files/m/minino",
    "iso": "minino-%RELEASE%-%EDITION%.iso"
+  },
+  {
+   "os": "minios",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "standard",
+    "toolbox",
+    "ultra"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "minix",
@@ -1922,6 +2139,28 @@
    "url": "https://cdn.netbsd.org/pub/NetBSD/NetBSD-%RELEASE%/images",
    "iso": "NetBSD-%RELEASE%-amd64.iso",
    "hash_url": "${URL}/MD5"
+  },
+  {
+   "os": "nethserver",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "netrunner",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "nitrux",
@@ -2090,6 +2329,23 @@
    "hash_url": "${URL}/SHA256"
   },
   {
+   "os": "opencloudos",
+   "releases": [
+    "9.4",
+    "9.2",
+    "8.8"
+   ],
+   "editions": [
+    "minimal",
+    "boot",
+    "everything"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "openfyde",
    "releases": [
     "r132",
@@ -2239,6 +2495,17 @@
    "scrape": true
   },
   {
+   "os": "opensuse-slowroll",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "openwrt",
    "releases": [
     "24.10.2",
@@ -2301,6 +2568,17 @@
     "3",
     "2.1",
     "2.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "parabola",
+   "releases": [
+    "latest"
    ],
    "editions": [],
    "arch": [
@@ -2393,6 +2671,20 @@
    "url": "https://sourceforge.net/projects/peppermintos/files/isos",
    "iso": "PeppermintOS-devuan_64_xfce.iso",
    "hash_url": "${URL}/%ISO%-sha512.checksum"
+  },
+  {
+   "os": "pfsense",
+   "releases": [
+    "2.7.2",
+    "2.7.1",
+    "2.7.0",
+    "2.6.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "photonos",
@@ -2612,6 +2904,17 @@
    "hash_url": "${URL}/%ISO%.DIGESTS"
   },
   {
+   "os": "rancheros",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "raspberrypios-desktop",
    "releases": [
     "latest"
@@ -2687,6 +2990,70 @@
    "hash_url": "${URL}/SHA256SUM"
   },
   {
+   "os": "refracta",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "rescatux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "rescuezilla",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "resolute",
+    "questing",
+    "oracular",
+    "noble"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "risios",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "robolinux",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "cinnamon",
+    "mate",
+    "xfce"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "rockylinux",
    "releases": [],
    "editions": [
@@ -2732,6 +3099,17 @@
   },
   {
    "os": "securityonion",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "shredos",
    "releases": [
     "latest"
    ],
@@ -2819,6 +3197,17 @@
    "hash_url": "${URL}/%ISO%.md5"
   },
   {
+   "os": "smoothwall",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "solus",
    "releases": [
     "2024-10-14",
@@ -2904,6 +3293,20 @@
    "iso": "subgraph-os-alpha_2016-12-30_1.iso"
   },
   {
+   "os": "supergrub2",
+   "releases": [
+    "2.06s4"
+   ],
+   "editions": [
+    "bios",
+    "efi"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "syllable",
    "releases": [
     "0.6.7"
@@ -2948,6 +3351,17 @@
    "iso": "systemrescue-%RELEASE%-amd64.iso"
   },
   {
+   "os": "t1n1wall",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "tails",
    "releases": [
     "stable"
@@ -2980,6 +3394,23 @@
    ],
    "url": "https://templeos.org/Downloads",
    "iso": "TempleOS.ISO"
+  },
+  {
+   "os": "tencentos",
+   "releases": [
+    "4.6",
+    "4.2",
+    "4.0"
+   ],
+   "editions": [
+    "minimal",
+    "boot",
+    "everything"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
   },
   {
    "os": "tinycore",
@@ -3074,6 +3505,18 @@
    "scrape": true
   },
   {
+   "os": "turnkeylinux",
+   "releases": [
+    "18.1",
+    "19.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "tuxedo-os",
    "releases": [
     "current"
@@ -3119,6 +3562,21 @@
     "26.04",
     "26.10",
     "daily-live"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "ubuntu-core",
+   "releases": [
+    "24",
+    "22",
+    "20",
+    "18",
+    "16"
    ],
    "editions": [],
    "arch": [
@@ -3173,6 +3631,17 @@
    "scrape": true
   },
   {
+   "os": "ubuntuce",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "ubuntucinnamon",
    "releases": [
     "24.04",
@@ -3215,6 +3684,17 @@
     "26.04",
     "26.10",
     "daily-live"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "ultimate-edition",
+   "releases": [
+    "latest"
    ],
    "editions": [],
    "arch": [
@@ -3319,6 +3799,20 @@
    "scrape": true
   },
   {
+   "os": "voyager",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "debian",
+    "lts"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "vyos",
    "releases": [
     "2026.10.27-0026-rolling",
@@ -3386,6 +3880,17 @@
    ]
   },
   {
+   "os": "wubuntu",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
    "os": "xcp-ng",
    "releases": [
     "8.3",
@@ -3430,6 +3935,17 @@
    "os": "yunohost",
    "releases": [
     "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true
+  },
+  {
+   "os": "zenwalk",
+   "releases": [
+    "current"
    ],
    "editions": [],
    "arch": [

@@ -1367,6 +1367,252 @@
    "homepage": "https://openwrt.org/",
    "info": "The leading open-source router/embedded Linux distribution.",
    "name": "OpenWrt"
+  },
+  "archbang": {
+   "credentials": "-",
+   "homepage": "https://archbang.org/",
+   "info": "Lightweight Arch Linux with Openbox tiling.",
+   "name": "ArchBang"
+  },
+  "boot-repair": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/boot-repair-cd/",
+   "info": "Rescue disk that repairs GRUB boot problems.",
+   "name": "Boot-Repair-Disk"
+  },
+  "caelinux": {
+   "credentials": "-",
+   "homepage": "https://www.caelinux.com/",
+   "info": "Ubuntu-based computer-aided engineering distribution.",
+   "name": "CAELinux"
+  },
+  "daphile": {
+   "credentials": "-",
+   "homepage": "https://www.daphile.com/",
+   "info": "Audiophile music-player appliance for x86 PCs.",
+   "name": "Daphile"
+  },
+  "debian-edu": {
+   "credentials": "-",
+   "homepage": "https://blends.debian.org/edu/",
+   "info": "Debian Pure Blend for schools (Skolelinux).",
+   "name": "Debian Edu"
+  },
+  "endian": {
+   "credentials": "-",
+   "homepage": "https://www.endian.com/community/",
+   "info": "Free UTM firewall appliance.",
+   "name": "Endian Firewall Community"
+  },
+  "ezarcher": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/ezarch/",
+   "info": "Simple Arch Linux live installer distribution.",
+   "name": "EzArcher"
+  },
+  "freedombox": {
+   "credentials": "-",
+   "homepage": "https://freedombox.org/",
+   "info": "Debian-based personal server for self-hosting.",
+   "name": "FreedomBox"
+  },
+  "furybsd": {
+   "credentials": "-",
+   "homepage": "https://www.furybsd.org/",
+   "info": "Desktop-oriented FreeBSD distribution (archived).",
+   "name": "FuryBSD"
+  },
+  "geckolinux": {
+   "credentials": "-",
+   "homepage": "https://geckolinux.github.io/",
+   "info": "openSUSE-based desktop spins with many DE editions.",
+   "name": "GeckoLinux"
+  },
+  "grommunio": {
+   "credentials": "-",
+   "homepage": "https://grommunio.com/",
+   "info": "Groupware appliance (mail, chat, files) on openSUSE.",
+   "name": "Grommunio"
+  },
+  "hardenedbsd": {
+   "credentials": "-",
+   "homepage": "https://hardenedbsd.org/",
+   "info": "Security-hardened FreeBSD fork with exploit mitigations.",
+   "name": "HardenedBSD"
+  },
+  "instantos": {
+   "credentials": "-",
+   "homepage": "https://instantos.io/",
+   "info": "Arch-based distribution with instantWM window manager.",
+   "name": "instantOS"
+  },
+  "jnode": {
+   "credentials": "-",
+   "homepage": "https://www.jnode.org/",
+   "info": "Java New Operating System Design - OS written in Java.",
+   "name": "JNode"
+  },
+  "lxle": {
+   "credentials": "-",
+   "homepage": "https://www.lxle.net/",
+   "info": "Lightweight Lubuntu-based distribution for aging PCs.",
+   "name": "LXLE"
+  },
+  "makulu": {
+   "credentials": "-",
+   "homepage": "https://www.makululinux.com/",
+   "info": "Debian-based desktop distribution from South Africa.",
+   "name": "MakuluLinux"
+  },
+  "minios": {
+   "credentials": "-",
+   "homepage": "https://minios.org/",
+   "info": "Modular live Debian-based distribution.",
+   "name": "MiniOS"
+  },
+  "nethserver": {
+   "credentials": "-",
+   "homepage": "https://www.nethserver.org/",
+   "info": "CentOS-based modular server distribution.",
+   "name": "NethServer"
+  },
+  "netrunner": {
+   "credentials": "-",
+   "homepage": "https://www.netrunner.com/",
+   "info": "Debian-based KDE desktop distribution.",
+   "name": "Netrunner"
+  },
+  "opencloudos": {
+   "credentials": "-",
+   "homepage": "https://opencloudos.tech/",
+   "info": "Community-driven Linux server OS by the OpenCloudOS community.",
+   "name": "OpenCloudOS"
+  },
+  "opensuse-slowroll": {
+   "credentials": "-",
+   "homepage": "https://en.opensuse.org/Portal:Slowroll",
+   "info": "Slower-paced rolling variant of openSUSE Tumbleweed.",
+   "name": "openSUSE Slowroll"
+  },
+  "parabola": {
+   "credentials": "-",
+   "homepage": "https://www.parabola.nu/",
+   "info": "Fully free Arch-derived distribution (FSF-endorsed).",
+   "name": "Parabola GNU/Linux-libre"
+  },
+  "pfsense": {
+   "credentials": "-",
+   "homepage": "https://www.pfsense.org/",
+   "info": "FreeBSD-based firewall and router distribution (Netgate CE).",
+   "name": "pfSense"
+  },
+  "rancheros": {
+   "credentials": "-",
+   "homepage": "https://rancher.com/",
+   "info": "Minimal OS that runs system services as Docker (archived).",
+   "name": "RancherOS"
+  },
+  "refracta": {
+   "credentials": "-",
+   "homepage": "https://www.refracta.org/",
+   "info": "Devuan-based lightweight desktop and remastering tools.",
+   "name": "Refracta"
+  },
+  "rescatux": {
+   "credentials": "-",
+   "homepage": "https://www.supergrubdisk.org/rescatux/",
+   "info": "Debian-based rescue system with Rescapp wizard.",
+   "name": "Rescatux"
+  },
+  "rescuezilla": {
+   "credentials": "-",
+   "homepage": "https://rescuezilla.com/",
+   "info": "Graphical disk-imaging and recovery environment.",
+   "name": "Rescuezilla"
+  },
+  "risios": {
+   "credentials": "-",
+   "homepage": "https://risi.io/",
+   "info": "Fedora-based user-friendly desktop distribution.",
+   "name": "risiOS"
+  },
+  "robolinux": {
+   "credentials": "-",
+   "homepage": "https://robolinux.org/",
+   "info": "User-friendly Debian-based desktop distribution.",
+   "name": "Robolinux"
+  },
+  "shredos": {
+   "credentials": "-",
+   "homepage": "https://github.com/PartialVolume/shredos.x86_64",
+   "info": "nwipe-based disk-erasure live OS for x86_64.",
+   "name": "ShredOS"
+  },
+  "smoothwall": {
+   "credentials": "-",
+   "homepage": "http://www.smoothwall.org/",
+   "info": "Dedicated open-source firewall distribution.",
+   "name": "Smoothwall Express"
+  },
+  "supergrub2": {
+   "credentials": "-",
+   "homepage": "https://www.supergrubdisk.org/",
+   "info": "Bootable disk that detects and boots installed OSes.",
+   "name": "Super Grub2 Disk"
+  },
+  "t1n1wall": {
+   "credentials": "-",
+   "homepage": "https://t1n1wall.com/",
+   "info": "Small firewall distribution forked from m0n0wall.",
+   "name": "T1n1wall"
+  },
+  "tencentos": {
+   "credentials": "-",
+   "homepage": "https://cloud.tencent.com/product/ts",
+   "info": "Tencent's CentOS-compatible enterprise Linux distribution.",
+   "name": "TencentOS Server"
+  },
+  "turnkeylinux": {
+   "credentials": "-",
+   "homepage": "https://www.turnkeylinux.org/",
+   "info": "Debian-based library of ready-to-use server appliances.",
+   "name": "TurnKey Linux Core"
+  },
+  "ubuntu-core": {
+   "credentials": "-",
+   "homepage": "https://ubuntu.com/core",
+   "info": "Canonical's minimal, transactional Ubuntu for appliances.",
+   "name": "Ubuntu Core"
+  },
+  "ubuntuce": {
+   "credentials": "-",
+   "homepage": "https://ubuntuce.com/",
+   "info": "Ubuntu Christian Edition desktop distribution.",
+   "name": "Ubuntu CE"
+  },
+  "ultimate-edition": {
+   "credentials": "-",
+   "homepage": "https://ultimateedition.info/",
+   "info": "Feature-rich Arch/Ubuntu-based distribution.",
+   "name": "Ultimate Edition"
+  },
+  "voyager": {
+   "credentials": "-",
+   "homepage": "https://voyagerlive.org/",
+   "info": "French XFCE desktop distribution (Debian and Ubuntu bases).",
+   "name": "Voyager"
+  },
+  "wubuntu": {
+   "credentials": "-",
+   "homepage": "https://wubuntu.org/",
+   "info": "Windows-lookalike Ubuntu-based desktop (Winux).",
+   "name": "Wubuntu"
+  },
+  "zenwalk": {
+   "credentials": "-",
+   "homepage": "https://www.zenwalk.org/",
+   "info": "Slackware-based lightweight desktop distribution.",
+   "name": "Zenwalk"
   }
  },
  "generated": "bash-dump"
