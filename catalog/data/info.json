@@ -2117,6 +2117,12 @@
    "homepage": "https://sourceforge.net/projects/extix/",
    "info": "Debian/Ubuntu-based live respins by Exton",
    "name": "ExTiX"
+  },
+  "paldo": {
+   "credentials": "-",
+   "homepage": "https://www.paldo.org/",
+   "info": "upkg-based desktop Linux with live and rescue images",
+   "name": "paldo GNU/Linux"
   }
  }
 }
