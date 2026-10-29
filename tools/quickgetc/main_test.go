@@ -188,6 +188,41 @@ func TestCreateVMLocal(t *testing.T) {
 	}
 }
 
+// A foreign catalog (QUICKGETC_CATALOG) controls file_name/guest_os
+// verbatim — they land inside quoted conf lines, so a value carrying
+// quotes or newlines injects extra conf entries (e.g. iso='/owned').
+func TestCreateVMConfInjection(t *testing.T) {
+	dir := t.TempDir()
+	e := &OSEntry{Name: "evil", GuestOS: "linux"}
+	old := operation
+	operation = "create"
+	defer func() { operation = old }()
+
+	entry := &Release{Release: "1", Arch: "x86_64",
+		IMG: []Source{{FileName: "x.img'\niso='/owned"}}}
+	vmPath := filepath.Join(dir, "evilvm")
+	os.MkdirAll(vmPath, 0o755)
+	rc := createVM(e, entry, vmPath)
+	b, _ := os.ReadFile(vmPath + ".conf")
+	if strings.Contains(string(b), "iso=") || strings.Count(string(b), "img=") > 1 {
+		t.Fatalf("hostile file_name injected conf lines (rc=%d):\n%s", rc, b)
+	}
+
+	// guest_os from the catalog is interpolated inside quotes too.
+	e2 := &OSEntry{Name: "evil2", GuestOS: "linux\"\niso=\"/owned"}
+	entry2 := &Release{Release: "1", Arch: "x86_64",
+		IMG: []Source{{FileName: "ok.img"}}}
+	vmPath2 := filepath.Join(dir, "evilvm2")
+	os.MkdirAll(vmPath2, 0o755)
+	createVM(e2, entry2, vmPath2)
+	b, _ = os.ReadFile(vmPath2 + ".conf")
+	for _, l := range strings.Split(string(b), "\n") {
+		if strings.HasPrefix(l, "iso=") {
+			t.Fatalf("hostile guest_os injected conf line: %s", l)
+		}
+	}
+}
+
 func TestHandleWebSource(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("web-bytes"))

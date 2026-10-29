@@ -91,6 +91,13 @@ func showOSInfo(e *OSEntry) {
 	}
 }
 
+// confSafe: values written inside quoted .conf lines must not carry
+// quote characters or control bytes — a foreign catalog field with
+// " or \n would inject extra conf entries (iso='/owned').
+func confSafe(s string) bool {
+	return !strings.ContainsAny(s, "\"'\n\r\x00")
+}
+
 // createVM: handle_sources + make_vm_config — download each image
 // type's first source, decompress archives, then write the conf.
 func createVM(e *OSEntry, entry *Release, vmPath string) int {
@@ -109,6 +116,10 @@ func createVM(e *OSEntry, entry *Release, vmPath string) int {
 			}
 			images[t] = final
 		case s.FileName != "":
+			if !confSafe(s.FileName) {
+				fmt.Printf("ERROR! Unsafe file_name in catalog: %q\n", s.FileName)
+				return 1
+			}
 			images[t] = vmPath + "/" + s.FileName
 		case s.Custom != "":
 			fmt.Println("ERROR! Custom source not implemented")
@@ -130,6 +141,10 @@ func handleWebSource(imageType string, s Source, vmPath string) string {
 	fileName := s.Web.FileName
 	if fileName == "" {
 		fileName = filepath.Base(url)
+	}
+	if !confSafe(fileName) {
+		fmt.Printf("ERROR! Unsafe file_name in catalog: %q\n", fileName)
+		return ""
 	}
 	if webGet(url, vmPath, fileName, nil) != 0 {
 		return ""
@@ -160,6 +175,20 @@ func makeVMConfig(e *OSEntry, entry *Release, vmPath string, images map[string]s
 	}
 	if guest == "" {
 		guest = "linux"
+	}
+	// Every catalog-derived string lands inside a quoted conf line —
+	// a field carrying quotes or control bytes would inject entries.
+	for _, v := range []string{guest, entry.Arch, vmPath} {
+		if !confSafe(v) {
+			fmt.Printf("ERROR! Unsafe catalog value for conf: %q\n", v)
+			return 1
+		}
+	}
+	for _, v := range images {
+		if !confSafe(v) {
+			fmt.Printf("ERROR! Unsafe image path for conf: %q\n", v)
+			return 1
+		}
 	}
 	qe, _ := exec.LookPath("quickemu")
 	if qe == "" {
