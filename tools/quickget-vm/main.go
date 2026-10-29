@@ -265,9 +265,21 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 		fmt.Println(err)
 		return 1
 	}
+	// gen_seed_iso parity: --cloud-init appends seed="..." to the conf
+	// and builds user-data/meta-data/seed.iso inside the VM dir.
+	if len(cloudInit) > 0 && cloudInit[0] {
+		if rc := genSeedISO(dir, confFile); rc != 0 {
+			return rc
+		}
+	}
 	fmt.Println("Making " + confFile)
 	fmt.Println("\nTo start your " + osName + " virtual machine run:")
-	fmt.Println("    quickemu --vm " + confFile)
+	if osName == "slint" {
+		fmt.Println("    quickemu --vm " + confFile + "\nTo start Slint with braille support run:")
+		fmt.Println("    quickemu --vm --braille --display sdl " + confFile)
+	} else {
+		fmt.Println("    quickemu --vm " + confFile)
+	}
 	return 0
 }
 

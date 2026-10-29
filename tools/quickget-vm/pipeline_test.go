@@ -215,3 +215,31 @@ func TestMkconfRejectsUnsafeValues(t *testing.T) {
 		t.Fatalf("conf missing guest_os: %s", b)
 	}
 }
+
+// --cloud-init parity: Bash runs gen_seed_iso after writing the conf;
+// mkconf accepted the flag but silently dropped it.
+func TestMkconfCloudInit(t *testing.T) {
+	base := t.TempDir()
+	cwd, _ := os.Getwd()
+	if err := os.Chdir(base); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+	t.Setenv("HOME", base)
+	t.Setenv("USER", "tester")
+	if rc := mkconf("linux", "24.04", "", "", "", "ci-vm", "amd64", true); rc != 0 {
+		t.Fatal("mkconf with cloudInit failed")
+	}
+	b, err := os.ReadFile(filepath.Join(base, "ci-vm.conf"))
+	if err != nil {
+		t.Fatal("conf not written")
+	}
+	if !strings.Contains(string(b), "seed=") {
+		t.Fatalf("cloud-init conf missing seed= line: %s", b)
+	}
+	for _, f := range []string{"seed.iso", "user-data", "meta-data"} {
+		if _, err := os.Stat(filepath.Join(base, "ci-vm", f)); err != nil {
+			t.Fatalf("cloud-init artefact %s missing: %v", f, err)
+		}
+	}
+}
