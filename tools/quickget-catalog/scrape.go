@@ -1059,15 +1059,14 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 	case "nova":
 		return "https://sourceforge.net/projects/archiveos/files/n/nova/nova-" + edition + "-" + release + "-amd64.iso/download", "", nil
 	case "openkylin":
-		names := map[string]map[string]string{
-			"3.0": {"desktop": "openKylin-Desktop-V3.0-20260918.1-x86_64.iso", "server": "openKylin-Server-V3.0-20260916-x86_64.iso"},
-			"2.0": {"desktop": "openKylin-Desktop-V2.0-Release-x86_64.iso"},
+		// cdimage index per release; build-date suffixes churn, so scrape.
+		kind := map[string]string{"desktop": "Desktop", "server": "Server"}[edition]
+		if kind == "" {
+			return "", "", fmt.Errorf("openkylin: unknown edition %q", edition)
 		}
-		iso, ok := names[release][edition]
-		if !ok {
-			return "", "", fmt.Errorf("openkylin: no %s image for %s", edition, release)
-		}
-		return "https://cdimage.openkylin.top/" + release + "/" + iso, "", nil
+		u, _, err := indexISO("https://cdimage.openkylin.top/"+release+"/",
+			`openKylin-`+kind+`-V`+regexp.QuoteMeta(release)+`-(?:[0-9][^"/]*)?x86_64\.iso`)
+		return u, "", err
 	case "plan9":
 		iso := "plan9-" + release + ".iso"
 		if release == "4e" {

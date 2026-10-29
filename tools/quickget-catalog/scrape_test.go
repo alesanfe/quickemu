@@ -160,6 +160,7 @@ func TestVersionHelpers(t *testing.T) {
 // rescued_test cases — the 25 OSes whose catalog entries had no url and
 // no scrape flag (unresolvable); each asserts its get_<os> parity URL.
 func TestScrapeRescuedStatic(t *testing.T) {
+	stubNet(t)
 	cases := []struct{ os, rel, ed, want string }{
 		{"altlinux", "11", "workstation", "ftp.altlinux.org/pub/distributions/ALTLinux/images/p11/workstation/x86_64/alt-workstation-11.2-x86_64.iso"},
 		{"altlinux", "11", "kworkstation", "kworkstation/alt-kworkstation-11-live-x86_64.iso"},

@@ -55,7 +55,7 @@ func bodyFor(url string) (string, error) {
 			{"browser_download_url":"https://gh/minikube-v1.32.0-amd64.iso"},
 			{"browser_download_url":"https://gh/minikube-v1.32.0-amd64.iso.sha256"}]`, nil
 	case strings.Contains(url, "broadcom.com"):
-		return `<a href="photon-5.0-dde71ec57.x86_64.iso">x</a><a href="photon-minimal-5.0-dde71ec57.x86_64.iso">y</a><a href="photon-5.0-dde71ec57.x86_64.debug.iso">z</a>`, nil
+		return `<a href="photon-5.0-dde71ec57.x86_64.iso">x</a><a href="photon-minimal-5.0-dde71ec57.x86_64.iso">y</a><a href="photon-5.0-dde71ec57.x86_64.debug.iso">z</a><a href="photon-3.0-26156e2.iso">p</a><a href="photon-3.0-26156e2.debug.iso">q</a>`, nil
 	case strings.Contains(url, "bandshed"):
 		return `<a href="AVL_MXe-25.2_x64.iso">x</a><a href="AVL_MXe-25.2_x64.iso.sha256">s</a>`, nil
 	case strings.Contains(url, "draugeros"):
@@ -70,8 +70,10 @@ func bodyFor(url string) (string, error) {
 		return `"name":"MocaccinoOS-MATE-0.20261019.iso" "name":"MocaccinoOS-KDE-0.20261019.iso" "name":"MocaccinoOS-MATE-0.20261019.iso.sha256"`, nil
 	case strings.Contains(url, "mocaccino"):
 		return `"name":"v26.10" "name":"v26.09"`, nil
+	case strings.Contains(url, "loc-os") && strings.Contains(url, "%2023"):
+		return `"name":"Loc-OS-23-KDE-x86_64.iso" "name":"Loc-OS-23-AHS.iso"`, nil
 	case strings.Contains(url, "loc-os"):
-		return `"name":"Loc-OS-24-current_i686.iso"`, nil
+		return `"name":"Loc-OS-24-current_amd64.iso" "name":"Loc-OS-24-current_i686.iso"`, nil
 	case strings.Contains(url, "release/2"):
 		return `<a href="cldx-20261022-x86_64.iso">x</a>`, nil
 	case strings.Contains(url, "calculate-linux"):
@@ -171,6 +173,8 @@ func bodyFor(url string) (string, error) {
 		return shaX + "  OpenCloudOS-9.4-20260313.0-x86_64-minimal.iso\n", nil
 	case strings.Contains(url, "opencloudos") && strings.Contains(url, "20260313.0"):
 		return `<a href="OpenCloudOS-9.4-20260313.0-x86_64-minimal.iso">x</a>`, nil
+	case strings.Contains(url, "opencloudos") && strings.Contains(url, "9.0"):
+		return `<a href="OpenCloudOS-9.0-everything-x86_64.iso">x</a><a href="OpenCloudOS-9.0-minimal-x86_64.iso">y</a><a href="OpenCloudOS-9.0-netinst-x86_64.iso">z</a>`, nil
 	case strings.Contains(url, "opencloudos"):
 		return `<a href="20260313.0/">d</a>`, nil
 	case strings.Contains(url, "tencentos") && strings.Contains(url, "4.0") && strings.Contains(url, "CHECKSUM"):
@@ -324,10 +328,14 @@ func bodyFor(url string) (string, error) {
 		return `<a href="AnolisOS-8.8-x86_64-boot.iso">x</a><a href="AnolisOS-8.8-x86_64-dvd.iso">y</a><a href="AnolisOS-8.8-x86_64-minimal.iso">z</a><a href="AnolisOS-23.5-x86_64-boot.iso">p</a><a href="AnolisOS-23.5-x86_64-dvd.iso">q</a>`, nil
 	case strings.Contains(url, "openeuler"):
 		return `<a href="openEuler-24.03-LTS-everything-x86_64-dvd.iso">x</a><a href="openEuler-24.03-LTS-netinst-x86_64-dvd.iso">y</a><a href="openEuler-22.03-LTS-SP4-netinst-x86_64-dvd.iso">z</a><a href="openEuler-24.03-LTS-SP1-netinst-x86_64-dvd.iso">w</a>`, nil
+	case strings.Contains(url, "cdimage.openkylin.top"):
+		return `<a href="openKylin-Desktop-V3.0-20260918.1-x86_64.iso">x</a><a href="openKylin-Server-V3.0-20260916-x86_64.iso">y</a><a href="openKylin-Desktop-V3.0-Beta-20260807-x86_64.iso">b</a><a href="openKylin-Desktop-V2.0-SP2-20260813-x86_64.iso">z</a><a href="openKylin-Desktop-V2.0-SP2-20260407-x86_64.iso">w</a><a href="openKylin-Desktop-V2.0-SP1-x86_64.iso">s</a>`, nil
 	case strings.Contains(url, "astralinux"):
 		return `<a href="alce-current.iso">x</a>`, nil
 	case strings.Contains(url, "helenos"):
 		return `<a href="HelenOS-0.14.1-amd64.iso">x</a><a href="HelenOS-0.9.1-amd64.iso">y</a>`, nil
+	case strings.Contains(url, "galliumos") && strings.Contains(url, "3."):
+		return `<a href="galliumos-3.1-baytrail.iso">a</a><a href="galliumos-3.1-sandyivy.iso">b</a><a href="galliumos-3.0-skylake.iso">c</a>`, nil
 	case strings.Contains(url, "galliumos"):
 		return `<a href="galliumos-baytrail-2.1.iso">a</a><a href="galliumos-braswell-2.1.iso">b</a><a href="galliumos-broadwell-2.1.iso">c</a><a href="galliumos-haswell-2.1.iso">d</a><a href="galliumos-samus-2.1.iso">e</a><a href="galliumos-sandy-2.1.iso">f</a><a href="galliumos-skylake-2.1.iso">g</a>`, nil
 	case strings.Contains(url, "sortix.org") && strings.Contains(url, "builds"):
@@ -537,11 +545,17 @@ func TestScrapeAll(t *testing.T) {
 		{"mocaccinoos", "latest", "kde", "amd64", false},
 		{"mocaccinoos", "latest", "bogus", "amd64", true},
 		{"photonos", "5.0", "", "amd64", false},
+		{"photonos", "3.0", "", "amd64", false},
+		{"photonos", "2.0", "", "amd64", false},
 		{"avlinux", "latest", "", "amd64", false},
 		{"drauger-os", "latest", "", "amd64", false},
 		{"primeos", "latest", "", "amd64", false},
 		{"gparted-live", "latest", "", "amd64", false},
 		{"loc-os", "23", "", "amd64", false},
+		{"loc-os", "24", "", "amd64", false},
+		{"loc-os", "24", "current", "amd64", false},
+		{"loc-os", "23", "kde", "amd64", false},
+		{"loc-os", "23", "ahs", "amd64", false},
 		{"calculate-linux", "latest", "", "amd64", false},
 		{"centos", "8.5.2111", "", "amd64", false},
 		{"centos", "5.11", "", "amd64", false},
@@ -620,6 +634,8 @@ func TestScrapeAll(t *testing.T) {
 		{"ubuntu-core", "24", "", "amd64", false},
 		{"opencloudos", "9.4", "minimal", "amd64", false},
 		{"opencloudos", "9.4", "bogus", "amd64", true},
+		{"opencloudos", "9.0", "minimal", "amd64", false},
+		{"opencloudos", "9.0", "netinst", "amd64", false},
 		{"opencloudos", "8.8", "everything", "amd64", false},
 		{"tencentos", "4.2", "boot", "amd64", false},
 		{"tencentos", "4.0", "boot", "amd64", false},
@@ -671,6 +687,13 @@ func TestScrapeAll(t *testing.T) {
 		{"9legacy", "latest", "", "amd64", false},
 		{"galliumos", "2.1", "baytrail", "amd64", false},
 		{"galliumos", "2.1", "skylake", "amd64", false},
+		{"galliumos", "3.1", "baytrail", "amd64", false},
+		{"galliumos", "3.1", "sandyivy", "amd64", false},
+		{"galliumos", "3.0", "skylake", "amd64", false},
+		{"openkylin", "3.0", "desktop", "amd64", false},
+		{"openkylin", "3.0", "server", "amd64", false},
+		{"openkylin", "2.0-SP2", "desktop", "amd64", false},
+		{"openkylin", "2.0-SP1", "desktop", "amd64", false},
 		{"ventoy", "latest", "", "amd64", false},
 		{"minikube", "latest", "", "amd64", false},
 		{"crux", "latest", "", "amd64", false},

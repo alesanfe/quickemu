@@ -247,10 +247,11 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		u = strings.TrimRight(u, "/")
 		return u + "/download", u + ".sha256/download", nil
 	case "photonos":
-		// 5.0 names carry an arch infix; 4.0's GA iso has none.
+		// 5.0 names carry an arch infix; 1.0-4.0 GA isos are
+		// photon-<rel>-<hexhash>.iso (hex guard drops .debug.iso).
 		re := `photon-[0-9][^"]*x86_64\.iso`
-		if release == "4.0" {
-			re = `photon-[0-9][0-9.]*-[a-z0-9]+\.iso`
+		if release != "5.0" {
+			re = `photon-[0-9][0-9.]*-[a-f0-9]+\.iso`
 		}
 		return indexISO(fmt.Sprintf("https://packages.broadcom.com/photon/%s/GA/iso/", release), re)
 	case "taloslinux":
@@ -501,7 +502,10 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "9legacy":
 		return "https://9legacy.org/download/9legacy.iso.bz2", "", nil
 	case "galliumos":
-		return indexISO("https://galliumos.org/releases/"+release+"/", `galliumos-`+regexp.QuoteMeta(edition)+`-`+regexp.QuoteMeta(release)+`\.iso`)
+		// 2.x is galliumos-<ed>-<rel>.iso; 3.x flips the order.
+		re := `galliumos-(?:` + regexp.QuoteMeta(edition) + `-` + regexp.QuoteMeta(release) +
+			`|` + regexp.QuoteMeta(release) + `-` + regexp.QuoteMeta(edition) + `)\.iso`
+		return indexISO("https://galliumos.org/releases/"+release+"/", re)
 	case "ventoy":
 		return ghISOsha("ventoy/Ventoy", `ventoy-[0-9.]+-livecd\.iso`, `sha256\.txt`)
 	case "minikube":
@@ -722,6 +726,11 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		if dir, err := latestDir(base, `[0-9]{8}\.[0-9]+`); err == nil {
 			return indexISOsums(dir+"/", `OpenCloudOS-`+regexp.QuoteMeta(release)+`-[^"/]*-x86_64-`+regexp.QuoteMeta(ed)+`\.iso`, "CHECKSUM")
 		}
+		// 9.x flat listings put the edition before x86_64; on 8.x
+		// "everything" is published as dvd1 after it.
+		if u, s, err := indexISOsums(base, `OpenCloudOS-`+regexp.QuoteMeta(release)+`-`+regexp.QuoteMeta(ed)+`-x86_64\.iso`, "CHECKSUM"); err == nil {
+			return u, s, nil
+		}
 		if ed == "everything" {
 			ed = "dvd1"
 		}
@@ -791,7 +800,17 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "linuxfx":
 		return sfLatest("linuxfxdevil")
 	case "loc-os":
-		return sfISO("loc-os", "", `Loc-OS-[^"]*\.iso`)
+		// "Loc-OS <rel>" subdirs; releases carry DE variants, 24 is
+		// "current". The i686 build must never win over x86_64/amd64.
+		base := "Loc-OS%20" + release
+		if edition != "" {
+			re := `Loc-OS-` + regexp.QuoteMeta(release) + `-(?i:` + regexp.QuoteMeta(edition) + `)[^"]*`
+			if u, _, err := sfISO("loc-os", base, re+`(amd64|x86_64)\.iso`); err == nil {
+				return u, "", nil
+			}
+			return sfISO("loc-os", base, re+`\.iso`)
+		}
+		return sfISO("loc-os", base, `Loc-OS-`+regexp.QuoteMeta(release)+`-[^"]*(amd64|x86_64)\.iso`)
 	case "primeos":
 		return sfISO("primeos", "64-bit", `PrimeOS-[^"]*\.iso`)
 	case "xigmanas":
