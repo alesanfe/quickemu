@@ -192,7 +192,15 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "turnkeylinux") && strings.Contains(url, ".hash"):
 		return shaX + "  turnkey-core-18.1-bookworm-amd64.iso\n", nil
 	case strings.Contains(url, "turnkeylinux"):
-		return `<a href="turnkey-core-18.1-bookworm-amd64.iso">x</a>`, nil
+		return `<a href="turnkey-core-18.1-bookworm-amd64.iso">x</a><a href="turnkey-core-19.0-trixie-amd64.iso">w</a><a href="turnkey-lamp-19.0-trixie-amd64.iso">y</a><a href="turnkey-nextcloud-19.0-trixie-amd64.iso">z</a>`, nil
+	case strings.Contains(url, "freenas.org") && strings.Contains(url, "12.0"):
+		return `<a href="TrueNAS-12.0-U8.1.iso?download=1">x</a>`, nil
+	case strings.Contains(url, "freenas.org"):
+		return `<a href="TrueNAS-13.0-U6.8.iso?download=1">x</a>`, nil
+	case strings.Contains(url, "files.devuan.org") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  devuan_daedalus_5.0.0_amd64_desktop-live.iso\n", nil
+	case strings.Contains(url, "files.devuan.org") && strings.Contains(url, "desktop-live"):
+		return `<a href="devuan_daedalus_5.0.0_amd64_desktop-live.iso">x</a><a href="devuan_excalibur_6.1.1_amd64_desktop-live.iso">y</a>`, nil
 	case strings.Contains(url, "netrunner"):
 		return `<a href="netrunner-25-64-bit.iso">x</a>`, nil
 	case strings.Contains(url, "daphile"):
@@ -207,6 +215,10 @@ func bodyFor(url string) (string, error) {
 		return `<a href="disc1.iso">x</a>`, nil
 	case strings.Contains(url, "zenwalk"):
 		return `<a href="zenwalk-current-250715.iso">x</a>`, nil
+	case strings.Contains(url, "aerynos.dev") && strings.HasSuffix(url, ".sha256sum"):
+		return shaX + "  AerynOS-2026.08-GNOME-live-x86_64.iso\n", nil
+	case strings.Contains(url, "aerynos.dev"):
+		return `<a href="./AerynOS-2026.08-GNOME-live-x86_64.iso">x</a><a href="./AerynOS-2026.05.2-GNOME-live-x86_64.iso">y</a>`, nil
 	case strings.Contains(url, "freedombox"):
 		return `<a href="freedombox-trixie_all-amd64.img.xz">x</a>`, nil
 	case strings.Contains(url, "parabola"):
@@ -309,9 +321,9 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "adelielinux"):
 		return `<a href="adelie-inst-x86_64-1.0-rc1.iso">x</a><a href="adelie-live-kde-x86_64-1.0-rc1.iso">y</a><a href="adelie-live-lxqt-x86_64-1.0-rc1.iso">z</a>`, nil
 	case strings.Contains(url, "openanolis"):
-		return `<a href="AnolisOS-8.8-x86_64-boot.iso">x</a><a href="AnolisOS-8.8-x86_64-dvd.iso">y</a><a href="AnolisOS-8.8-x86_64-minimal.iso">z</a>`, nil
+		return `<a href="AnolisOS-8.8-x86_64-boot.iso">x</a><a href="AnolisOS-8.8-x86_64-dvd.iso">y</a><a href="AnolisOS-8.8-x86_64-minimal.iso">z</a><a href="AnolisOS-23.5-x86_64-boot.iso">p</a><a href="AnolisOS-23.5-x86_64-dvd.iso">q</a>`, nil
 	case strings.Contains(url, "openeuler"):
-		return `<a href="openEuler-24.03-LTS-everything-x86_64-dvd.iso">x</a><a href="openEuler-24.03-LTS-netinst-x86_64-dvd.iso">y</a><a href="openEuler-22.03-LTS-SP4-netinst-x86_64-dvd.iso">z</a>`, nil
+		return `<a href="openEuler-24.03-LTS-everything-x86_64-dvd.iso">x</a><a href="openEuler-24.03-LTS-netinst-x86_64-dvd.iso">y</a><a href="openEuler-22.03-LTS-SP4-netinst-x86_64-dvd.iso">z</a><a href="openEuler-24.03-LTS-SP1-netinst-x86_64-dvd.iso">w</a>`, nil
 	case strings.Contains(url, "astralinux"):
 		return `<a href="alce-current.iso">x</a>`, nil
 	case strings.Contains(url, "helenos"):
@@ -384,7 +396,7 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "freepbxdistro") && strings.Contains(url, ".sha256sum"):
 		return shaX + "  SNGDEB-PBX17-amd64-12-13-0-2603-3.iso\n", nil
 	case strings.Contains(url, "freepbxdistro"):
-		return `<a href="SNGDEB-PBX17-amd64-12-13-0-2603-3.iso">a</a><a href="SNG7-PBX16-64bit-2306-1.iso">b</a>`, nil
+		return `<a href="SNGDEB-PBX17-amd64-12-13-0-2603-3.iso">a</a><a href="SNG7-PBX16-64bit-2306-1.iso">b</a><a href="SNG7-FPBX-64bit-2008-1.iso">c</a>`, nil
 	case strings.Contains(url, "ubuntusway") && strings.Contains(url, "sha256.txt"):
 		return shaX + "  ubuntusway-25.04-desktop-amd64.iso\n", nil
 	case strings.Contains(url, "ubuntusway") && strings.Contains(url, "25.04/"):
@@ -468,6 +480,18 @@ func TestScrapeAll(t *testing.T) {
 		{"deepin", "23", "", "amd64", false},
 		{"deepin", "20.9", "", "amd64", false},
 		{"devuan", "daedalus", "", "amd64", false},
+		{"devuan", "excalibur", "", "amd64", false},
+		{"aerynos", "2026.08", "", "amd64", false},
+		{"truenas-core", "13.0", "", "amd64", false},
+		{"truenas-core", "12.0", "", "amd64", false},
+		{"remixos", "latest", "64bit", "amd64", false},
+		{"remixos", "latest", "32bit", "amd64", false},
+		{"turnkeylinux", "19.0", "lamp", "amd64", false},
+		{"turnkeylinux", "19.0", "nextcloud", "amd64", false},
+		{"anolis", "23.5", "boot", "amd64", false},
+		{"anolis", "23.5", "dvd", "amd64", false},
+		{"openeuler", "24.03-LTS-SP1", "netinst", "amd64", false},
+		{"freepbx", "15", "", "amd64", false},
 		{"easyos", "5.0", "", "amd64", false},
 		{"elementary", "8.1", "", "amd64", false},
 		{"elementary", "7.0", "", "amd64", false},

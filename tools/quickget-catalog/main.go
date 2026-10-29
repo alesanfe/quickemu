@@ -33,6 +33,35 @@ type Entry struct {
 	// QArch marks templates dumped from get_ bodies that used
 	// ${QEMU_ARCH} (x86_64/aarch64) instead of ${ARCH} (amd64/arm64).
 	QArch bool `json:"qarch,omitempty"`
+
+	// Classification metadata — lets consumers tell a maintained ISO
+	// apart from a historical image, an ARM-only build or media that
+	// needs credentials. Values are enum-like strings documented in
+	// schemas/v1/catalog.schema.json; empty means unspecified.
+	Status       string `json:"status,omitempty"`        // active|discontinued|archived|experimental
+	ImageType    string `json:"image_type,omitempty"`    // iso|raw|qcow2|vhd|vmdk|floppy|kernel|zip|ova
+	DownloadMode string `json:"download_mode,omitempty"` // direct|mirror|manual|authenticated|archived
+	License      string `json:"license,omitempty"`       // redistributable|restricted|unknown
+	BootMode     string `json:"boot_mode,omitempty"`     // bios|uefi|both|custom
+	SupportLevel string `json:"support_level,omitempty"` // stable|community|experimental
+}
+
+// Meta is the classification view of an Entry returned by `meta`.
+type Meta struct {
+	OS           string   `json:"os"`
+	Status       string   `json:"status,omitempty"`
+	Arch         []string `json:"arch,omitempty"`
+	ImageType    string   `json:"image_type,omitempty"`
+	DownloadMode string   `json:"download_mode,omitempty"`
+	License      string   `json:"license,omitempty"`
+	BootMode     string   `json:"boot_mode,omitempty"`
+	SupportLevel string   `json:"support_level,omitempty"`
+}
+
+func (e *Entry) meta() Meta {
+	return Meta{OS: e.OS, Status: e.Status, Arch: e.Arch,
+		ImageType: e.ImageType, DownloadMode: e.DownloadMode,
+		License: e.License, BootMode: e.BootMode, SupportLevel: e.SupportLevel}
 }
 
 type Catalog struct {
@@ -80,7 +109,7 @@ func main() { os.Exit(run()) }
 func run() int {
 	args := os.Args[1:]
 	if len(args) < 1 {
-		fmt.Fprintln(os.Stderr, "usage: quickget-catalog <list|releases|editions|arch|url|check|info|info-json|trust> <os> [release] [edition] [arch]")
+		fmt.Fprintln(os.Stderr, "usage: quickget-catalog <list|releases|editions|arch|url|check|info|info-json|trust|meta> <os> [release] [edition] [arch]")
 		return 2
 	}
 	cat, err := loadCatalog(catalogPath())
@@ -233,6 +262,25 @@ func run() int {
 			return 1
 		}
 		fmt.Printf("%s|%s|%s|%s\n", inf.Name, inf.Credentials, inf.Homepage, inf.Info)
+	case "meta":
+		// meta [os] — classification metadata (status, image_type,
+		// download_mode, license, boot_mode, support_level, arch).
+		// No os → every entry, keyed by name.
+		if len(args) > 1 {
+			e := find(cat, args[1])
+			if e == nil {
+				return 1
+			}
+			b, _ := json.Marshal(e.meta())
+			fmt.Println(string(b))
+			return 0
+		}
+		all := make(map[string]Meta, len(cat.Entries))
+		for i := range cat.Entries {
+			all[cat.Entries[i].OS] = cat.Entries[i].meta()
+		}
+		b, _ := json.Marshal(all)
+		fmt.Println(string(b))
 	case "info-json":
 		info, err := loadInfo(infoPath())
 		if err != nil {

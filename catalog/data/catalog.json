@@ -10,7 +10,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "9front",
@@ -24,7 +30,13 @@
    "url": "https://9front.org/iso",
    "iso": "$(web_pipe ",
    "hash_url": "${URL}/",
-   "scrape": true
+   "scrape": true,
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "9legacy",
@@ -34,7 +46,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "academix",
@@ -44,7 +62,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "adelie",
@@ -59,7 +83,31 @@
     "install",
     "kde",
     "lxqt"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
+   "os": "aerynos",
+   "releases": [
+    "2026.08",
+    "2026.05.2"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "alma",
@@ -79,7 +127,13 @@
    "url": "https://repo.almalinux.org/almalinux/%RELEASE%/isos/%ARCH%",
    "iso": "AlmaLinux-%RELEASE%-latest-%ARCH%-%EDITION%.iso",
    "hash_url": "${URL}/CHECKSUM",
-   "qarch": true
+   "qarch": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "alpine",
@@ -104,7 +158,13 @@
    "iso": "alpine-virt-%VERSION%-%ARCH%.iso",
    "hash_url": "${URL}/latest-releases.yaml",
    "scrape": true,
-   "qarch": true
+   "qarch": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "altlinux",
@@ -121,7 +181,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "amazonlinux",
@@ -132,7 +198,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "qcow2",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "amogos",
@@ -148,7 +220,13 @@
     "amd64"
    ],
    "url": "https://github.com/Amog-OS/AmogOS/releases/download/%RELEASE%",
-   "iso": "AmogOS-${RELEASE#x64-}-x86_64.iso"
+   "iso": "AmogOS-${RELEASE#x64-}-x86_64.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "android",
@@ -165,7 +243,13 @@
     "amd64"
    ],
    "url": "https://mirrors.gigenet.com/OSDN/android-x86",
-   "hash_url": "https://www.fosshub.com/Android-x86-old.html"
+   "hash_url": "https://www.fosshub.com/Android-x86-old.html",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "anolis",
@@ -174,14 +258,21 @@
    ],
    "scrape": true,
    "releases": [
-    "8.8",
-    "8.9"
+    "23.5",
+    "8.9",
+    "8.8"
    ],
    "editions": [
     "boot",
     "dvd",
     "minimal"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "antergos",
@@ -195,7 +286,13 @@
    "editions": [
     "standard",
     "minimal"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "antix",
@@ -221,7 +318,13 @@
    "url": "https://sourceforge.net/projects/antix-linux/files/Final/antiX-%RELEASE%",
    "iso": "antiX-%RELEASE%",
    "hash_url": "${URL}/${README}.txt",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "apodio",
@@ -231,7 +334,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "arch-linux-gui",
@@ -246,7 +355,13 @@
     "plasma",
     "gnome",
     "xfce"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "archbang",
@@ -257,7 +372,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "archcraft",
@@ -271,7 +392,13 @@
    "url": "https://sourceforge.net/projects/archcraft/files/%RELEASE%/download",
    "iso": "$(basename ",
    "hash_url": "https://sourceforge.net/projects/archcraft/files/${VERSION_FOLDER}/%ISO%.sha256sum",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "archlinux",
@@ -284,7 +411,13 @@
    ],
    "url": "https://geo.mirror.pkgbuild.com/",
    "hash_url": "https://archlinux.org/releng/releases/json/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "archman",
@@ -297,7 +430,13 @@
    ],
    "editions": [
     "xfce"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "artixlinux",
@@ -327,7 +466,13 @@
    "url": "https://iso.artixlinux.org/iso",
    "iso": "artix-%EDITION%-%RELEASE%-x86_64.iso",
    "hash_url": "${URL}/sha256sums",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "astralinux",
@@ -337,7 +482,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "athenaos",
@@ -348,7 +499,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "avlinux",
@@ -359,7 +516,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "azurelinux",
@@ -374,7 +537,13 @@
    "url": "https://aka.ms/azurelinux-%RELEASE%-%ARCH%.iso",
    "iso": "$(web_redirect ",
    "scrape": true,
-   "qarch": true
+   "qarch": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "backbox",
@@ -387,7 +556,13 @@
    ],
    "iso": "$(web_pipe ",
    "hash_url": "https://linux.backbox.org/download/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "backtrack",
@@ -399,7 +574,13 @@
     "amd64"
    ],
    "url": "https://archive.org/download/backtrack-five-et-al/backtrack%205/revolution%201/gnome",
-   "iso": "BT5R1-GNOME-64.iso"
+   "iso": "BT5R1-GNOME-64.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "batocera",
@@ -417,7 +598,13 @@
    "url": "https://mirrors.o2switch.fr/batocera/x86_64/stable/%RELEASE%",
    "iso": "$(web_pipe ",
    "hash_url": "${URL}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "bazzite",
@@ -435,7 +622,13 @@
    ],
    "url": "https://download.bazzite.gg",
    "iso": "bazzite-gnome-stable-amd64.iso",
-   "hash_url": "${URL}/%ISO%-CHECKSUM"
+   "hash_url": "${URL}/%ISO%-CHECKSUM",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "beos",
@@ -447,7 +640,13 @@
     "amd64"
    ],
    "url": "https://archive.org/download/beos-5-pe",
-   "iso": "beos-5-pe.iso"
+   "iso": "beos-5-pe.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "restricted",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "biebian",
@@ -459,7 +658,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/biebian/files",
-   "iso": "JBL_%RELEASE%.iso"
+   "iso": "JBL_%RELEASE%.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "biglinux",
@@ -476,7 +681,13 @@
    ],
    "url": "https://iso.biglinux.com.br",
    "iso": "biglinux_%RELEASE%_%EDITION%.iso",
-   "hash_url": "${URL}/%ISO%.md5"
+   "hash_url": "${URL}/%ISO%.md5",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "blackarch",
@@ -489,7 +700,13 @@
     "amd64"
    ],
    "url": "https://ftp.halifax.rwth-aachen.de/blackarch/iso",
-   "iso": "blackarch-linux-%EDITION%-%RELEASE%-x86_64.iso"
+   "iso": "blackarch-linux-%EDITION%-%RELEASE%-x86_64.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "blackbuntu",
@@ -499,7 +716,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "blankon",
@@ -510,7 +733,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "blendos",
@@ -523,7 +752,13 @@
    ],
    "url": "https://git.blendos.co/api/v4/projects/32/jobs/artifacts/main/raw/blendOS.iso?job=build-job",
    "iso": "blendOS.iso",
-   "hash_url": "https://git.blendos.co/api/v4/projects/32/jobs/artifacts/main/raw/checksum?job=build-job"
+   "hash_url": "https://git.blendos.co/api/v4/projects/32/jobs/artifacts/main/raw/checksum?job=build-job",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "blissos",
@@ -537,7 +772,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/blissos-x86/rss?path=/",
-   "hash_url": "${URL}"
+   "hash_url": "${URL}",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "bodhi",
@@ -554,7 +795,13 @@
    ],
    "url": "https://sourceforge.net/projects/bodhilinux/files/%RELEASE%",
    "iso": "bodhi-%RELEASE%-64.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "boot-repair",
@@ -565,7 +812,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "bosslinux",
@@ -576,7 +829,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "bsdrp",
@@ -587,7 +846,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "bunsenlabs",
@@ -599,7 +864,13 @@
     "amd64"
    ],
    "url": "https://ddl.bunsenlabs.org/ddl",
-   "iso": "boron-1-240123-amd64.hybrid.iso"
+   "iso": "boron-1-240123-amd64.hybrid.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "cachyos",
@@ -614,7 +885,13 @@
     "amd64"
    ],
    "scrape": true,
-   "hash_url": "${URL}.sha256"
+   "hash_url": "${URL}.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "caelinux",
@@ -627,7 +904,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "caine",
@@ -639,7 +922,13 @@
     "amd64"
    ],
    "url": "https://www.caine-live.net/Downloads",
-   "iso": "caine%RELEASE%.iso"
+   "iso": "caine%RELEASE%.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "calculate-linux",
@@ -650,7 +939,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "canaima",
@@ -664,7 +959,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "centos",
@@ -678,7 +979,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "centos-stream",
@@ -695,7 +1002,13 @@
    ],
    "url": "https://linuxsoft.cern.ch/centos-stream/%RELEASE%-stream/BaseOS/x86_64/iso",
    "iso": "CentOS-Stream-%RELEASE%-latest-x86_64-%EDITION%.iso",
-   "hash_url": "${URL}/%ISO%.SHA256SUM"
+   "hash_url": "${URL}/%ISO%.SHA256SUM",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "chimeralinux",
@@ -712,7 +1025,13 @@
    "url": "https://repo.chimera-linux.org/live/%RELEASE%",
    "iso": "chimera-linux-x86_64-LIVE-%DATE%-%EDITION%.iso",
    "hash_url": "${URL}/sha256sums.txt",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "chimeraos",
@@ -723,7 +1042,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "cirros",
@@ -739,7 +1064,13 @@
     "amd64"
    ],
    "url": "https://download.cirros-cloud.net/%RELEASE%",
-   "iso": "cirros-%RELEASE%-x86_64-disk.img"
+   "iso": "cirros-%RELEASE%-x86_64-disk.img",
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "clonezilla",
@@ -753,7 +1084,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/clonezilla/files/clonezilla_live_stable/%RELEASE%",
-   "iso": "clonezilla-live-%RELEASE%-amd64.iso"
+   "iso": "clonezilla-live-%RELEASE%-amd64.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "coreos",
@@ -767,7 +1104,13 @@
     "amd64"
    ],
    "url": "https://stable.release.core-os.net/amd64-usr/%RELEASE%",
-   "iso": "coreos_production_iso_image.iso"
+   "iso": "coreos_production_iso_image.iso",
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "crunchbang++",
@@ -781,7 +1124,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "crux",
@@ -791,7 +1140,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "crystal-linux",
@@ -802,7 +1157,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "ctlos",
@@ -812,7 +1173,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "cuerdos",
@@ -828,7 +1195,13 @@
     "sway",
     "shell",
     "plasma"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "cyborghawk",
@@ -838,7 +1211,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "dahliaos",
@@ -849,7 +1228,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "experimental",
+   "image_type": "zip",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "damn-small-linux",
@@ -861,7 +1246,13 @@
     "amd64"
    ],
    "url": "https://distro.ibiblio.org/damnsmall/current",
-   "iso": "dsl-%RELEASE%-syslinux.iso"
+   "iso": "dsl-%RELEASE%-syslinux.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "daphile",
@@ -875,7 +1266,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "dban",
@@ -885,7 +1282,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "debian",
@@ -911,7 +1314,13 @@
    "url": "https://cdimage.debian.org/cdimage/archive/%RELEASE%-live/${DEBIAN_ARCH}/iso-hybrid",
    "iso": "debian-live-%RELEASE%-${DEBIAN_ARCH}-%EDITION%.iso",
    "hash_url": "https://cdimage.debian.org/debian-cd/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "debian-edu",
@@ -922,7 +1331,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "deepin",
@@ -941,11 +1356,18 @@
    "url": "https://cdimage.deepin.com/releases/",
    "iso": "deepin-desktop-community-${REV}-amd64.iso",
    "hash_url": "${URL}/SHA256SUMS",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "devuan",
    "releases": [
+    "excalibur",
     "daedalus",
     "chimaera"
    ],
@@ -956,7 +1378,13 @@
    "url": "https://files.devuan.org/devuan_%RELEASE%/desktop-live",
    "iso": "devuan_%RELEASE%_${VER}_amd64_desktop-live.iso",
    "hash_url": "${URL}/SHASUMS.txt",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "dietpi",
@@ -967,7 +1395,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "dragonflybsd",
@@ -1004,7 +1438,13 @@
    ],
    "url": "http://mirror-master.dragonflybsd.org/iso-images",
    "iso": "dfly-x86_64-%RELEASE%_REL.iso.bz2",
-   "hash_url": "${URL}/md5.txt"
+   "hash_url": "${URL}/md5.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "dragonos",
@@ -1019,7 +1459,13 @@
     "amd64"
    ],
    "url": "https://downloads.sourceforge.net/project/dragonos-focal",
-   "iso": "DragonOS_%RELEASE%.iso"
+   "iso": "DragonOS_%RELEASE%.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "drauger-os",
@@ -1030,7 +1476,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "drbl",
@@ -1040,7 +1492,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "easynas",
@@ -1050,7 +1508,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "easyos",
@@ -1065,7 +1529,13 @@
    "url": "https://distro.ibiblio.org/easyos/amd64/releases/kirkstone/${YEAR}/%RELEASE%",
    "iso": "easy-%RELEASE%-amd64.img",
    "hash_url": "${URL}/md5.sum.txt",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "edubuntu",
@@ -1079,7 +1549,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "educaandos",
@@ -1096,7 +1572,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "elastix",
@@ -1106,7 +1588,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "elementary",
@@ -1122,7 +1610,13 @@
    ],
    "url": "https://dl.elementaryos.org",
    "iso": "elementaryos-%RELEASE%-stable${STAMP}.iso",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "emmabuntus",
@@ -1134,7 +1628,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/emmabuntus/files/Emmabuntus_DE6/Images/1.03",
-   "iso": "emmabuntus-de6-core-amd64-13.7-1.03.iso"
+   "iso": "emmabuntus-de6-core-amd64-13.7-1.03.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "endeavouros",
@@ -1152,7 +1652,13 @@
    "url": "https://mirror.alpix.eu/endeavouros/iso",
    "iso": "$(echo ",
    "hash_url": "${URL}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "endian",
@@ -1163,7 +1669,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "endless",
@@ -1182,7 +1694,13 @@
    ],
    "url": "https://images-dl.endlessm.com/release/%RELEASE%/eos-amd64-amd64/%EDITION%",
    "iso": "eos-eos${RELEASE:0:3}-amd64-amd64.${FILE_TS}.%EDITION%.iso",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "esfera",
@@ -1193,7 +1711,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "eurolinux",
@@ -1205,7 +1729,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ezarcher",
@@ -1216,7 +1746,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "fedora",
@@ -1251,7 +1787,13 @@
     "amd64",
     "arm64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "fedora-coreos",
@@ -1263,7 +1805,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "qcow2",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "fedoracore",
@@ -1279,7 +1827,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "feren-os",
@@ -1290,7 +1844,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "finnix",
@@ -1300,7 +1860,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "fiwix",
@@ -1310,7 +1876,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "flatcar",
@@ -1325,7 +1897,13 @@
     "amd64"
    ],
    "url": "https://%RELEASE%.release.flatcar-linux.net/amd64-usr/current",
-   "iso": "flatcar_production_iso_image.iso"
+   "iso": "flatcar_production_iso_image.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "freebsd",
@@ -1337,14 +1915,21 @@
    ],
    "editions": [
     "disc1",
-    "dvd1"
+    "dvd1",
+    "bootonly"
    ],
    "arch": [
     "amd64"
    ],
    "url": "https://download.freebsd.org/ftp/releases/amd64/amd64/ISO-IMAGES/%RELEASE%",
    "iso": "FreeBSD-%RELEASE%-RELEASE-amd64-%EDITION%.iso",
-   "hash_url": "${URL}/CHECKSUM.SHA256-FreeBSD-%RELEASE%-RELEASE-amd64"
+   "hash_url": "${URL}/CHECKSUM.SHA256-FreeBSD-%RELEASE%-RELEASE-amd64",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "freedombox",
@@ -1358,7 +1943,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "freedos",
@@ -1373,7 +1964,13 @@
    ],
    "url": "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/%RELEASE%",
    "iso": "FD12CD.iso",
-   "hash_url": "${URL}/FD12.sha"
+   "hash_url": "${URL}/FD12.sha",
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "freenas",
@@ -1386,7 +1983,13 @@
     "amd64"
    ],
    "url": "https://download.freenas.org/%RELEASE%/latest/x64",
-   "iso": "FreeNAS-%RELEASE%-U5.iso"
+   "iso": "FreeNAS-%RELEASE%-U5.iso",
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "freepbx",
@@ -1396,8 +1999,15 @@
    "scrape": true,
    "releases": [
     "17",
-    "16"
-   ]
+    "16",
+    "15"
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "fuduntu",
@@ -1411,7 +2021,13 @@
    "editions": [
     "live",
     "lite"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "furybsd",
@@ -1425,7 +2041,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "galliumos",
@@ -1444,7 +2066,13 @@
     "samus",
     "sandy",
     "skylake"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "garuda",
@@ -1467,7 +2095,13 @@
     "amd64"
    ],
    "url": "https://iso.builds.garudalinux.org/iso/latest/garuda",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "geckolinux",
@@ -1488,7 +2122,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "gecos",
@@ -1502,7 +2142,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "gentoo",
@@ -1517,7 +2163,13 @@
     "amd64"
    ],
    "url": "https://mirrors.kernel.org/gentoo/releases/amd64/autobuilds",
-   "hash_url": "${URL}/%RELEASE%-iso.txt"
+   "hash_url": "${URL}/%RELEASE%-iso.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ghostbsd",
@@ -1535,7 +2187,13 @@
    ],
    "url": "https://download.ghostbsd.org/releases/amd64/%RELEASE%",
    "iso": "GhostBSD-%RELEASE%.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "gnomeos",
@@ -1547,7 +2205,13 @@
     "amd64"
    ],
    "url": "https://download.gnome.org/gnomeos/%RELEASE%",
-   "iso": "gnome_os_installer_%RELEASE%.iso"
+   "iso": "gnome_os_installer_%RELEASE%.iso",
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "gnu-hurd",
@@ -1558,7 +2222,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "gnulinex",
@@ -1573,7 +2243,13 @@
     "amd64"
    ],
    "url": "https://github.com/CarlosGamer98YT/gnuLinEx/releases/download/%RELEASE%",
-   "iso": "gnuLinEx-amd64-netinst.iso"
+   "iso": "gnuLinEx-amd64-netinst.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "gobolinux",
@@ -1585,7 +2261,13 @@
     "amd64"
    ],
    "url": "https://gobolinux.neonsys.org/%RELEASE%-ISO",
-   "iso": "GoboLinux-%RELEASE%-x86_64.iso"
+   "iso": "GoboLinux-%RELEASE%-x86_64.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "gparted-live",
@@ -1596,7 +2278,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "grml",
@@ -1607,7 +2295,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "grommunio",
@@ -1621,7 +2315,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "guadalinex",
@@ -1641,7 +2341,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/archiveos/files/g/guadalinex",
-   "iso": "guadalinex-v8-desktop-i386-final.iso"
+   "iso": "guadalinex-v8-desktop-i386-final.iso",
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "guadalinexedu",
@@ -1660,7 +2366,13 @@
     "amd64"
    ],
    "url": "https://archive.org/download/guadalinexedu-version-archive",
-   "iso": "guadalinexedu-2013-instalador-SDI.iso"
+   "iso": "guadalinexedu-2013-instalador-SDI.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "guix",
@@ -1673,7 +2385,13 @@
     "amd64"
    ],
    "url": "https://ftpmirror.gnu.org/gnu/guix/",
-   "iso": "guix-system-install-%RELEASE%.x86_64-linux.iso"
+   "iso": "guix-system-install-%RELEASE%.x86_64-linux.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "haiku",
@@ -1691,7 +2409,13 @@
    ],
    "url": "http://mirror.rit.edu/haiku/%RELEASE%",
    "iso": "haiku-%RELEASE%-%EDITION%-anyboot.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "hamonikr",
@@ -1707,7 +2431,13 @@
     "amd64"
    ],
    "iso": "hamonikr-kumkang-%RELEASE%${SUFFIX}-amd64.iso",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "hannahmontana",
@@ -1722,7 +2452,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/hannah-montana-linux-v26-lite/files/v%RELEASE%",
-   "iso": "hannah_montana_linux_x86_basic_edition.iso"
+   "iso": "hannah_montana_linux_x86_basic_edition.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "haos",
@@ -1733,7 +2469,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "ova",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "hardenedbsd",
@@ -1746,7 +2488,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "harvester",
@@ -1757,7 +2505,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "hefftorlinux",
@@ -1772,7 +2526,13 @@
     "kodi",
     "plasma",
     "xfce"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "helenos",
@@ -1782,7 +2542,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "hellosystem",
@@ -1793,7 +2559,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "instantos",
@@ -1804,7 +2576,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "ipfire",
@@ -1815,7 +2593,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ipxe",
@@ -1825,7 +2609,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "issabel",
@@ -1835,7 +2625,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "jnode",
@@ -1846,7 +2642,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "k3os",
@@ -1857,7 +2659,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "kairos",
@@ -1868,7 +2676,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "kali",
@@ -1885,7 +2699,13 @@
     "amd64"
    ],
    "url": "https://cdimage.kali.org/%RELEASE%",
-   "hash_url": "${URL}/?C=M;O=D"
+   "hash_url": "${URL}/?C=M;O=D",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "kamarada",
@@ -1899,7 +2719,13 @@
    "editions": [
     "kde",
     "gnome"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "kaos",
@@ -1911,7 +2737,13 @@
     "amd64"
    ],
    "url": "https://downloads.sourceforge.net/project/kaosx/ISO",
-   "iso": "KaOS-%RELEASE%-x86_64.iso"
+   "iso": "KaOS-%RELEASE%-x86_64.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "kaspersky-rescue",
@@ -1921,7 +2753,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "restricted",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "kdelinux",
@@ -1933,7 +2771,13 @@
     "amd64"
    ],
    "url": "https://files.kde.org/kde-linux",
-   "hash_url": "${URL}/SHA256SUMS"
+   "hash_url": "${URL}/SHA256SUMS",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "kdeneon",
@@ -1952,7 +2796,13 @@
    "arch": [
     "amd64"
    ],
-   "url": "https://files.kde.org/neon/images/%EDITION%/%RELEASE%/current"
+   "url": "https://files.kde.org/neon/images/%EDITION%/%RELEASE%/current",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "kicksecure",
@@ -1965,7 +2815,13 @@
    ],
    "iso": "$(web_pipe ",
    "hash_url": "${BASE}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "qcow2",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "knoppix",
@@ -1976,7 +2832,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "kolibrios",
@@ -1993,7 +2855,13 @@
    ],
    "url": "http://builds.kolibrios.org/%EDITION%",
    "iso": "latest-iso.7z",
-   "hash_url": "${URL}/sha256sums.txt"
+   "hash_url": "${URL}/sha256sums.txt",
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "koozali",
@@ -2003,7 +2871,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "kubuntu",
@@ -2021,7 +2895,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "kurumin",
@@ -2035,7 +2915,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "lakka",
@@ -2048,7 +2934,13 @@
     "amd64"
    ],
    "url": "https://le.builds.lakka.tv/Generic.x86_64",
-   "iso": "Lakka-Generic.x86_64-%RELEASE%.img.gz"
+   "iso": "Lakka-Generic.x86_64-%RELEASE%.img.gz",
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "lernstick",
@@ -2063,7 +2955,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "libreelec",
@@ -2077,7 +2975,13 @@
     "amd64"
    ],
    "url": "https://releases.libreelec.tv",
-   "iso": "LibreELEC-Generic.x86_64-%RELEASE%.img.gz"
+   "iso": "LibreELEC-Generic.x86_64-%RELEASE%.img.gz",
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "life",
@@ -2089,7 +2993,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "linkat",
@@ -2101,7 +3011,13 @@
     "amd64"
    ],
    "url": "http://download-linkat.xtec.cat/d83/ISO",
-   "iso": "linkat-22.04.3-amd64.iso"
+   "iso": "linkat-22.04.3-amd64.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "linuxfx",
@@ -2112,7 +3028,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "linuxlite",
@@ -2128,7 +3050,13 @@
    ],
    "url": "https://sourceforge.net/projects/linux-lite/files/%RELEASE%",
    "iso": "linux-lite-%RELEASE%-64bit.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "linuxmint",
@@ -2152,7 +3080,13 @@
    ],
    "url": "https://mirrors.kernel.org/linuxmint/stable/%RELEASE%",
    "iso": "linuxmint-%RELEASE%-%EDITION%-64bit.iso",
-   "hash_url": "${URL}/sha256sum.txt"
+   "hash_url": "${URL}/sha256sum.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "lliurex",
@@ -2169,7 +3103,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "lmde",
@@ -2184,7 +3124,13 @@
    ],
    "url": "https://mirrors.kernel.org/linuxmint/debian",
    "iso": "lmde-%RELEASE%-%EDITION%-64bit.iso",
-   "hash_url": "${URL}/sha256sum.txt"
+   "hash_url": "${URL}/sha256sum.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "loc-os",
@@ -2195,7 +3141,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "lubuntu",
@@ -2213,7 +3165,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "lxle",
@@ -2224,7 +3182,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "m0n0wall",
@@ -2234,7 +3198,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "maboxlinux",
@@ -2248,7 +3218,13 @@
    "url": "https://sourceforge.net/projects/mabox-linux/files/%RELEASE%/download",
    "iso": "$(basename ",
    "hash_url": "https://repo.maboxlinux.org/iso/%ISO%.md5",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "macos",
@@ -2265,7 +3241,13 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "restricted",
+   "boot_mode": "uefi",
+   "support_level": "stable"
   },
   {
    "os": "mageia",
@@ -2280,7 +3262,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "makulu",
@@ -2291,7 +3279,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "mangaka",
@@ -2302,7 +3296,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "manjaro",
@@ -2322,7 +3322,13 @@
     "amd64"
    ],
    "scrape": true,
-   "hash_url": "${URL}.sha512"
+   "hash_url": "${URL}.sha512",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "matriux",
@@ -2332,7 +3338,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "maxlinux",
@@ -2347,7 +3359,13 @@
    ],
    "iso": "$(web_pipe ",
    "hash_url": "${BASE}/MAX-%RELEASE%/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "metamorphose",
@@ -2358,7 +3376,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "midnightbsd",
@@ -2375,7 +3399,13 @@
    ],
    "url": "https://discovery.midnightbsd.org/ftp/releases/amd64/ISO-IMAGES/%RELEASE%",
    "iso": "MidnightBSD-%RELEASE%--amd64-disc1.iso",
-   "hash_url": "${URL}/CHECKSUM.SHA256"
+   "hash_url": "${URL}/CHECKSUM.SHA256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "mikrotik-chr",
@@ -2385,7 +3415,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "minikube",
@@ -2395,7 +3431,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "minino",
@@ -2413,7 +3455,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/archiveos/files/m/minino",
-   "iso": "minino-%RELEASE%-%EDITION%.iso"
+   "iso": "minino-%RELEASE%-%EDITION%.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "minios",
@@ -2428,7 +3476,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "minix",
@@ -2440,7 +3494,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "mocaccinoos",
@@ -2457,7 +3517,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "molinux",
@@ -2471,7 +3537,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/archiveos/files/m/molinux",
-   "iso": "Molinux_%RELEASE%_Zoraida.iso"
+   "iso": "Molinux_%RELEASE%_Zoraida.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "mxlinux",
@@ -2488,7 +3560,13 @@
    ],
    "url": "https://sourceforge.net/projects/mx-linux/files/Final/%EDITION%",
    "iso": "MX-%RELEASE%_Xfce_x64.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "mythbuntu",
@@ -2498,7 +3576,13 @@
    "scrape": true,
    "releases": [
     "16.04"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "neptune",
@@ -2511,7 +3595,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "netboot",
@@ -2524,7 +3614,13 @@
    ],
    "url": "https://boot.netboot.xyz/ipxe",
    "iso": "netboot.xyz.iso",
-   "hash_url": "${URL}/netboot.xyz-sha256-checksums.txt"
+   "hash_url": "${URL}/netboot.xyz-sha256-checksums.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "netbsd",
@@ -2540,7 +3636,13 @@
    ],
    "url": "https://cdn.netbsd.org/pub/NetBSD/NetBSD-%RELEASE%/images",
    "iso": "NetBSD-%RELEASE%-amd64.iso",
-   "hash_url": "${URL}/MD5"
+   "hash_url": "${URL}/MD5",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "nethserver",
@@ -2551,7 +3653,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "netrunner",
@@ -2562,7 +3670,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "nitrux",
@@ -2575,13 +3689,20 @@
    ],
    "url": "${URLBASE}/ISO",
    "hash_url": "${URLBASE}/MD5/${ISONAME}.md5sum",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "nixos",
    "releases": [
     "unstable",
-    "26.05"
+    "26.05",
+    "25.11"
    ],
    "editions": [
     "minimal",
@@ -2592,7 +3713,13 @@
    ],
    "url": "https://channels.nixos.org/nixos-%RELEASE%",
    "iso": "latest-nixos-%EDITION%-x86_64-linux.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "nobara",
@@ -2610,7 +3737,13 @@
     "amd64"
    ],
    "url": "https://nobaraproject.org/download-nobara/",
-   "hash_url": "${URL}"
+   "hash_url": "${URL}",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "nodezero",
@@ -2620,7 +3753,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "nomadbsd",
@@ -2633,7 +3772,13 @@
     "amd64"
    ],
    "url": "https://nomadbsd.org/download",
-   "iso": "nomadbsd-%RELEASE%.img.lzma"
+   "iso": "nomadbsd-%RELEASE%.img.lzma",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "nova",
@@ -2646,7 +3791,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "nst",
@@ -2658,7 +3809,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/nst/files/NST/NST%20%RELEASE%",
-   "iso": "nst-%RELEASE%.x86_64.iso"
+   "iso": "nst-%RELEASE%.x86_64.iso",
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "nwg-shell",
@@ -2672,7 +3829,13 @@
    ],
    "url": "https://sourceforge.net/projects/nwg-iso/files",
    "iso": "nwg-live-%RELEASE%-x86_64.iso",
-   "hash_url": "https://sourceforge.net/projects/nwg-iso/rss?path=/"
+   "hash_url": "https://sourceforge.net/projects/nwg-iso/rss?path=/",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "nyarch",
@@ -2690,7 +3853,13 @@
    ],
    "url": "https://sourceforge.net/projects/nyarchlinux/files",
    "iso": "Nyarch-${PREFIX}${ED}-%RELEASE%.iso",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "omarchy",
@@ -2702,7 +3871,13 @@
     "amd64"
    ],
    "url": "https://iso.omarchy.org",
-   "iso": "omarchy-%RELEASE%.iso"
+   "iso": "omarchy-%RELEASE%.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "omnios",
@@ -2713,7 +3888,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "openartist",
@@ -2723,7 +3904,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "openbsd",
@@ -2748,7 +3935,13 @@
    ],
    "url": "https://mirror.leaseweb.com/pub/OpenBSD/%RELEASE%/amd64",
    "iso": "install${RELEASE//\\./}.iso",
-   "hash_url": "${URL}/SHA256"
+   "hash_url": "${URL}/SHA256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "opencloudos",
@@ -2765,7 +3958,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "openeuler",
@@ -2774,13 +3973,20 @@
    ],
    "scrape": true,
    "releases": [
+    "24.03-LTS-SP1",
     "24.03-LTS",
     "22.03-LTS-SP4"
    ],
    "editions": [
     "everything",
     "netinst"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "openfiler",
@@ -2790,7 +3996,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "openfyde",
@@ -2813,7 +4025,13 @@
     "amd64"
    ],
    "url": "https://github.com/openfyde/overlay-amd64-openfyde/releases/download/%RELEASE%",
-   "iso": "amd64-openfyde-%RELEASE%.bin.xz"
+   "iso": "amd64-openfyde-%RELEASE%.bin.xz",
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "openindiana",
@@ -2834,12 +4052,19 @@
    ],
    "url": "https://dlc.openindiana.org/isos/hipster/%RELEASE%",
    "iso": "OI-hipster-%EDITION%-%RELEASE%.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "openkylin",
    "releases": [
-    "3.0"
+    "3.0",
+    "2.0"
    ],
    "editions": [
     "desktop",
@@ -2848,7 +4073,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "openmamba",
@@ -2859,7 +4090,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "openmandriva",
@@ -2878,7 +4115,13 @@
    "url": "https://sourceforge.net/projects/openmandriva/rss?path=/release/ROME",
    "iso": "${ISO//%28/(}",
    "hash_url": "${URL}",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "openmediavault",
@@ -2904,7 +4147,13 @@
    ],
    "url": "https://downloads.sourceforge.net/project/openmediavault/iso/%RELEASE%",
    "iso": "openmediavault_%RELEASE%-amd64.iso",
-   "hash_url": "${URL}/%ISO%.sha256"
+   "hash_url": "${URL}/%ISO%.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "opensuse",
@@ -2928,7 +4177,13 @@
    "url": "https://download.opensuse.org/tumbleweed/iso",
    "iso": "openSUSE-Tumbleweed-DVD-x86_64-Current.iso",
    "hash_url": "${URL}/%ISO%.sha256",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "opensuse-microos",
@@ -2939,7 +4194,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "opensuse-slowroll",
@@ -2950,7 +4211,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "openwrt",
@@ -2964,7 +4231,13 @@
     "amd64"
    ],
    "url": "https://downloads.openwrt.org/releases/%RELEASE%/targets/x86/64",
-   "iso": "openwrt-%RELEASE%-x86-64-generic-ext4-combined-efi.img.gz"
+   "iso": "openwrt-%RELEASE%-x86-64-generic-ext4-combined-efi.img.gz",
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "opnsense",
@@ -2981,7 +4254,13 @@
    ],
    "url": "https://mirror.fra10.de.leaseweb.net/opnsense/releases/%RELEASE%",
    "iso": "OPNsense-%RELEASE%-dvd-amd64.iso.bz2",
-   "hash_url": "${URL}/OPNsense-%RELEASE%-checksums-amd64.sha256"
+   "hash_url": "${URL}/OPNsense-%RELEASE%-checksums-amd64.sha256",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "oraclelinux",
@@ -3006,7 +4285,13 @@
    ],
    "url": "https://yum.oracle.com/ISOS/OracleLinux/OL${VER_MAJ}/u${VER_MIN}/x86_64",
    "iso": "OracleLinux-R${VER_MAJ}-U${VER_MIN}-Server-x86_64-dvd.iso",
-   "hash_url": "https://linux.oracle.com/security/gpg/checksum/OracleLinux-R${VER_MAJ}-U${VER_MIN}-Server-x86_64.checksum"
+   "hash_url": "https://linux.oracle.com/security/gpg/checksum/OracleLinux-R${VER_MAJ}-U${VER_MIN}-Server-x86_64.checksum",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "os2warp",
@@ -3020,7 +4305,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "restricted",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "ovirt-node",
@@ -3034,7 +4325,13 @@
    "editions": [
     "el8",
     "el9"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "parabola",
@@ -3045,7 +4342,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "pardus",
@@ -3062,7 +4365,13 @@
     "amd64"
    ],
    "iso": "Pardus-%RELEASE%-${ED_UPPER}-latest-amd64.iso",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "parrotsec",
@@ -3079,7 +4388,13 @@
    ],
    "url": "https://download.parrot.sh/parrot/iso/%RELEASE%",
    "iso": "Parrot-%EDITION%-%RELEASE%_amd64.iso",
-   "hash_url": "${URL}/signed-hashes.txt"
+   "hash_url": "${URL}/signed-hashes.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "pclinuxos",
@@ -3096,7 +4411,13 @@
     "amd64"
    ],
    "url": "https://ftp.fau.de/pclinuxos/pclinuxos/iso",
-   "hash_url": "${URL}/"
+   "hash_url": "${URL}/",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "pentoo",
@@ -3113,7 +4434,13 @@
    "url": "https://www.pentoo.ch/isos",
    "iso": "$(web_pipe ",
    "hash_url": "${URL}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "peppermint",
@@ -3131,7 +4458,13 @@
    ],
    "url": "https://sourceforge.net/projects/peppermintos/files/isos",
    "iso": "PeppermintOS-devuan_64_xfce.iso",
-   "hash_url": "${URL}/%ISO%-sha512.checksum"
+   "hash_url": "${URL}/%ISO%-sha512.checksum",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "pfsense",
@@ -3145,7 +4478,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "photonos",
@@ -3157,7 +4496,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "pinguy",
@@ -3171,7 +4516,13 @@
    "editions": [
     "full",
     "mini"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "plan9",
@@ -3185,7 +4536,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "ploplinux",
@@ -3195,7 +4552,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "ponyos",
@@ -3211,7 +4574,13 @@
     "amd64"
    ],
    "url": "https://github.com/klange/ponyos/releases/download/v%RELEASE%",
-   "iso": "image.iso"
+   "iso": "image.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "popos",
@@ -3227,7 +4596,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "porteus",
@@ -3249,7 +4624,13 @@
    ],
    "url": "https://mirrors.dotsrc.org/porteus/x86_64/Porteus-v%RELEASE%",
    "iso": "Porteus-${edition}-v%RELEASE%-x86_64.iso",
-   "hash_url": "${URL}/sha256sums.txt"
+   "hash_url": "${URL}/sha256sums.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "postmarketos",
@@ -3266,7 +4647,13 @@
     "phosh",
     "plasma-desktop",
     "sway"
-   ]
+   ],
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "primeos",
@@ -3277,7 +4664,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "primtux",
@@ -3292,7 +4685,13 @@
    ],
    "url": "https://sourceforge.net/projects/primtux/files/Distribution",
    "iso": "PrimTux%RELEASE%-amd64-%EDITION%.iso",
-   "hash_url": "${URL}/%ISO%.md5"
+   "hash_url": "${URL}/%ISO%.md5",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "proxmox-backup-server",
@@ -3304,7 +4703,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "proxmox-mail-gateway",
@@ -3316,7 +4721,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "proxmox-ve",
@@ -3332,7 +4743,13 @@
    ],
    "url": "https://enterprise.proxmox.com/iso",
    "iso": "proxmox-ve_%RELEASE%.iso",
-   "hash_url": "${URL}/SHA256SUMS"
+   "hash_url": "${URL}/SHA256SUMS",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "puppylinux",
@@ -3345,7 +4762,13 @@
    ],
    "url": "https://distro.ibiblio.org/puppylinux/puppy-fossa",
    "iso": "fossapup64-%RELEASE%.iso",
-   "hash_url": "/.sha256.txt"
+   "hash_url": "/.sha256.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "pureos",
@@ -3360,7 +4783,13 @@
    "url": "https://downloads.puri.sm/${PureName}/${edition}/${PureDate}",
    "iso": "pureos-%RELEASE%-${edition}-live-${PureDateSquashed}_amd64.iso",
    "hash_url": "https://www.pureos.net/download/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "q4os",
@@ -3375,7 +4804,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/q4os/rss?path=/stable",
-   "hash_url": "${URL}"
+   "hash_url": "${URL}",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "qubes",
@@ -3403,7 +4838,13 @@
    ],
    "url": "https://ftp.qubes-os.org/iso",
    "iso": "Qubes-R%RELEASE%-x86_64.iso",
-   "hash_url": "${URL}/%ISO%.DIGESTS"
+   "hash_url": "${URL}/%ISO%.DIGESTS",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "rancheros",
@@ -3414,7 +4855,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "raspberrypios-desktop",
@@ -3425,7 +4872,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "reactos",
@@ -3436,7 +4889,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "experimental",
+   "image_type": "zip",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "rebeccablackos",
@@ -3448,7 +4907,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/rebeccablackos/files/%RELEASE%",
-   "iso": "RebeccaBlackOS_amd64.iso"
+   "iso": "RebeccaBlackOS_amd64.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "rebornos",
@@ -3459,7 +4924,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "recreomatic",
@@ -3470,7 +4941,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "unknown",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "redo-rescue",
@@ -3480,7 +4957,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "redoxos",
@@ -3499,7 +4982,13 @@
     "amd64"
    ],
    "url": "https://static.redox-os.org/releases/%RELEASE%/x86_64",
-   "hash_url": "${URL}/SHA256SUM"
+   "hash_url": "${URL}/SHA256SUM",
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "refracta",
@@ -3510,7 +4999,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "regataos",
@@ -3525,7 +5020,33 @@
     "en-us",
     "pt-br",
     "nv"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
+  },
+  {
+   "os": "remixos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [
+    "64bit",
+    "32bit"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "archived",
+   "image_type": "zip",
+   "download_mode": "mirror",
+   "license": "restricted",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "rescatux",
@@ -3536,7 +5057,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "rescuezilla",
@@ -3552,7 +5079,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "rhino-linux",
@@ -3562,7 +5095,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "risios",
@@ -3573,7 +5112,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "robolinux",
@@ -3588,7 +5133,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "rockylinux",
@@ -3603,7 +5154,13 @@
    ],
    "url": "https://dl.rockylinux.org/vault/rocky/%RELEASE%/isos/x86_64",
    "iso": "Rocky-%RELEASE%-x86_64-%EDITION%.iso",
-   "hash_url": "${URL}/CHECKSUM"
+   "hash_url": "${URL}/CHECKSUM",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "rosalinux",
@@ -3621,7 +5178,13 @@
     "amd64"
    ],
    "iso": "ROSA.FRESH.${ED}.13.3.x86_64.iso",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "salix",
@@ -3632,7 +5195,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "sculpt-os",
@@ -3642,7 +5211,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "experimental",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "uefi",
+   "support_level": "experimental"
   },
   {
    "os": "securityonion",
@@ -3653,7 +5228,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "septor",
@@ -3663,7 +5244,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "shredos",
@@ -3674,7 +5261,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "siduction",
@@ -3694,7 +5287,13 @@
    "url": "https://mirrors.dotsrc.org/siduction/iso/${NAME}/%EDITION%",
    "iso": "siduction-%VERSION%-${NAME}-%EDITION%-amd64-%DATE%.iso",
    "hash_url": "https://mirror.math.princeton.edu/pub/siduction/iso/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "slackel",
@@ -3708,7 +5307,13 @@
    "editions": [
     "openbox",
     "mate"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "slackware",
@@ -3725,7 +5330,13 @@
    ],
    "url": "https://slackware.nl/slackware/slackware-iso/slackware64-%RELEASE%-iso",
    "iso": "slackware64-%RELEASE%-install-dvd.iso",
-   "hash_url": "${URL}/%ISO%.md5"
+   "hash_url": "${URL}/%ISO%.md5",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "slax",
@@ -3740,7 +5351,13 @@
     "amd64"
    ],
    "url": "https://ftp.fi.muni.cz/pub/linux/slax/Slax-12.x",
-   "hash_url": "${URL}/md5.txt"
+   "hash_url": "${URL}/md5.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "slint",
@@ -3754,7 +5371,13 @@
    "url": "https://slackware.uk/slint/x86_64/slint-${MAJ_VER}/iso",
    "iso": "slint64-%RELEASE%.iso",
    "hash_url": "${URL}/%ISO%.sha256",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "slitaz",
@@ -3765,7 +5388,13 @@
    ],
    "url": "http://mirror.slitaz.org/iso/rolling",
    "iso": "slitaz-rolling-%RELEASE%",
-   "hash_url": "${URL}/%ISO%.md5"
+   "hash_url": "${URL}/%ISO%.md5",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "smoothwall",
@@ -3776,7 +5405,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "solus",
@@ -3797,7 +5432,13 @@
    ],
    "url": "https://downloads.getsol.us/isos/%RELEASE%",
    "iso": "Solus-%EDITION%-Release-%RELEASE%.iso",
-   "hash_url": "${URL}/%ISO%.sha256sum"
+   "hash_url": "${URL}/%ISO%.sha256sum",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "sortix",
@@ -3807,7 +5448,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "sparkylinux",
@@ -3827,7 +5474,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/sparkylinux/files/cli",
-   "iso": "sparkylinux-%RELEASE%-x86_64-%EDITION%.iso"
+   "iso": "sparkylinux-%RELEASE%-x86_64-%EDITION%.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "spirallinux",
@@ -3848,7 +5501,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/spirallinux/files/12.231005",
-   "iso": "SpiralLinux_%EDITION%_12.231005_x86-64.iso"
+   "iso": "SpiralLinux_%EDITION%_12.231005_x86-64.iso",
+   "status": "discontinued",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "steamos",
@@ -3859,7 +5518,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "subgraph",
@@ -3871,7 +5536,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/archiveos/files/s/subgraph",
-   "iso": "subgraph-os-alpha_2016-12-30_1.iso"
+   "iso": "subgraph-os-alpha_2016-12-30_1.iso",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "supergrub2",
@@ -3885,7 +5556,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "syllable",
@@ -3897,7 +5574,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/syllable/files/Syllable/%RELEASE%",
-   "iso": "SyllableDesktop-%RELEASE%-1.i586.iso.7z"
+   "iso": "SyllableDesktop-%RELEASE%-1.i586.iso.7z",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "syslinuxos",
@@ -3911,7 +5594,13 @@
    "editions": [
     "gnome",
     "mate"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "systemrescue",
@@ -3943,7 +5632,13 @@
     "amd64"
    ],
    "url": "https://downloads.sourceforge.net/project/systemrescuecd/sysresccd-x86/%RELEASE%",
-   "iso": "systemrescue-%RELEASE%-amd64.iso"
+   "iso": "systemrescue-%RELEASE%-amd64.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "t1n1wall",
@@ -3954,7 +5649,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "t2sde",
@@ -3965,7 +5666,13 @@
    "releases": [
     "24.10",
     "24.11"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "tails",
@@ -3976,7 +5683,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "taloslinux",
@@ -3987,7 +5700,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "templeos",
@@ -3999,7 +5718,13 @@
     "amd64"
    ],
    "url": "https://templeos.org/Downloads",
-   "iso": "TempleOS.ISO"
+   "iso": "TempleOS.ISO",
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "tencentos",
@@ -4016,7 +5741,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "tinycore",
@@ -4036,7 +5767,13 @@
    ],
    "url": "http://www.tinycorelinux.net/%RELEASE%.x/%ARCH%/release",
    "iso": "%EDITION%-%RELEASE%.0.iso",
-   "hash_url": "${URL}/%ISO%.md5.txt"
+   "hash_url": "${URL}/%ISO%.md5.txt",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "toaruos",
@@ -4047,7 +5784,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "experimental",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
   },
   {
    "os": "tribblix",
@@ -4058,7 +5801,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "trisquel",
@@ -4077,7 +5826,31 @@
    ],
    "url": "https://mirrors.ocf.berkeley.edu/trisquel-images",
    "iso": "trisquel_%RELEASE%_amd64.iso",
-   "hash_url": "${URL}/%ISO%.sha1"
+   "hash_url": "${URL}/%ISO%.sha1",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
+   "os": "truenas-core",
+   "releases": [
+    "13.0",
+    "12.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "truenas-scale",
@@ -4094,7 +5867,13 @@
     "amd64"
    ],
    "hash_url": "${BASE}/${DIR}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "tsurugi",
@@ -4108,7 +5887,13 @@
    "url": "https://ftp.nluug.nl/pub/security/DigitalForensics/tsurugi",
    "iso": "$(web_pipe ",
    "hash_url": "${URL}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "turnkeylinux",
@@ -4116,11 +5901,104 @@
     "18.1",
     "19.0"
    ],
-   "editions": [],
+   "editions": [
+    "ansible",
+    "asp-net-core",
+    "avideo",
+    "bagisto",
+    "bookstack",
+    "bugzilla",
+    "cakephp",
+    "canvas",
+    "codeigniter",
+    "concrete-cms",
+    "core",
+    "couchdb",
+    "django",
+    "dokuwiki",
+    "domain-controller",
+    "drupal10",
+    "drupal7",
+    "e107",
+    "elgg",
+    "espocrm",
+    "etherpad",
+    "faveo-helpdesk",
+    "fileserver",
+    "foswiki",
+    "gameserver",
+    "gitea",
+    "gitlab",
+    "ibexa",
+    "invoice-ninja",
+    "jenkins",
+    "lamp",
+    "lapp",
+    "laravel",
+    "leantime",
+    "lighttpd-php-fastcgi",
+    "limesurvey",
+    "mantis",
+    "matomo",
+    "mattermost",
+    "mediaserver",
+    "mediawiki",
+    "mibew",
+    "moodle",
+    "mumble",
+    "mysql",
+    "nextcloud",
+    "nginx-php-fastcgi",
+    "nodejs",
+    "observium",
+    "odoo",
+    "omeka",
+    "opencart",
+    "openldap",
+    "openvpn",
+    "orangehrm",
+    "oscommerce",
+    "owncloud",
+    "phpbb",
+    "phplist",
+    "postgresql",
+    "prestashop",
+    "processwire",
+    "rails",
+    "redis",
+    "redmine",
+    "roundup",
+    "silverstripe",
+    "simplemachines",
+    "snipe-it",
+    "suitecrm",
+    "symfony",
+    "syncthing",
+    "tkldev",
+    "tomcat",
+    "tomcat-apache",
+    "torrentserver",
+    "typo3",
+    "ushahidi",
+    "web2py",
+    "wireguard",
+    "wordpress",
+    "xoops",
+    "yiiframework",
+    "zencart",
+    "znuny",
+    "zoneminder"
+   ],
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "tuxedo-os",
@@ -4134,7 +6012,13 @@
    "url": "https://os.tuxedocomputers.com",
    "iso": "$(web_pipe ",
    "hash_url": "https://os.tuxedocomputers.com/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "ubuntu",
@@ -4156,7 +6040,13 @@
    ],
    "url": "https://cdimage.ubuntu.com/${OS}/${DAILY_CODENAME}/daily-live/current",
    "hash_url": "${URL}/SHA256SUMS",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntu-budgie",
@@ -4173,7 +6063,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntu-core",
@@ -4188,7 +6084,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntu-mate",
@@ -4206,11 +6108,20 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntu-server",
    "releases": [
+    "26.04",
+    "24.04",
+    "22.04",
     "daily-live"
    ],
    "editions": [],
@@ -4220,7 +6131,13 @@
    ],
    "url": "https://cdimage.ubuntu.com/${OS}/${DAILY_CODENAME}/daily-live/current",
    "hash_url": "${URL}/SHA256SUMS",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntu-unity",
@@ -4234,7 +6151,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntuce",
@@ -4245,7 +6168,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntucinnamon",
@@ -4259,7 +6188,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntudde",
@@ -4269,7 +6204,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntukylin",
@@ -4287,7 +6228,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntustudio",
@@ -4305,7 +6252,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ubuntusway",
@@ -4317,7 +6270,13 @@
     "stable",
     "beta",
     "testing"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ultimate-edition",
@@ -4328,7 +6287,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "ultramarine",
@@ -4340,7 +6305,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "umbrelos",
@@ -4351,7 +6322,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "uwuntu",
@@ -4362,7 +6339,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "unknown",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "vanillaos",
@@ -4385,7 +6368,13 @@
    ],
    "url": "${ISO//.iso/.sha256.txt}",
    "hash_url": "https://api.github.com/repos/Vanilla-OS/live-iso/releases",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "ventoy",
@@ -4395,7 +6384,13 @@
    "scrape": true,
    "releases": [
     "latest"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "vitalinux",
@@ -4413,7 +6408,13 @@
    "url": "https://mirror.vitalinux.educa.aragon.es/isos",
    "iso": "$(web_pipe ",
    "hash_url": "${URL}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "void",
@@ -4434,7 +6435,13 @@
    "url": "https://repo-default.voidlinux.org/live",
    "iso": "void-live-x86_64-%RELEASE%-base.iso",
    "hash_url": "${URL}/sha256sum.txt",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "voyager",
@@ -4448,7 +6455,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "vyos",
@@ -4464,7 +6477,30 @@
     "amd64"
    ],
    "url": "https://github.com/vyos/vyos-nightly-build/releases/download/%RELEASE%",
-   "iso": "vyos-%RELEASE%-generic-amd64.iso"
+   "iso": "vyos-%RELEASE%-generic-amd64.iso",
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
+  },
+  {
+   "os": "wattos",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "url": "https://sourceforge.net/projects/wattos/files/wattos/wattos21/wattos_2.1.zip/download",
+   "status": "discontinued",
+   "image_type": "zip",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "community"
   },
   {
    "os": "whonix",
@@ -4476,7 +6512,13 @@
     "amd64"
    ],
    "iso": "Whonix-LXQt-${VER}.Intel_AMD64.qcow2.libvirt.xz",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "wifislax",
@@ -4492,7 +6534,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "archived",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
   },
   {
    "os": "windows",
@@ -4503,7 +6551,13 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "restricted",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "windows-server",
@@ -4515,7 +6569,13 @@
    "editions": [],
    "arch": [
     "amd64"
-   ]
+   ],
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "restricted",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "wubuntu",
@@ -4526,7 +6586,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "unknown",
+   "boot_mode": "both",
+   "support_level": "experimental"
   },
   {
    "os": "xcp-ng",
@@ -4538,7 +6604,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "xigmanas",
@@ -4549,7 +6621,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "xubuntu",
@@ -4567,7 +6645,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "yunohost",
@@ -4578,7 +6662,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "zenwalk",
@@ -4589,7 +6679,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "zimaos",
@@ -4600,7 +6696,13 @@
    "arch": [
     "amd64"
    ],
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   },
   {
    "os": "zorin",
@@ -4619,7 +6721,13 @@
    ],
    "url": "https://plug-mirror.rcac.purdue.edu/zorin-iso/%RELEASE%",
    "hash_url": "${URL}/",
-   "scrape": true
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
   }
  ]
 }

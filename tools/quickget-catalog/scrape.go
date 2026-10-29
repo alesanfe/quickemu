@@ -529,22 +529,19 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		}
 		return u + "/" + iso, sha, nil
 	case "devuan":
-		// get_devuan: codename→version map.
-		ver := map[string]string{"beowulf": "3.1.1", "chimaera": "4.0.3", "daedalus": "5.0.0"}[release]
-		iso := fmt.Sprintf("devuan_%s_%s_amd64_desktop-live.iso", release, ver)
-		u := "https://files.devuan.org/devuan_" + release
-		sha := ""
-		if b, err := fetchString(u + "/SHASUMS.txt"); err == nil {
-			for _, l := range strings.Split(b, "\n") {
-				if strings.Contains(l, iso) {
-					if f := strings.Fields(l); len(f) > 0 {
-						sha = f[0]
-					}
-					break
-				}
-			}
+		// Live images live under devuan_<codename>/desktop-live/ with a
+		// version in the name; digests are a shared SHA256SUMS.txt or a
+		// per-file .sha256 sidecar (excalibur).
+		base := "https://files.devuan.org/devuan_" + release + "/desktop-live/"
+		re := `devuan_` + regexp.QuoteMeta(release) + `_[0-9.-]+_amd64_desktop-live\.iso`
+		u, sha, err := indexISOsums(base, re, "SHA256SUMS.txt")
+		if err != nil {
+			return "", "", err
 		}
-		return u + "/" + iso, sha, nil
+		if sha == "" {
+			sha = sumAt(u + ".sha256")
+		}
+		return u, sha, nil
 	case "easyos":
 		// get_easyos: probe the two newest year dirs for the release.
 		body, err := fetchString("https://distro.ibiblio.org/easyos/amd64/releases/kirkstone/")
@@ -1062,11 +1059,15 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 	case "nova":
 		return "https://sourceforge.net/projects/archiveos/files/n/nova/nova-" + edition + "-" + release + "-amd64.iso/download", "", nil
 	case "openkylin":
-		iso := "openKylin-Desktop-V3.0-20260918.1-x86_64.iso"
-		if edition == "server" {
-			iso = "openKylin-Server-V3.0-20260916-x86_64.iso"
+		names := map[string]map[string]string{
+			"3.0": {"desktop": "openKylin-Desktop-V3.0-20260918.1-x86_64.iso", "server": "openKylin-Server-V3.0-20260916-x86_64.iso"},
+			"2.0": {"desktop": "openKylin-Desktop-V2.0-Release-x86_64.iso"},
 		}
-		return "https://cdimage.openkylin.top/3.0/" + iso, "", nil
+		iso, ok := names[release][edition]
+		if !ok {
+			return "", "", fmt.Errorf("openkylin: no %s image for %s", edition, release)
+		}
+		return "https://cdimage.openkylin.top/" + release + "/" + iso, "", nil
 	case "plan9":
 		iso := "plan9-" + release + ".iso"
 		if release == "4e" {

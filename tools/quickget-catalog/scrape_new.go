@@ -257,6 +257,10 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		return ghISO("siderolabs/talos", `metal-amd64\.iso`)
 	case "toaruos":
 		return ghISO("klange/toaruos", `\.iso$`)
+	case "aerynos":
+		// cdn.aerynos.dev/isos/: AerynOS-<ver>-GNOME-live-x86_64.iso + .sha256sum.
+		return indexISOsum("https://cdn.aerynos.dev/isos/",
+			`AerynOS-`+regexp.QuoteMeta(release)+`-GNOME-live-x86_64\.iso`, ".sha256sum")
 	case "zimaos":
 		return ghISO("IceWhaleTech/ZimaOS", `zimaos.*\.(img|iso)`)
 	case "instantos":
@@ -644,10 +648,21 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 
 	// --- batch 5: mirrors/direct ---
 	case "freepbx":
-		if release == "16" {
-			return indexISOsum("https://downloads.freepbxdistro.org/ISO/", `SNG7-PBX16-64bit-[0-9-]+\.iso`, ".sha256sum")
+		pat := `SNGDEB-PBX` + release + `-amd64-[0-9.-]+\.iso`
+		if release == "15" {
+			pat = `SNG7-FPBX-64bit-[0-9-]+\.iso`
+		} else if release == "16" {
+			pat = `SNG7-PBX16-64bit-[0-9-]+\.iso`
 		}
-		return indexISOsum("https://downloads.freepbxdistro.org/ISO/", `SNGDEB-PBX`+release+`-amd64-[0-9.-]+\.iso`, ".sha256sum")
+		return indexISOsum("https://downloads.freepbxdistro.org/ISO/", pat, ".sha256sum")
+	case "truenas-core":
+		return indexISO("https://download.freenas.org/"+release+"/STABLE/latest/x64/", `TrueNAS-`+regexp.QuoteMeta(release)+`-U[0-9.]+\.iso`)
+	case "remixos":
+		b := "B2016112101"
+		if edition == "32bit" {
+			b = "B2016112201"
+		}
+		return "https://sourceforge.net/projects/remix-os/files/Remix_OS_for_PC_Android_M_" + edition + "_" + b + ".zip/download", "", nil
 	case "ubuntusway":
 		base := "https://downloads.ubuntusway.com/" + release + "/"
 		body, err := fetchString(base)
@@ -734,7 +749,11 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		u := "https://download.grommunio.com/appliance/" + file + ".install.iso"
 		return u, sumAt(u + ".sha256"), nil
 	case "turnkeylinux":
-		u, _, err := indexISO("https://mirror.turnkeylinux.org/turnkeylinux/images/iso/", `turnkey-core-`+regexp.QuoteMeta(release)+`-[a-z]+-amd64\.iso`)
+		ed := "core"
+		if edition != "" {
+			ed = edition
+		}
+		u, _, err := indexISO("https://mirror.turnkeylinux.org/turnkeylinux/images/iso/", `turnkey-`+regexp.QuoteMeta(ed)+`-`+regexp.QuoteMeta(release)+`-[a-z]+-amd64\.iso`)
 		if err != nil {
 			return "", "", err
 		}

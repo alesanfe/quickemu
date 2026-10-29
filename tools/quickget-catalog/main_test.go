@@ -53,7 +53,9 @@ func TestFixtureSetup(t *testing.T) {
 	cat := `{"entries":[
 	 {"os":"alpine","releases":["3.19","3.20"],"editions":["virt","standard"],
 	  "arch":["amd64","aarch64"],"url":"https://cdn.alpine.org/x.iso","hash":"abc",
-	  "scrape":false},
+	  "scrape":false,"status":"active","image_type":"iso",
+	  "download_mode":"direct","license":"redistributable","boot_mode":"both",
+	  "support_level":"stable"},
 	 {"os":"tiny","releases":[],"editions":[],"arch":[],
 	  "url":"http://mirror.example/t.iso","scrape":false}]}`
 	os.WriteFile(filepath.Join(dir, "catalog.json"), []byte(cat), 0o600)
@@ -110,6 +112,20 @@ func TestFixtureSetup(t *testing.T) {
 	out, rc = runTool(t, "info-json", "alpine")
 	if rc != 0 || !strings.Contains(out, `"name":"Alpine Linux"`) {
 		t.Fatalf("info-json %s", out)
+	}
+	// meta: per-os view and all-entries map
+	out, rc = runTool(t, "meta", "alpine")
+	if rc != 0 || !strings.Contains(out, `"status":"active"`) ||
+		!strings.Contains(out, `"image_type":"iso"`) {
+		t.Fatalf("meta alpine rc=%d %s", rc, out)
+	}
+	out, rc = runTool(t, "meta")
+	if rc != 0 || !strings.Contains(out, `"alpine"`) ||
+		!strings.Contains(out, `"tiny"`) {
+		t.Fatalf("meta all rc=%d %s", rc, out)
+	}
+	if _, rc = runTool(t, "meta", "nope"); rc != 1 {
+		t.Fatalf("meta missing rc=%d", rc)
 	}
 	// check: unsupported arch short-circuits as SKIP without network.
 	out, rc = runTool(t, "check", "alpine", "3.20", "virt", "riscv64")
