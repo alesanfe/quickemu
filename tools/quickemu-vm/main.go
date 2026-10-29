@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
@@ -143,7 +144,8 @@ func deletePlanItems(dir string) []string {
 // it must stay a single safe path component.
 func validVMName(n string) bool {
 	return n != "" && n != "." && n != ".." &&
-		!strings.ContainsAny(n, `/\`) && !strings.HasPrefix(n, "-")
+		!strings.ContainsAny(n, `/\`) && !strings.HasPrefix(n, "-") &&
+		strings.IndexFunc(n, unicode.IsControl) < 0
 }
 
 func deletePlanID(name string, items []string) string {

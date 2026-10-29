@@ -100,6 +100,58 @@ func TestAutostartShortcut(t *testing.T) {
 	shortcutDelete("vm1") // idempotent
 }
 
+// The vm name and conf path land verbatim in a systemd unit and a
+// .desktop Exec line — a newline injects new keys (ExecStart=/evil)
+// and a space in the conf path silently splits the command.
+func TestAutostartShortcutInjection(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+
+	conf := filepath.Join(home, "vm.conf")
+	os.WriteFile(conf, []byte("guest_os=\"linux\"\n"), 0o600)
+
+	// Newline in the name flows into the unit filename and the
+	// Description/ExecStart lines — refuse, don't write.
+	if rc := autostartCreate("x\nExecStart=/evil", conf); rc == 0 {
+		t.Fatal("newline in name must fail")
+	}
+	// Same for the desktop Exec line via opts.
+	if rc := shortcutCreate("vm", conf, "a\nExec=/evil"); rc == 0 {
+		t.Fatal("newline in opts must fail")
+	}
+	ents, _ := filepath.Glob(filepath.Join(home, ".config", "systemd", "user", "*.service"))
+	for _, e := range ents {
+		if b, _ := os.ReadFile(e); strings.Contains(string(b), "/evil") {
+			t.Fatalf("injected unit key written: %s", e)
+		}
+	}
+	dents, _ := filepath.Glob(filepath.Join(home, ".local", "share", "applications", "*.desktop"))
+	for _, e := range dents {
+		if b, _ := os.ReadFile(e); strings.Contains(string(b), "Exec=/evil") {
+			t.Fatalf("injected Exec key written: %s", e)
+		}
+	}
+
+	// A conf path with spaces must be quoted in ExecStart, not split.
+	d2 := filepath.Join(home, "my vms")
+	os.MkdirAll(d2, 0o755)
+	conf2 := filepath.Join(d2, "vm.conf")
+	os.WriteFile(conf2, []byte("guest_os=\"linux\"\n"), 0o600)
+	if rc := autostartCreate("spaced", conf2); rc != 0 {
+		t.Fatalf("autostart rc=%d", rc)
+	}
+	unit := filepath.Join(home, ".config", "systemd", "user", "quickemu-spaced.service")
+	b, err := os.ReadFile(unit)
+	if err != nil {
+		t.Fatal("unit not written")
+	}
+	if !strings.Contains(string(b), `"`+conf2+`"`) {
+		t.Fatalf("conf path with spaces must be quoted in ExecStart:\n%s", b)
+	}
+}
+
 func TestTrashRestore(t *testing.T) {
 	data := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", data)
