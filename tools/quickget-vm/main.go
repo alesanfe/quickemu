@@ -163,6 +163,14 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 			dir += "-" + edition
 		}
 	}
+	// Values below land inside key="value" conf lines: a quote or
+	// newline would corrupt the file or inject extra settings.
+	for _, v := range []string{dir, osName, release, edition, imageFile, isoFile, arch} {
+		if strings.ContainsAny(v, "\"\n\r") {
+			fmt.Printf("invalid VM configuration value %q\n", v)
+			return 1
+		}
+	}
 	guest, imgType := guestFor(osName, release)
 
 	// Disk-image downloads override the media type: the file becomes the

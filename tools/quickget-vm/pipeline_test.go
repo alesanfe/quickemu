@@ -154,3 +154,35 @@ func TestFetchVerifyAlgos(t *testing.T) {
 		t.Fatal("md5 mismatch must fail")
 	}
 }
+
+// mkconf interpolates --dir/isoFile into key="value" lines without
+// escaping — a quote or newline corrupts the conf or injects lines.
+// Unsafe values must be rejected, never written.
+func TestMkconfRejectsUnsafeValues(t *testing.T) {
+	base := t.TempDir()
+	cwd, _ := os.Getwd()
+	if err := os.Chdir(base); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(cwd)
+	for _, dir := range []string{"we\"ird", "two\nlines", "cr\ret"} {
+		if rc := mkconf("linux", "24.04", "", "", "", dir, "amd64"); rc == 0 {
+			t.Fatalf("mkconf accepted unsafe dir %q", dir)
+		}
+	}
+	// release is interpolated into macos_release="..." — same vector.
+	if rc := mkconf("macos", "ventu\"ra", "", "", "", "", "amd64"); rc == 0 {
+		t.Fatal("mkconf accepted unsafe release")
+	}
+	// A sane dir must still work and produce a valid conf.
+	if rc := mkconf("linux", "24.04", "", "", "", "good-name", "amd64"); rc != 0 {
+		t.Fatal("mkconf rejected a sane dir")
+	}
+	b, err := os.ReadFile(filepath.Join(base, "good-name.conf"))
+	if err != nil {
+		t.Fatal("conf not written")
+	}
+	if !strings.Contains(string(b), "guest_os=\"linux\"") {
+		t.Fatalf("conf missing guest_os: %s", b)
+	}
+}
