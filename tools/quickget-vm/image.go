@@ -31,6 +31,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
+	"github.com/ulikunitz/xz/lzma"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
@@ -336,6 +337,18 @@ func imageNormalize(osName, iso, vmPath string) string {
 				iso = "disk.qcow2"
 			}
 		}
+	case "dietpi":
+		if strings.HasSuffix(iso, ".xz") {
+			if decompressXZ(filepath.Join(vmPath, iso)) {
+				iso = strings.TrimSuffix(iso, ".xz")
+			}
+		}
+	case "nomadbsd":
+		if strings.HasSuffix(iso, ".lzma") {
+			if decompressLZMA(filepath.Join(vmPath, iso)) {
+				iso = strings.TrimSuffix(iso, ".lzma")
+			}
+		}
 	case "redoxos":
 		if strings.HasSuffix(iso, ".zst") {
 			if decompressZstd(filepath.Join(vmPath, iso)) {
@@ -453,6 +466,29 @@ func decompressXZ(p string) bool {
 	}
 	defer w.Close()
 	if _, err := io.Copy(w, xr); err != nil {
+		return false
+	}
+	os.Remove(p)
+	return true
+}
+
+// decompressLZMA mirrors decompressXZ for .lzma payloads (nomadbsd).
+func decompressLZMA(p string) bool {
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	lr, err := lzma.NewReader(f)
+	if err != nil {
+		return false
+	}
+	w, err := os.Create(strings.TrimSuffix(p, ".lzma"))
+	if err != nil {
+		return false
+	}
+	defer w.Close()
+	if _, err := io.Copy(w, lr); err != nil {
 		return false
 	}
 	os.Remove(p)

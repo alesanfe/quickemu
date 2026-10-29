@@ -2159,6 +2159,12 @@
    "homepage": "https://sourceforge.net/projects/bbqlinux/",
    "info": "Arch-based Cinnamon desktop (archived 2021)",
    "name": "BBQLinux"
+  },
+  "drweb": {
+   "credentials": "-",
+   "homepage": "https://free.drweb.com/aid_admin/",
+   "info": "Dr.Web LiveDisk antivirus rescue CD",
+   "name": "Dr.Web LiveDisk"
   }
  }
 }

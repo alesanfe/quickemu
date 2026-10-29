@@ -509,7 +509,11 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "astralinux":
 		return indexISO("https://download.astralinux.ru/astra/stable/orel/iso/", `alce-current\.iso`)
 	case "helenos":
-		return indexISO("https://www.helenos.org/releases/", `HelenOS-[0-9.]+-amd64\.iso`)
+		re := `HelenOS-[0-9.]+-amd64\.iso`
+		if release != "" && release != "latest" {
+			re = `HelenOS-` + regexp.QuoteMeta(release) + `-amd64\.iso`
+		}
+		return indexISO("https://www.helenos.org/releases/", re)
 	case "9legacy":
 		return "https://9legacy.org/download/9legacy.iso.bz2", "", nil
 	case "galliumos":
@@ -569,15 +573,11 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return "https://www.fiwix.org/" + m, "", nil
 	case "sculpt-os":
-		body, err := fetchString("https://genode.org/download/sculpt")
-		if err != nil {
-			return "", "", err
+		re := `sculpt-[0-9-]+\.img`
+		if release != "" && release != "latest" {
+			re = `sculpt-` + regexp.QuoteMeta(release) + `\.img`
 		}
-		u := latestMatch(body, `https://genode\.org/files/sculpt/sculpt-[0-9-]+\.img`)
-		if u == "" {
-			return "", "", fmt.Errorf("sculpt-os: no img")
-		}
-		return u, "", nil
+		return indexISO("https://genode.org/files/sculpt/", re)
 	case "mikrotik-chr":
 		body, err := fetchString("https://upgrade.mikrotik.com/routeros/NEWEST7.stable")
 		if err != nil {
@@ -808,7 +808,11 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "bsdrp":
 		return sfLatest("bsdrp")
 	case "drauger-os":
-		return indexISO("https://download.draugeros.org/ISOs/", `Drauger_OS-[^"]*AMD64\.iso`)
+		re := `Drauger_OS-[^"]*AMD64\.iso`
+		if release != "" && release != "latest" {
+			re = `Drauger_OS-` + regexp.QuoteMeta(release) + `-AMD64\.iso`
+		}
+		return indexISO("https://download.draugeros.org/ISOs/", re)
 	case "feren-os":
 		return sfLatest("ferenos")
 	case "linuxfx":
@@ -893,10 +897,27 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		// 5.x ships a 9-disc bin set; 6+ uses DVD1; 7 uses DVD-<date>.
 		return indexISO("https://vault.centos.org/"+release+"/isos/x86_64/", `CentOS-[^"]*x86_64-([Bb]in-[Dd][Vv][Dd]1|[Dd][Vv][Dd]1|[Dd][Vv][Dd]-[0-9.-]+|[0-9]+-[Dd][Vv][Dd]1|[Bb]in-?1of[0-9]+|[Dd][Vv][Dd])\.iso`)
 	case "dietpi":
-		return indexISO("https://dietpi.com/downloads/images/", `DietPi_NativePC-BIOS-x86_64[^"]*\.img\.xz`)
+		// releases are Debian codenames; editions map to UEFI/BIOS images.
+		ed := "UEFI"
+		if edition != "" {
+			ed = strings.ToUpper(edition)
+		}
+		rel := `[A-Za-z]+`
+		if release != "" && release != "latest" {
+			// Filenames carry a capitalised codename (-Trixie).
+			rel = strings.ToUpper(release[:1]) + release[1:]
+			rel = regexp.QuoteMeta(rel)
+		}
+		return indexISO("https://dietpi.com/downloads/images/",
+			`DietPi_NativePC-`+ed+`-x86_64-`+rel+`\.img\.xz`)
 	case "eurolinux":
-		// vault.cdn flat listing: EL-<major>-x86_64-latest-appstream.iso.
-		return indexISO("https://vault.cdn.euro-linux.com/isos/", `EL-`+regexp.QuoteMeta(release)+`-x86_64-latest-appstream\.iso`)
+		// vault.cdn flat listing: EL-<major>-x86_64-latest-<edition>.iso.
+		ed := edition
+		if ed == "" {
+			ed = "appstream"
+		}
+		return indexISO("https://vault.cdn.euro-linux.com/isos/",
+			`EL-`+regexp.QuoteMeta(release)+`-x86_64-latest-`+regexp.QuoteMeta(ed)+`\.iso`)
 	case "gnu-hurd":
 		d, err := latestDir("https://cdimage.debian.org/cdimage/ports/latest/hurd-amd64/", `([0-9]+)`)
 		if err != nil {
@@ -904,7 +925,31 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return indexISO(d, `debian-sid-hurd-amd64-NETINST-1\.iso`)
 	case "grml":
-		return indexISO("https://mirror.us.leaseweb.net/grml/", `grml-full-[^"]*amd64\.iso`)
+		// grml-<edition>-<release>-<arch>.iso + SHA256SUMS-<release>.
+		ed := edition
+		if ed == "" {
+			ed = "full"
+		}
+		a := arch
+		if a == "" {
+			a = "amd64"
+		}
+		rel := `[0-9.]+`
+		if release != "" && release != "latest" {
+			rel = regexp.QuoteMeta(release)
+		}
+		u, _, err := indexISO("https://mirror.us.leaseweb.net/grml/",
+			`grml-`+regexp.QuoteMeta(ed)+`-`+rel+`-`+a+`\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		sha := ""
+		if m := regexp.MustCompile(`grml-[a-z]+-([0-9.]+)-`).FindStringSubmatch(u); m != nil {
+			if b, err := fetchString("https://mirror.us.leaseweb.net/grml/SHA256SUMS-" + m[1]); err == nil {
+				sha = sumForISO(b, u[strings.LastIndex(u, "/")+1:])
+			}
+		}
+		return u, sha, nil
 	case "ipfire":
 		// downloads.ipfire.org index is gone; freedif mirrors the tree.
 		d, err := latestDir("https://mirror.freedif.org/ipfire/releases/ipfire-2.x/", `[0-9]+\.[0-9]+-core[0-9]+`)
@@ -918,6 +963,14 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		return indexISO("http://download.minix3.org/iso/", `minix_R`+regexp.QuoteMeta(release)+`[^"]*\.iso\.bz2`)
 	case "neptune":
 		return indexISO("https://download.neptuneos.com/download/", `Neptune`+regexp.QuoteMeta(release)+`[^"/]*\.iso`)
+	case "nomadbsd":
+		// nomadbsd-<rel>.amd64.<ufs|zfs>.img.lzma + .sha256 sidecar.
+		ed := edition
+		if ed == "" {
+			ed = "ufs"
+		}
+		return indexISOsum("https://nomadbsd.org/download/",
+			`nomadbsd-`+regexp.QuoteMeta(release)+`\.amd64\.`+regexp.QuoteMeta(ed)+`\.img\.lzma`, ".sha256")
 	case "omnios":
 		return indexISO("https://downloads.omnios.org/media/stable/", `omnios-r[^"]*\.iso`)
 	case "openmamba":

@@ -10,6 +10,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 	"github.com/ulikunitz/xz"
+	"github.com/ulikunitz/xz/lzma"
 )
 
 func TestOsTweaksMatrix(t *testing.T) {
@@ -147,6 +148,26 @@ func TestNormalizeCompressed(t *testing.T) {
 	// dragonfly .bz2 invalid → decompress fails, name kept.
 	os.WriteFile(filepath.Join(dir, "d.iso.bz2"), []byte("bad"), 0o644)
 	imageNormalize("dragonflybsd", "d.iso.bz2", dir)
+	// dietpi .xz — real xz stream.
+	dxf := filepath.Join(dir, "d.img.xz")
+	f3, _ := os.Create(dxf)
+	xw, _ := xz.NewWriter(f3)
+	xw.Write([]byte("img"))
+	xw.Close()
+	f3.Close()
+	if got := imageNormalize("dietpi", "d.img.xz", dir); got != "d.img" {
+		t.Fatalf("dietpi: %q", got)
+	}
+	// nomadbsd .lzma — real lzma stream.
+	nzf := filepath.Join(dir, "n.img.lzma")
+	f4, _ := os.Create(nzf)
+	lw, _ := lzma.NewWriter(f4)
+	lw.Write([]byte("img"))
+	lw.Close()
+	f4.Close()
+	if got := imageNormalize("nomadbsd", "n.img.lzma", dir); got != "n.img" {
+		t.Fatalf("nomadbsd: %q", got)
+	}
 	// freedos .zip real — extractZip needs valid zip; make one.
 	zipF := filepath.Join(dir, "fd.zip")
 	os.WriteFile(zipF, testZip(t), 0o644)

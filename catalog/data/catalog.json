@@ -1481,9 +1481,15 @@
   {
    "os": "dietpi",
    "releases": [
-    "latest"
+    "latest",
+    "forky",
+    "trixie",
+    "bookworm"
    ],
-   "editions": [],
+   "editions": [
+    "uefi",
+    "bios"
+   ],
    "arch": [
     "amd64"
    ],
@@ -1562,7 +1568,9 @@
   {
    "os": "drauger-os",
    "releases": [
-    "latest"
+    "latest",
+    "7.8",
+    "7.7"
    ],
    "editions": [],
    "arch": [
@@ -1741,11 +1749,28 @@
   {
    "os": "endeavouros",
    "releases": [
-    "cassini_nova-03-2023_r3",
-    "cassini_nova-03-2023_r2",
-    "galileo-11-2023",
     "titan-nova-2026.08.15",
-    "titan-neo-2026.04.27"
+    "titan-neo-2026.04.27",
+    "titan-2026.03.06",
+    "ganymede-neo-2026.01.12",
+    "ganymede-2025.11.24",
+    "mercury-neo-2025.03.19",
+    "mercury-2025.02.08",
+    "endeavour_neo-2024.09.22",
+    "endeavour-2024.06.25",
+    "gemini-2024.04.20",
+    "galileo-neo-2024.01.25",
+    "cassini_nova-03-2023_r1",
+    "cassini_nova-03-2023",
+    "cassini_neo_22_12",
+    "cassini_22_12",
+    "artemis_nova_22_9",
+    "artemis_neo_22_8",
+    "artemis_neo_22_7",
+    "artemis-22_6",
+    "apollo_22_1",
+    "atlantis_neo-21_5",
+    "atlantis-21_4"
    ],
    "editions": [],
    "arch": [
@@ -1827,7 +1852,10 @@
     "9",
     "8"
    ],
-   "editions": [],
+   "editions": [
+    "appstream",
+    "minimal"
+   ],
    "arch": [
     "amd64"
    ],
@@ -2446,11 +2474,17 @@
   {
    "os": "grml",
    "releases": [
-    "latest"
+    "latest",
+    "2026.09",
+    "2026.04"
    ],
-   "editions": [],
+   "editions": [
+    "full",
+    "small"
+   ],
    "arch": [
-    "amd64"
+    "amd64",
+    "arm64"
    ],
    "scrape": true,
    "status": "active",
@@ -2700,7 +2734,27 @@
    ],
    "scrape": true,
    "releases": [
-    "latest"
+    "latest",
+    "0.14.1",
+    "0.12.1",
+    "0.11.2",
+    "0.11.1",
+    "0.9.1",
+    "0.8.0",
+    "0.7.2",
+    "0.7.1",
+    "0.7.0",
+    "0.6.0",
+    "0.5.0",
+    "0.4.3",
+    "0.4.2",
+    "0.4.1",
+    "0.4.0",
+    "0.3.0",
+    "0.2.0.5",
+    "0.2.0.4",
+    "0.2.0.3",
+    "0.2.0.1"
    ],
    "status": "experimental",
    "image_type": "iso",
@@ -2985,7 +3039,9 @@
   {
    "os": "knoppix",
    "releases": [
-    "9.1"
+    "9.1",
+    "7.2.0",
+    "7.0.5"
    ],
    "editions": [],
    "arch": [
@@ -3119,7 +3175,8 @@
   {
    "os": "lernstick",
    "releases": [
-    "13"
+    "13",
+    "12"
    ],
    "editions": [
     "edu",
@@ -3996,21 +4053,23 @@
   {
    "os": "nomadbsd",
    "releases": [
-    "1.4-RC6",
-    "1.3.2"
+    "141R-20240711",
+    "140R-20240126"
    ],
-   "editions": [],
+   "editions": [
+    "ufs",
+    "zfs"
+   ],
    "arch": [
     "amd64"
    ],
-   "url": "https://nomadbsd.org/download",
-   "iso": "nomadbsd-%RELEASE%.img.lzma",
    "status": "active",
-   "image_type": "iso",
+   "image_type": "raw",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "nova",
@@ -5561,7 +5620,19 @@
    ],
    "scrape": true,
    "releases": [
-    "latest"
+    "latest",
+    "26-04",
+    "25-10",
+    "25-04",
+    "24-10",
+    "24-04",
+    "23-10",
+    "23-04",
+    "22-10",
+    "22-04",
+    "21-10",
+    "21-03",
+    "20-08"
    ],
    "status": "experimental",
    "image_type": "raw",
@@ -7921,6 +7992,23 @@
    "url": "https://sourceforge.net/projects/bbqlinux/files/x86_64/",
    "iso": "bbqlinux-%RELEASE%-x86_64-cinnamon.iso",
    "status": "archived"
+  },
+  {
+   "os": "drweb",
+   "arch": [
+    "amd64"
+   ],
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community",
+   "releases": [
+    "900"
+   ],
+   "url": "https://cdn-download.drweb.com/pub/drweb/livedisk/",
+   "iso": "drweb-livedisk-%RELEASE%-cd.iso",
+   "status": "active"
   }
  ]
 }

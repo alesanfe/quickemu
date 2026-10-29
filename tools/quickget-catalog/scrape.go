@@ -230,11 +230,11 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		iso := ""
 		for _, m := range matchAll(body, `<a href="([^"]*\.iso)">`) {
 			if strings.Contains(strings.ToLower(m), strings.ToLower(release)) && !strings.Contains(m, "x86_64") {
-				iso = m + ".iso"
+				iso = m
 				break
 			}
 		}
-		// the href already ends in .iso; name captured without suffix
+		// fallback: any href ending in .iso
 		if iso == "" {
 			for _, m := range matchAll(body, `href="([^"]*)"`) {
 				if strings.Contains(strings.ToLower(m), strings.ToLower(release)) && strings.HasSuffix(m, ".iso") && !strings.Contains(m, "x86_64") {

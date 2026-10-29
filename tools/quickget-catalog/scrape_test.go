@@ -179,6 +179,7 @@ func TestScrapeRescuedStatic(t *testing.T) {
 		{"kurumin", "7.0", "light", "kurumin-light-7.0.iso/download"},
 		{"kurumin", "8.06", "", "kurumin-ng_8.06.iso/download"},
 		{"lernstick", "13", "exam", "lernstick_pruefungsumgebung_debian13_latest.iso"},
+		{"lernstick", "12", "exam", "lernstick_pruefungsumgebung_debian12_latest.iso"},
 		{"lernstick", "13", "edu", "lernstick_debian13_edu_latest.iso"},
 		{"life", "22.04", "", "Li-f-e-22.04.3.amd64.iso"},
 		{"life", "24.04", "", "Life-24.04.amd64.iso"},

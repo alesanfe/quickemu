@@ -9,6 +9,7 @@ import (
 )
 
 const shaX = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+const shaY = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 
 // bodyFor returns a canned page keyed on URL shape, so every scraper
 // branch exercises its real parsing path.
@@ -99,11 +100,24 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "solydxk"):
 		return `<a href="solydx_13_64_202512.iso">x</a><a href="solydk_13_64_202512.iso">y</a>`, nil
 	case strings.Contains(url, "nluug"):
-		return `<a href="KNOPPIX_V9.1CD-2021-01-25-EN.iso">x</a>`, nil
+		return `<a href="KNOPPIX_V9.1CD-2021-01-25-EN.iso">x</a>
+			<a href="KNOPPIX_V7.2.0CD-2013-06-16-EN.iso">x</a>
+			<a href="KNOPPIX_V7.0.5CD-2012-12-21-EN.iso">x</a>`, nil
 	case strings.Contains(url, "minix3"):
 		return `<a href="minix_R3.3.0-588a35b.iso.bz2">x</a>`, nil
 	case strings.Contains(url, "neptuneos"):
 		return `<a href="Neptune9-20260314.iso">x</a>`, nil
+	case strings.Contains(url, "nomadbsd") && strings.Contains(url, ".sha256"):
+		return shaX + "  nomadbsd-141R-20240711.amd64.ufs.img.lzma\n", nil
+	case strings.Contains(url, "nomadbsd"):
+		return `<a href="nomadbsd-141R-20240711.amd64.ufs.img.lzma">x</a>
+			<a href="nomadbsd-141R-20240711.amd64.zfs.img.lzma">x</a>
+			<a href="nomadbsd-140R-20240126.amd64.ufs.img.lzma">x</a>`, nil
+	case strings.Contains(url, "alpix.eu"):
+		return `<a href="EndeavourOS_Titan-Nova-2026.08.15.iso">x</a>
+			<a href="EndeavourOS_Ganymede-2025.11.24.iso">x</a>
+			<a href="EndeavourOS_Mercury-Neo-2025.03.19.iso">x</a>
+			<a href="EndeavourOS_Apollo_22_1.iso">x</a>`, nil
 	case strings.Contains(url, "openmamba"):
 		return `<a href="https://cdn.openmamba.org/pub/openmamba/media/rolling/livecd/en/openmamba-livecd-en-snapshot-20261021.x86_64.iso">x</a>`, nil
 	case strings.Contains(url, "yunohost"):
@@ -111,15 +125,28 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "amazonlinux"):
 		return `<a href="al2023-kvm-2023.12.20261026.1-kernel-6.1-x86_64.xfs.gpt.qcow2">x</a>`, nil
 	case strings.Contains(url, "dietpi"):
-		return `<a href="DietPi_NativePC-BIOS-x86_64-Trixie_Installer.img.xz">x</a>`, nil
+		return `<a href="DietPi_NativePC-UEFI-x86_64-Forky.img.xz">x</a>
+			<a href="DietPi_NativePC-UEFI-x86_64-Trixie.img.xz">x</a>
+			<a href="DietPi_NativePC-BIOS-x86_64-Trixie.img.xz">x</a>
+			<a href="DietPi_NativePC-UEFI-x86_64-Bookworm.img.xz">x</a>`, nil
 	case strings.Contains(url, "euro-linux"):
-		return `<a href="EL-9-x86_64-latest-appstream.iso">x</a>`, nil
+		return `<a href="EL-9-x86_64-latest-appstream.iso">x</a>
+			<a href="EL-9-x86_64-latest-minimal.iso">x</a>
+			<a href="EL-8-x86_64-latest-appstream.iso">x</a>
+			<a href="EL-8-x86_64-latest-minimal.iso">x</a>`, nil
 	case strings.Contains(url, "hurd-amd64/2"):
 		return `<a href="debian-sid-hurd-amd64-NETINST-1.iso">x</a>`, nil
 	case strings.Contains(url, "hurd-amd64"):
 		return `<a href="20260314/">d</a>`, nil
+	case strings.Contains(url, "leaseweb") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  grml-full-2026.09-amd64.iso\n" +
+			shaY + "  grml-small-2026.09-amd64.iso\n" +
+			shaY + "  grml-full-2026.09-arm64.iso\n", nil
 	case strings.Contains(url, "leaseweb"):
-		return `<a href="grml-full-2026.09-amd64.iso">x</a>`, nil
+		return `<a href="grml-full-2026.09-amd64.iso">x</a>
+			<a href="grml-small-2026.09-amd64.iso">x</a>
+			<a href="grml-full-2026.09-arm64.iso">x</a>
+			<a href="grml-full-2026.04-amd64.iso">x</a>`, nil
 	case strings.Contains(url, "omnios"):
 		return `<a href="omnios-r151058.iso">x</a>`, nil
 	case strings.Contains(url, "enterprise.proxmox") && strings.Contains(url, "SHA256SUMS"):
@@ -422,7 +449,7 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 	case strings.Contains(url, "astralinux"):
 		return `<a href="alce-current.iso">x</a>`, nil
 	case strings.Contains(url, "helenos"):
-		return `<a href="HelenOS-0.14.1-amd64.iso">x</a><a href="HelenOS-0.9.1-amd64.iso">y</a>`, nil
+		return `<a href="HelenOS-0.14.1-amd64.iso">x</a><a href="HelenOS-0.9.1-amd64.iso">y</a><a href="HelenOS-0.2.0.1-amd64.iso">z</a>`, nil
 	case strings.Contains(url, "galliumos") && strings.Contains(url, "3."):
 		return `<a href="galliumos-3.1-baytrail.iso">a</a><a href="galliumos-3.1-sandyivy.iso">b</a><a href="galliumos-3.0-skylake.iso">c</a>`, nil
 	case strings.Contains(url, "galliumos"):
@@ -454,7 +481,7 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 	case strings.Contains(url, "fiwix"):
 		return `<a href="FiwixOS-3.1-i386.iso">x</a>`, nil
 	case strings.Contains(url, "genode"):
-		return `<a href="https://genode.org/files/sculpt/sculpt-26-04.img">x</a>`, nil
+		return `<a href="sculpt-26-04.img">x</a><a href="sculpt-25-04.img">y</a>`, nil
 	case strings.Contains(url, "mikrotik"):
 		return `7.19.4 1700221125`, nil
 	// --- fifth-expansion fixtures ---
@@ -563,6 +590,8 @@ func TestScrapeAll(t *testing.T) {
 		{"azurelinux", "3.0", "", "arm64", false},
 		{"backbox", "8", "", "amd64", false},
 		{"batocera", "40", "", "amd64", false},
+		{"endeavouros", "ganymede-2025.11.24", "", "amd64", false},
+		{"endeavouros", "apollo_22_1", "", "amd64", false},
 		{"endeavouros", "mercury", "", "amd64", false},
 		{"kicksecure", "latest", "", "amd64", false},
 		{"maboxlinux", "v1", "", "amd64", false},
@@ -644,6 +673,8 @@ func TestScrapeAll(t *testing.T) {
 		{"photonos", "2.0", "", "amd64", false},
 		{"avlinux", "latest", "", "amd64", false},
 		{"drauger-os", "latest", "", "amd64", false},
+		{"drauger-os", "7.8", "", "amd64", false},
+		{"drauger-os", "7.7", "", "amd64", false},
 		{"primeos", "latest", "", "amd64", false},
 		{"gparted-live", "latest", "", "amd64", false},
 		{"loc-os", "23", "", "amd64", false},
@@ -658,6 +689,9 @@ func TestScrapeAll(t *testing.T) {
 		{"knoppix", "9.1", "", "amd64", false},
 		{"minix", "3.3.0", "", "amd64", false},
 		{"neptune", "9", "", "amd64", false},
+		{"nomadbsd", "141R-20240711", "ufs", "amd64", false},
+		{"nomadbsd", "141R-20240711", "zfs", "amd64", false},
+		{"nomadbsd", "140R-20240126", "ufs", "amd64", false},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},
@@ -678,9 +712,16 @@ func TestScrapeAll(t *testing.T) {
 		{"salix", "15.0", "", "amd64", false},
 		{"amazonlinux", "2023", "", "amd64", false},
 		{"dietpi", "latest", "", "amd64", false},
+		{"dietpi", "forky", "uefi", "amd64", false},
+		{"dietpi", "trixie", "bios", "amd64", false},
 		{"eurolinux", "9", "", "amd64", false},
+		{"eurolinux", "9", "minimal", "amd64", false},
+		{"eurolinux", "8", "minimal", "amd64", false},
 		{"gnu-hurd", "latest", "", "amd64", false},
 		{"grml", "latest", "", "amd64", false},
+		{"grml", "2026.09", "small", "amd64", false},
+		{"grml", "2026.09", "full", "arm64", false},
+		{"grml", "2026.04", "full", "amd64", false},
 		{"omnios", "stable", "", "amd64", false},
 		{"opensuse-microos", "latest", "", "amd64", false},
 		{"proxmox-backup-server", "4.2-1", "", "amd64", false},
@@ -792,6 +833,8 @@ func TestScrapeAll(t *testing.T) {
 		{"openeuler", "22.03-LTS-SP4", "netinst", "amd64", false},
 		{"astralinux", "latest", "", "amd64", false},
 		{"helenos", "latest", "", "amd64", false},
+		{"helenos", "0.9.1", "", "amd64", false},
+		{"helenos", "0.2.0.1", "", "amd64", false},
 		{"9legacy", "latest", "", "amd64", false},
 		{"galliumos", "2.1", "baytrail", "amd64", false},
 		{"galliumos", "2.1", "skylake", "amd64", false},
@@ -816,6 +859,8 @@ func TestScrapeAll(t *testing.T) {
 		{"t2sde", "24.11", "", "amd64", false},
 		{"fiwix", "latest", "", "amd64", false},
 		{"sculpt-os", "latest", "", "amd64", false},
+		{"sculpt-os", "26-04", "", "amd64", false},
+		{"sculpt-os", "25-04", "", "amd64", false},
 		{"mikrotik-chr", "latest", "", "amd64", false},
 		// fifth-expansion resolvers.
 		{"issabel", "latest", "", "amd64", false},
