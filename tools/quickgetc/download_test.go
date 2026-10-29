@@ -102,6 +102,41 @@ func TestExtractArchiveFormats(t *testing.T) {
 	}
 }
 
+// extractArchive joins member names onto vmPath — a tar/zip member
+// named "../evil" from a hostile mirror would write outside the VM
+// dir (same zip-slip class fixed in quickget-vm).
+func TestExtractArchiveSlip(t *testing.T) {
+	dir := t.TempDir()
+	vmd := filepath.Join(dir, "vm")
+	os.MkdirAll(vmd, 0o755)
+	outside := filepath.Join(dir, "evil")
+	// tar with a traversal member.
+	tarPath := filepath.Join(dir, "s.tar")
+	tw, _ := os.Create(tarPath)
+	w := tar.NewWriter(tw)
+	body := []byte("x")
+	w.WriteHeader(&tar.Header{Name: "../evil", Mode: 0o600, Size: 1})
+	w.Write(body)
+	w.Close()
+	tw.Close()
+	extractArchive("tar", tarPath, vmd, "iso")
+	if _, err := os.Stat(outside); err == nil {
+		t.Fatal("tar member escaped the VM dir")
+	}
+	// zip with a traversal member.
+	zipPath := filepath.Join(dir, "s.zip")
+	zf, _ := os.Create(zipPath)
+	zwr := zip.NewWriter(zf)
+	zw2, _ := zwr.Create("../evil")
+	zw2.Write(body)
+	zwr.Close()
+	zf.Close()
+	extractArchive("zip", zipPath, vmd, "iso")
+	if _, err := os.Stat(outside); err == nil {
+		t.Fatal("zip member escaped the VM dir")
+	}
+}
+
 func TestWebHelpers(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/redir" {

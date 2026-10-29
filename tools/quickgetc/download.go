@@ -261,6 +261,11 @@ func extractArchive(format, file, vmPath, imageType string) string {
 			if err != nil {
 				break
 			}
+			// Member names come from a remote mirror — "../" or
+			// absolute members write outside the VM dir (tar-slip).
+			if !filepath.IsLocal(hdr.Name) {
+				continue
+			}
 			dest := filepath.Join(vmPath, hdr.Name)
 			if hdr.FileInfo().IsDir() {
 				os.MkdirAll(dest, 0755)
@@ -335,6 +340,10 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		}
 		defer zr.Close()
 		for _, zf := range zr.File {
+			// Same tar-slip reasoning: member names are remote content.
+			if !filepath.IsLocal(zf.Name) {
+				continue
+			}
 			if zf.FileInfo().IsDir() {
 				os.MkdirAll(filepath.Join(vmPath, zf.Name), 0755)
 				continue
