@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -70,5 +71,29 @@ func TestCheckChunklist(t *testing.T) {
 	}
 	if err := checkChunklist(dmgPath, clPath); err == nil {
 		t.Fatal("dmg with trailing bytes passed verification")
+	}
+}
+
+// A hostile mirror can claim a chunkCount far beyond the file's real
+// contents while keeping sigOffset arithmetically consistent — the
+// record slice is capacity-allocated from that count BEFORE any
+// signature check (make([]chunk, 0, 1<<32) == ~150GiB, instant OOM).
+// The count is only trustworthy once sigOffset+sigLen == file size.
+func TestCheckChunklistInflatedCount(t *testing.T) {
+	dir := t.TempDir()
+	dmgPath := filepath.Join(dir, "RecoveryImage.dmg")
+	clPath := filepath.Join(dir, "RecoveryImage.chunklist")
+	os.WriteFile(dmgPath, []byte("x"), 0o644)
+	hdr := make([]byte, 36)
+	copy(hdr[:4], "CNKL")
+	binary.LittleEndian.PutUint32(hdr[4:8], 36)
+	hdr[8], hdr[9], hdr[10] = 1, 1, 2
+	binary.LittleEndian.PutUint64(hdr[12:20], 1<<22) // 4M records claimed
+	binary.LittleEndian.PutUint64(hdr[20:28], 36)
+	binary.LittleEndian.PutUint64(hdr[28:36], 36+36*(1<<22))
+	os.WriteFile(clPath, hdr, 0o644) // real file: header only, 36B
+	err := checkChunklist(dmgPath, clPath)
+	if err == nil || !strings.Contains(err.Error(), "size") {
+		t.Fatalf("inflated chunkCount not rejected by geometry: %v", err)
 	}
 }

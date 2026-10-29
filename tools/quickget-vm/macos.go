@@ -265,6 +265,17 @@ func checkChunklist(dmgPath, clPath string) error {
 	if chunkCount == 0 || chunkOffset != 36 || sigOffset != 36+36*chunkCount {
 		return fmt.Errorf("invalid chunklist geometry")
 	}
+	// chunkCount attacker-controlled → make(..., 0, chunkCount) would
+	// capacity-allocate 36B×count before any signature check (a 1<<32
+	// count is ~150GiB — instant OOM). Only the real file size bounds
+	// it: header + records + signature must equal st.Size() exactly.
+	sigLen := int64(32)
+	if hdr[10] == 1 {
+		sigLen = 256
+	}
+	if st, serr := cl.Stat(); serr != nil || st.Size() != int64(sigOffset)+sigLen {
+		return fmt.Errorf("invalid chunklist size for %d chunks", chunkCount)
+	}
 	type chunk struct {
 		size   uint32
 		digest [32]byte
