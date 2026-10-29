@@ -40,7 +40,12 @@ func richConf(t *testing.T, extra string) string {
 	t.Helper()
 	dir := t.TempDir()
 	conf := filepath.Join(dir, "vm.conf")
-	os.WriteFile(filepath.Join(dir, "disk.qcow2"), []byte("d"), 0o600)
+	// DISK_USED heuristic: >197632*8 bytes counts as an installed disk
+	// (a sparse file is enough for the stat size check).
+	if f, err := os.Create(filepath.Join(dir, "disk.qcow2")); err == nil {
+		f.WriteAt([]byte("d"), 2<<20)
+		f.Close()
+	}
 	os.WriteFile(conf, []byte(`guest_os="linux"
 disk_img="disk.qcow2"
 cpu_cores="4"

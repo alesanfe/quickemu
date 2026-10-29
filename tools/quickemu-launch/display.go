@@ -320,6 +320,92 @@ func audioDriver() string {
 	return "alsa"
 }
 
+// prepareStorage: configure_storage — create a missing disk_img via
+// qemu-img (preallocation whitelist + per-format create options),
+// write-lock probe on existing images, and the DISK_USED heuristic:
+// an effectively-empty disk keeps booting the installer media while a
+// used one drops iso/img so the guest boots from disk.
+func prepareStorage(c Conf, dir string) error {
+	d := c.get("disk_img", "")
+	if d == "" {
+		return nil
+	}
+	p := joinConf(dir, d)
+	dfmt := c.get("disk_format", "qcow2")
+	size := c.get("disk_size", "16G")
+	pre := c.get("preallocation", "off")
+	if _, err := os.Stat(p); err != nil {
+		if c["_run"] != "1" {
+			fmt.Printf("             Would create %s (%s, %s)\n", p, dfmt, size)
+			return nil
+		}
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		switch pre {
+		case "off", "metadata", "falloc", "full":
+		default:
+			return fmt.Errorf("ERROR! %s is an unsupported disk preallocation option.", pre)
+		}
+		opts := ""
+		switch dfmt {
+		case "qcow2":
+			opts = "lazy_refcounts=on,preallocation=" + pre + ",nocow=on"
+		case "raw":
+			opts = "preallocation=" + pre
+		}
+		qi, err := exec.LookPath("qemu-img")
+		if err != nil {
+			return fmt.Errorf("ERROR! qemu-img not found — cannot create %s", p)
+		}
+		argv := []string{"create", "-q", "-f", dfmt, "-o", opts, p, size}
+		if err := exec.Command(qi, argv...).Run(); err != nil {
+			return fmt.Errorf("ERROR! Failed to create %s using %s format.", p, dfmt)
+		}
+		if c.get("iso", "") == "" && c.get("img", "") == "" {
+			return fmt.Errorf("ERROR! You haven't specified a .iso or .img image to boot from.")
+		}
+		fmt.Printf("             Just created, booting from %s%s\n",
+			c.get("iso", ""), c.get("img", ""))
+		return nil // DISK_USED=no — installer media stays attached.
+	}
+	// Existing image: the launch path implies the VM is stopped, so
+	// probe the write lock (qemu-img info) — a held lock means another
+	// process has the disk open.
+	qi, err := exec.LookPath("qemu-img")
+	if err != nil {
+		return fmt.Errorf("ERROR! qemu-img not found — cannot inspect %s", p)
+	}
+	if err := exec.Command(qi, "info", p).Run(); err != nil {
+		return fmt.Errorf("             Failed to get \"write\" lock. Is another process using the disk?")
+	}
+	if pre == "off" {
+		used := true
+		// A qcow2 overlay is physically small but fully populated via
+		// its backing file — treat as used regardless of size.
+		out, _ := exec.Command(qi, "info", "--output=json", p).Output()
+		if !strings.Contains(string(out), `"backing-filename"`) {
+			if fi, err := os.Stat(p); err == nil && fi.Size() <= 197632*8 {
+				used = false
+			}
+		}
+		if !used {
+			fmt.Printf("             Looks unused, booting from %s%s\n",
+				c.get("iso", ""), c.get("img", ""))
+			if c.get("iso", "") == "" && c.get("img", "") == "" {
+				return fmt.Errorf("ERROR! You haven't specified a .iso or .img image to boot from.")
+			}
+			return nil
+		}
+	}
+	// DISK_USED=yes: a used disk means the OS is installed — detach
+	// installer media so the guest boots from disk (kolibrios keeps
+	// its floppy/iso attached on every boot).
+	if c.get("guest_os", "") != "kolibrios" {
+		c["iso"] = ""
+		c["img"] = ""
+	}
+	return nil
+}
+
 func storageArgs(c Conf, dir string, t OsTuning) []string {
 	var a []string
 	mac := c.get("guest_os", "") == "macos"

@@ -702,3 +702,48 @@ func TestCPUPinningValidation(t *testing.T) {
 		t.Fatal("count mismatch must error")
 	}
 }
+
+// configure_storage: existing disk > DISK_MIN_SIZE counts as used →
+// iso/img detach (installed guests boot from disk); a small disk stays
+// unused and keeps the installer media; preallocation is whitelisted.
+func TestPrepareStorage(t *testing.T) {
+	dir := t.TempDir()
+	big := filepath.Join(dir, "big.qcow2")
+	f, _ := os.Create(big)
+	f.WriteAt([]byte("d"), 2<<20)
+	f.Close()
+	c := Conf{"disk_img": "big.qcow2", "iso": "i.iso", "guest_os": "linux"}
+	if err := prepareStorage(c, dir); err != nil {
+		t.Fatal(err)
+	}
+	if c["iso"] != "" {
+		t.Fatalf("used disk must detach iso: %v", c)
+	}
+	// kolibrios keeps the media attached.
+	c = Conf{"disk_img": "big.qcow2", "iso": "i.iso", "guest_os": "kolibrios"}
+	prepareStorage(c, dir)
+	if c.get("iso", "") == "" {
+		t.Fatal("kolibrios must keep installer media")
+	}
+	// Tiny disk + no iso/img → unused → hard error (Bash exits).
+	small := filepath.Join(dir, "small.qcow2")
+	os.WriteFile(small, []byte("d"), 0o600)
+	c = Conf{"disk_img": "small.qcow2"}
+	if err := prepareStorage(c, dir); err == nil {
+		t.Fatal("unused disk without media must error")
+	}
+	// Tiny disk + iso → ok, media stays.
+	c = Conf{"disk_img": "small.qcow2", "iso": "i.iso"}
+	if err := prepareStorage(c, dir); err != nil || c.get("iso", "") == "" {
+		t.Fatalf("unused disk must keep iso: %v %v", err, c)
+	}
+	// Bad preallocation fails only in run mode.
+	c = Conf{"disk_img": "missing.qcow2", "preallocation": "bogus", "_run": "1"}
+	if err := prepareStorage(c, dir); err == nil {
+		t.Fatal("bad preallocation must error")
+	}
+	c = Conf{"disk_img": "missing.qcow2", "preallocation": "bogus"}
+	if err := prepareStorage(c, dir); err != nil {
+		t.Fatalf("plan mode must not validate preallocation: %v", err)
+	}
+}

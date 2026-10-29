@@ -150,6 +150,13 @@ func main() {
 		os.Exit(1)
 	}
 	t := osQuirks(conf, osName, arch)
+	// configure_storage sits between os_quirks and display in Bash:
+	// create missing disks, probe write locks, and drop iso/img when
+	// the disk is already used (installed guests boot from disk).
+	if err := prepareStorage(conf, dir); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	machine := t.MachineType
 	if arch == "aarch64" {
 		machine = "virt"
