@@ -38,12 +38,19 @@ func die(code, msg string) { qelib.Fail(qelib.CmdName("ops"), "quickemu-ops/"+ve
 
 func opsDir(vmdir string) string { return filepath.Join(vmdir, "ops") }
 
+// safeID reports whether an operation id can be joined into an
+// ops-dir path without escaping it — separators and .. are the
+// traversal set.
+func safeID(id string) bool {
+	return id != "" && !strings.Contains(id, "..") &&
+		!strings.ContainsAny(id, `/\`)
+}
+
 // checkID rejects operation ids that could escape the ops dir —
 // --id is joined into a filesystem path, so separators and .. must
 // never reach filepath.Join.
 func checkID(id string) {
-	if id == "" || strings.Contains(id, "..") ||
-		strings.ContainsAny(id, `/\`) {
+	if !safeID(id) {
 		die("INVALID_ARGS", "bad operation id")
 	}
 }
@@ -57,6 +64,11 @@ func load(dir, id string) *Op {
 	var o Op
 	if json.Unmarshal(b, &o) != nil {
 		die("OP_CORRUPT", id+" is not parseable")
+	}
+	// The embedded id feeds o.save()'s filepath.Join — file content is
+	// untrusted, so it gets the same traversal check as the --id flag.
+	if !safeID(o.OperationID) {
+		die("OP_CORRUPT", id+" has unsafe embedded operation id")
 	}
 	return &o
 }

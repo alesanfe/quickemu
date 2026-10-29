@@ -183,3 +183,22 @@ func TestBadArgs(t *testing.T) {
 		t.Fatalf("unknown rc=%d", rc)
 	}
 }
+
+// An op file whose embedded operationId disagrees with its filename —
+// including traversal — must never reach o.save()'s filepath.Join.
+// checkID guards the flag, but load() trusted file content.
+func TestEmbeddedIDTraversal(t *testing.T) {
+	vmdir := t.TempDir()
+	ops := filepath.Join(vmdir, "ops")
+	os.MkdirAll(ops, 0o755)
+	escape := filepath.Join(filepath.Dir(vmdir), "escaped.json")
+	plant := `{"schemaVersion":1,"operationId":"../../escaped","type":"export","state":"queued"}`
+	os.WriteFile(filepath.Join(ops, "evil.json"), []byte(plant), 0o600)
+	if _, rc := runTool(t, "set", "--vmdir", vmdir, "--id", "evil",
+		"--state", "running"); rc == 0 {
+		t.Fatal("set on foreign-id op must fail")
+	}
+	if _, err := os.Stat(escape); !os.IsNotExist(err) {
+		t.Fatal("embedded operationId escaped the ops dir")
+	}
+}
