@@ -715,22 +715,83 @@ func globDir(dir string) []string {
 
 var _ = globDir // retained for future use
 func usage() {
-	fmt.Println(`quickget — download OS images and create VM configs (Go CLI)
+	// help_message parity: ASCII banner + flag reference + the
+	// supported-OS list wrapped at 80 columns.
+	curlVer := ""
+	if out, err := execCommand("curl", "--version").Output(); err == nil {
+		if f := strings.Fields(strings.SplitN(string(out), "\n", 2)[0]); len(f) > 1 {
+			curlVer = f[1]
+		}
+	}
+	fmt.Printf(`
+             _      _              _
+  __ _ _   _(_) ___| | ____ _  ___| |_
+ / _`+"`"+` | | | | |/ __| |/ / _`+"`"+` |/ _ \ __|
+| (_| | |_| | | (__|   < (_| |  __/ |_
+ \__, |\__,_|_|\___|_|\_\__, |\___|\__|
+    |_|                 |___/ v%s, using curl %s
+--------------------------------------------------------------------------------
+ Project - https://github.com/quickemu-project/quickemu
+ Discord - https://wimpysworld.io/discord
+--------------------------------------------------------------------------------
 
-Usage
-  quickget <os> <release> [edition]           download + create config
-  quickget --download <os> <rel> [ed]         download only
-  quickget --create-config <os> <rel> [ed]    config only (existing image)
-  quickget --url <os> <rel> [ed]              show download URL(s)
-  quickget --check <os> <rel> [ed]            test download URL(s)
-  quickget --check-all-arch <os> <rel> [ed]   test all architectures
-  quickget --show <os>                        show OS info
-  quickget --open-homepage <os>               open OS homepage
-  quickget --list | --list-csv | --list-json
-  quickget --arch <amd64|arm64> ...
-  quickget --minimum-trust <A-E> ...
-  quickget --cloud-init / --unattended / --insecure
-  quickget --version | --help`)
+Usage:
+  quickget <os> <release> [edition]
+  quickget ubuntu 22.04
+
+Advanced usage:
+  quickget <arg> [path] <os> [release] [edition]
+  quickget --download ubuntu 22.04
+
+Arguments:
+   --arch           <arch>                    : Set architecture (arm64, aarch64, amd64, x86_64)
+   --download       <os> <release> [edition]  : Download image; no VM configuration
+   --create-config  <os> [path/url] [flags]   : Create VM config for an OS image
+   --insecure                                 : Skip SSL certificate verification (or set QUICKGET_INSECURE=1)
+   --cloud-init                               : Generate a NoCloud seed.iso for the downloaded VM
+   --unattended                               : Configure unattended install (ubuntu-server)
+   --update        <os>                        : Show newest upstream release vs local VMs
+   --open-homepage  <os>                      : Open homepage for the OS
+   --show           [os]                      : Show OS information
+   --version                                  : Show version
+   --help                                     : Show this help message
+------------------------------------ Flags -------------------------------------
+--create-config:
+  --disable-unattended                        : Force quickget not to set up an unattended installation
+-------------------------- For testing & development ---------------------------
+   --url            [os] [release] [edition]  : Show image URL(s)
+   --check          [os] [release] [edition]  : Check image URL(s)
+   --check-all-arch [os] [release] [edition]  : Check downloads for all architectures (amd64 and arm64)
+   --list                                     : List all supported systems
+   --list-csv                                 : List everything in csv format
+   --list-json                                : List everything in json format
+--------------------------------------------------------------------------------
+
+Supported Operating Systems:
+
+`, qelib.QEVersion, curlVer)
+	var names []string
+	for _, e := range loadCatalog() {
+		names = append(names, e.OS)
+	}
+	fmt.Println(wrapCols(strings.Join(names, " "), 80))
+}
+
+// wrapCols: fmt -w 80 — greedy word wrap.
+func wrapCols(s string, w int) string {
+	var lines []string
+	line := ""
+	for _, word := range strings.Fields(s) {
+		if line == "" {
+			line = word
+		} else if len(line)+1+len(word) <= w {
+			line += " " + word
+		} else {
+			lines = append(lines, line)
+			line = word
+		}
+	}
+	return strings.Join(append(lines, line), "\n")
 }
 
 func main() {

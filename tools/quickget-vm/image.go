@@ -230,7 +230,8 @@ func customConf(vmPath, input, flag string) int {
 			fixedISO = "virtio-win.iso"
 			os.Remove(filepath.Join(vmPath, "unattended.iso"))
 			drv := "w11"
-			if strings.Contains(low, "win") && strings.Contains(low, "10") {
+			// *win*10* glob: "win" must precede "10" (Bash case order).
+			if i := strings.Index(low, "win"); i >= 0 && strings.Contains(low[i+3:], "10") {
 				drv = "w10"
 			}
 			unattendedWindows(vmPath, drv, "")
