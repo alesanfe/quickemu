@@ -294,7 +294,7 @@ func run() int {
 		if f == "" {
 			die("INVALID_ARGS", "backup-restore needs a file")
 		}
-		return backupRestore(f, dest)
+		return backupRestore(f, dest, dir)
 	case "backup-prune":
 		keep := 5
 		if len(args) > 2 {
@@ -314,7 +314,7 @@ func run() int {
 		if len(args) < 3 {
 			die("INVALID_ARGS", "import needs a .quickvm.tar.gz file")
 		}
-		return importVm(args[2], ".")
+		return importVm(args[2], ".", dir)
 	case "autostart":
 		name := filepath.Base(dir)
 		conf := vmConfPath(dir)

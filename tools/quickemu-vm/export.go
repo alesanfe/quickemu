@@ -48,9 +48,14 @@ func exportVm(dir, out string) int {
 	if _, err := os.Stat(conf); err != nil {
 		die("NO_CONF", "no "+conf)
 	}
+	// op_new "export" — created before the running check, exactly like
+	// Bash (a die there leaves the op "running" for op_recover).
+	opID := opNew(dir, "export", name)
+	opSet(dir, opID, "running", 10)
 	// Bash: ERROR! Stop ${VMNAME} before exporting. — the archive must
 	// be a consistent snapshot, not live guest state.
 	vmStoppedOrDie(dir, "exporting")
+	opSet(dir, opID, "running", 40)
 	// Member list: conf + every non-runtime file under the VM dir
 	// (<parent>/<name>/ — Bash only archives the convention dir named
 	// after the VM, present or not).
@@ -127,7 +132,8 @@ func exportVm(dir, out string) int {
 	sumb := sums.String()
 	tw.WriteHeader(&tar.Header{Name: "quickvm-checksums.sha256", Mode: 0644, Size: int64(len(sumb))})
 	tw.Write([]byte(sumb))
-	infof(" - Exported %s to %s\n", name, out)
+	opDone(dir, opID)
+	infof(" - Exported %s to %s (operation %s)\n", name, out, opTag(opID))
 	okMap(map[string]any{"export": out})
 	return 0
 }
@@ -136,7 +142,7 @@ func vmVersion() string { return qelib.QEVersion }
 
 // importVm: safe extract of a .quickvm.tar.gz into the cwd —
 // anti-bomb limits, path whitelist, manifest/checksum verification.
-func importVm(in, destDir string) int {
+func importVm(in, destDir, opVmdir string) int {
 	st, err := os.Stat(in)
 	if err != nil || st.IsDir() {
 		fmt.Fprintln(os.Stderr, "ERROR! '--import' needs an existing .tar.gz file.")
@@ -195,6 +201,10 @@ func importVm(in, destDir string) int {
 		fmt.Fprintf(os.Stderr, "ERROR! %s already exists.\n", base)
 		return 1
 	}
+	// op_new "import" — op_dir resolves on the --vm context's VMDIR
+	// (the dir arg), same as Bash.
+	opID := opNew(opVmdir, "import", base)
+	opSet(opVmdir, opID, "running", 10)
 	// Pass 2: extract to a private staging dir — same fd as pass 1
 	// (reopening the path would let a swapped file bypass validation).
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
@@ -210,6 +220,7 @@ func importVm(in, destDir string) int {
 		die("IMPORT_FAILED", err.Error())
 	}
 	defer os.RemoveAll(tmp)
+	opSet(opVmdir, opID, "running", 30)
 	for {
 		h, err := tr2.Next()
 		if err != nil {
@@ -276,7 +287,8 @@ func importVm(in, destDir string) int {
 			return 1
 		}
 	}
-	infof(" - Imported %s from %s\n", base, in)
+	opDone(opVmdir, opID)
+	infof(" - Imported %s from %s (operation %s)\n", base, in, opTag(opID))
 	fmt.Fprintf(os.Stderr, " - WARNING! %s.conf is executed as code on launch; review it before running the VM.\n", base)
 	okMap(map[string]any{"import": base})
 	return 0

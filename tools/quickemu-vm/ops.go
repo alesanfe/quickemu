@@ -59,6 +59,45 @@ func vmRunningDir(dir, name string) bool {
 	return c == name || c == short || strings.HasPrefix(c, "qemu")
 }
 
+// opNew/opSet/opDone: the Bash op journal integration — best-effort and
+// silent when the quickemu-ops sibling is absent (every call site is
+// 2>/dev/null). opNew runs the lazy op_recover like Bash's op_new;
+// on process abort the op stays "running" for recover to reap — the
+// identical outcome to a shell exit under a RETURN trap.
+func opNew(vmdir, typ, vm string) string {
+	qelib.Tool("quickemu-ops", nil, "recover", "--vmdir", vmdir) // lazy reap, op_new parity
+	out, err := qelib.Tool("quickemu-ops", nil, "new",
+		"--vmdir", vmdir, "--type", typ, "--vm", vm)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(out)
+}
+
+func opSet(vmdir, id, state string, progress int) {
+	if id == "" {
+		return
+	}
+	qelib.Tool("quickemu-ops", nil, "set", "--vmdir", vmdir,
+		"--id", id, "--state", state, "--progress", fmt.Sprint(progress))
+}
+
+func opDone(vmdir, id string) {
+	if id == "" {
+		return
+	}
+	qelib.Tool("quickemu-ops", nil, "done", "--vmdir", vmdir, "--id", id)
+}
+
+// opTag: the "(operation <id>)" suffix on the final echo — n/a when no
+// journal was available.
+func opTag(id string) string {
+	if id == "" {
+		return "n/a"
+	}
+	return id
+}
+
 // vmEvent: qe_event parity for the vm ops — append a record to the
 // VM's <dir>/<name>.events.jsonl through the shared qelib appender.
 // The pid comes from the pidfile (absent → null, Bash's empty

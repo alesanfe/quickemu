@@ -138,9 +138,9 @@ func backupVerify(fpath string) int {
 }
 
 // backupRestore: verify then import into dest.
-func backupRestore(fpath, dest string) int {
+func backupRestore(fpath, dest, opVmdir string) int {
 	if backupVerify(fpath) != 0 {
 		return 1
 	}
-	return importVm(fpath, dest)
+	return importVm(fpath, dest, opVmdir)
 }
