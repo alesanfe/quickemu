@@ -2,8 +2,6 @@
 package main
 
 import (
-	"io"
-	"os"
 	"os/exec"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
@@ -18,20 +16,7 @@ var finalURL = func(url string) string {
 	return url
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
-}
+func copyFile(src, dst string) error { return qelib.CopyFile(src, dst) }
 
 func run(name string, args ...string) error {
 	bin, err := exec.LookPath(name)

@@ -127,12 +127,7 @@ var goArch = runtime.GOARCH
 
 // hostArch: Bash NORMALISED_HOST_ARCH parity — quickget names
 // (amd64/arm64), not QEMU's (x86_64/aarch64).
-func hostArch() string {
-	if goArch == "arm64" {
-		return "arm64"
-	}
-	return "amd64"
-}
+func hostArch() string { return qelib.QuickgetArch(goArch) }
 
 func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, cloudInit ...bool) int {
 	if dir == "" {

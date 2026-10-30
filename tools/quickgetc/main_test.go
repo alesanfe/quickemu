@@ -14,8 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/klauspost/compress/zstd"
 	"testing"
+
+	"github.com/klauspost/compress/zstd"
 )
 
 // helperExec re-runs the test binary so main() (and its os.Exit calls)

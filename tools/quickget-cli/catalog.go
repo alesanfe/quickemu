@@ -12,14 +12,9 @@ import (
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
-func hostArch() string {
-	// Normalised quickget arch names (amd64/arm64, not QEMU's
-	// x86_64/aarch64) — a hardcoded amd64 picked x86 URLs on ARM hosts.
-	if runtime.GOARCH == "arm64" {
-		return "arm64"
-	}
-	return "amd64"
-}
+// Normalised quickget arch names (amd64/arm64, not QEMU's
+// x86_64/aarch64) — a hardcoded amd64 picked x86 URLs on ARM hosts.
+func hostArch() string { return qelib.QuickgetArch(runtime.GOARCH) }
 
 func dataPath(name string) string {
 	if p := os.Getenv("QUICKEMU_CATALOG_DIR"); p != "" {

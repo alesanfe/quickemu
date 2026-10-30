@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/sys/unix"
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 func hasTool(name string) bool {
@@ -134,28 +134,7 @@ func probeCPUInfo() string {
 
 // uname: `uname -s -r -m` fields without spawning uname — the kernel
 // info comes from the uname(2) syscall (x/sys/unix).
-func uname(flags string) string {
-	var u unix.Utsname
-	if unix.Uname(&u) != nil {
-		return ""
-	}
-	m := map[byte]string{
-		's': unix.ByteSliceToString(u.Sysname[:]),
-		'r': unix.ByteSliceToString(u.Release[:]),
-		'v': unix.ByteSliceToString(u.Version[:]),
-		'm': unix.ByteSliceToString(u.Machine[:]),
-		'n': unix.ByteSliceToString(u.Nodename[:]),
-	}
-	var out []string
-	for _, f := range strings.Fields(flags) {
-		for _, c := range []byte(strings.TrimPrefix(f, "-")) {
-			if v, ok := m[c]; ok && v != "" {
-				out = append(out, v)
-			}
-		}
-	}
-	return strings.Join(out, " ")
-}
+func uname(flags string) string { return qelib.UnameFields(flags) }
 
 // qrRedact: scrub HOME/user/host/IP/MAC/credentialed URLs (qr_redact).
 var (

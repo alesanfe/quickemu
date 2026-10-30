@@ -244,40 +244,7 @@ func reapVM(pid int, dir, name string) {
 	// that exits on its own leaves no vm.stopped transition — the CLI
 	// only emits for user-initiated stops.
 	inventoryTouchStopped(dir, name, pid)
-	qeEventAt(dir, name, "vm.stopped", pid, "")
-}
-
-// qeEventAt: qe_event parity for the detached reaper — appends a JSONL
-// record to <dir>/<name>.events.jsonl (same schema as the CLI's
-// qeEvent: seq, ts, event, vm, pid, data; ~1MiB rotation to .1).
-func qeEventAt(dir, name, typ string, pid int, data string) {
-	f := filepath.Join(dir, name+".events.jsonl")
-	if st, err := os.Stat(f); err == nil && st.Size() >= 1048576 {
-		os.Rename(f, f+".1")
-	}
-	seq := 1
-	if b, err := os.ReadFile(f); err == nil {
-		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
-		var last struct {
-			Seq int `json:"seq"`
-		}
-		if json.Unmarshal([]byte(lines[len(lines)-1]), &last) == nil {
-			seq = last.Seq + 1
-		}
-	}
-	if data == "" {
-		data = "null"
-	}
-	rec, _ := json.Marshal(map[string]any{
-		"seq": seq, "ts": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
-		"event": typ, "vm": name, "pid": pid,
-		"data": json.RawMessage(data)})
-	fh, err := os.OpenFile(f, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
-	}
-	defer fh.Close()
-	fh.Write(append(rec, '\n'))
+	qelib.AppendEvent(dir, name, pid, "vm.stopped", "")
 }
 
 // inventoryTouchStopped: inventory_touch parity — upsert this

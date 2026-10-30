@@ -2,6 +2,7 @@
 package qelib
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -102,4 +103,30 @@ func PciAttr(dev, attr string) string {
 // PciHex reads a 0x-prefixed sysfs attribute with the prefix stripped.
 func PciHex(dev, attr string) string {
 	return strings.TrimPrefix(PciAttr(dev, attr), "0x")
+}
+
+// QuickgetArch normalises a runtime arch string to the quickget
+// download-arch name: "arm64" on ARM64, "amd64" otherwise (quickget
+// catalogs use distro naming, not QEMU's x86_64/aarch64).
+func QuickgetArch(ra string) string {
+	if ra == "arm64" {
+		return "arm64"
+	}
+	return "amd64"
+}
+
+// CopyFile: byte copy src -> dst (create/truncate).
+func CopyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }

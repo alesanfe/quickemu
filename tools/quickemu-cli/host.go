@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
-	"golang.org/x/sys/unix"
 )
 
 // unameArch maps Go runtime.GOARCH to uname -m spellings.
@@ -29,28 +28,7 @@ func unameArch() string {
 
 // unameFields: `uname -s -r -m` without spawning uname — same kernel
 // info via the uname(2) syscall (x/sys/unix).
-func unameFields(flags string) string {
-	var u unix.Utsname
-	if unix.Uname(&u) != nil {
-		return ""
-	}
-	m := map[byte]string{
-		's': unix.ByteSliceToString(u.Sysname[:]),
-		'r': unix.ByteSliceToString(u.Release[:]),
-		'v': unix.ByteSliceToString(u.Version[:]),
-		'm': unix.ByteSliceToString(u.Machine[:]),
-		'n': unix.ByteSliceToString(u.Nodename[:]),
-	}
-	var out []string
-	for _, f := range strings.Fields(flags) {
-		for _, c := range []byte(strings.TrimPrefix(f, "-")) {
-			if v, ok := m[c]; ok && v != "" {
-				out = append(out, v)
-			}
-		}
-	}
-	return strings.Join(out, " ")
-}
+func unameFields(flags string) string { return qelib.UnameFields(flags) }
 
 // actCapabilities: static contract envelope (capabilities parity —
 // keep in sync with schemas/v1/capabilities.schema.json).
