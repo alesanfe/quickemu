@@ -4358,6 +4358,25 @@
    "support_level": "community"
   },
   {
+   "os": "moros",
+   "releases": [
+    "latest",
+    "v0.12.0",
+    "v0.11.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "experimental",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
+  },
+  {
    "os": "mxlinux",
    "releases": [
     "25.3"

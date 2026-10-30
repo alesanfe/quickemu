@@ -2231,6 +2231,12 @@
    "homepage": "https://bastillebsd.org/",
    "info": "FreeBSD distribution with Bastille container management built in",
    "name": "BastilleBSD"
+  },
+  "moros": {
+   "credentials": "-",
+   "homepage": "https://moros.cc/",
+   "info": "Hobby OS written in Rust with a Lisp-like shell (raw disk image)",
+   "name": "MOROS"
   }
  }
 }

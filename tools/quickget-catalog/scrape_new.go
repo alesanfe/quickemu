@@ -256,7 +256,9 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return fmt.Sprintf("https://releases.rancher.com/harvester/%s/harvester-%s-amd64.iso", tag, tag), "", nil
 	case "hellosystem":
-		return ghISO("helloSystem/ISO", `hello-.*-amd64\.iso`)
+		// hello-<ver>_<build>-FreeBSD-<ver>-amd64.iso + .iso.sha256 sidecar.
+		return ghISOsha("helloSystem/ISO",
+			`hello-[^"/]*-amd64\.iso$`, `hello-[^"/]*-amd64\.iso\.sha256$`)
 	case "k3os":
 		return ghISO("rancher/k3os", `k3os-amd64\.iso`)
 	case "kairos":
@@ -1377,6 +1379,13 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "lateralus":
 		// lateralus-os.iso research OS (only the v3.2.0 release ships it).
 		return ghISO("bad-antics/lateralus-lang", `lateralus-os\.iso`)
+	case "moros":
+		// moros-v<ver>.bin raw disk image (rust hobby OS).
+		ver := `[0-9.]+`
+		if release != "latest" && release != "" {
+			ver = regexp.QuoteMeta(strings.TrimPrefix(release, "v"))
+		}
+		return ghISO("vinc/moros", `moros-v`+ver+`\.bin`)
 	case "bastillebsd":
 		// BastilleBSD-<rel>-RELEASE-amd64-memstick.iso.xz; BSD-style
 		// CHECKSUM covers the uncompressed .iso name.
