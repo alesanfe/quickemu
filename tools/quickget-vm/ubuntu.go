@@ -70,7 +70,9 @@ func zsyncURL(url string) string {
 
 // zsyncGet: zsync_get parity — prefer the zsync delta downloader on
 // the forced-http .zsync URL, fall back to plain fetch when absent.
-func zsyncGet(url, dir, out string) int {
+// label is the "Downloading <label> from <url>" subject
+// ("${PRETTY_OS_NAME} ${RELEASE} ${EDITION}" in Bash).
+func zsyncGet(url, dir, out, label string) int {
 	if out == "" {
 		out = filepath.Base(url)
 	}
@@ -79,7 +81,7 @@ func zsyncGet(url, dir, out string) int {
 		return 1
 	}
 	if z, err := exec.LookPath("zsync"); err == nil {
-		fmt.Printf("Downloading %s from %s\n", out, url)
+		fmt.Printf("Downloading %s from %s\n", label, url)
 		zu := zsyncURL(url)
 		cmd := execCommand(z, zu, "-i", filepath.Join(dir, out), "-o", filepath.Join(dir, out))
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
@@ -90,7 +92,7 @@ func zsyncGet(url, dir, out string) int {
 		os.Remove(filepath.Join(dir, out) + ".zs-old")
 		return 0
 	}
-	fmt.Println("INFO: zsync not found, falling back to direct download")
+	fmt.Println("INFO: zsync not found, falling back to curl")
 	return fetch(url, filepath.Join(dir, out), "")
 }
 
@@ -160,11 +162,14 @@ func getUbuntu(osName, release, dir, arch string) int {
 		return 1
 	}
 	if isDaily {
-		if zsyncGet(url+"/"+iso, dir, osName+"-devel.iso") != 0 {
+		if zsyncGet(url+"/"+iso, dir, osName+"-devel.iso", prettyNameFor(osName)+" "+release+" ") != 0 {
 			return 1
 		}
 		return mkconf(osName, release, "", osName+"-devel.iso", "", dir, arch, cloudInitFlag)
 	}
+	// web_get echo parity (ubuntu is not in the excluded-OS list).
+	fmt.Printf("Downloading %s %s \n", prettyNameFor(osName), release)
+	fmt.Println("- URL: " + url + "/" + iso)
 	if fetch(url+"/"+iso, filepath.Join(dir, iso), hash) != 0 {
 		return 1
 	}

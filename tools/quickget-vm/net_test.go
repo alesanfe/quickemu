@@ -173,7 +173,7 @@ func TestZsyncGet(t *testing.T) {
 	// minimal PATH: no zsync → falls back to (stubbed) fetch.
 	empty := t.TempDir()
 	t.Setenv("PATH", empty)
-	if rc := zsyncGet("https://x/f.iso", dir, "f.iso"); rc != 0 {
+	if rc := zsyncGet("https://x/f.iso", dir, "f.iso", "lbl"); rc != 0 {
 		t.Fatalf("zsyncGet fallback rc=%d", rc)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "f.iso")); err != nil {
@@ -184,16 +184,16 @@ func TestZsyncGet(t *testing.T) {
 	os.WriteFile(filepath.Join(zdir, "zsync"),
 		[]byte("#!/bin/sh\nwhile [ $# -gt 0 ]; do case \"$1\" in -o) shift; touch \"$1\";; esac; shift; done\nexit 0\n"), 0o755)
 	t.Setenv("PATH", zdir+string(os.PathListSeparator)+"/bin:/usr/bin")
-	if rc := zsyncGet("https://x/f2.iso", dir, "f2.iso"); rc != 0 {
+	if rc := zsyncGet("https://x/f2.iso", dir, "f2.iso", "lbl"); rc != 0 {
 		t.Fatalf("zsyncGet zsync-branch rc=%d", rc)
 	}
 	// failing zsync → error.
 	os.WriteFile(filepath.Join(zdir, "zsync"), []byte("#!/bin/sh\nexit 1\n"), 0o755)
-	if rc := zsyncGet("https://x/f3.iso", dir, "f3.iso"); rc != 1 {
+	if rc := zsyncGet("https://x/f3.iso", dir, "f3.iso", "lbl"); rc != 1 {
 		t.Fatal("zsync failure should fail")
 	}
 	t.Setenv("PATH", empty)
-	if rc := zsyncGet("https://x/missing", dir, "m.iso"); rc != 1 {
+	if rc := zsyncGet("https://x/missing", dir, "m.iso", "lbl"); rc != 1 {
 		t.Fatal("fetch failure should fail")
 	}
 }

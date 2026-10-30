@@ -640,6 +640,19 @@ func hashFor(digest string) (string, hash.Hash, string) {
 	return "", nil, ""
 }
 
+// prettyNameFor: PRETTY_OS_NAME parity — the catalog info Name field
+// (pretty_name), falling back to the bare OS name on any miss.
+func prettyNameFor(osName string) string {
+	if cat, err := qelib.FindTool("quickget-catalog"); err == nil {
+		if out, err := execCommand(cat, "info", osName).Output(); err == nil {
+			if f := strings.SplitN(strings.TrimSpace(string(out)), "|", 2); f[0] != "" {
+				return f[0]
+			}
+		}
+	}
+	return osName
+}
+
 // getOS: the quickget pipeline — resolve url+hash via the catalog
 // tool, fetch the checksum file, fetch+verify the image, then mkconf.
 // quickget-catalog is our own Go binary; zsync delegates to the
@@ -731,12 +744,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 	}
 	// web_get echo parity: "Downloading <pretty> <rel> <ed>" + "- URL:".
 	// zsync_get prints its own "… from <url>" form instead.
-	pretty := osName
-	if out, err := execCommand(cat, "info", osName).Output(); err == nil {
-		if f := strings.SplitN(strings.TrimSpace(string(out)), "|", 2); f[0] != "" {
-			pretty = f[0]
-		}
-	}
+	pretty := prettyNameFor(osName)
 	if strings.HasSuffix(url, ".zsync") {
 		fmt.Printf("Downloading %s %s %s from %s\n", pretty, release, edition, url)
 	} else {

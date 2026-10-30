@@ -209,17 +209,28 @@ func actList() int {
 }
 
 func actListJSON() int {
+	// list_json = list_csv through jq — object keys keep the CSV
+	// column order (a Go map would marshal alphabetically).
 	keys := []string{"Display Name", "OS", "Release", "Option", "Downloader", "PNG", "SVG"}
-	var out []map[string]string
-	for _, r := range csvRows(loadCatalog(), loadInfo()) {
-		m := map[string]string{}
-		for i, k := range keys {
-			m[k] = r[i]
+	var b strings.Builder
+	b.WriteString("[\n")
+	for i, r := range csvRows(loadCatalog(), loadInfo()) {
+		if i > 0 {
+			b.WriteString(",\n")
 		}
-		out = append(out, m)
+		b.WriteString("  {")
+		for j, k := range keys {
+			if j > 0 {
+				b.WriteString(", ")
+			}
+			kb, _ := json.Marshal(k)
+			vb, _ := json.Marshal(r[j])
+			b.WriteString(string(kb) + ": " + string(vb))
+		}
+		b.WriteString("}")
 	}
-	b, _ := json.MarshalIndent(out, "", " ")
-	fmt.Println(string(b))
+	b.WriteString("\n]\n")
+	fmt.Print(b.String())
 	return 0
 }
 

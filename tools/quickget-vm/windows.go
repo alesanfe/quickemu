@@ -315,7 +315,13 @@ func getWindows(osName, release, i18n, dir, arch string) int {
 			list = winServerLanguages
 		}
 		if !validLang(list, i18n) {
-			fmt.Printf("ERROR! %s is not a supported language\n", i18n)
+			// error_not_supported_lang: trailing " - Editions:" list
+			// ends each entry with a space, no final newline.
+			fmt.Printf("ERROR! %s is not a supported %s language\n\n", i18n, prettyNameFor(osName))
+			fmt.Print(" - Editions: ")
+			for _, l := range list {
+				fmt.Print(l + " ")
+			}
 			return 1
 		}
 	} else {
