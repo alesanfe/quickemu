@@ -12,7 +12,7 @@ import (
 // default branch.
 func scrapeRescued(osName, release, edition, arch string) (string, string, error) {
 	for _, resolve := range []func(string, string, string, string) (string, string, error){
-		scrapeGH, scrapeSF, scrapeIndex, scrapeAPI, scrapeUbuntu,
+		scrapeGH, scrapeSF, scrapeIndex, scrapeAPI, scrapeUbuntu, scrapeMisc,
 	} {
 		u, h, err := resolve(osName, release, edition, arch)
 		if !errors.Is(err, errScrapeSkip) {
