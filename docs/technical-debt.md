@@ -18,7 +18,7 @@ reports, untested declared features, undocumented .conf/TOML divergence.
 | TD-008 | hotplug persists to .conf only (no TOML write) | quickemu-qmp | low | resolved | TOML arrays written when VM is .toml |
 | TD-009 | quickget: downloads lack resume/verify hardening | quickget | medium | resolved | proto allow-list, retries, stall-abort, resume kept |
 | TD-010 | No bash-completion for VM/snapshot names | completion | low | resolved | *.conf/*.toml + snapshot-tag dynamic completion |
-| TD-011 | Error strings keep `ERROR!`-style punctuation (ST1005) | all | low | resolved | Parity wording kept; explicit `//lint:file-ignore ST1005` on the four carrier files — staticcheck clean |
+| TD-011 | Error strings keep `ERROR!`-style punctuation (ST1005) | all | low | resolved | Parity wording kept; explicit `//lint:file-ignore ST1005` on the six carrier files — staticcheck clean |
 | TD-012 | `exec.Command` sites without context | launch/cli/qespec | low | resolved | All probes/info/convert sites now `CommandContext` + timeout (5–60s) |
 | TD-013 | Oversized files (scrape_new 1530, scrape 1427, hw 1013, vm 927…) | catalog/launch/vm | medium | resolved | Split into mechanism files: scrape_{gh,sf,index,api,html,mirror,ubuntu,lists,util,fetch}, hw_{probe,firmware,pinning}, storage, conf_parse, metrics, output/delete_plan/vmutil, paths/ops_adapter/args_norm/usage, lifecycle_state, conf_gen/fetch/seed, catalog/validate/format; flat
 dispatches band-split (scrape_html -> html+html2, scrape_index ->
