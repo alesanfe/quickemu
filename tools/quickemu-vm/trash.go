@@ -112,6 +112,10 @@ func trashRestore(name string) int {
 		die("RESTORE_FAILED", err.Error())
 	}
 	os.RemoveAll(slot)
+	// qe_event "vm.restored" — the events file rode back inside the
+	// restored dir, so seq continues the VM's own log.
+	vmEvent(filepath.Join(confDir, name), name, "vm.restored",
+		map[string]any{"vm": name})
 	info(" - Restored " + name + " from trash into " + confDir)
 	okMap(map[string]any{"restored": name})
 	return 0

@@ -167,6 +167,8 @@ func snapshotCreateExternal(dir, tag, desc, confPath string) int {
 		CreatedAt: time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 	})
 	snapMetaWrite(dir, arr)
+	// qe_event "vm.snapshot-external"
+	vmEvent(dir, name, "vm.snapshot-external", map[string]any{"tag": tag, "file": overlay})
 	infof(" - External snapshot '%s' -> %s (parent %s)\n", tag, overlay, disk)
 	okMap(map[string]any{"snapshot": tag, "file": overlay, "parent": disk})
 	return 0
@@ -272,6 +274,13 @@ func snapshotConsolidate(dir, tag string) int {
 		}
 	}
 	snapMetaWrite(dir, rest)
+	// qe_event "vm.snapshot-consolidate" {tag, into}
+	cname := filepath.Base(dir)
+	if c := vmConfPath(dir); c != "" {
+		cname = strings.TrimSuffix(filepath.Base(c), ".conf")
+	}
+	vmEvent(dir, cname, "vm.snapshot-consolidate",
+		map[string]any{"tag": tag, "into": node.Parent})
 	infof(" - Consolidated '%s' into %s.\n", tag, node.Parent)
 	okMap(map[string]any{"consolidated": tag, "into": node.Parent})
 	return 0

@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // runtimeExts: artifacts excluded from exports/delete-plans.
@@ -55,6 +57,26 @@ func vmRunningDir(dir, name string) bool {
 		short = short[:15]
 	}
 	return c == name || c == short || strings.HasPrefix(c, "qemu")
+}
+
+// vmEvent: qe_event parity for the vm ops — append a record to the
+// VM's <dir>/<name>.events.jsonl through the shared qelib appender.
+// The pid comes from the pidfile (absent → null, Bash's empty
+// VM_PID); events emitted after a dir move target the NEW location —
+// Bash's own post-mv emits are dead code (the -d VMDIR guard drops
+// them), so landing them is a deliberate fix-forward.
+func vmEvent(dir, name, typ string, data map[string]any) {
+	pid := 0
+	if b, err := os.ReadFile(filepath.Join(dir, name+".pid")); err == nil {
+		fmt.Sscanf(strings.TrimSpace(string(b)), "%d", &pid)
+	}
+	raw := ""
+	if data != nil {
+		if b, err := json.Marshal(data); err == nil {
+			raw = string(b)
+		}
+	}
+	qelib.AppendEvent(dir, name, pid, typ, raw)
 }
 
 // vmStoppedOrDie: shared VM_MUST_BE_STOPPED guard for every op that

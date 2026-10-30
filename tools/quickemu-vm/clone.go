@@ -29,6 +29,10 @@ func cloneVm(dir, name string, full bool) int {
 		fmt.Fprintf(os.Stderr, "ERROR! %s already exists.\n", name)
 		return 1
 	}
+	// Bash: ERROR! Stop ${VMNAME} before cloning. — a linked copy of a
+	// live disk backs a mutating base and the conf rewrite races the
+	// running instance.
+	vmStoppedOrDie(dir, "cloning")
 	if err := os.MkdirAll(newDir, 0755); err != nil {
 		die("CLONE_FAILED", err.Error())
 	}
@@ -119,6 +123,8 @@ func cloneVm(dir, name string, full bool) int {
 	} else {
 		infof(" - Cloned %s to %s (config only; no disk image found).\n", vmname, name)
 	}
+	// qe_event "vm.cloned" — lands in the source's own event log.
+	vmEvent(dir, vmname, "vm.cloned", map[string]any{"clone": name})
 	okMap(map[string]any{"clone": newDir})
 	return 0
 }

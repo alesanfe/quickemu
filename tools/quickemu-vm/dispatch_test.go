@@ -203,13 +203,41 @@ func TestDispatchRenameMoveMisc(t *testing.T) {
 	if _, err := os.Stat(dir2); err != nil {
 		t.Fatal("dir not renamed")
 	}
-	dst := filepath.Join(t.TempDir(), "moved")
+	// rename_vm: the sibling conf is renamed too (mv VM → <new>.conf)
+	// with <old>/ → <new>/ rewritten inside it.
+	if _, err := os.Stat(filepath.Join(parent, "rmvm2.conf")); err != nil {
+		t.Fatal("conf not renamed to rmvm2.conf")
+	}
+	if _, err := os.Stat(conf); !os.IsNotExist(err) {
+		t.Fatal("old conf left behind after rename")
+	}
+	if b, _ := os.ReadFile(filepath.Join(parent, "rmvm2.conf")); !strings.Contains(string(b), `disk_img="rmvm2/disk.qcow2"`) {
+		t.Fatalf("conf path component not rewritten: %s", b)
+	}
+	// move_vm: DEST must exist; the VM lands at DEST/<base> +
+	// DEST/<name>.conf — QE_VMCONF now points at the renamed conf.
+	dst := t.TempDir()
+	env[0] = "QE_VMCONF=" + filepath.Join(parent, "rmvm2.conf")
 	if out, rc := runTool(t, env, "move", dir2, dst); rc != 0 {
 		t.Fatalf("move rc=%d %s", rc, out)
 	}
-	if _, err := os.Stat(dst); err != nil {
-		t.Fatal("not moved")
+	if _, err := os.Stat(filepath.Join(dst, "rmvm2")); err != nil {
+		t.Fatal("VM dir not moved under DEST")
 	}
+	if _, err := os.Stat(filepath.Join(dst, "rmvm2.conf")); err != nil {
+		t.Fatal("VM conf not moved under DEST")
+	}
+	if _, err := os.Stat(dir2); !os.IsNotExist(err) {
+		t.Fatal("source dir left behind after move")
+	}
+	// A nonexistent DEST refuses (Bash: [ -d "${DEST}" ]).
+	if _, rc := runTool(t, env, "move", filepath.Join(dst, "rmvm2"),
+		filepath.Join(dst, "gone")); rc == 0 {
+		t.Fatal("move to a nonexistent DEST must fail")
+	}
+	// mv semantics: subsequent ops run against the moved location.
+	dir2 = filepath.Join(dst, "rmvm2")
+	env[0] = "QE_VMCONF=" + filepath.Join(dst, "rmvm2.conf")
 	if out, rc := runTool(t, env, "profile", dir2, "windows-gaming"); rc != 0 {
 		t.Fatalf("profile rc=%d %s", rc, out)
 	}

@@ -270,3 +270,55 @@ func DataFile(rel ...string) string {
 	return filepath.Join(append([]string{
 		filepath.Dir(filepath.Dir(filepath.Dir(exe)))}, rel...)...)
 }
+
+// EventsMaxBytes: QE_EVENTS_MAX_BYTES parity — the events file rotates
+// to <file>.1 once it reaches the limit (default 1MiB, one generation).
+func EventsMaxBytes() int64 {
+	max := int64(1048576)
+	if v := os.Getenv("QE_EVENTS_MAX_BYTES"); v != "" {
+		fmt.Sscan(v, &max)
+	}
+	return max
+}
+
+// AppendEvent: qe_event parity — append one JSONL record to
+// <vmdir>/<vm>.events.jsonl (seq continues the last line, ts is UTC,
+// pid is null when <=0, data is embedded raw JSON or null). The file
+// rotates at the byte cap first. Best-effort: every failure is
+// silent, like Bash's `>>"${F}" 2>/dev/null || true`.
+func AppendEvent(vmdir, vm string, pid int, typ, data string) {
+	if vmdir == "" {
+		return
+	}
+	f := filepath.Join(vmdir, vm+".events.jsonl")
+	if st, err := os.Stat(f); err == nil && st.Size() >= EventsMaxBytes() {
+		os.Rename(f, f+".1")
+	}
+	seq := 1
+	if b, err := os.ReadFile(f); err == nil {
+		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+		var last struct {
+			Seq int `json:"seq"`
+		}
+		if json.Unmarshal([]byte(lines[len(lines)-1]), &last) == nil {
+			seq = last.Seq + 1
+		}
+	}
+	var pidv any
+	if pid > 0 {
+		pidv = pid
+	}
+	if data == "" {
+		data = "null"
+	}
+	b, _ := json.Marshal(map[string]any{
+		"seq": seq, "ts": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"event": typ, "vm": vm, "pid": pidv,
+		"data": json.RawMessage(data)})
+	fh, err := os.OpenFile(f, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+	fmt.Fprintln(fh, string(b))
+}

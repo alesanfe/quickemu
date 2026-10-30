@@ -411,6 +411,11 @@ func run() int {
 			return 1
 		}
 		info(" - Compacted " + disk)
+		cname := filepath.Base(dir)
+		if c := vmConfPath(dir); c != "" {
+			cname = strings.TrimSuffix(filepath.Base(c), ".conf")
+		}
+		vmEvent(dir, cname, "vm.disk-compacted", nil)
 		okMap(map[string]any{"compacted": disk})
 	case "clone":
 		// clone_vm parity: sibling conf rewrite + linked backing disk
@@ -488,6 +493,10 @@ func run() int {
 				if err := os.WriteFile(filepath.Join(slot, "trash-meta.json"), mb, 0644); err != nil {
 					die("DELETE_FAILED", "trash-meta: "+err.Error())
 				}
+				// qe_event "vm.trashed" — lands inside the trashed dir's
+				// event log, inspectable via --trash-restore/--events.
+				vmEvent(filepath.Join(slot, "vm", filepath.Base(dir)), name,
+					"vm.trashed", map[string]any{"slot": slot})
 				info(" - Moved " + name + " to trash (" + slot + "); restore with --trash-restore " + name)
 			} else {
 				os.RemoveAll(dir)
@@ -507,22 +516,66 @@ func run() int {
 		if !validVMName(name) {
 			die("INVALID_ARGS", "rename needs a valid new name")
 		}
+		// rename_vm: the conf file is renamed alongside the dir
+		// (mv VM → <parent>/<new>.conf), with the old name's path
+		// component rewritten (s|old/|new/|g) and every step rolled
+		// back on failure.
+		parent := filepath.Dir(dir)
+		dst := filepath.Join(parent, name)
+		newConf := filepath.Join(parent, name+".conf")
+		if _, err := os.Stat(dst); err == nil {
+			die("RENAME_FAILED", name+" already exists.")
+		}
+		if _, err := os.Stat(newConf); err == nil {
+			die("RENAME_FAILED", name+" already exists.")
+		}
 		// Renaming a live VM moves the pidfile/sockets out from under
 		// the running guest — liveness tracking then reports stopped
 		// and the next disk op can run unguarded.
-		vmStoppedOrDie(dir, "renaming it")
-		dst := filepath.Join(filepath.Dir(dir), name)
-		if err := os.Rename(dir, dst); err != nil {
-			die("RENAME_FAILED", err.Error())
-		}
-		conf := vmConfPath(dst)
+		vmStoppedOrDie(dir, "renaming")
+		conf := vmConfPath(dir)
+		oldName := filepath.Base(dir)
 		if conf != "" {
-			b, _ := os.ReadFile(conf)
-			b = []byte(strings.ReplaceAll(string(b), "vm_name=\""+filepath.Base(dir)+"\"", "vm_name=\""+name+"\""))
-			if err := os.WriteFile(conf, b, 0644); err != nil {
-				die("RENAME_FAILED", "conf update: "+err.Error())
+			oldName = strings.TrimSuffix(filepath.Base(conf), ".conf")
+		}
+		movedDir := false
+		if st, err := os.Stat(dir); err == nil && st.IsDir() {
+			if err := os.Rename(dir, dst); err != nil {
+				die("RENAME_FAILED", "Could not move "+dir+".")
+			}
+			movedDir = true
+		}
+		confOut := ""
+		if conf != "" {
+			if strings.HasPrefix(conf, dir+string(os.PathSeparator)) {
+				// Conf inside the VM dir rode along with the dir move.
+				confOut = filepath.Join(dst, filepath.Base(conf))
+			} else {
+				if err := os.Rename(conf, newConf); err != nil {
+					if movedDir {
+						os.Rename(dst, dir)
+					}
+					die("RENAME_FAILED", "Could not rename "+conf+"; rolled back.")
+				}
+				confOut = newConf
+			}
+			if b, err := os.ReadFile(confOut); err == nil {
+				nb := []byte(strings.ReplaceAll(string(b), oldName+"/", name+"/"))
+				if err := os.WriteFile(confOut, nb, 0644); err != nil {
+					if movedDir {
+						os.Rename(dst, dir)
+					}
+					if confOut == newConf {
+						os.Rename(newConf, conf)
+					}
+					die("RENAME_FAILED", "Could not rewrite "+name+".conf; rolled back.")
+				}
 			}
 		}
+		// qe_event "vm.renamed" — the events file kept the old name and
+		// moved with the dir, so seq continues inside the new dir.
+		vmEvent(dst, oldName, "vm.renamed", map[string]any{"newName": name})
+		info(" - Renamed " + oldName + " to " + name)
 		okMap(map[string]any{"renamed": dst})
 	case "move":
 		dst := ""
@@ -532,12 +585,63 @@ func run() int {
 		if dst == "" {
 			die("INVALID_ARGS", "move needs a destination dir")
 		}
-		// Copying a live VM dir duplicates stale pidfiles/sockets —
-		// the copy claims to be running and the source keeps mutating.
-		vmStoppedOrDie(dir, "moving it")
-		if err := cpDir(dir, dst); err != nil {
-			die("MOVE_FAILED", err.Error())
+		// move_vm: DEST is the new parent — the VM lands at
+		// DEST/<vmdir-basename> + DEST/<vmname>.conf via mv (not a
+		// copy), old-dir path prefixes in the conf are repointed, and
+		// the conf move rolls the dir move back on failure.
+		vmStoppedOrDie(dir, "moving")
+		if st, err := os.Stat(dst); err != nil || !st.IsDir() {
+			die("MOVE_FAILED", "Destination "+dst+" does not exist.")
 		}
+		conf := vmConfPath(dir)
+		name := filepath.Base(dir)
+		if conf != "" {
+			name = strings.TrimSuffix(filepath.Base(conf), ".conf")
+		}
+		newDir := filepath.Join(dst, filepath.Base(dir))
+		newConf := filepath.Join(dst, name+".conf")
+		if _, err := os.Stat(newDir); err == nil {
+			die("MOVE_FAILED", name+" already exists in "+dst+".")
+		}
+		if _, err := os.Stat(newConf); err == nil {
+			die("MOVE_FAILED", name+" already exists in "+dst+".")
+		}
+		movedDir := false
+		if st, err := os.Stat(dir); err == nil && st.IsDir() {
+			if err := os.Rename(dir, newDir); err != nil {
+				// Cross-filesystem move: Bash's mv falls back to
+				// copy+remove transparently.
+				if cpDir(dir, newDir) == nil && os.RemoveAll(dir) == nil {
+					movedDir = true
+				}
+			} else {
+				movedDir = true
+			}
+			if !movedDir {
+				die("MOVE_FAILED", "Could not move "+dir+".")
+			}
+		}
+		if conf != "" {
+			confDst := newConf
+			if strings.HasPrefix(conf, dir+string(os.PathSeparator)) {
+				confDst = filepath.Join(newDir, filepath.Base(conf))
+			} else if err := os.Rename(conf, newConf); err != nil {
+				if movedDir {
+					os.Rename(newDir, dir)
+				}
+				die("MOVE_FAILED", "Could not move "+conf+"; rolled back.")
+			}
+			// sed -i s|OLD_DIR/|NEW_DIR/|g — Bash marks it || true:
+			// a rewrite failure must not roll the move back.
+			if b, err := os.ReadFile(confDst); err == nil {
+				nb := []byte(strings.ReplaceAll(string(b), dir+"/", newDir+"/"))
+				os.WriteFile(confDst, nb, 0644)
+			}
+		}
+		// qe_event "vm.moved" — lands in the moved dir's event log
+		// (Bash's post-mv emit is dead code; landing it is fix-forward).
+		vmEvent(newDir, name, "vm.moved", map[string]any{"dest": dst})
+		info(" - Moved " + name + " to " + dst)
 		okMap(map[string]any{"moved": dst})
 	case "profile":
 		if len(args) < 3 {

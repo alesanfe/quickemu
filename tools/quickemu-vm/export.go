@@ -48,6 +48,9 @@ func exportVm(dir, out string) int {
 	if _, err := os.Stat(conf); err != nil {
 		die("NO_CONF", "no "+conf)
 	}
+	// Bash: ERROR! Stop ${VMNAME} before exporting. — the archive must
+	// be a consistent snapshot, not live guest state.
+	vmStoppedOrDie(dir, "exporting")
 	// Member list: conf + every non-runtime file under the VM dir
 	// (<parent>/<name>/ — Bash only archives the convention dir named
 	// after the VM, present or not).
