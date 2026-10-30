@@ -7,25 +7,14 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
-// windows language tables (languages_windows / languages_windows-server
-// from lib/quickget/catalog/data.sh).
-var winLangs = []string{
-	"Arabic", "Brazilian Portuguese", "Bulgarian", "Chinese (Simplified)",
-	"Chinese (Traditional)", "Croatian", "Czech", "Danish", "Dutch",
-	"English (United States)", "English International", "Estonian",
-	"Finnish", "French", "French Canadian", "German", "Greek", "Hebrew",
-	"Hungarian", "Italian", "Japanese", "Korean", "Latvian", "Lithuanian",
-	"Norwegian", "Polish", "Portuguese", "Romanian", "Russian",
-	"Serbian Latin", "Slovak", "Slovenian", "Spanish", "Spanish (Mexico)",
-	"Swedish", "Thai", "Turkish", "Ukrainian",
-}
-
-var winSrvLangs = []string{
-	"English (United States)", "Chinese (Simplified)", "French", "German",
-	"Italian", "Japanese", "Russian", "Spanish",
-}
+// windows language tables — shared in qelib (languages_windows /
+// languages_windows-server contract with quickget-vm).
+var winLangs = qelib.WinLangs
+var winSrvLangs = qelib.WinServerLangs
 
 func iconFunc(osName string) string {
 	switch {

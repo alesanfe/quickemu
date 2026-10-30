@@ -12,24 +12,16 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("QE_HELPER") == "1" {
-		a := os.Getenv("QE_HELPER_ARGS")
-		os.Args = []string{"quickemu-vm"}
-		if a != "" {
-			os.Args = append(os.Args, strings.Split(a, "\x1f")...)
-		}
-		rc := run()
-		_ = os.WriteFile(os.Getenv("QE_HELPER_RC"),
-			[]byte(strconv.Itoa(rc)), 0o600)
+	if qetest.HelperMain("quickemu-vm", run) {
 		return
 	}
 	os.Exit(m.Run())
@@ -43,24 +35,8 @@ func runTool(t *testing.T, env []string, args ...string) (string, int) {
 // runToolIn is runTool with an explicit helper cwd — for ops that read
 // or write cwd-relative files (export/import land in ".").
 func runToolIn(t *testing.T, env []string, cwd string, args ...string) (string, int) {
-	t.Helper()
-	rcf := filepath.Join(t.TempDir(), "rc")
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	if cwd != "" {
-		cmd.Dir = cwd
-	}
-	cmd.Env = append(os.Environ(), "QE_HELPER=1",
-		"QE_HELPER_ARGS="+strings.Join(args, "\x1f"),
-		"QE_HELPER_RC="+rcf)
-	cmd.Env = append(cmd.Env, env...)
-	var so bytes.Buffer
-	cmd.Stdout = &so
-	_ = cmd.Run()
-	rc := -1
-	if b, err := os.ReadFile(rcf); err == nil {
-		rc, _ = strconv.Atoi(strings.TrimSpace(string(b)))
-	}
-	return so.String(), rc
+	out, _, rc := qetest.RunToolFull(t, env, cwd, args...)
+	return out, rc
 }
 
 // mkVM builds <parent>/<name>/ with <name>.conf beside it — the layout

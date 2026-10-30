@@ -14,23 +14,12 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
-var winLanguages = []string{
-	"Arabic", "Brazilian Portuguese", "Bulgarian", "Chinese (Simplified)",
-	"Chinese (Traditional)", "Croatian", "Czech", "Danish", "Dutch",
-	"English (United States)", "English International", "Estonian",
-	"Finnish", "French", "French Canadian", "German", "Greek", "Hebrew",
-	"Hungarian", "Italian", "Japanese", "Korean", "Latvian", "Lithuanian",
-	"Norwegian", "Polish", "Portuguese", "Romanian", "Russian",
-	"Serbian Latin", "Slovak", "Slovenian", "Spanish", "Spanish (Mexico)",
-	"Swedish", "Thai", "Turkish", "Ukrainian",
-}
-
-var winServerLanguages = []string{
-	"English (United States)", "Chinese (Simplified)", "French", "German",
-	"Italian", "Japanese", "Russian", "Spanish",
-}
+var winLanguages = qelib.WinLangs
+var winServerLanguages = qelib.WinServerLangs
 
 // Server eval-center culture/country map.
 var winServerCultures = map[string][2]string{

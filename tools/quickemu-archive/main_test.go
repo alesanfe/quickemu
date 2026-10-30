@@ -5,51 +5,27 @@ package main
 
 import (
 	"archive/tar"
-	"bytes"
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("QE_HELPER") == "1" {
-		a := os.Getenv("QE_HELPER_ARGS")
-		os.Args = []string{"quickemu-archive"}
-		if a != "" {
-			os.Args = append(os.Args, strings.Split(a, "\x1f")...)
-		}
-		rc := run()
-		_ = os.WriteFile(os.Getenv("QE_HELPER_RC"),
-			[]byte(strconv.Itoa(rc)), 0o600)
+	if qetest.HelperMain("quickemu-archive", run) {
 		return
 	}
 	os.Exit(m.Run())
 }
 
 func runTool(t *testing.T, args ...string) (string, int) {
-	t.Helper()
-	rcf := filepath.Join(t.TempDir(), "rc")
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	cmd.Env = append(os.Environ(), "QE_HELPER=1",
-		"QE_HELPER_ARGS="+strings.Join(args, "\x1f"),
-		"QE_HELPER_RC="+rcf)
-	var so bytes.Buffer
-	cmd.Stdout = &so
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("helper: %v", err)
-	}
-	rc := -1
-	if b, err := os.ReadFile(rcf); err == nil {
-		rc, _ = strconv.Atoi(strings.TrimSpace(string(b)))
-	}
-	return so.String(), rc
+	return qetest.RunTool(t, args...)
 }
 
 type member struct {

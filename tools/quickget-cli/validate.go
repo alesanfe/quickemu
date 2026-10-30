@@ -97,12 +97,7 @@ func releaseScopedPrecheck(osName, release, edition, arch string, e *Entry) int 
 		fmt.Fprintf(os.Stderr, "ERROR! %s source trust level %s is below --minimum-trust %s\n", osName, lvl, minTrust)
 		return 1
 	}
-	switch lvl {
-	case "D":
-		fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
-	case "E":
-		fmt.Fprintf(os.Stderr, "warning: %s source unverifiable (trust E: community mirror)\n", osName)
-	}
+	warnTrust(lvl, osName)
 	if !validateRelease(osName, release) {
 		return 1
 	}
@@ -200,6 +195,18 @@ func trustOK(level, min string) bool {
 	return level <= min // A<B<C<D<E lexicographically
 }
 
+// warnTrust emits the trust_warn stderr notice for unverifiable
+// sources (D: https only, E: community mirror) — same wording at
+// every call site.
+func warnTrust(level, osName string) {
+	switch level {
+	case "D":
+		fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
+	case "E":
+		fmt.Fprintf(os.Stderr, "warning: %s source unverifiable (trust E: community mirror)\n", osName)
+	}
+}
+
 // actGet is the default/download pipeline: quickget-vm get (or --no-conf
 // for --download). VirtIO/unattended/seed extras run inside quickget-vm.
 // validateOS: os_supported parity — exits the error contract
@@ -218,17 +225,23 @@ func validateOS(osName string) bool {
 	return false
 }
 
-// specifyRelease: error_specify_release parity — OS info + releases +
-// editions/archs then "ERROR! You must specify a release."
-func specifyRelease(osName string) int {
+// printOSInfo: the - Credentials/Website/Description info block
+// shared by specifyRelease and specifyReleaseInfo.
+func printOSInfo(osName string) {
 	info := loadInfo()
 	if inf, ok := info[osName]; ok {
 		fmt.Println()
 		fmt.Println(inf.Name)
-		fmt.Println(" - Credentials:\t" + inf.Credentials)
-		fmt.Println(" - Website:\t" + inf.Homepage)
-		fmt.Println(" - Description:\t" + inf.Info)
+		fmt.Println(" - Credentials:	" + inf.Credentials)
+		fmt.Println(" - Website:	" + inf.Homepage)
+		fmt.Println(" - Description:	" + inf.Info)
 	}
+}
+
+// specifyRelease: error_specify_release parity — OS info + releases +
+// editions/archs then "ERROR! You must specify a release."
+func specifyRelease(osName string) int {
+	printOSInfo(osName)
 	if out, err := tool("quickget-catalog", "releases", osName); err == nil {
 		fmt.Println(" - Releases:\t" + out)
 	}
@@ -290,12 +303,5 @@ func resolveEdition(osName, edition string) bool {
 }
 
 func specifyReleaseInfo(osName string) {
-	info := loadInfo()
-	if inf, ok := info[osName]; ok {
-		fmt.Println()
-		fmt.Println(inf.Name)
-		fmt.Println(" - Credentials:\t" + inf.Credentials)
-		fmt.Println(" - Website:\t" + inf.Homepage)
-		fmt.Println(" - Description:\t" + inf.Info)
-	}
+	printOSInfo(osName)
 }

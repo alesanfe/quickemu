@@ -4,47 +4,26 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("QE_HELPER") == "1" {
-		a := os.Getenv("QE_HELPER_ARGS")
-		os.Args = []string{"quickemu-ops"}
-		if a != "" {
-			os.Args = append(os.Args, strings.Split(a, "\x1f")...)
-		}
-		rc := run()
-		_ = os.WriteFile(os.Getenv("QE_HELPER_RC"),
-			[]byte(strconv.Itoa(rc)), 0o600)
+	if qetest.HelperMain("quickemu-ops", run) {
 		return
 	}
 	os.Exit(m.Run())
 }
 
 func runTool(t *testing.T, args ...string) (string, int) {
-	t.Helper()
-	rcf := filepath.Join(t.TempDir(), "rc")
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	cmd.Env = append(os.Environ(), "QE_HELPER=1",
-		"QE_HELPER_ARGS="+strings.Join(args, "\x1f"),
-		"QE_HELPER_RC="+rcf)
-	var so bytes.Buffer
-	cmd.Stdout = &so
-	_ = cmd.Run() // helper exits non-zero on die() paths — not a test error
-	rc := -1      // -1 = helper exited via die()/os.Exit mid-flow
-	if b, err := os.ReadFile(rcf); err == nil {
-		rc, _ = strconv.Atoi(strings.TrimSpace(string(b)))
-	}
-	return so.String(), rc
+	return qetest.RunTool(t, args...)
 }
 
 func newOp(t *testing.T, vm string) (vmdir, id string) {

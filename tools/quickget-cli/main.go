@@ -166,12 +166,7 @@ func actGet(osName, release, edition string, noConf bool) int {
 	// (before release/edition validation, like main.sh). The catalog
 	// trust probe already ran get_<os>-equivalent resolution, so a
 	// checksum source whose hash fails to resolve reports D here.
-	switch lvl {
-	case "D":
-		fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
-	case "E":
-		fmt.Fprintf(os.Stderr, "warning: %s source unverifiable (trust E: community mirror)\n", osName)
-	}
+	warnTrust(lvl, osName)
 	if !validateRelease(osName, release) {
 		return 1
 	}

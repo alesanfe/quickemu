@@ -188,8 +188,7 @@ func actType() int {
 // real monitor channel; screendump always lands as PPM and a .png
 // destination converts via convert/pnmtopng when the host has one.
 func actScreenshot() int {
-	if !vmRunning() {
-		fmt.Println(" - " + vmname() + " is not running.")
+	if !requireRunning() {
 		return 1
 	}
 	conf := confKV()

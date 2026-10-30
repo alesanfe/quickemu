@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 func createVM(e *OSEntry, entry *Release, vmPath string) int {
@@ -168,13 +170,9 @@ func createConfig(vmPath, input string) int {
 	}
 	base := filepath.Base(input)
 	if filepath.Dir(input) != vmPath {
-		if err := os.Rename(input, filepath.Join(vmPath, base)); err != nil {
-			// cross-device: copy+remove fallback
-			if cp := copyFile(input, filepath.Join(vmPath, base)); cp != nil {
-				fmt.Println(cp)
-				return 1
-			}
-			os.Remove(input)
+		if err := qelib.MoveFile(input, filepath.Join(vmPath, base)); err != nil {
+			fmt.Println(err)
+			return 1
 		}
 	}
 	guest := "linux"

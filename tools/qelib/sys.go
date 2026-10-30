@@ -130,3 +130,16 @@ func CopyFile(src, dst string) error {
 	_, err = io.Copy(out, in)
 	return err
 }
+
+// MoveFile: rename, falling back to copy for cross-device moves
+// (mv semantics — the source remove is best-effort like Bash's mv).
+func MoveFile(src, dst string) error {
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+	if err := CopyFile(src, dst); err != nil {
+		return err
+	}
+	os.Remove(src)
+	return nil
+}

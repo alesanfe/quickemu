@@ -117,6 +117,17 @@ func goTool() string {
 }
 
 // modules lists dirs under tools/ containing a go.mod.
+func isELF(p string) bool {
+	f, err := os.Open(p)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	head := make([]byte, 4)
+	n, _ := f.Read(head)
+	return n >= 4 && string(head[:4]) == "\x7fELF"
+}
+
 func modules(r string) []string {
 	ents, err := os.ReadDir(filepath.Join(r, "tools"))
 	if err != nil {
@@ -371,12 +382,8 @@ func cmdSbom(args []string) int {
 				continue
 			}
 			p := filepath.Join(dir, e.Name())
-			if f, err := os.Open(filepath.Join(r, p)); err == nil {
-				head := make([]byte, 4)
-				if n, _ := f.Read(head); n >= 4 && string(head[:4]) == "\x7fELF" {
-					files = append(files, filepath.ToSlash(p))
-				}
-				f.Close()
+			if isELF(filepath.Join(r, p)) {
+				files = append(files, filepath.ToSlash(p))
 			}
 		}
 	}
@@ -384,12 +391,8 @@ func cmdSbom(args []string) int {
 	for _, d := range modules(r) {
 		name := filepath.Base(d)
 		p := filepath.Join("tools", name, name)
-		if f, err := os.Open(filepath.Join(r, p)); err == nil {
-			head := make([]byte, 4)
-			if n, _ := f.Read(head); n >= 4 && string(head[:4]) == "\x7fELF" {
-				files = append(files, filepath.ToSlash(p))
-			}
-			f.Close()
+		if isELF(filepath.Join(r, p)) {
+			files = append(files, filepath.ToSlash(p))
 		}
 	}
 	slices.Sort(files)

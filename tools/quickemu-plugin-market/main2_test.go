@@ -4,24 +4,16 @@
 package main
 
 import (
-	"bytes"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func TestMain(m *testing.M) {
-	if os.Getenv("QE_HELPER") == "1" {
-		os.Args = []string{"quickemu-plugin-market"}
-		if a := os.Getenv("QE_HELPER_ARGS"); a != "" {
-			os.Args = append(os.Args, strings.Split(a, "\x1f")...)
-		}
-		rc := run()
-		_ = os.WriteFile(os.Getenv("QE_HELPER_RC"),
-			[]byte(strconv.Itoa(rc)), 0o600)
+	if qetest.HelperMain("quickemu-plugin-market", run) {
 		return
 	}
 	os.Exit(m.Run())
@@ -30,21 +22,8 @@ func TestMain(m *testing.M) {
 var marketEnv []string
 
 func runTool(t *testing.T, args ...string) (string, int) {
-	t.Helper()
-	rcf := filepath.Join(t.TempDir(), "rc")
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	cmd.Env = append(os.Environ(), "QE_HELPER=1",
-		"QE_HELPER_ARGS="+strings.Join(args, "\x1f"),
-		"QE_HELPER_RC="+rcf)
-	cmd.Env = append(cmd.Env, marketEnv...)
-	var so, se bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &so, &se
-	_ = cmd.Run()
-	rc := -1
-	if b, err := os.ReadFile(rcf); err == nil {
-		rc, _ = strconv.Atoi(strings.TrimSpace(string(b)))
-	}
-	return so.String() + se.String(), rc
+	so, se, rc := qetest.RunToolFull(t, marketEnv, "", args...)
+	return so + se, rc
 }
 
 func TestMarketDispatch(t *testing.T) {

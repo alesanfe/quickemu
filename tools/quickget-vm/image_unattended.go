@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/alesanfe/quickemu/tools/qelib"
 	"github.com/diskfs/go-diskfs"
 	"github.com/diskfs/go-diskfs/disk"
 	"github.com/diskfs/go-diskfs/filesystem"
@@ -64,13 +65,9 @@ func customConf(vmPath, input, flag string) int {
 		}
 		fmt.Println("Moving image to VM dir")
 		base := filepath.Base(input)
-		if err := os.Rename(input, filepath.Join(vmPath, base)); err != nil {
-			// cross-device: copy+remove fallback
-			if cp := copyFile(input, filepath.Join(vmPath, base)); cp != nil {
-				fmt.Println(cp)
-				return 1
-			}
-			os.Remove(input)
+		if err := qelib.MoveFile(input, filepath.Join(vmPath, base)); err != nil {
+			fmt.Println(err)
+			return 1
 		}
 		input = base
 	}

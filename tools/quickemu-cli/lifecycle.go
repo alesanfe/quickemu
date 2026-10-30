@@ -16,6 +16,16 @@ import (
 // artefact a boot can leave behind plus stale op locks, and record a
 // vm.stopped event. Runs before actions and before boot, like Bash's
 // main flow.
+// requireRunning: the shared " - <vm> is not running." guard
+// used by the lifecycle actions (vm_running parity).
+func requireRunning() bool {
+	if !vmRunning() {
+		fmt.Println(" - " + vmname() + " is not running.")
+		return false
+	}
+	return true
+}
+
 func runtimeCleanup() {
 	if !(readPID() > 0 && !vmPidAlive()) {
 		return
@@ -49,8 +59,7 @@ func monitorControl(cmd string) bool {
 }
 
 func actPause() int {
-	if !vmRunning() {
-		fmt.Println(" - " + vmname() + " is not running.")
+	if !requireRunning() {
 		return 1
 	}
 	conf := confKV()
@@ -70,8 +79,7 @@ func actPause() int {
 }
 
 func actResume() int {
-	if !vmRunning() {
-		fmt.Println(" - " + vmname() + " is not running.")
+	if !requireRunning() {
 		return 1
 	}
 	conf := confKV()
@@ -91,8 +99,7 @@ func actResume() int {
 // actShutdown: shutdown_vm — graceful ACPI system_powerdown over the
 // monitor; errors when the VM has no monitor channel (--kill forces).
 func actShutdown() int {
-	if !vmRunning() {
-		fmt.Println(" - " + vmname() + " is not running.")
+	if !requireRunning() {
 		return 1
 	}
 	conf := confKV()
@@ -112,8 +119,7 @@ func actShutdown() int {
 
 // actReset: reset_vm — immediate system_reset over the monitor.
 func actReset() int {
-	if !vmRunning() {
-		fmt.Println(" - " + vmname() + " is not running.")
+	if !requireRunning() {
 		return 1
 	}
 	conf := confKV()

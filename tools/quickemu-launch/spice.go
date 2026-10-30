@@ -20,6 +20,14 @@ import (
 //	none           -> disable-ticketing=on,port=<p>,addr=127.0.0.1|<ip|"">
 //
 // `access` in the conf stands in for the Bash --access CLI option.
+// spicePortsExhausted: the shared all-ports-taken refusal — same two
+// lines + exit(1) wherever the 5930-5939 range is scanned.
+func spicePortsExhausted() {
+	fmt.Println(" - SPICE:    All SPICE ports have been exhausted.")
+	fmt.Println("             ERROR! Requested SPICE display, but no SPICE ports are free.")
+	os.Exit(1)
+}
+
 func spiceArgs(c Conf, dir, vmname, osName string) []string {
 	d := c.get("display", "none")
 	var a []string
@@ -57,9 +65,7 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 				}
 				port := firstFreePort(c.get("spice_port", ""), 5930, 5939, vmname)
 				if port == "" {
-					fmt.Println(" - SPICE:    All SPICE ports have been exhausted.")
-					fmt.Println("             ERROR! Requested SPICE display, but no SPICE ports are free.")
-					os.Exit(1)
+					spicePortsExhausted()
 				}
 				spice += ",port=" + qemuOptEsc(port) + ",addr=" + qemuOptEsc(addr)
 				portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
@@ -78,9 +84,7 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 			}
 			port := firstFreePort(c.get("spice_port", ""), 5930, 5939, vmname)
 			if port == "" {
-				fmt.Println(" - SPICE:    All SPICE ports have been exhausted.")
-				fmt.Println("             ERROR! Requested SPICE display, but no SPICE ports are free.")
-				os.Exit(1)
+				spicePortsExhausted()
 			}
 			spice += ",port=" + qemuOptEsc(port) + ",addr=" + qemuOptEsc(addr)
 			portsRecord(dir, vmname, "spice,"+port, c["_run"] == "1")
