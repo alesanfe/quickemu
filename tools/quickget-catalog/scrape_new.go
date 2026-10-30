@@ -1405,6 +1405,37 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "harvey":
 		// harvey-cdrom.iso.bz2 under the "latest" tag (Plan 9 fork).
 		return ghISO("Harvey-OS/harvey", `harvey-cdrom\.iso\.bz2`)
+	case "rosa":
+		// mirror.rosalab.ru/rosa/rosa<N>/iso/ROSA.FRESH.<N>/<de>/ROSA.FRESH.<DE>.<ver>.x86_64.iso
+		ver := `[0-9.]+`
+		if release != "latest" && release != "" {
+			ver = regexp.QuoteMeta(release)
+		}
+		base := "https://mirror.rosalab.ru/rosa/rosa13/iso/ROSA.FRESH.13/" + edition + "/"
+		return indexISOsum(base,
+			`ROSA\.FRESH\.`+strings.ToUpper(edition)+`\.`+ver+`\.x86_64\.iso`, ".md5sum")
+	case "nemesis":
+		// Nemesis-v<ver>-<DE>-x86_64.iso under files/ISO/<ver>/.
+		ed := strings.ToUpper(edition)
+		base := "https://sourceforge.net/projects/nemesis-linux/files/ISO/" + release + "/"
+		ver := regexp.QuoteMeta(release)
+		if release == "latest" || release == "" {
+			d, err := sfLatestDir("nemesis-linux", "ISO", `[0-9.]+`)
+			if err != nil {
+				return "", "", err
+			}
+			base = d
+			ver = `[0-9.]+`
+		}
+		u, _, err := sfISOat(base, `Nemesis-v`+ver+`-`+ed+`-x86_64\.iso`)
+		if err != nil {
+			return "", "", err
+		}
+		sha := ""
+		if b, err := fetchString("https://sourceforge.net/projects/nemesis-linux/files/ISO/sha256sums.txt/download"); err == nil {
+			sha = sumForISO(b, u[strings.LastIndex(strings.TrimSuffix(u, "/download"), "/")+1:])
+		}
+		return u, sha, nil
 	case "mobian":
 		// mobian-amd64-<ed>-<ver>.img.xz + per-edition .sha256sums manifest.
 		ed := edition

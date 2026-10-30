@@ -4454,6 +4454,29 @@
    "support_level": "community"
   },
   {
+   "os": "nemesis",
+   "releases": [
+    "latest",
+    "26.09"
+   ],
+   "editions": [
+    "xfce",
+    "lxqt",
+    "lxde",
+    "cinnamon"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
    "os": "neptune",
    "releases": [
     "9",
@@ -6306,6 +6329,33 @@
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
+  },
+  {
+   "os": "rosa",
+   "releases": [
+    "latest",
+    "13.3",
+    "13.2",
+    "13.1",
+    "13.0"
+   ],
+   "editions": [
+    "gnome",
+    "lxqt",
+    "plasma5",
+    "plasma6",
+    "server"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "iso",
+   "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
    "support_level": "stable"

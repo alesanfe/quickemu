@@ -576,6 +576,23 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 		return `<a href="mobian-amd64-phosh-13.0.img.xz">x</a>
 			<a href="mobian-amd64-plasma-mobile-13.0.img.xz">y</a>
 			<a href="mobian-amd64-phosh-13.0.sha256sums">s</a>`, nil
+	case strings.Contains(url, "rosalab") && strings.Contains(url, ".md5sum"):
+		return shaX[:32] + "  ROSA.FRESH.PLASMA6.13.3.x86_64.iso\n", nil
+	case strings.Contains(url, "rosalab") && strings.Contains(url, "lxqt"):
+		return `<a href="ROSA.FRESH.LXQT.13.3.x86_64.iso">x</a>
+			<a href="ROSA.FRESH.LXQT.13.2.x86_64.iso">y</a>`, nil
+	case strings.Contains(url, "rosalab") && strings.Contains(url, "plasma6"):
+		return `<a href="ROSA.FRESH.PLASMA6.13.3.x86_64.iso">x</a>
+			<a href="ROSA.FRESH.PLASMA6.13.0.x86_64.iso">y</a>`, nil
+	case strings.Contains(url, "rosalab"):
+		return `<a href="ROSA.FRESH.GNOME.13.3.x86_64.iso">x</a>
+			<a href="ROSA.FRESH.GNOME.13.0.x86_64.iso">y</a>`, nil
+	case strings.Contains(url, "nemesis") && strings.Contains(url, "sha256sums"):
+		return shaX + "  Nemesis-v26.09-XFCE-x86_64.iso\n", nil
+	case strings.Contains(url, "nemesis") && strings.Contains(url, "ISO/26.09"):
+		return `"name":"Nemesis-v26.09-XFCE-x86_64.iso" "name":"Nemesis-v26.09-LXQT-x86_64.iso" "name":"Nemesis-v26.09-CINNAMON-x86_64.iso"`, nil
+	case strings.Contains(url, "nemesis"):
+		return `"name":"26.09" "name":"26.06"`, nil
 	case strings.Contains(url, "9front.org"):
 		return `<a href="9front-11952.amd64.iso.gz">9</a>
 			<a href="9front-11952.amd64.qcow2.gz">9</a>
@@ -787,6 +804,12 @@ func TestScrapeAll(t *testing.T) {
 		{"mobian", "13.0", "phosh", "amd64", false},
 		{"mobian", "latest", "bogus", "amd64", true},
 		{"harvey", "latest", "", "amd64", false},
+		{"rosa", "latest", "plasma6", "amd64", false},
+		{"rosa", "13.3", "lxqt", "amd64", false},
+		{"rosa", "13.0", "gnome", "amd64", false},
+		{"nemesis", "latest", "xfce", "amd64", false},
+		{"nemesis", "26.09", "cinnamon", "amd64", false},
+		{"nemesis", "latest", "bogus", "amd64", true},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},

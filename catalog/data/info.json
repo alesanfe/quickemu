@@ -2249,6 +2249,18 @@
    "homepage": "https://harvey-os.org/",
    "info": "Plan 9-derived OS with a 64-bit kernel (bzipped CD image)",
    "name": "Harvey OS"
+  },
+  "rosa": {
+   "credentials": "-",
+   "homepage": "https://www.rosalinux.ru/",
+   "info": "Russian desktop/server distribution (Plasma, GNOME, LXQt editions)",
+   "name": "ROSA Linux"
+  },
+  "nemesis": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/nemesis-linux/",
+   "info": "Lightweight Debian-based distribution (XFCE, LXQt, LXDE, Cinnamon)",
+   "name": "Nemesis Linux"
   }
  }
 }
