@@ -1,1 +1,79 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://quickemu-project.github.io/schemas/catalog-entry-v1.schema.json","title":"quickemu catalog entry","type":"object","required":["code","display","releases"],"properties":{"code":{"type":"string","pattern":"^[a-z0-9-]+$"},"display":{"type":"string"},"os_family":{"type":"string","enum":["linux","bsd","windows","macos","other"]},"releases":{"type":"array","items":{"type":"object","required":["release"],"properties":{"release":{"type":"string"},"editions":{"type":"array","items":{"type":"string"}},"arch":{"type":"array","items":{"type":"string"}},"url":{"type":"string"},"checksum_url":{"type":"string"}}}},"support":{"type":"string","enum":["supported","deprecated","broken"]}}}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quickemu-project.github.io/schemas/catalog-entry-v1.schema.json",
+  "title": "quickemu catalog entry",
+  "description": "Shape of one entry inside catalog/data/catalog.json — mirrors the Entry struct in tools/quickget-catalog and the items schema in schemas/v1/catalog.schema.json. If the catalog is ever split into one file per OS (progressive refactor), each file validates against this.",
+  "type": "object",
+  "required": ["os"],
+  "properties": {
+    "os": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9_+.-]+$",
+      "description": "Family key — the slug quickget accepts."
+    },
+    "releases": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Release names/versions; empty when 'scrape' resolves them live."
+    },
+    "editions": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "arch": {
+      "type": "array",
+      "items": {"type": "string", "enum": ["amd64", "arm64"]},
+      "description": "Guest architectures offered; absent means amd64."
+    },
+    "url": {
+      "type": "string",
+      "description": "Download URL template; %s placeholders interpolate release/edition."
+    },
+    "iso": {
+      "type": "string",
+      "description": "Explicit ISO filename template when it cannot be derived from url."
+    },
+    "hash_url": {
+      "type": "string",
+      "description": "Checksum file URL (sidecar) for verification."
+    },
+    "hash_re": {
+      "type": "string",
+      "description": "Regex selecting the checksum line inside hash_url content."
+    },
+    "scrape": {
+      "type": "boolean",
+      "description": "Resolve releases/URL live via the family's scrape case instead of static fields."
+    },
+    "qarch": {
+      "type": "boolean",
+      "description": "URL template uses QEMU arch names (x86_64/aarch64) rather than amd64/arm64."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "discontinued", "archived", "experimental"]
+    },
+    "image_type": {
+      "type": "string",
+      "enum": ["iso", "raw", "qcow2", "vhd", "vmdk", "floppy", "kernel", "zip", "ova"]
+    },
+    "download_mode": {
+      "type": "string",
+      "enum": ["direct", "mirror", "manual", "authenticated", "archived"]
+    },
+    "license": {
+      "type": "string",
+      "enum": ["redistributable", "restricted", "unknown"]
+    },
+    "boot_mode": {
+      "type": "string",
+      "enum": ["bios", "uefi", "both", "custom"]
+    },
+    "support_level": {
+      "type": "string",
+      "enum": ["stable", "community", "experimental"]
+    }
+  },
+  "additionalProperties": false
+}
