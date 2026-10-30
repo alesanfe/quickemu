@@ -117,7 +117,7 @@ func TestDryRunArgAssembly(t *testing.T) {
 	}
 	for _, want := range []string{
 		"qemu-system-x86_64", "SystemDisk", "virtio-blk",
-		"! USB device 046d:c52b", "8080-:80", "qemu-vdagent", "-serial",
+		"! USB device 046d:c52b", "8080-:80", "-serial",
 		"OVMF", "-pidfile", "virtio-balloon",
 	} {
 		if !strings.Contains(out, want) {
@@ -133,7 +133,7 @@ guest_os="windows"
 tpm="true"
 iso="win.iso"
 floppy="vfd.img"
-driver_iso="drv.iso"
+fixed_iso="drv.iso"
 gpu_passthrough="0000:01:00.0"
 spice_port="5930"
 boot="efi"

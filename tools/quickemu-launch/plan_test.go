@@ -63,7 +63,7 @@ func TestCPURAMFirmware(t *testing.T) {
 	if a := cpuArgs(c, "linux", "x86_64", OsTuning{}); len(a) == 0 {
 		t.Fatal("cpu args empty")
 	}
-	if a := ramArgs(c); !strings.Contains(joined(a), "4G") && len(a) == 0 {
+	if a := ramArgs(c, "linux", "vm.conf"); !strings.Contains(joined(a), "4G") && len(a) == 0 {
 		t.Fatal("ram args")
 	}
 	_ = biosArgs(c, "linux", "x86_64")
@@ -80,8 +80,8 @@ func TestCPURAMFirmware(t *testing.T) {
 func TestPortsChannelsPassthru(t *testing.T) {
 	c, dir := confFrom(t, "guest_os=\"linux\"\nssh_port=\"2222\"\nspice_port=\"5930\"\n"+
 		"vnc_listen=\"127.0.0.1:5\"\n")
-	_ = portArgs(c, dir) // exercised; non-empty depends on host bindings
-	_ = channelArgs(c, dir)
+
+	_ = spiceArgs(c, dir, "vm", "linux")
 	_ = passthruArgs(c)
 	if firstFreePort("bad", 1, 2) == "" {
 		t.Fatal("firstFreePort")

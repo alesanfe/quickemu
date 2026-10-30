@@ -82,20 +82,19 @@ func TestBootChannelPassthruArgs(t *testing.T) {
 	if !has(a, "unattended.iso") {
 		t.Fatalf("unattended %v", a)
 	}
-	a = bootMediaArgs(Conf{"floppy": "f.img", "driver_iso": "d.iso"}, dir)
-	if !has(a, "if=floppy") || !has(a, "virtio-cdrom") {
-		t.Fatalf("floppy/driver %v", a)
+	a = bootMediaArgs(Conf{"floppy": "f.img", "fixed_iso": "d.iso"}, dir)
+	if !has(a, "if=floppy") || !has(a, "index=1") {
+		t.Fatalf("floppy/fixed_iso %v", a)
 	}
 	a = passthruArgs(Conf{"gpu_passthrough": "0000:01:00.0 0000:01:00.1"})
 	if len(a) != 4 || !has(a, "host=0000:01:00.1") {
 		t.Fatalf("passthru %v", a)
 	}
-	a = channelArgs(Conf{"agent": "true"}, dir)
-	if !has(a, "qemu-vdagent") || !has(a, "spicevmc") {
-		t.Fatalf("channel %v", a)
-	}
-	if channelArgs(Conf{}, dir) != nil {
-		t.Fatal("no agent should be nil")
+	// The guest-agent channel lives inside the SPICE block (vm_boot);
+	// conf agent=/guest_agent= keys are inert (no Bash counterpart).
+	a = spiceArgs(Conf{"display": "spice"}, dir, "vm", "linux")
+	if !has(a, "org.qemu.guest_agent.0") || !has(a, "spicevmc") {
+		t.Fatalf("agent channel inside spice block %v", a)
 	}
 }
 

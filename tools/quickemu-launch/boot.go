@@ -31,9 +31,36 @@ func bootMediaArgs(c Conf, dir string) []string {
 	if c.get("floppy", "") != "" {
 		a = append(a, "-drive", "if=floppy,format=raw,file="+qemuOptEsc(joinConf(dir, c["floppy"])))
 	}
-	if c.get("driver_iso", "") != "" {
-		a = append(a, "-drive", "file="+qemuOptEsc(joinConf(dir, c["driver_iso"]))+",media=cdrom,if=none,id=driver", "-device", "virtio-cdrom,drive=driver")
+	// aarch64: virt machine has no IDE — CD-ROMs hang off virtio-scsi.
+	// Bash clears iso for kolibrios/reactos before this check, so the
+	// controller only appears when the generic cd0 emit will follow.
+	a64 := c.get("arch", "x86_64") == "aarch64"
+	genISO := c.get("iso", "") != "" && osn != "kolibrios" && osn != "reactos"
+	if a64 && (genISO || c.get("fixed_iso", "") != "") {
+		a = append(a, "-device", "virtio-scsi-pci,id=scsi0")
 	}
+	// vm_boot_media emits kolibrios/reactos ISOs at index=2 (phantom-
+	// iso workaround, handled above); the generic emit must skip them.
+	if d := c.get("iso", ""); d != "" && genISO {
+		if a64 {
+			// bootindex=1: UEFI boots the installer before the disk.
+			a = append(a, "-device", "scsi-cd,drive=cd0,bus=scsi0.0,bootindex=1",
+				"-drive", "id=cd0,if=none,format=raw,media=cdrom,readonly=on,file="+qemuOptEsc(joinConf(dir, d)))
+		} else {
+			// Bash: plain cdrom drive (IDE), indexed.
+			a = append(a, "-drive", "media=cdrom,index=0,file="+qemuOptEsc(joinConf(dir, d)))
+		}
+	}
+	if d := c.get("fixed_iso", ""); d != "" {
+		if a64 {
+			a = append(a, "-device", "scsi-cd,drive=cd1,bus=scsi0.0,bootindex=3",
+				"-drive", "id=cd1,if=none,format=raw,media=cdrom,readonly=on,file="+qemuOptEsc(joinConf(dir, d)))
+		} else {
+			a = append(a, "-drive", "media=cdrom,index=1,file="+qemuOptEsc(joinConf(dir, d)))
+		}
+	}
+	// driver_iso removed: no Bash counterpart and virtio-cdrom is not a
+	// real QEMU device — a conf using it would abort the launch.
 	return a
 }
 
@@ -61,13 +88,7 @@ func passthruArgs(c Conf) []string {
 	return a
 }
 
-func channelArgs(c Conf, dir string) []string {
-	var a []string
-	if c.get("agent", "") == "true" || c.get("guest_agent", "") == "true" {
-		a = append(a, "-chardev", "qemu-vdagent,used=on,id=qga0,name=vdagent,clipboard=on")
-		a = append(a, "-device", "virtio-serial-pci,id=virtio-serial0")
-		a = append(a, "-chardev", "spicevmc,name=vdagent,id=vdagent")
-		a = append(a, "-device", "virtserialport,chardev=vdagent,name=com.redhat.spice.0")
-	}
-	return a
-}
+// channelArgs removed: Bash has no agent/guest_agent conf keys — the
+// qemu-vdagent chardev was orphaned (no device referenced qga0) and
+// the virtserialport duplicated com.redhat.spice.0 from the SPICE
+// block. The guest-agent channel already emits inside -spice.

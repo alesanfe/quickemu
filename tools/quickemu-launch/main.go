@@ -380,7 +380,6 @@ func main() {
 	args = append(args, usbArgs(conf, t)...)
 	args = append(args, passthruArgs(conf)...)
 	args = append(args, tpmArgs(conf, arch)...)
-	args = append(args, channelArgs(conf, dir)...)
 	// monitor + serial channels — vm_boot_channels parity. monitor=socket
 	// also gives the QMP socket; telnet/none have no structured channel.
 	switch mon := conf.get("monitor", "socket"); mon {

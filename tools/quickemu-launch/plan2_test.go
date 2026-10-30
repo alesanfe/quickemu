@@ -28,7 +28,7 @@ func TestQuirksMatrix(t *testing.T) {
 			_ = cpuArgs(c, osName, arch, tu)
 			_ = audioArgs(c, osName, tu)
 			_ = networkArgs(c, tu)
-			_ = spiceArgs(c, "/tmp", "vm", osName, "x86_64", tu)
+			_ = spiceArgs(c, "/tmp", "vm", osName)
 			_ = inputArgs(c, tu)
 			_ = usbArgs(c, tu)
 			_ = biosArgs(c, osName, arch)
@@ -169,7 +169,7 @@ func TestPassthruChannelFileshare(t *testing.T) {
 		"public_dir=\"pub\"\n")
 	os.MkdirAll(filepath.Join(dir, "pub"), 0o755)
 	_ = passthruArgs(c)
-	_ = channelArgs(c, dir)
+	_ = spiceArgs(c, dir, "vm", "linux")
 	resolvePublic(c)
 	_ = fileshareArgs(c, dir)
 	// seedEFIVars on missing vars dir → no panic.
