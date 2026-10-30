@@ -4299,6 +4299,27 @@
    "support_level": "experimental"
   },
   {
+   "os": "mobian",
+   "releases": [
+    "latest",
+    "13.0"
+   ],
+   "editions": [
+    "phosh",
+    "plasma-mobile"
+   ],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "active",
+   "image_type": "raw",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
    "os": "mocaccinoos",
    "releases": [
     "latest"

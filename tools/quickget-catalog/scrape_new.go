@@ -1402,6 +1402,27 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 			ver = regexp.QuoteMeta(strings.TrimPrefix(release, "v"))
 		}
 		return ghISO("vinc/moros", `moros-v`+ver+`\.bin`)
+	case "mobian":
+		// mobian-amd64-<ed>-<ver>.img.xz + per-edition .sha256sums manifest.
+		ed := edition
+		if ed == "" {
+			ed = "phosh"
+		}
+		ver := `[0-9.]+`
+		if release != "latest" && release != "" {
+			ver = regexp.QuoteMeta(release)
+		}
+		base := "https://images.mobian.org/amd64/"
+		u, _, err := indexISO(base, `mobian-amd64-`+ed+`-`+ver+`\.img\.xz`)
+		if err != nil {
+			return "", "", err
+		}
+		name := u[strings.LastIndex(u, "/")+1:]
+		sha := ""
+		if b, err := fetchString(base + strings.TrimSuffix(name, ".img.xz") + ".sha256sums"); err == nil {
+			sha = sumForISO(b, name)
+		}
+		return u, sha, nil
 
 	case "bastillebsd":
 		// BastilleBSD-<rel>-RELEASE-amd64-memstick.iso.xz; BSD-style

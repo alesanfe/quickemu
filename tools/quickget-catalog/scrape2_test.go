@@ -569,6 +569,12 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 		return `<a href="finnix-125.iso">x</a>`, nil
 	case strings.Contains(url, "finnix"):
 		return `<a href="125/">a</a><a href="124/">b</a>`, nil
+	case strings.Contains(url, "mobian") && strings.Contains(url, ".sha256sums"):
+		return shaX + "  mobian-amd64-phosh-13.0.img.xz\n" + shaX + "  mobian-amd64-plasma-mobile-13.0.img.xz\n", nil
+	case strings.Contains(url, "mobian"):
+		return `<a href="mobian-amd64-phosh-13.0.img.xz">x</a>
+			<a href="mobian-amd64-plasma-mobile-13.0.img.xz">y</a>
+			<a href="mobian-amd64-phosh-13.0.sha256sums">s</a>`, nil
 	case strings.Contains(url, "9front.org"):
 		return `<a href="9front-11952.amd64.iso.gz">9</a>
 			<a href="9front-11952.amd64.qcow2.gz">9</a>
@@ -775,6 +781,10 @@ func TestScrapeAll(t *testing.T) {
 		{"rhino-linux", "2025.4", "standard", "arm64", false},
 		{"rhino-linux", "2023.4", "standard", "amd64", false},
 		{"rhino-linux", "2025.4", "lomiri", "amd64", true},
+		{"mobian", "latest", "phosh", "amd64", false},
+		{"mobian", "latest", "plasma-mobile", "amd64", false},
+		{"mobian", "13.0", "phosh", "amd64", false},
+		{"mobian", "latest", "bogus", "amd64", true},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},

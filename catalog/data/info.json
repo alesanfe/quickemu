@@ -8,8 +8,8 @@
   },
   "9front": {
    "credentials": "-",
-   "homepage": "https://9front.org/",
-   "info": "Community fork of Plan 9 from Bell Labs.",
+   "homepage": "http://9front.org/",
+   "info": "Plan 9 fork kept alive by the community (gzipped amd64 ISO)",
    "name": "9front"
   },
   "9legacy": {
@@ -2237,6 +2237,12 @@
    "homepage": "https://moros.cc/",
    "info": "Hobby OS written in Rust with a Lisp-like shell (raw disk image)",
    "name": "MOROS"
+  },
+  "mobian": {
+   "credentials": "-",
+   "homepage": "https://mobian.org/",
+   "info": "Debian for mobile devices — also ships amd64 installer images (phosh, plasma-mobile)",
+   "name": "Mobian"
   }
  }
 }
