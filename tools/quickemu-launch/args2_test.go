@@ -4,6 +4,7 @@
 package main
 
 import (
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -41,9 +42,16 @@ func TestUsbAndStorageArgs(t *testing.T) {
 	sc := Conf{"disk_img": "d.qcow2", "iso": "i.iso", "img": "r.img",
 		"fixed_iso": "f.iso", "storage": "nvme"}
 	a = storageArgs(sc, dir, OsTuning{})
-	for _, want := range []string{"virtio-blk-pci", "SystemDisk", "index=0", "index=1", "f.iso", "nvme"} {
+	for _, want := range []string{"virtio-blk-pci", "SystemDisk", "nvme"} {
 		if !has(a, want) {
 			t.Fatalf("storageArgs missing %q in %v", want, a)
+		}
+	}
+	// iso/fixed_iso emit moved to bootMediaArgs (vm_boot_media order).
+	bm := bootMediaArgs(sc, dir)
+	for _, want := range []string{"index=0", "index=1", "f.iso", "i.iso"} {
+		if !has(bm, want) {
+			t.Fatalf("bootMediaArgs missing %q in %v", want, bm)
 		}
 	}
 	a = storageArgs(Conf{"disk_img": "d"}, dir, OsTuning{MacDiskDev: "virtio-blk-device"})
@@ -88,12 +96,6 @@ func TestBootChannelPassthruArgs(t *testing.T) {
 	}
 	if channelArgs(Conf{}, dir) != nil {
 		t.Fatal("no agent should be nil")
-	}
-	// portArgs trivially short-circuits today.
-	if portArgs(Conf{"ssh_port": "2222"}, dir) == nil ||
-		portArgs(Conf{"spice_port": "5930"}, dir) == nil ||
-		portArgs(Conf{}, dir) == nil {
-		// all return empty non-nil slices — exercise only
 	}
 }
 
@@ -217,10 +219,11 @@ func TestSeedEFIVars(t *testing.T) {
 
 func TestDisplayAndAudioPaths(t *testing.T) {
 	dir := t.TempDir()
-	// vnc: emits -vnc + publishes the RFB endpoint in .ports (run mode).
+	// vnc: -vnc is an emit-tail arg (vncArgs) — it also publishes the
+	// RFB endpoint in .ports (run mode).
 	c := Conf{"display": "vnc", "vnc_listen": "127.0.0.1:3",
 		"_vmdir": dir, "_vmname": "v", "_run": "1"}
-	a := displayArgs(c, dir, "linux", "x86_64")
+	a := vncArgs(c, dir)
 	if !has(a, "-vnc") || !has(a, "127.0.0.1:3") {
 		t.Fatalf("vnc %v", a)
 	}
@@ -355,9 +358,9 @@ func TestInputAudioNetArgs(t *testing.T) {
 		t.Fatalf("usb-audio must force xhci: %v", c2)
 	}
 	// ramArgs/cpuArgs variants.
-	_ = ramArgs(Conf{"ram": "8G"})
-	_ = ramArgs(Conf{"ram": "512M"})
-	_ = ramArgs(Conf{})
+	_ = ramArgs(Conf{"ram": "8G"}, "linux", "vm.conf")
+	_ = ramArgs(Conf{"ram": "512M"}, "linux", "vm.conf")
+	_ = ramArgs(Conf{}, "linux", "vm.conf")
 	_ = cpuArgs(Conf{"cpu_cores": "4"}, "windows", "x86_64", OsTuning{CPUFlags: "+x2apic"})
 	_ = cpuArgs(Conf{}, "macos", "aarch64", OsTuning{})
 	// env contract (Bash parity): CPU_MODEL overrides the -cpu base model;
@@ -556,30 +559,30 @@ func TestParamCheckFirmwareMacOS(t *testing.T) {
 	c := Conf{"guest_os": "macos", "_vmdir": dir, "_run": "1"}
 	// Both missing → Bash's MAC_MISSING reports Bootloader (last check
 	// wins); with only firmware present it still reports Bootloader.
-	if err := paramCheckFirmware(c, "x86_64"); err == nil {
+	if err := paramCheckFirmware(c, "macos", "x86_64"); err == nil {
 		t.Fatal("missing macOS firmware must error")
 	}
 	os.WriteFile(filepath.Join(dir, "OVMF_CODE.fd"), make([]byte, 2<<20), 0o644)
 	os.WriteFile(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1<<17), 0o644)
-	if err := paramCheckFirmware(c, "x86_64"); err == nil ||
+	if err := paramCheckFirmware(c, "macos", "x86_64"); err == nil ||
 		!strings.Contains(err.Error(), "Bootloader") {
 		t.Fatalf("missing bootloader must error: %v", err)
 	}
 	// Firmware missing but bootloader present → reports Firmware.
 	os.WriteFile(filepath.Join(dir, "OpenCore.qcow2"), []byte("qc"), 0o644)
 	os.Remove(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"))
-	if err := paramCheckFirmware(c, "x86_64"); err == nil ||
+	if err := paramCheckFirmware(c, "macos", "x86_64"); err == nil ||
 		!strings.Contains(err.Error(), "Firmware") {
 		t.Fatalf("missing firmware must error: %v", err)
 	}
 	os.WriteFile(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1<<17), 0o644)
 	os.WriteFile(filepath.Join(dir, "OpenCore.qcow2"), []byte("qc"), 0o644)
-	if err := paramCheckFirmware(c, "x86_64"); err != nil {
+	if err := paramCheckFirmware(c, "macos", "x86_64"); err != nil {
 		t.Fatalf("complete macOS firmware must pass: %v", err)
 	}
 	// Truncated vars → corrupt-firmware error.
 	os.WriteFile(filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), make([]byte, 1024), 0o644)
-	if err := paramCheckFirmware(c, "x86_64"); err == nil ||
+	if err := paramCheckFirmware(c, "macos", "x86_64"); err == nil ||
 		!strings.Contains(err.Error(), "corrupt") {
 		t.Fatalf("truncated vars must error: %v", err)
 	}
@@ -705,11 +708,11 @@ func TestCPUArgsContract(t *testing.T) {
 }
 
 func TestRamArgsTiering(t *testing.T) {
-	a := ramArgs(Conf{"ram": "12G"})
+	a := ramArgs(Conf{"ram": "12G"}, "linux", "vm.conf")
 	if !has(a, "12G") {
 		t.Fatalf("explicit ram %v", a)
 	}
-	if a = ramArgs(Conf{}); len(a) < 2 || a[0] != "-m" {
+	if a = ramArgs(Conf{}, "linux", "vm.conf"); len(a) < 2 || a[0] != "-m" {
 		t.Fatalf("ramArgs %v", a)
 	}
 }
@@ -883,18 +886,17 @@ func TestPrepareStorage(t *testing.T) {
 func TestBootMediaSpecialCases(t *testing.T) {
 	dir := t.TempDir()
 	for _, osn := range []string{"kolibrios", "reactos"} {
-		a := storageArgs(Conf{"guest_os": osn, "iso": "i.iso"}, dir, OsTuning{})
-		if has(a, "index=0") {
-			t.Fatalf("%s must not emit generic index=0 iso: %v", osn, a)
-		}
 		bm := bootMediaArgs(Conf{"guest_os": osn, "iso": "i.iso"}, dir)
+		if has(bm, "index=0") {
+			t.Fatalf("%s must not emit generic index=0 iso: %v", osn, bm)
+		}
 		if !has(bm, "index=2") {
 			t.Fatalf("%s must emit index=2 iso: %v", osn, bm)
 		}
 	}
 	// aarch64: scsi-cd + bootindex, plus the virtio-scsi controller.
-	a := storageArgs(Conf{"guest_os": "linux", "iso": "i.iso",
-		"fixed_iso": "f.iso", "arch": "aarch64"}, dir, OsTuning{})
+	a := bootMediaArgs(Conf{"guest_os": "linux", "iso": "i.iso",
+		"fixed_iso": "f.iso", "arch": "aarch64"}, dir)
 	for _, want := range []string{"virtio-scsi-pci", "scsi-cd", "bootindex=1", "bootindex=3"} {
 		if !has(a, want) {
 			t.Fatalf("aarch64 media missing %q: %v", want, a)
@@ -1169,5 +1171,179 @@ func TestGuestOsUnknownWarning(t *testing.T) {
 	}
 	if !strings.Contains(out, "not a recognised guest_os value") {
 		t.Fatalf("missing guest_os warning: %s", out)
+	}
+}
+
+// captureStdout: capture fmt.Print output produced by fn.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	fn()
+	w.Close()
+	os.Stdout = old
+	var buf strings.Builder
+	io.Copy(&buf, r)
+	r.Close()
+	return buf.String()
+}
+
+// configure_ram min_ram (launch.sh): auto-tiered RAM below the guest
+// minimum is fatal; an explicit-but-low ram= only warns.
+func TestRamMinGuestGate(t *testing.T) {
+	// Explicit low RAM on Windows warns but does not abort.
+	warn := captureStdout(t, func() {
+		_ = ramArgs(Conf{"ram": "2G"}, "windows", "vm.conf")
+	})
+	if !strings.Contains(warn, "WARNING! You have allocated less than the recommended amount of RAM to run Windows.") {
+		t.Fatalf("windows low-ram warning: %q", warn)
+	}
+	// macOS with sufficient explicit RAM: no warning, no abort.
+	ok := captureStdout(t, func() {
+		_ = ramArgs(Conf{"ram": "8G"}, "macos", "vm.conf")
+	})
+	if strings.Contains(ok, "WARNING") || strings.Contains(ok, "ERROR") {
+		t.Fatalf("macos 8G should be silent: %q", ok)
+	}
+	// Non-restricted guests never warn.
+	lx := captureStdout(t, func() {
+		_ = ramArgs(Conf{"ram": "1G"}, "linux", "vm.conf")
+	})
+	if strings.Contains(lx, "WARNING") {
+		t.Fatalf("linux should not warn: %q", lx)
+	}
+	// Non-G values are uncomparable — the gate must skip (Bash
+	//  errors on -lt and the check is bypassed).
+	m := captureStdout(t, func() {
+		_ = ramArgs(Conf{"ram": "4096M"}, "windows", "vm.conf")
+	})
+	if strings.Contains(m, "WARNING") || strings.Contains(m, "ERROR") {
+		t.Fatalf("4096M should bypass the gate: %q", m)
+	}
+}
+
+// STATUS_QUO (vm.sh): -snapshot is appended right after each writable
+// disk drive — SystemDisk, ExtraDisk, if=ide — never to cdrom/pflash.
+func TestStatusQuoPerDrive(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{"d.qcow2", "x.qcow2", "i.iso"} {
+		os.WriteFile(filepath.Join(dir, f), make([]byte, 2<<20), 0o644)
+	}
+	c := Conf{"guest_os": "linux", "disk_img": "d.qcow2",
+		"extra_disks": "x.qcow2", "iso": "i.iso", "snapshot": "on"}
+	a := storageArgs(c, dir, OsTuning{})
+	j := strings.Join(a, " ")
+	if n := strings.Count(j, "-snapshot"); n != 2 {
+		t.Fatalf("snapshot count=%d want 2 (SystemDisk+ExtraDisk): %v", n, a)
+	}
+	// Each -snapshot must immediately follow its -drive element —
+	// either the single-token "-drive id=…" form or the value of a
+	// two-token "-drive <spec>" pair.
+	for i, s := range a {
+		if s == "-snapshot" &&
+			!(strings.HasPrefix(a[i-1], "-drive ") || (i > 1 && a[i-2] == "-drive")) {
+			t.Fatalf("-snapshot does not follow a -drive: %v", a)
+		}
+	}
+	// reactos if=ide drive also carries it.
+	r := storageArgs(Conf{"guest_os": "reactos", "disk_img": "d.qcow2",
+		"snapshot": "on"}, dir, OsTuning{})
+	if !has(r, "-snapshot") {
+		t.Fatalf("reactos if=ide missing -snapshot: %v", r)
+	}
+	// snapshot off: no args at all.
+	o := storageArgs(Conf{"guest_os": "linux", "disk_img": "d.qcow2"}, dir, OsTuning{})
+	if has(o, "-snapshot") {
+		t.Fatalf("snapshot=off emitted -snapshot: %v", o)
+	}
+}
+
+// configure_ram fatal path: an auto-tiered RAM below min_ram exits 1
+// (Bash ). Runs ramArgs in a subprocess so the exit is
+// observable; hostTotalMemMB is stubbed to a low-RAM host.
+func TestRamMinAutoFatal(t *testing.T) {
+	if os.Getenv("QE_RAM_FATAL_CHILD") == "1" {
+		hostTotalMemMB = func() int { return 2 * 1024 } // 2 GiB host
+		_ = ramArgs(Conf{}, "windows", "vm.conf")
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestRamMinAutoFatal$")
+	cmd.Env = append(os.Environ(), "QE_RAM_FATAL_CHILD=1")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected exit 1, got 0: %s", out)
+	}
+	if !strings.Contains(string(out), "insufficient RAM to run Windows") {
+		t.Fatalf("missing ERROR text: %s", out)
+	}
+}
+
+// Regression: a shadowed code variable inside biosArgs once emitted
+// file=<empty> even though firmwarePair resolved the pair — the
+// resolved path must reach the pflash drive.
+func TestBiosArgsResolvedCodePath(t *testing.T) {
+	fw := t.TempDir()
+	code := filepath.Join(fw, "OVMF_CODE_4M.fd")
+	os.WriteFile(code, []byte{1}, 0o644)
+	os.WriteFile(filepath.Join(fw, "OVMF_VARS_4M.fd"), []byte{1}, 0o644)
+	t.Setenv("QE_FIRMWARE_DIR", fw)
+	c := Conf{"guest_os": "linux", "_vmdir": t.TempDir()}
+	a := biosArgs(c, "linux", "x86_64")
+	if !has(a, "if=pflash,format=raw,unit=0,file="+qemuOptEsc(code)+",readonly=on") {
+		t.Fatalf("pflash unit0 must carry the resolved code path: %v", a)
+	}
+}
+
+// configure_bios resolves an EFI_CODE symlink with a warning; the
+// emitted pflash file= gets the realpath, not the link.
+func TestBiosArgsSymlinkResolution(t *testing.T) {
+	fw := t.TempDir()
+	real := filepath.Join(fw, "real_code.fd")
+	os.WriteFile(real, []byte{1}, 0o644)
+	link := filepath.Join(fw, "OVMF_CODE_4M.fd")
+	os.Symlink(real, link)
+	os.WriteFile(filepath.Join(fw, "OVMF_VARS_4M.fd"), []byte{1}, 0o644)
+	t.Setenv("QE_FIRMWARE_DIR", fw)
+	c := Conf{"guest_os": "linux", "_vmdir": t.TempDir()}
+	out := captureStdout(t, func() {
+		a := biosArgs(c, "linux", "x86_64")
+		if !has(a, "file="+qemuOptEsc(real)) {
+			t.Fatalf("pflash must use the resolved path: %v", a)
+		}
+	})
+	if !strings.Contains(out, "is a symlink") {
+		t.Fatalf("missing symlink warning: %s", out)
+	}
+}
+
+// configure_bios exits when no EFI firmware resolves — also on
+// --dry-run (only the vars copy is dry-run gated). A stub qemu binary
+// relocates the share root so every search dir misses deterministically.
+func TestParamCheckFirmwareMissing(t *testing.T) {
+	bin := t.TempDir()
+	os.WriteFile(filepath.Join(bin, "qemu-system-x86_64"), []byte("#!/bin/sh\n"), 0o755)
+	t.Setenv("PATH", bin)
+	t.Setenv("QE_FIRMWARE_DIR", t.TempDir())
+	c := Conf{"guest_os": "linux", "_vmdir": t.TempDir()}
+	if err := paramCheckFirmware(c, "linux", "x86_64"); err == nil ||
+		!strings.Contains(err.Error(), "no EFI firmware found") {
+		t.Fatalf("missing OVMF must error: %v", err)
+	}
+	c["secureboot"] = "on"
+	if err := paramCheckFirmware(c, "linux", "x86_64"); err == nil ||
+		!strings.Contains(err.Error(), "SecureBoot capable") {
+		t.Fatalf("missing secboot firmware must error: %v", err)
+	}
+	// Legacy boot needs no firmware — no check at all.
+	if err := paramCheckFirmware(Conf{"guest_os": "linux", "boot": "legacy"}, "linux", "x86_64"); err != nil {
+		t.Fatalf("legacy boot must skip the firmware check: %v", err)
+	}
+	// aarch64 likewise errors without an AAVMF pair.
+	if err := paramCheckFirmware(Conf{"guest_os": "linux"}, "linux", "aarch64"); err == nil {
+		t.Fatal("missing AAVMF must error")
 	}
 }

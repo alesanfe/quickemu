@@ -24,6 +24,11 @@ type OsTuning struct {
 	SMM            string // on|off — "" = unset (defaults off)
 	CPUFlags       string // appended to -cpu model
 	MachineType    string // q35|pc — "" = q35
+	// FatalErr: deferred configure_os_quirks fatals (macOS SSE/AVX2
+	// gates). osQuirks must stay side-effect-free because run() calls
+	// it before the CPU/RAM echoes; Bash reaches the check after the
+	// BOOT echo, so run() fires it there.
+	FatalErr string
 }
 
 // osQuirks: configure_os_quirks + the OS branches of configure_cpu/
@@ -166,9 +171,7 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 							t.CPUFlags += ",+avx2,+sse4.2"
 						}
 					} else {
-						fmt.Printf("ERROR! macOS %s requires a CPU with SSE 4.2 and AVX2 support.\n", rel)
-						fmt.Println("       Try macOS Monterey or Big Sur.")
-						os.Exit(1)
+						t.FatalErr = fmt.Sprintf("ERROR! macOS %s requires a CPU with SSE 4.2 and AVX2 support.\n       Try macOS Monterey or Big Sur.", rel)
 					}
 				case "catalina", "big-sur", "monterey":
 					if hostHasFlag("sse4_2") {
@@ -176,8 +179,7 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 							t.CPUFlags += ",+sse4.2"
 						}
 					} else {
-						fmt.Printf("ERROR! macOS %s requires a CPU with SSE 4.2 support.\n", rel)
-						os.Exit(1)
+						t.FatalErr = fmt.Sprintf("ERROR! macOS %s requires a CPU with SSE 4.2 support.", rel)
 					}
 				default:
 					if hostHasFlag("sse4_1") {
@@ -185,8 +187,7 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 							t.CPUFlags += ",+sse4.1"
 						}
 					} else {
-						fmt.Printf("ERROR! macOS %s requires a CPU with SSE 4.1 support.\n", rel)
-						os.Exit(1)
+						t.FatalErr = fmt.Sprintf("ERROR! macOS %s requires a CPU with SSE 4.1 support.", rel)
 					}
 				}
 				if !intel && !hyper {
@@ -238,11 +239,6 @@ func osQuirks(c Conf, osName, arch string) OsTuning {
 		} else {
 			t.ExtraArgs = append(t.ExtraArgs, "-no-hpet")
 		}
-	}
-	// --status-quo (snapshot=on) appends -snapshot to every guest's
-	// drive args in Bash — not linux-only.
-	if confOn(c, "snapshot") {
-		t.ExtraArgs = append(t.ExtraArgs, "-snapshot")
 	}
 	return t
 }

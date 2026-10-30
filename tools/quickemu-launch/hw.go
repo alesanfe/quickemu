@@ -150,7 +150,7 @@ func hostCPUModel() string {
 	return ""
 }
 
-func ramArgs(c Conf) []string {
+func ramArgs(c Conf, osName, vm string) []string {
 	ram := c.get("ram", "")
 	if ram == "" {
 		// configure_ram tiering on host GiB: ≥128→32G, ≥64→16G,
@@ -172,6 +172,29 @@ func ramArgs(c Conf) []string {
 		a = append(a, "-device", "virtio-balloon")
 	}
 	fmt.Printf(" - RAM VM:   %s RAM\n", ram)
+
+	// configure_ram min_ram: auto-tiered RAM below the guest minimum
+	// is fatal; an explicit-but-low ram= only warns. ${RAM_VM//G/}
+	// strips G suffixes only — non-G values are not comparable in
+	// Bash either (the -lt test errors and the gate skips).
+	var osPretty string
+	var minRAM int
+	switch osName {
+	case "windows", "windows-server":
+		osPretty, minRAM = "Windows", 4
+	case "macos":
+		osPretty, minRAM = "macOS", 8
+	}
+	if minRAM > 0 {
+		if n, err := strconv.Atoi(strings.ReplaceAll(ram, "G", "")); err == nil && n < minRAM {
+			if c.get("ram", "") == "" {
+				fmt.Printf("             ERROR! The guest virtual machine has been allocated insufficient RAM to run %s.\n", osPretty)
+				fmt.Printf("             You can override the guest RAM allocation by adding 'ram=%dG' to %s\n", minRAM, vm)
+				os.Exit(1)
+			}
+			fmt.Printf("             WARNING! You have allocated less than the recommended amount of RAM to run %s.\n", osPretty)
+		}
+	}
 	return a
 }
 
@@ -357,8 +380,8 @@ func seedEFIVars(c Conf, template string) string {
 // the quickget-downloaded OVMF + OpenCore/ESP bootloader, and the
 // files are size-checked (truncated downloads produce unusable pflash).
 // For generic EFI guests the seeded vars must be a writeable file.
-func paramCheckFirmware(c Conf, arch string) error {
-	if c.get("guest_os", "") == "macos" {
+func paramCheckFirmware(c Conf, osName, arch string) error {
+	if osName == "macos" {
 		vmdir := c["_vmdir"]
 		code := filepath.Join(vmdir, "OVMF_CODE.fd")
 		vars := ""
@@ -392,6 +415,31 @@ func paramCheckFirmware(c Conf, arch string) error {
 			return fmt.Errorf("ERROR! macOS firmware in %s appears to be corrupt or incomplete.\n       Delete OVMF_CODE.fd and OVMF_VARS*.fd, then re-run quickget.", vmdir)
 		}
 		return nil
+	}
+	// Non-EFI guests need no firmware at all (legacy BIOS).
+	if !strings.Contains(resolvedBoot(c, osName), "efi") {
+		return nil
+	}
+	// configure_bios exits when the code search resolves nothing —
+	// also on --dry-run; only the vars copy is dry-run gated.
+	if arch == "aarch64" {
+		// Windows ARM64 with SecureBoot off prefers the monolithic
+		// EDK2 via -bios (no pflash pair needed).
+		if a64MonolithicEDK2(c, osName) == "" {
+			if code, _ := firmwarePair(aarch64FirmwarePairs()); code == "" {
+				if confOn(c, "secureboot") {
+					return fmt.Errorf("ERROR! SecureBoot was requested but no SecureBoot capable firmware was found.\n       Please install OVMF firmware.")
+				}
+				return fmt.Errorf("ERROR! EFI boot requested but no EFI firmware found.\n       Please install OVMF firmware.")
+			}
+		}
+	} else {
+		if code, _ := firmwarePair(x86FirmwarePairs(confOn(c, "secureboot"))); code == "" {
+			if confOn(c, "secureboot") {
+				return fmt.Errorf("ERROR! SecureBoot was requested but no SecureBoot capable firmware was found.\n       Please install OVMF firmware.")
+			}
+			return fmt.Errorf("ERROR! EFI boot requested but no EFI firmware found.\n       Please install OVMF firmware.")
+		}
 	}
 	// EFI guests: the vars file in the vmdir must be a writeable
 	// regular file once it exists — Bash deletes it and asks for a
@@ -470,9 +518,11 @@ func biosArgs(c Conf, osName, arch string) []string {
 	} else {
 		// Bash configure_bios: OVMF uses TWO pflash drives — CODE
 		// (unit=0, readonly) + VARS (unit=1, writable per-VM copy).
-		code, tmpl := firmwarePair(x86FirmwarePairs(confOn(c, "secureboot")))
+		// paramCheckFirmware already exits when no pair resolves, so
+		// the firmwareFile fallback only fires for direct callers.
+		var tmpl string
+		code, tmpl = firmwarePair(x86FirmwarePairs(confOn(c, "secureboot")))
 		if code == "" {
-			// Plan-mode fallback so the emitted argv still names a file.
 			if confOn(c, "secureboot") {
 				code = firmwareFile("OVMF_CODE_4M.secboot.fd", "OVMF_CODE.secboot.fd", "OVMF_CODE.fd")
 			} else {
@@ -480,6 +530,16 @@ func biosArgs(c Conf, osName, arch string) []string {
 			}
 		}
 		vars = seedEFIVars(c, tmpl)
+	}
+	// configure_bios resolves an EFI_CODE symlink before emitting —
+	// QEMU gets the real file, with a warning echo.
+	if fi, err := os.Lstat(code); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+		fmt.Printf(" - EFI:      WARNING! %s is a symlink.\n", code)
+		fmt.Print("             Resolving to... ")
+		if rp, err := filepath.EvalSymlinks(code); err == nil {
+			code = rp
+		}
+		fmt.Println(code)
 	}
 	codeFmt, varsFmt := "raw", "raw"
 	if isFirmwareQcow2(code) {
@@ -498,21 +558,76 @@ func biosArgs(c Conf, osName, arch string) []string {
 	a = append(a, "-global", "driver=cfi.pflash01,property=secure,value=on")
 	a = append(a, "-drive", "if=pflash,format="+codeFmt+",unit=0,file="+qemuOptEsc(code)+",readonly=on")
 	a = append(a, "-drive", "if=pflash,format="+varsFmt+",unit=1,file="+qemuOptEsc(vars))
-	// swtpm_socket_ready: emit the chardev only when the control socket
-	// will exist — always on --dry-run, only after startSwtpm on --run.
-	if confOn(c, "tpm") && (c["_run"] == "" || c["_swtpm"] == "1") {
-		sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".swtpm-sock"
-		if arch == "aarch64" {
-			a = append(a, "-chardev", "socket,id=chrtpm,path="+qemuOptEsc(sock),
-				"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
-				"-device", "tpm-tis-device,tpmdev=tpm0")
-		} else {
-			a = append(a, "-chardev", "socket,id=chrtpm,path="+qemuOptEsc(sock),
-				"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
-				"-device", "tpm-tis,tpmdev=tpm0")
+	return a
+}
+
+// tpmArgs: the swtpm chardev emit — vm_boot_passthru emits it after the
+// vfio block. swtpm_socket_ready: emit only when the control socket
+// will exist — always on --dry-run, only after startSwtpm on --run.
+func tpmArgs(c Conf, arch string) []string {
+	if !confOn(c, "tpm") || (c["_run"] != "" && c["_swtpm"] != "1") {
+		return nil
+	}
+	sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".swtpm-sock"
+	dev := "tpm-tis,tpmdev=tpm0"
+	if arch == "aarch64" {
+		dev = "tpm-tis-device,tpmdev=tpm0"
+	}
+	return []string{"-chardev", "socket,id=chrtpm,path=" + qemuOptEsc(sock),
+		"-tpmdev", "emulator,id=tpm0,chardev=chrtpm",
+		"-device", dev}
+}
+
+// planPorts: configure_ports parity — resolves the SSH hostfwd, the
+// port_forwards list, the restrict flag and the Samba share into the
+// c["_fwd"] netdev suffix, printing the -ssh:/-PORTS: echoes. Called
+// during the configure phase so the echoes precede the emit phase.
+func planPorts(c Conf, t OsTuning) {
+	net := c.get("network", "")
+	if b := c.get("bridge", ""); b != "" {
+		net = b
+	}
+	if net != "" && net != "restrict" && net != "slirp" {
+		return // none/bridge/passt have no user-netdev forwards
+	}
+	fwd := ""
+	if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229); p != "" {
+		// ssh_access picks the bind address (local→loopback,
+		// remote→wildcard, otherwise a specific interface IP).
+		addr, sshHost := "127.0.0.1", "localhost"
+		switch sa := c.get("ssh_access", ""); sa {
+		case "", "local":
+		case "remote":
+			addr = ""
+		default:
+			addr, sshHost = sa, sa
+		}
+		fwd = ",hostfwd=tcp:" + addr + ":" + qemuOptEsc(p) + "-:22"
+		portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p, c["_run"] == "1")
+		fmt.Printf(" - ssh:      On host:  ssh user@%s -p %s\n", sshHost, p)
+	} else {
+		// qe_die "vm.port" PORT_BUSY — auto-allocation found no
+		// free port in 22220-22229: the launch cannot proceed.
+		fmt.Fprintf(os.Stderr, "ERROR! No free SSH forward port (range 22220-22229).\n")
+		os.Exit(1)
+	}
+	if pfs := strings.Fields(c.get("port_forwards", "")); len(pfs) > 0 {
+		fmt.Println(" - PORTS:    Port forwards requested:")
+		for _, pf := range pfs {
+			kv := strings.SplitN(pf, ":", 2)
+			if len(kv) == 2 {
+				fmt.Printf("              - %s => %s\n", kv[0], kv[1])
+				fwd += ",hostfwd=tcp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1]) +
+					",hostfwd=udp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1])
+			}
 		}
 	}
-	return a
+	if net == "restrict" {
+		fwd += ",restrict=y"
+	} else if pub := c["_public"]; pub != "" && smbdPresent() {
+		fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
+	}
+	c["_fwd"] = fwd
 }
 
 func networkArgs(c Conf, t OsTuning) []string {
@@ -542,48 +657,12 @@ func networkArgs(c Conf, t OsTuning) []string {
 		fmt.Printf(" - Network:  Disabled\n")
 		a = []string{"-nic", "none"}
 	case "restrict", "", "slirp":
-		// user + restrict modes both take hostfwd (launch.sh): restrict
-		// isolates the guest but forwards still reach it. configure_ports
-		// auto-allocates ssh_port 22220-22229 when unset.
-		fwd := ""
-		if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229); p != "" {
-			// ssh_access picks the bind address (local→loopback,
-			// remote→wildcard, otherwise a specific interface IP).
-			addr, sshHost := "127.0.0.1", "localhost"
-			switch sa := c.get("ssh_access", ""); sa {
-			case "", "local":
-			case "remote":
-				addr = ""
-			default:
-				addr, sshHost = sa, sa
-			}
-			fwd = ",hostfwd=tcp:" + addr + ":" + qemuOptEsc(p) + "-:22"
-			portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p, c["_run"] == "1")
-			fmt.Printf(" - ssh:      On host:  ssh user@%s -p %s\n", sshHost, p)
-		} else {
-			// qe_die "vm.port" PORT_BUSY — auto-allocation found no
-			// free port in 22220-22229: the launch cannot proceed.
-			fmt.Fprintf(os.Stderr, "ERROR! No free SSH forward port (range 22220-22229).\n")
-			os.Exit(1)
+		// fwd is resolved in planPorts at the configure_ports position;
+		// callers that skipped it (tests) get the lazy resolve here.
+		if _, ok := c["_fwd"]; !ok {
+			planPorts(c, t)
 		}
-		if pfs := strings.Fields(c.get("port_forwards", "")); len(pfs) > 0 {
-			fmt.Println(" - PORTS:    Port forwards requested:")
-			for _, pf := range pfs {
-				kv := strings.SplitN(pf, ":", 2)
-				if len(kv) == 2 {
-					fmt.Printf("              - %s => %s\n", kv[0], kv[1])
-					fwd += ",hostfwd=tcp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1]) +
-						",hostfwd=udp::" + qemuOptEsc(kv[0]) + "-:" + qemuOptEsc(kv[1])
-				}
-			}
-		}
-		if net == "restrict" {
-			fwd += ",restrict=y"
-		} else if pub := c["_public"]; pub != "" && smbdPresent() {
-			fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
-		}
-		// Bash prints the Network line in vm_boot — after configure_ports'
-		// ssh/PORTS echoes.
+		fwd := c["_fwd"]
 		if net == "restrict" {
 			fmt.Printf(" - Network:  Restricted (%s)\n", t.NetDevice)
 		} else {
@@ -651,22 +730,6 @@ func confList(c Conf, key string) []string {
 		}
 	}
 	return out
-}
-
-// portArgs: SSH/SPICE port forwarding — configure_ports. Allocation
-// is native (firstFreePort + portsRecord writes the registry file).
-func portArgs(c Conf, dir string) []string {
-	var a []string
-	ssh := c.get("ssh_port", "")
-	if ssh != "" {
-		// already handled in networkArgs hostfwd — nothing extra
-		return a
-	}
-	spice := c.get("spice_port", "")
-	if spice != "" {
-		return a // spice args built in displayArgs
-	}
-	return a
 }
 
 // netListen: seam for firstFreePort's TCP probe — tests replace it so
@@ -920,8 +983,9 @@ func hostDefaultIface() string {
 	return ""
 }
 
-// hostTotalMemMB: MemTotal in MiB (host_total_mem_mb).
-func hostTotalMemMB() int {
+// hostTotalMemMB: MemTotal in MiB (host_total_mem_mb). Var seam: tests
+// stub it to exercise the configure_ram tiering and min_ram gates.
+var hostTotalMemMB = func() int {
 	if b, err := os.ReadFile("/proc/meminfo"); err == nil {
 		for _, l := range strings.Split(string(b), "\n") {
 			if strings.HasPrefix(l, "MemTotal:") {

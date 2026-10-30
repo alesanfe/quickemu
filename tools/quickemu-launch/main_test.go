@@ -20,9 +20,45 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// fwStubEnv: paramCheckFirmware exits when no EFI firmware pair
+// resolves (configure_bios — even on --dry-run), so every launch gets
+// a deterministic QE_FIRMWARE_DIR unless the caller pins one. The
+// stub covers every basename in the x86/aarch64 pair tables.
+func fwStubEnv(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, n := range []string{
+		"OVMF_CODE_4M.fd", "OVMF_VARS_4M.fd",
+		"OVMF_CODE.fd", "OVMF_VARS.fd",
+		"OVMF_CODE_4M.secboot.fd", "OVMF_VARS_4M.ms.fd",
+		"OVMF_CODE.secboot.fd", "OVMF_VARS.secboot.fd",
+		"ovmf-x86_64-4m-code.bin", "ovmf-x86_64-4m-vars.bin",
+		"ovmf-x86_64-smm-ms-code.bin", "ovmf-x86_64-smm-ms-vars.bin",
+		"edk2-x86_64-code.fd", "edk2-x86_64-secure-code.fd", "edk2-i386-vars.fd",
+		"OVMF_CODE.4m.fd", "OVMF_VARS.4m.fd", "OVMF_CODE.secboot.4m.fd",
+		"AAVMF_CODE.fd", "AAVMF_VARS.fd",
+		"QEMU_CODE.fd", "QEMU_VARS.fd",
+		"QEMU_EFI-pflash.raw", "vars-template-pflash.raw",
+		"edk2-aarch64-code.fd", "edk2-arm-vars.fd",
+		"QEMU_EFI.fd",
+	} {
+		os.WriteFile(filepath.Join(dir, n), []byte{1}, 0o644)
+	}
+	return "QE_FIRMWARE_DIR=" + dir
+}
+
 // launch runs the binary as a helper; rc comes from the process exit.
 func launch(t *testing.T, env []string, args ...string) (string, int) {
 	t.Helper()
+	hasFW := false
+	for _, e := range env {
+		if strings.HasPrefix(e, "QE_FIRMWARE_DIR=") {
+			hasFW = true
+		}
+	}
+	if !hasFW {
+		env = append(env, fwStubEnv(t))
+	}
 	cmd := exec.Command(os.Args[0], "-test.run=^$")
 	cmd.Env = append(os.Environ(), append(env, "QE_HELPER=1",
 		"QL_ARGS="+strings.Join(args, "\x1f"))...)
