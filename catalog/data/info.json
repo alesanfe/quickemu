@@ -2243,6 +2243,12 @@
    "homepage": "https://mobian.org/",
    "info": "Debian for mobile devices — also ships amd64 installer images (phosh, plasma-mobile)",
    "name": "Mobian"
+  },
+  "harvey": {
+   "credentials": "-",
+   "homepage": "https://harvey-os.org/",
+   "info": "Plan 9-derived OS with a 64-bit kernel (bzipped CD image)",
+   "name": "Harvey OS"
   }
  }
 }

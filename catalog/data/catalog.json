@@ -3089,6 +3089,23 @@
    "support_level": "stable"
   },
   {
+   "os": "harvey",
+   "releases": [
+    "latest"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "bios",
+   "support_level": "experimental"
+  },
+  {
    "os": "hefftorlinux",
    "arch": [
     "amd64"

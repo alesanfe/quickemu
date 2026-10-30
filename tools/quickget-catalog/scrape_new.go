@@ -1402,6 +1402,9 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 			ver = regexp.QuoteMeta(strings.TrimPrefix(release, "v"))
 		}
 		return ghISO("vinc/moros", `moros-v`+ver+`\.bin`)
+	case "harvey":
+		// harvey-cdrom.iso.bz2 under the "latest" tag (Plan 9 fork).
+		return ghISO("Harvey-OS/harvey", `harvey-cdrom\.iso\.bz2`)
 	case "mobian":
 		// mobian-amd64-<ed>-<ver>.img.xz + per-edition .sha256sums manifest.
 		ed := edition

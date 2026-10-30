@@ -71,7 +71,8 @@ func bodyFor(url string) (string, error) {
 			{"browser_download_url":"https://gh/moros-v0.12.0.bin"},
 			{"browser_download_url":"https://gh/moros-v0.11.0.bin"},
 			{"browser_download_url":"https://gh/hello-0.9.0_0I67-FreeBSD-14.0-amd64.iso"},
-			{"browser_download_url":"https://gh/hello-0.9.0_0I67-FreeBSD-14.0-amd64.iso.sha256"}]`, nil
+			{"browser_download_url":"https://gh/hello-0.9.0_0I67-FreeBSD-14.0-amd64.iso.sha256"},
+			{"browser_download_url":"https://gh/harvey-cdrom.iso.bz2"}]`, nil
 	case strings.Contains(url, "broadcom.com"):
 		return `<a href="photon-5.0-dde71ec57.x86_64.iso">x</a><a href="photon-minimal-5.0-dde71ec57.x86_64.iso">y</a><a href="photon-5.0-dde71ec57.x86_64.debug.iso">z</a><a href="photon-3.0-26156e2.iso">p</a><a href="photon-3.0-26156e2.debug.iso">q</a>`, nil
 	case strings.Contains(url, "bandshed"):
@@ -785,6 +786,7 @@ func TestScrapeAll(t *testing.T) {
 		{"mobian", "latest", "plasma-mobile", "amd64", false},
 		{"mobian", "13.0", "phosh", "amd64", false},
 		{"mobian", "latest", "bogus", "amd64", true},
+		{"harvey", "latest", "", "amd64", false},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},

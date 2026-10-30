@@ -316,7 +316,7 @@ func imageNormalize(osName, iso, vmPath string) string {
 		}
 		// Grow the raw image so Batocera can expand its partition.
 		run("qemu-img", "resize", "-f", "raw", filepath.Join(vmPath, iso), "128G")
-	case "dragonflybsd":
+	case "dragonflybsd", "harvey":
 		if strings.HasSuffix(iso, ".bz2") {
 			if decompressBZ2(filepath.Join(vmPath, iso)) {
 				iso = strings.TrimSuffix(iso, ".bz2")
