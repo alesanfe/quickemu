@@ -7,6 +7,7 @@ tools/quickemu-archive/quickemu-archive usr/libexec/quickemu
 tools/quickemu-cli/quickemu-cli usr/libexec/quickemu
 tools/quickemu-launch/quickemu-launch usr/libexec/quickemu
 tools/quickemu-ops/quickemu-ops usr/libexec/quickemu
+tools/quickemu-plugin-market/quickemu-plugin-market usr/libexec/quickemu
 tools/quickemu-ports/quickemu-ports usr/libexec/quickemu
 tools/quickemu-proc/quickemu-proc usr/libexec/quickemu
 tools/quickemu-qmp/quickemu-qmp usr/libexec/quickemu
