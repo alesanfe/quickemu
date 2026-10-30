@@ -236,6 +236,12 @@ func run() int {
 			fmt.Printf("%s: %-35s (not available for %s)\n", "SKIP", label, arch)
 			return 0
 		}
+		// windows/windows-server always SKIP in test mode — the gated
+		// Microsoft flow can't be URL-probed (check.sh windows branch).
+		if e.OS == "windows" || e.OS == "windows-server" {
+			fmt.Printf("%s: %-35s %s\n", "SKIP", label, "")
+			return 0
+		}
 		full := ""
 		if e.Scrape {
 			// Resolution failures degrade to an empty URL like the

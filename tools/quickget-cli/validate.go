@@ -73,7 +73,11 @@ func actURL(osName, release, edition, arch string) int {
 		if c[1] != "" {
 			label += "-" + c[1]
 		}
-		fmt.Printf("%-36s %s\n", label+":", strings.Fields(out)[0])
+		u := ""
+		if f := strings.Fields(out); len(f) > 0 {
+			u = f[0]
+		}
+		fmt.Printf("%-36s %s\n", label+":", u)
 	}
 	return rc
 }

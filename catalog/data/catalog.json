@@ -282,13 +282,13 @@
     "amd64"
    ],
    "url": "https://mirrors.gigenet.com/OSDN/android-x86",
-   "hash_url": "https://www.fosshub.com/Android-x86-old.html",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "android-x86",
@@ -977,13 +977,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/blissos-x86/rss?path=/",
-   "hash_url": "${URL}",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "bodhi",
@@ -2597,13 +2597,13 @@
     "amd64"
    ],
    "url": "https://iso.builds.garudalinux.org/iso/latest/garuda",
-   "hash_url": "${URL}/%ISO%.sha256",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "geckolinux",
@@ -3366,13 +3366,13 @@
     "amd64"
    ],
    "url": "https://cdimage.kali.org/%RELEASE%",
-   "hash_url": "${URL}/?C=M;O=D",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "kamarada",
@@ -3438,13 +3438,13 @@
     "amd64"
    ],
    "url": "https://files.kde.org/kde-linux",
-   "hash_url": "${URL}/SHA256SUMS",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "kdeneon",
@@ -3469,7 +3469,8 @@
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "kicksecure",
@@ -4630,13 +4631,13 @@
     "amd64"
    ],
    "url": "https://nobaraproject.org/download-nobara/",
-   "hash_url": "${URL}",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "nodezero",
@@ -5485,13 +5486,13 @@
     "amd64"
    ],
    "url": "https://ftp.fau.de/pclinuxos/pclinuxos/iso",
-   "hash_url": "${URL}/",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "pentoo",
@@ -5987,13 +5988,13 @@
     "amd64"
    ],
    "url": "https://sourceforge.net/projects/q4os/rss?path=/stable",
-   "hash_url": "${URL}",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "qubes",
@@ -6165,13 +6166,13 @@
     "amd64"
    ],
    "url": "https://static.redox-os.org/releases/%RELEASE%/x86_64",
-   "hash_url": "${URL}/SHA256SUM",
    "status": "experimental",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "experimental"
+   "support_level": "experimental",
+   "scrape": true
   },
   {
    "os": "refracta",
@@ -6624,13 +6625,13 @@
     "amd64"
    ],
    "url": "https://ftp.fi.muni.cz/pub/linux/slax/Slax-12.x",
-   "hash_url": "${URL}/md5.txt",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "slint",

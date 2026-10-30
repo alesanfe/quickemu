@@ -82,3 +82,15 @@ func atoi(s string) int {
 	}
 	return n
 }
+
+// sortDesc orders strings by natural version descending (sort -Vr /
+// sort -ur parity for numeric runs like the OSDN 5-digit dirs).
+func sortDesc(a []string) {
+	for i := 0; i < len(a); i++ {
+		for j := i + 1; j < len(a); j++ {
+			if versionLess(a[i], a[j]) {
+				a[i], a[j] = a[j], a[i]
+			}
+		}
+	}
+}
