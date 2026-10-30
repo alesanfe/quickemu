@@ -41,10 +41,19 @@ func NormArgs(a []string) []string {
 
 // Alive reports whether pid is a live process. EPERM counts as alive:
 // a process owned by another user exists even though we cannot signal
-// it — treating it as dead would let locks be stolen.
+// it — treating it as dead would let locks be stolen. A zombie is
+// dead-but-unreaped: kill(pid,0) still succeeds on it, so without the
+// /proc state check a dead-but-unwaited child would read as alive.
 func Alive(pid int) bool {
 	if pid <= 0 {
 		return false
+	}
+	if b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid)); err == nil {
+		if i := strings.LastIndexByte(string(b), ')'); i >= 0 && i+2 < len(b) {
+			if f := strings.Fields(string(b[i+2:])); len(f) > 0 && f[0] == "Z" {
+				return false
+			}
+		}
 	}
 	err := syscall.Kill(pid, 0)
 	return err == nil || errors.Is(err, syscall.EPERM)

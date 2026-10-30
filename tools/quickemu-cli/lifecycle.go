@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -134,16 +135,13 @@ func procCmdline(pid int) string {
 	return strings.ReplaceAll(strings.TrimRight(string(b), "\x00"), "\x00", " ")
 }
 
-func vmPidAlive() bool {
-	pid := readPID()
-	if !alive(pid) {
-		return false
-	}
+// vmProcOwned: ownership proof for a live pid — the process is THIS
+// VM's qemu. Cmdline tokens are the strongest check (a quickemu qemu
+// always carries the VM dir in its drive args and -name process=<vm>);
+// comm matching (vmname, 15-char truncation, qemu*) is the legacy
+// fallback when cmdline is unreadable.
+func vmProcOwned(pid int) bool {
 	name := vmname()
-	// Hard ownership proof first: a quickemu qemu always carries this
-	// VM's disk dir in its drive args and the -name process=<vm> token.
-	// A recycled pid running anything else is foreign — comm matching
-	// "qemu*" alone would let stop --force SIGKILL another VM.
 	if cl := procCmdline(pid); cl != "" {
 		return strings.Contains(cl, vmdir()+string(filepath.Separator)) ||
 			strings.Contains(cl, "process="+name+",") ||
@@ -160,11 +158,128 @@ func vmPidAlive() bool {
 	return comm == name || comm == short || strings.HasPrefix(comm, "qemu")
 }
 
+// procStateChar: /proc/<pid>/stat state letter (after the last ')' so
+// comm values containing parens can't shift the field offsets).
+func procStateChar(pid int) byte {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return 0
+	}
+	i := strings.LastIndexByte(string(b), ')')
+	if i < 0 || i+2 >= len(b) {
+		return 0
+	}
+	f := strings.Fields(string(b[i+2:]))
+	if len(f) == 0 {
+		return 0
+	}
+	return f[0][0]
+}
+
+// procStartTimeJ: /proc/<pid>/stat starttime (jiffies) — the field the
+// launcher records into runtime.json "processStartTime".
+func procStartTimeJ(pid int) string {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return ""
+	}
+	i := strings.LastIndexByte(string(b), ')')
+	if i < 0 || i+2 >= len(b) {
+		return ""
+	}
+	f := strings.Fields(string(b[i+2:]))
+	if len(f) <= 19 {
+		return ""
+	}
+	return f[19]
+}
+
+// instanceVerify: vm_instance_verify parity — pidfile + sibling
+// runtime.json identity → a typed status word. Exit status in Bash is
+// folded into the word itself; callers only need the pair (word, pid).
+func instanceVerify() (string, int) {
+	pid := readPID()
+	if pid <= 0 {
+		return "dead", 0 // missing or non-numeric pidfile
+	}
+	dir, name := vmdir(), vmname()
+	rtb, err := os.ReadFile(filepath.Join(dir, name+".runtime.json"))
+	if err != nil {
+		// No runtime record: live process with VM-looking comm is a
+		// pre-runtime (alive-legacy) boot, anything else is foreign.
+		if !alive(pid) {
+			return "dead", 0
+		}
+		if vmProcOwned(pid) {
+			return "alive-legacy", pid
+		}
+		return "foreign-process", 0
+	}
+	var rec struct {
+		Pid              int `json:"pid"`
+		Uid              int `json:"uid"`
+		ProcessStartTime any `json:"processStartTime"`
+	}
+	if json.Unmarshal(rtb, &rec) != nil || rec.Pid != pid {
+		return "runtime-corrupt", 0
+	}
+	if !alive(pid) {
+		return "dead", 0
+	}
+	if rec.Uid > 0 && rec.Uid != os.Getuid() {
+		return "uid-mismatch", 0
+	}
+	if st := rtStartTime(rec.ProcessStartTime); st != "" {
+		if cur := procStartTimeJ(pid); cur != "" && cur != st {
+			return "pid-reused", 0
+		}
+	}
+	if !vmProcOwned(pid) {
+		return "foreign-process", 0
+	}
+	return "alive", pid
+}
+
+// rtStartTime: runtime.json "processStartTime" is a bare number or
+// null (printf %s of the jiffies field) — normalise to a string.
+func rtStartTime(v any) string {
+	switch t := v.(type) {
+	case float64:
+		return strconv.FormatInt(int64(t), 10)
+	case string:
+		return t
+	}
+	return ""
+}
+
+func vmPidAlive() bool {
+	st, _ := instanceVerify()
+	return st == "alive" || st == "alive-legacy"
+}
+
 func vmRunning() bool { return vmPidAlive() }
 
 func paused() bool {
 	_, err := os.Stat(filepath.Join(vmdir(), vmname()+".paused"))
 	return err == nil
+}
+
+// qmpVMStatus: qmp_vm_status parity — query-status over the QMP
+// socket; "" when the channel is absent or refuses (markers decide).
+func qmpVMStatus() string {
+	out, err := qmp("query-status")
+	if err != nil {
+		return ""
+	}
+	var rep struct {
+		Return struct {
+			Status string `json:"status"`
+		} `json:"return"`
+	}
+	if json.Unmarshal([]byte(out), &rep) != nil {
+		return ""
+	}
+	return rep.Return.Status
 }
 
 func state() (string, int) {
@@ -175,17 +290,34 @@ func state() (string, int) {
 			return "archived", 0
 		}
 	}
-	pid := readPID()
-	if !vmPidAlive() {
-		if pid > 0 {
+	st, pid := instanceVerify()
+	switch st {
+	case "alive", "alive-legacy":
+		// QMP query-status is authoritative for the guest lifecycle;
+		// when the channel is gone the on-disk markers decide.
+		switch qst := qmpVMStatus(); qst {
+		case "paused", "inmigrate", "suspended":
+			return "paused", pid
+		case "shutdown":
+			return "stopping", pid
+		case "":
+			if paused() || procStateChar(pid) == 'T' {
+				return "paused", pid
+			}
+			return "running", pid
+		default:
+			return "running", pid
+		}
+	case "dead":
+		if _, err := os.Stat(pidPath()); err == nil {
 			return "stale", 0
 		}
 		return "stopped", 0
+	default:
+		// runtime-corrupt / pid-reused / foreign-process /
+		// uid-mismatch: live but not provably ours.
+		return "unknown", 0
 	}
-	if paused() {
-		return "paused", pid
-	}
-	return "running", pid
 }
 
 // runtimeCleanup: vm_runtime_cleanup parity — when a pidfile exists but
@@ -317,26 +449,42 @@ var vmLockedOps = map[string]bool{
 }
 
 func actStop(force bool) int {
-	st, pid := state()
-	if st != "running" && st != "paused" {
-		fmt.Println(vmname() + " is not running")
+	// kill_vm gates on the pidfile alone, but going through the
+	// instance verify keeps a foreign or recycled pid safe from a
+	// blind SIGKILL — same refusal, minus the hazard.
+	if force {
+		fmt.Println("Killing " + vmname())
+	}
+	pid := readPID()
+	if !vmPidAlive() {
+		fmt.Println(" - " + vmname() + " is not running.")
+		runtimeCleanup()
 		return 0
 	}
 	if force {
+		killed := false
 		if p, err := os.FindProcess(pid); err == nil {
-			p.Signal(syscall.SIGKILL)
+			killed = p.Signal(syscall.SIGKILL) == nil
 		}
-	} else {
-		// "quit" is not allowlisted on the structured QMP channel — the
-		// HMP passthrough is how Bash issues it.
-		hmp("quit")
+		if !killed {
+			fmt.Printf(" - %s (%d) was not killed.\n", vmname(), pid)
+			return 0
+		}
+		for i := 0; i < 40 && alive(pid); i++ {
+			time.Sleep(100 * time.Millisecond)
+		}
+		fmt.Printf(" - %s (%d) killed.\n", vmname(), pid)
+		runtimeCleanup()
+		return 0
 	}
+	// stop_vm is a Go-only action (Bash maps --kill/--shutdown): "quit"
+	// is not allowlisted on the structured QMP channel, so it goes over
+	// the HMP passthrough like every other privileged monitor write.
+	hmp("quit")
 	for i := 0; i < 40 && alive(pid); i++ {
 		time.Sleep(100 * time.Millisecond)
 	}
-	for _, ext := range []string{".pid", ".paused", "-qmp.socket", "-monitor.socket", "-serial.socket", "-agent.sock"} {
-		os.Remove(filepath.Join(vmdir(), vmname()+ext))
-	}
+	runtimeCleanup()
 	fmt.Println(" - " + vmname() + " stopped.")
 	return 0
 }

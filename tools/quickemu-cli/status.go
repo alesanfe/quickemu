@@ -80,7 +80,22 @@ func actListVMs() int {
 				}
 			}
 			vmConf = f
-			st, pid := state()
+			// list_vms uses the light pidfile model (alive + .paused →
+			// running/paused, dead pidfile → stale), not the heavier
+			// vm_state resolution --status performs.
+			st, pid := "stopped", 0
+			if _, err := os.Stat(pidPath()); err == nil {
+				if vmPidAlive() {
+					pid = readPID()
+					if paused() {
+						st = "paused"
+					} else {
+						st = "running"
+					}
+				} else {
+					st = "stale"
+				}
+			}
 			var p any
 			if pid > 0 {
 				p = pid

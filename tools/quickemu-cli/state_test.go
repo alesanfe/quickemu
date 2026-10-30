@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -108,6 +109,118 @@ func TestPidlessAgedLockReclaimed(t *testing.T) {
 		t.Error("pidless lock older than the grace window must be reclaimed")
 	}
 	defer vmLockRelease()
+}
+
+// fakeVMProc spawns a comm-named process that also carries the vmdir
+// token in its cmdline — the same dual proof vmProcOwned uses for a
+// real quickemu qemu (-name ...,process=<vm> + drive paths).
+func fakeVMProc(t *testing.T, dir, name string) *exec.Cmd {
+	t.Helper()
+	fake := filepath.Join(dir, name)
+	src, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("no sleep binary")
+	}
+	b, _ := os.ReadFile(src)
+	if err := os.WriteFile(fake, b, 0755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(fake, "60")
+	if err := cmd.Start(); err != nil {
+		t.Skipf("cannot spawn: %v", err)
+	}
+	t.Cleanup(func() { cmd.Process.Kill() })
+	time.Sleep(50 * time.Millisecond)
+	return cmd
+}
+
+func writeRuntime(t *testing.T, dir, name string, pid int, st string, uid int) {
+	t.Helper()
+	rec := fmt.Sprintf(`{"schemaVersion":1,"pid":%d,"uid":%d,"processStartTime":%s,`+
+		`"instanceId":"i","vmId":%q,"configPath":"c","createdAt":"t","commandFingerprint":"f"}`+"\n",
+		pid, uid, st, name)
+	if err := os.WriteFile(filepath.Join(dir, name+".runtime.json"),
+		[]byte(rec), 0600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStateUnknownForForeignPid(t *testing.T) {
+	dir := setupStateVM(t)
+	cmd := exec.Command("sleep", "60")
+	if err := cmd.Start(); err != nil {
+		t.Skipf("cannot spawn: %v", err)
+	}
+	defer cmd.Process.Kill()
+	time.Sleep(50 * time.Millisecond)
+	os.WriteFile(filepath.Join(dir, "vm1.pid"),
+		[]byte(strconv.Itoa(cmd.Process.Pid)), 0644)
+	// Live pid that isn't this VM: vm_state reports unknown, not
+	// stale (the process is alive — it just isn't ours).
+	if st, _ := state(); st != "unknown" {
+		t.Errorf("foreign live pid -> unknown, got %q", st)
+	}
+}
+
+func TestStateRunningWithRuntimeRecord(t *testing.T) {
+	dir := setupStateVM(t)
+	cmd := fakeVMProc(t, dir, "vm1")
+	pid := cmd.Process.Pid
+	os.WriteFile(filepath.Join(dir, "vm1.pid"),
+		[]byte(strconv.Itoa(pid)), 0644)
+	writeRuntime(t, dir, "vm1", pid, procStartTimeJ(pid), os.Getuid())
+	st, got := instanceVerify()
+	if st != "alive" {
+		t.Fatalf("verify: %q want alive (pid %d)", st, got)
+	}
+	if st, _ := state(); st != "running" {
+		t.Errorf("verified live instance -> running, got %q", st)
+	}
+}
+
+func TestStateUnknownOnRuntimeCorrupt(t *testing.T) {
+	dir := setupStateVM(t)
+	cmd := fakeVMProc(t, dir, "vm1")
+	pid := cmd.Process.Pid
+	os.WriteFile(filepath.Join(dir, "vm1.pid"),
+		[]byte(strconv.Itoa(pid)), 0644)
+	// runtime.json pid != pidfile pid → corrupt record → unknown.
+	writeRuntime(t, dir, "vm1", pid+1, "0", os.Getuid())
+	if st, _ := state(); st != "unknown" {
+		t.Errorf("runtime pid mismatch -> unknown, got %q", st)
+	}
+}
+
+func TestStateUnknownOnPidReused(t *testing.T) {
+	dir := setupStateVM(t)
+	cmd := fakeVMProc(t, dir, "vm1")
+	pid := cmd.Process.Pid
+	os.WriteFile(filepath.Join(dir, "vm1.pid"),
+		[]byte(strconv.Itoa(pid)), 0644)
+	writeRuntime(t, dir, "vm1", pid, "999999999", os.Getuid())
+	if st, _ := state(); st != "unknown" {
+		t.Errorf("starttime mismatch -> unknown, got %q", st)
+	}
+}
+
+func TestStateUnknownOnUidMismatch(t *testing.T) {
+	dir := setupStateVM(t)
+	cmd := fakeVMProc(t, dir, "vm1")
+	pid := cmd.Process.Pid
+	os.WriteFile(filepath.Join(dir, "vm1.pid"),
+		[]byte(strconv.Itoa(pid)), 0644)
+	writeRuntime(t, dir, "vm1", pid, procStartTimeJ(pid), os.Getuid()+1)
+	if st, _ := state(); st != "unknown" {
+		t.Errorf("uid mismatch -> unknown, got %q", st)
+	}
+}
+
+func TestStateStaleOnGarbagePidfile(t *testing.T) {
+	dir := setupStateVM(t)
+	os.WriteFile(filepath.Join(dir, "vm1.pid"), []byte("not-a-pid"), 0644)
+	if st, _ := state(); st != "stale" {
+		t.Errorf("non-numeric pidfile -> stale, got %q", st)
+	}
 }
 
 func TestStateArchivedViaTrashDir(t *testing.T) {
