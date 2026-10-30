@@ -69,8 +69,11 @@ func TestFindToolSiblingBeatsPath(t *testing.T) {
 	if got != sibling {
 		t.Fatalf("sibling must beat PATH: got %q want %q", got, sibling)
 	}
-	// No sibling anywhere: PATH is the fallback.
-	got, err = FindTool("qt-pathonly")
+	// No sibling anywhere: PATH is the fallback. Before the binary
+	// exists on PATH the lookup must fail outright.
+	if _, err = FindTool("qt-pathonly"); err == nil {
+		t.Fatal("FindTool should fail before the PATH binary exists")
+	}
 	os.MkdirAll(filepath.Join(tmp, "pathbin"), 0o755)
 	os.WriteFile(filepath.Join(tmp, "pathbin", "qt-pathonly"), []byte("#!/bin/sh\n"), 0o755)
 	if got, err = FindTool("qt-pathonly"); err != nil || !strings.HasSuffix(got, "qt-pathonly") {

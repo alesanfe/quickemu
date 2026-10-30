@@ -1,5 +1,10 @@
 // hw.go: cpu/ram/bios/network arg building — migrates configure_cpu,
 // configure_ram, configure_bios, configure_network from launch.sh.
+//
+// Error text in this file is the Bash user-facing contract: it is
+// printed verbatim to stdout, so it keeps its punctuation.
+//
+//lint:file-ignore ST1005 Bash parity error strings keep punctuation.
 package main
 
 import (

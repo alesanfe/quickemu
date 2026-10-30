@@ -1,5 +1,10 @@
 // display.go: guest display/audio/storage arg building — migrates
 // configure_display, configure_audio, configure_storage, configure_os_quirks.
+//
+// Error text in this file is the Bash user-facing contract: it is
+// printed verbatim to stdout, so it keeps its punctuation.
+//
+//lint:file-ignore ST1005 Bash parity error strings keep punctuation.
 package main
 
 import (
