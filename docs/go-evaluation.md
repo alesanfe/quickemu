@@ -32,7 +32,7 @@ api 94.8, archive 88.9, cli 81.6, launch 79.0, ops 82.7,
 plugin-market 81.0, ports 82.2, proc 89.4, qmp 88.1, toml 96.7,
 vm 83.0, catalog 86.6, quickget-cli 82.8, quickget-vm 82.1,
 quickgetc 81.6, quickreport 86.2. Catalog: 377 families
-(274 scrape + 100 static + 3 aggregate), ~2500 release×edition combos.
+(293 scrape + 81 static + 3 aggregate), ~2500 release×edition combos.
 
 ## 1. ISO/IEC 25010 verdict
 

@@ -35,7 +35,8 @@ vendor/           # `go work vendor` output — offline reproducible builds
 schemas/v1/       # Versioned JSON CLI contract (--format json)
 catalog/          # OS catalogue data — catalog/data/catalog.json feeds
                   # tools/quickget-catalog; releases/editions left empty
-                  # for dynamic OSes are resolved live via scrape.go
+                  # for dynamic OSes are resolved live via the
+                  # scrape.go orchestrator + scrape_*.go resolvers
 tools/qespec/     # Go spec suite (contract, functional, e2e, security)
 tools/dev/        # qedev task runner (build/check/specs/metrics/probe/sbom/bench)
 completions/      # Shell completion data (bash/fish/zsh)
@@ -86,8 +87,10 @@ dev tooling are Go; `completions/` holds shell-syntax completion data.
 Follow the [guide in the wiki](https://github.com/quickemu-project/quickemu/wiki/06-Advanced-quickget-features#adding-a-new-os-to-quickget). Each OS requires:
 
 1. An entry in `catalog/data/catalog.json` (releases, editions, arch,
-   url/hash templates) — or `"scrape": true` plus a case in
-   `tools/quickget-catalog/scrape.go` for dynamic resolution
+   url/hash templates) — or `"scrape": true` plus a `case` in the
+   matching mechanism file under `tools/quickget-catalog/scrape_*.go`
+   (github/sourceforge/mirror-index/json-api/ubuntu/html; scrape.go
+   only orchestrates) for dynamic resolution
 2. An `os_info` row (tools/quickget-catalog/info.go data)
 3. Guest-OS quirks in `tools/quickget-vm` (guestFor/osTweaks) if it
    needs non-default hardware or post-download fixups
