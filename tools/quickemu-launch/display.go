@@ -507,7 +507,7 @@ func storageEcho(c Conf, dir string) {
 		if _, err := os.Stat(joinConf(dir, d)); err == nil {
 			fmt.Printf(" - Boot ISO: %s\n", joinConf(dir, d))
 		}
-	} else if d := c.get("img", ""); d != "" && c.get("guest_os", "") != "macos" {
+	} else if d := c.get("img", ""); d != "" {
 		if _, err := os.Stat(joinConf(dir, d)); err == nil {
 			fmt.Printf(" - Recovery: %s\n", joinConf(dir, d))
 		}

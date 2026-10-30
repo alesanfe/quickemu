@@ -329,10 +329,13 @@ func TestInputAudioNetArgs(t *testing.T) {
 	if !has(na, "restrict=y") || !has(na, "hostfwd=tcp:127.0.0.1:") {
 		t.Fatalf("restrict hostfwd: %v", na)
 	}
+	// network=slirp: vm_net_mode maps it to "user" for the ports gate
+	// (SSH forward is still planned) but Bash's emit switch hits the
+	// non-empty catch-all — a bridge netdev with br=slirp.
 	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "network": "slirp", "ssh_port": "22999"},
 		OsTuning{NetDevice: "virtio-net-pci"})
-	if !has(na, "user,hostname=") || has(na, "restrict=y") || has(na, "bridge") {
-		t.Fatalf("slirp must map to user netdev: %v", na)
+	if !has(na, "bridge,br=slirp") || has(na, "user,hostname=") {
+		t.Fatalf("slirp must emit the bridge netdev: %v", na)
 	}
 	na = networkArgs(Conf{"_vmdir": dir2, "_vmname": "t", "ssh_access": "remote", "ssh_port": "22999"},
 		OsTuning{NetDevice: "virtio-net-pci"})
@@ -721,8 +724,8 @@ func TestRamArgsTiering(t *testing.T) {
 // cpu_pinning (vm.sh): ^[0-9]+(,[0-9]+)*$ and the count must equal the
 // guest logical core count (Linux-only application).
 func TestCPUPinningValidation(t *testing.T) {
-	if _, err := parseCPUPinning("0,2,4,6"); err != nil || len([]int{}) < 0 {
-		t.Fatalf("valid pinning rejected: %v", err)
+	if m, err := parseCPUPinning("0,2,4,6"); err != nil || len(m) != 4 || m[1] != 2 {
+		t.Fatalf("valid pinning rejected: %v (%v)", err, m)
 	}
 	for _, bad := range []string{"0-3", "a,b", "1,,2", "", "1;2"} {
 		if bad == "" {

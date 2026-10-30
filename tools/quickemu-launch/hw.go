@@ -622,10 +622,14 @@ func planPorts(c Conf, t OsTuning) {
 			}
 		}
 	}
+	// configure_file_sharing appends smb= to NET for every mode —
+	// restrict included — and the emit puts ,restrict=y last:
+	// user,hostname=VM,hostfwd...,smb=...,restrict=y
+	if pub := c["_public"]; pub != "" && smbdPresent() {
+		fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
+	}
 	if net == "restrict" {
 		fwd += ",restrict=y"
-	} else if pub := c["_public"]; pub != "" && smbdPresent() {
-		fwd += ",smb=" + qemuOptEsc(pub) // Samba share on the user netdev
 	}
 	c["_fwd"] = fwd
 }
@@ -656,7 +660,7 @@ func networkArgs(c Conf, t OsTuning) []string {
 	case "none":
 		fmt.Printf(" - Network:  Disabled\n")
 		a = []string{"-nic", "none"}
-	case "restrict", "", "slirp":
+	case "restrict", "":
 		// fwd is resolved in planPorts at the configure_ports position;
 		// callers that skipped it (tests) get the lazy resolve here.
 		if _, ok := c["_fwd"]; !ok {
