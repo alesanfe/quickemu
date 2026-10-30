@@ -284,7 +284,12 @@ func run() int {
 		}
 		return backupVerify(args[2])
 	case "backup-restore":
+		// DEST="${2:-${RESTORE_DIR:-.}}" — env supplies the default
+		// when no positional dest is given.
 		f, dest := "", "."
+		if v := os.Getenv("RESTORE_DIR"); v != "" {
+			dest = v
+		}
 		if len(args) > 2 {
 			f = args[2]
 		}
@@ -345,9 +350,13 @@ func run() int {
 	case "trash-empty":
 		return trashEmpty()
 	case "trash-restore":
+		// NAME="${RESTORE_VM:-${1}}" — env wins over the positional.
 		name := filepath.Base(dir)
 		if len(args) > 2 {
 			name = args[2]
+		}
+		if v := os.Getenv("RESTORE_VM"); v != "" {
+			name = v
 		}
 		// The name lands in filepath.Join for BOTH the slot source
 		// and the restore destination — "../x" moves a crafted
