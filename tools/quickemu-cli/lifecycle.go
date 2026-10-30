@@ -479,11 +479,20 @@ func actStop(force bool) int {
 		return 0
 	}
 	// stop_vm is a Go-only action (Bash maps --kill/--shutdown): "quit"
-	// is not allowlisted on the structured QMP channel, so it goes over
-	// the HMP passthrough like every other privileged monitor write.
-	hmp("quit")
+	// is a privileged monitor write — the human monitor first, QMP
+	// human-monitor-command when the VM runs monitor=none with only
+	// the control socket up.
+	if monitorSendCmd("quit") != 0 {
+		hmp("quit")
+	}
 	for i := 0; i < 40 && alive(pid); i++ {
 		time.Sleep(100 * time.Millisecond)
+	}
+	if alive(pid) {
+		// quit never landed (or QEMU ignored it) — reporting
+		// "stopped" and wiping runtime state would orphan a live VM.
+		fmt.Printf(" - %s (%d) did not stop.\n", vmname(), pid)
+		return 1
 	}
 	runtimeCleanup()
 	fmt.Println(" - " + vmname() + " stopped.")

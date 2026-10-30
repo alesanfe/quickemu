@@ -458,7 +458,7 @@ func TestGoCLIBootCycle(t *testing.T) {
 	vm := filepath.Join(d, "govm")
 	os.MkdirAll(vm, 0o755)
 	conf := Write(t, vm, "govm.conf",
-		"guest_os=\"linux\"\ndisk_img=\"disk.qcow2\"\ndisplay=\"none\"\nram=\"128M\"\n")
+		"guest_os=\"linux\"\ndisk_img=\"disk.qcow2\"\niso=\"stub.iso\"\ndisplay=\"none\"\nram=\"128M\"\n")
 	exec.Command("qemu-img", "create", "-f", "qcow2",
 		filepath.Join(vm, "disk.qcow2"), "32M").Run()
 	os.WriteFile(filepath.Join(vm, "stub.iso"), []byte("x"), 0o644)
