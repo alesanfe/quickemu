@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -219,19 +220,35 @@ func listCSV(cat []OSEntry) {
 	w.Flush()
 }
 
-// allSourceURLs: unique urls anywhere inside a release entry (the
-// jq `[.. | objects | .url? // empty]` walk).
+// allSourceURLs: unique urls anywhere inside a release entry — the
+// jq `[.. | objects | .url? // empty] | unique` walk over the raw
+// JSON, so .url fields outside the four source lists still count.
 func allSourceURLs(r Release) []string {
+	raw, _ := json.Marshal(r)
+	var root any
+	json.Unmarshal(raw, &root)
 	seen := map[string]bool{}
 	var out []string
-	for _, t := range imageTypes {
-		for _, s := range r.sourcesFor(t) {
-			if s.Web != nil && s.Web.URL != "" && !seen[s.Web.URL] {
-				seen[s.Web.URL] = true
-				out = append(out, s.Web.URL)
+	var walk func(v any)
+	walk = func(v any) {
+		m, ok := v.(map[string]any)
+		if !ok {
+			return
+		}
+		if s, ok := m["url"].(string); ok && s != "" && !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+		for _, val := range m {
+			walk(val)
+			if arr, ok := val.([]any); ok {
+				for _, item := range arr {
+					walk(item)
+				}
 			}
 		}
 	}
+	walk(root)
 	slices.Sort(out)
 	return out
 }
