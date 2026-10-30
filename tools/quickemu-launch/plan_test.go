@@ -43,6 +43,7 @@ func TestBootAndDisplayArgs(t *testing.T) {
 }
 
 func TestAudioStorageNetwork(t *testing.T) {
+	regEnv(t)
 	c, dir := confFrom(t, "guest_os=\"linux\"\nsound_card=\"intel-hda\"\n"+
 		"sound_duplex=\"hda-micro\"\nnetwork=\"user\"\nport_forwards=\"2222:22 8080:80\"\n")
 	_ = audioArgs(c, "linux", OsTuning{})
@@ -78,12 +79,13 @@ func TestCPURAMFirmware(t *testing.T) {
 }
 
 func TestPortsChannelsPassthru(t *testing.T) {
+	regEnv(t)
 	c, dir := confFrom(t, "guest_os=\"linux\"\nssh_port=\"2222\"\nspice_port=\"5930\"\n"+
 		"vnc_listen=\"127.0.0.1:5\"\n")
 
 	_ = spiceArgs(c, dir, "vm", "linux")
 	_ = passthruArgs(c)
-	if firstFreePort("bad", 1, 2) == "" {
+	if firstFreePort("bad", 1, 2, "vm") == "" {
 		t.Fatal("firstFreePort")
 	}
 }

@@ -11,12 +11,25 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	// The detached reaper re-execs this binary with `--reap …` while
+	// inheriting the helper env — dispatch it before the QE_HELPER
+	// rewrite, exactly like the real binary's main() does, or it
+	// would relaunch the VM instead of watching it.
+	if len(os.Args) > 1 && os.Args[1] == "--reap" {
+		main()
+		return
+	}
 	if os.Getenv("QE_HELPER") == "1" {
 		os.Args = append([]string{"quickemu-launch"},
 			strings.Split(os.Getenv("QL_ARGS"), "\x1f")...)
 		main()
 		return
 	}
+	// Suite-wide safety net: un-isolated port scans must never touch the
+	// user's real registry (tests that scan ports should still call
+	// regEnv to avoid intra-suite exhaustion).
+	reg, _ := os.MkdirTemp("", "qelaunch-test-reg")
+	os.Setenv("QE_PORT_REGISTRY", reg)
 	os.Exit(m.Run())
 }
 
@@ -50,13 +63,16 @@ func fwStubEnv(t *testing.T) string {
 // launch runs the binary as a helper; rc comes from the process exit.
 func launch(t *testing.T, env []string, args ...string) (string, int) {
 	t.Helper()
-	hasFW, hasXDG := false, false
+	hasFW, hasXDG, hasReg := false, false, false
 	for _, e := range env {
 		if strings.HasPrefix(e, "QE_FIRMWARE_DIR=") {
 			hasFW = true
 		}
 		if strings.HasPrefix(e, "XDG_DATA_HOME=") {
 			hasXDG = true
+		}
+		if strings.HasPrefix(e, "QE_PORT_REGISTRY=") {
+			hasReg = true
 		}
 	}
 	if !hasFW {
@@ -66,6 +82,11 @@ func launch(t *testing.T, env []string, args ...string) (string, int) {
 	// vms.json registry — keep them off the real user XDG in tests.
 	if !hasXDG {
 		env = append(env, "XDG_DATA_HOME="+t.TempDir())
+	}
+	// Port reservations land in the shared registry — isolate so test
+	// VMs don't hold real ports hostage for the rest of the suite.
+	if !hasReg {
+		env = append(env, "QE_PORT_REGISTRY="+t.TempDir())
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^$")
 	cmd.Env = append(os.Environ(), append(env, "QE_HELPER=1",

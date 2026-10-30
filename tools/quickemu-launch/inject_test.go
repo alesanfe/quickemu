@@ -12,6 +12,7 @@ import (
 )
 
 func TestOptionInjectionViaConfValues(t *testing.T) {
+	regEnv(t)
 	// Unset ssh_port triggers the auto-alloc probe (and, on a host with
 	// the range bound, the exhaustion die) — stub it deterministic.
 	oldListen := netListen

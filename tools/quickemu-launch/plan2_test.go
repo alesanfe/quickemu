@@ -11,6 +11,7 @@ import (
 )
 
 func TestQuirksMatrix(t *testing.T) {
+	regEnv(t) // the sweep reserves ports — keep them off the real registry
 	// spiceArgs probes real TCP ports for headless variants — stub the
 	// probe so host port state cannot flake the sweep.
 	oldListen := netListen
@@ -29,6 +30,10 @@ func TestQuirksMatrix(t *testing.T) {
 			_ = audioArgs(c, osName, tu)
 			_ = networkArgs(c, tu)
 			_ = spiceArgs(c, "/tmp", "vm", osName)
+			// Each sweep emulates an independent launch — drop its
+			// port reservations like vm_runtime_cleanup would, or the
+			// registry exhausts the ssh/spice ranges mid-matrix.
+			portRegistryRelease(os.Getpid())
 			_ = inputArgs(c, tu)
 			_ = usbArgs(c, tu)
 			_ = biosArgs(c, osName, arch)
@@ -96,8 +101,9 @@ func TestTomlConfAndVmDir(t *testing.T) {
 }
 
 func TestPortsHelpers(t *testing.T) {
+	regEnv(t)
 	// firstFreePort: no registry → returns start.
-	if p := firstFreePort("0", 5900, 5910); p == "" {
+	if p := firstFreePort("0", 5900, 5910, "vm"); p == "" {
 		t.Fatal("firstFreePort")
 	}
 	// Registry in a temp XDG dir.
@@ -165,6 +171,7 @@ func TestHostProbesAndMisc(t *testing.T) {
 }
 
 func TestPassthruChannelFileshare(t *testing.T) {
+	regEnv(t)
 	c, dir := confFrom(t, "guest_os=\"linux\"\ngpu_passthrough=\"0000:01:00.0\"\n"+
 		"public_dir=\"pub\"\n")
 	os.MkdirAll(filepath.Join(dir, "pub"), 0o755)

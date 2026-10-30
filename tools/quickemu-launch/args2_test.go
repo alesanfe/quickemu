@@ -281,6 +281,7 @@ func TestDisplayAndAudioPaths(t *testing.T) {
 }
 
 func TestInputAudioNetArgs(t *testing.T) {
+	regEnv(t)
 	// networkArgs auto-allocates ssh_port over real host TCP state —
 	// stub the probe (and the ssh-port exhaustion gate needs it too).
 	oldListen := netListen
@@ -389,6 +390,7 @@ func TestInputAudioNetArgs(t *testing.T) {
 }
 
 func TestPresetsPortsAndMisc(t *testing.T) {
+	regEnv(t) // firstFreePort reservations stay off the real registry
 	c := applyPresets(Conf{"profile": "windows-gaming"})
 	if c["guest_os"] != "windows" || c["ram"] == "" {
 		t.Fatalf("preset %+v", c)
@@ -407,7 +409,7 @@ func TestPresetsPortsAndMisc(t *testing.T) {
 		t.Fatalf("override ram=%s", c["ram"])
 	}
 	// getPort: explicit, then free-range.
-	if p := firstFreePort("22220", 22220, 22229); p != "22220" {
+	if p := firstFreePort("22220", 22220, 22229, "vm"); p != "22220" {
 		t.Fatalf("firstFreePort %s", p)
 	}
 	if p := getPort(22900, 9, os.Getpid(), "vm"); p <= 0 {
@@ -427,7 +429,7 @@ func TestPresetsPortsAndMisc(t *testing.T) {
 	if hi > 65535 {
 		hi = 65535
 	}
-	if p := firstFreePort("", busy, hi); p == strconv.Itoa(busy) || p == "" {
+	if p := firstFreePort("", busy, hi, "vm"); p == strconv.Itoa(busy) || p == "" {
 		t.Fatalf("busy firstFreePort %q", p)
 	}
 	// osQuirks direct sweep over more guest branches.

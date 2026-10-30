@@ -23,6 +23,7 @@ func TestConfListBashArray(t *testing.T) {
 }
 
 func TestExtraNicsArgs(t *testing.T) {
+	regEnv(t)
 	oldListen := netListen
 	netListen = func(_, _ string) (net.Listener, error) {
 		return net.Listen("tcp", "127.0.0.1:0")
@@ -45,6 +46,7 @@ func TestExtraNicsArgs(t *testing.T) {
 }
 
 func TestSpiceVariants(t *testing.T) {
+	regEnv(t)
 	// firstFreePort probes real TCP ports — the host may legitimately
 	// have the whole SPICE range bound (other VMs, forwarded ports).
 	// Stub the probe: any scanned port reads as free.
