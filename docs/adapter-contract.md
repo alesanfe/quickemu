@@ -1,17 +1,19 @@
 # Adapter Contract — catalog OSes
 
-Every `get_<os>`/`releases_<os>`/`editions_<os>`/`arch_<os>`/`os_info` entry
-must satisfy this contract before it ships.
+Every OS family is a JSON entry in `catalog/data/catalog.json` plus an
+`os_info` row in `catalog/data/info.json`. Dynamic families add a
+resolver case in `tools/quickget-catalog/scrape*.go` instead of static
+`url`/`hash` templates.
 
-## Required functions
+## Required fields
 
-| Function | Contract |
+| Field | Contract |
 |---|---|
-| `os_info` | name, homepage, license, description — verbatim, no scraping |
-| `releases_<os>` | space-separated supported releases, descending; may scrape stable endpoints |
-| `editions_<os>` | optional; only emit when the OS actually has editions |
-| `arch_<os>` | optional; default `amd64` when omitted |
-| `get_<os>` | emit `URL [HASH]` — one line, no side-effects, no `cd` |
+| `os_info` (info.json) | name, homepage, license, description — verbatim, no scraping |
+| `releases` | supported releases, descending; may scrape stable endpoints |
+| `editions` | optional; only declare when the OS actually has editions |
+| `arch` | optional; default `amd64` when omitted — only declare an arch when artifacts exist for it |
+| `url`/`hash` templates or `"scrape": true` + resolver | resolver emits `URL [HASH]` — one artifact, no side-effects |
 
 ## Trust levels
 
@@ -48,5 +50,6 @@ Level D/E sources are documented per-OS in the catalog entry's comment.
 
 ## Dynamic entries
 
-- `releases_<os>`/`editions_<os>`/`get_<os>` may scrape index pages or APIs, but the endpoint must be stable.
+- `releases`/`editions`/resolvers may scrape index pages or APIs, but the endpoint must be stable.
 - A scrape returning empty must emit nothing — the validation path treats empty as "unsupported", never as PASS.
+- Every resolver branch needs an offline fixture in `tools/quickget-catalog/scrape2_test.go` — tests must not depend on the live network.

@@ -31,7 +31,7 @@ cpu_cores=""
 disk_img=""
 extra_disks=()   # secondary disks: extra_disks=("data.qcow2" "scratch.img:raw")
 extra_nics=()    # secondary NICs: extra_nics=("user" "bridge:br1"); MACs via extra_macs=()
-extra_macs=()   # secondary disks: extra_disks=("data.qcow2" "scratch.img:raw")
+extra_macs=()   # MACs for extra_nics, same positional order: extra_macs=("52:54:00:aa:bb:cc")
 disk_format="qcow2"
 disk_size=""
 display=""

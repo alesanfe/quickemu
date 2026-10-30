@@ -7,7 +7,7 @@ the Go emitters (`"schemaVersion":1` in `tools/quickemu-cli` and
 
 ## Enforced schemas (live emitters)
 
-Validated by `spec/contract/schema/schema_conformance_spec.sh` — every
+Validated by the qespec contract tests (`tools/qespec/contract_test.go`) — every
 required key must be present, no undeclared top-level keys may be emitted,
 and `schemaVersion` must equal the declared `const`:
 

@@ -22,8 +22,7 @@ Layout:
 - `catalog/` — OS data: `data/catalog.json` (static entries) +
   `tools/quickget-catalog/scrape.go` (dynamic resolution).
 - `schemas/v1/` — versioned public contract.
-- `probes/` — external-source checks (nightly, not PR-blocking).
-- `spec/` — ShellSpec taxonomy (contract/functional/e2e/security
+- `tools/qespec/` — Go spec suite (contract/functional/e2e/security
   against the Go binaries; Bash-internal unit specs retired — their
   behaviors live in Go `*_test.go` files).
 - `packaging/{nix,debian}` — build the 15 tools and install them to

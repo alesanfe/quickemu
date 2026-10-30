@@ -96,9 +96,8 @@ You can also pass optional parameters
     operationId under <vmdir>/ops/ while it runs).
 
 **--inspect-conf**
-:   Print the VM configuration values WITHOUT executing the .conf file.
-    Use on untrusted configurations: a legacy .conf is executable Bash and
-    sourcing it runs arbitrary code.
+:   Print the VM configuration values as parsed data — the Go backend
+    never executes .conf contents.
 
 **--capabilities**
 :   Print the machine-readable capability descriptor (JSON)
@@ -181,6 +180,105 @@ You can also pass optional parameters
 
 **--status-quo**
 :   Do not commit any changes to disk/snapshot.
+
+**--stop**
+:   Stop the VM via the QMP 'quit' command
+
+**--restart**
+:   Shutdown then start the VM again
+
+**--linked-clone \<dir\>**
+:   Clone to another directory, sharing the source disk as a backing file
+
+**--move \<dir\>**
+:   Move the entire VM directory to a new location
+
+**--backup**
+:   Write a timestamped copy of the disk image next to the VM
+
+**--backup-list**
+:   List available backups for this VM
+
+**--backup-verify \<file\>**
+:   Verify a backup archive's manifest and checksums
+
+**--backup-restore \<file\>**
+:   Restore the disk image from a backup
+
+**--backup-prune \[n\]**
+:   Keep only the newest n backups
+
+**--trash**
+:   With '--delete-vm', move the VM to trash instead of deleting
+
+**--trash-list**
+:   List trashed VMs
+
+**--trash-restore \<vm\>**
+:   Restore a trashed VM to its origin directory
+
+**--trash-empty**
+:   Permanently delete all trashed VMs
+
+**--snapshot tree**
+:   Show the snapshot backing-file tree
+
+**--snapshot verify**
+:   Verify snapshot backing-file chain integrity
+
+**--hotplug-usb \<vid:pid\>**
+:   Hotplug a USB device into the running VM
+
+**--hotplug-disk \<file\>**
+:   Hotplug a disk image into the running VM
+
+**--hotunplug \<id\>**
+:   Remove a hotplugged device from the running VM
+
+**--persist**
+:   With hotplug actions, also write the device to the conf/TOML
+
+**--spice-console**
+:   Attach a SPICE viewer to the running VM
+
+**--vnc**
+:   Launch a VNC client attached to the VM's vnc_listen
+
+**--publicdir**
+:   Open the configured public_dir with the file manager
+
+**--serial-console**
+:   Attach to the VM serial console (telnet)
+
+**--monitor-console**
+:   Attach to the QEMU monitor console (telnet)
+
+**--events \[n\]**
+:   Stream VM lifecycle events (JSONL), last n entries
+
+**--op-list**
+:   List recorded async operations for this VM
+
+**--op-watch \<id\>**
+:   Follow an async operation's progress stream
+
+**--op-cancel \<id\>**
+:   Request cancellation of a running operation
+
+**--inventory**
+:   List all VM directories on the host
+
+**--vfio-scan**
+:   Scan host GPUs/IOMMU groups for VFIO passthrough candidates
+
+**--stats**
+:   Print VM resource-usage statistics
+
+**--plugins / --plugin \<n\>**
+:   List/invoke conf-template marketplace plugins
+
+**--profile \<name\>**
+:   Apply a hardware profile preset to the conf
 
 **--viewer \<viewer\>**
 :   Choose an alternative SPICE viewer. @Options: 'spicy' (default),
@@ -297,7 +395,7 @@ Haiku, KolibriOS, OpenIndiana, ReactOS, and more.
   emulated on x86_64)
 - [Ubuntu](https://ubuntu.com/desktop) and all the **[official Ubuntu
   flavours](https://ubuntu.com/download/flavours)**
-- **Nearly 1000 operating system editions are supported!**
+- **Over 2500 operating system editions** across ~370 OS families!
 - Full SPICE support including host/guest clipboard sharing
 - VirtIO-webdavd file sharing for Linux and Windows guests
 - VirtIO-9p file sharing for Linux and macOS guests

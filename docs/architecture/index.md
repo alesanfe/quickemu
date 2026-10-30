@@ -1,25 +1,26 @@
-# Public CLI contract (v1)
+# Architecture
 
-quickemu exposes a machine-readable interface for external consumers
-(GUIs, scripts, CI). Stability rules:
+Quickemu's Go backend (`tools/`) — one module per tool, joined by
+`go.work` with vendored deps for offline reproducible builds.
 
-- `--capabilities` prints the capability descriptor (JSON, schema v1).
-  Consumers MUST branch on `capabilities`, not on `applicationVersion`.
-- `--format json` switches `--status` and `--list-vms` output to the
-  versioned JSON shapes declared in `schemas/`.
-- `schemaVersion` is bumped only on breaking changes; additive fields
-  keep the same version.
-- Human output (`--format human`, the default) is **not** a stable API.
+- [Target architecture](target-architecture.md) — repository layout and
+  module responsibilities.
+- [Public CLI contract](public-cli-contract.md) — the versioned v1
+  surface external consumers rely on.
+- [Go parity map](../go-parity.md) — former Bash subsystems → Go tools.
+- [Go backend evaluation](../go-evaluation.md) — ISO/IEC 25010
+  assessment with measured metrics.
+- [ADR index](../adr/) — 15 decision records (0001 structured CLI …
+  0015 backend language).
 
-## Exit codes
+## At a glance
 
-| Code | Meaning |
-|------|---------|
-| 0 | Success (including "VM stopped" answers) |
-| 1 | Generic failure: bad arguments, missing conf, missing tool, action failed |
-| 2 | Reserved |
-
-Actions that mutate (kill, snapshot, clone, disk-resize, export, import,
-rename, send-keys, type, pause, resume, screenshot, doctor) return 0 on
-success and 1 on failure, printing diagnostics on stderr/stdout in human
-format.
+| Layer | Module | Role |
+|---|---|---|
+| entries | `bin/quickemu` `bin/quickget` `bin/quickgetc` `bin/quickreport` | compiled Go binaries, resolve siblings via `qelib.FindTool` |
+| VM lifecycle | `quickemu-cli` `quickemu-launch` `quickemu-vm` | CLI dispatch, QEMU argv + spawn/reaper, filesystem ops |
+| State | `quickemu-ops` `quickemu-ports` `quickemu-proc` | op journal, port registry, process identity |
+| Control | `quickemu-qmp` `quickemu-api` | monitor channel, HTTP/unix API |
+| Config | `quickemu-toml` `quickemu-archive` | .conf⇄TOML, export/import |
+| Downloads | `quickget-catalog` `quickget-cli` `quickget-vm` `quickgetc` | catalog + scrapers, CLI, image fetch |
+| Support | `qelib` `quickemu-plugin-market` `quickreport` `tools/qespec` `tools/dev` | shared helpers, templates, diagnostics, spec suite, task runner |

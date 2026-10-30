@@ -55,6 +55,21 @@ configuration for `quickemu` to use to build and run
 **--list-json**
 :   List everything in json format
 
+**--arch** <amd64|arm64>
+:   Target guest architecture (default: amd64). Aliases
+    x86_64/aarch64 accepted.
+
+**--check-all-arch** \[os\] \[release\] \[edition\]
+:   Check downloads for all supported architectures
+
+**--minimum-trust** <A-E>
+:   Refuse sources below the given trust level (A = signed,
+    E = unverifiable)
+
+**--insecure**
+:   Skip certificate/integrity verification (diagnostics only —
+    trust level E behavior)
+
 **--update** <os>
 :   Show the newest upstream release versus local VM directories
 

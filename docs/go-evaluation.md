@@ -27,6 +27,13 @@ archive 88.9, cli 83.6, launch 80.8, ops 80.3, plugin-market 81.0,
 ports 82.5, proc 89.4, qmp 87.6, toml 96.7, vm 79.8, catalog 83.9,
 quickget-cli 82.8, quickget-vm 53.7, quickgetc 78.2, quickreport 85.4.
 
+Snapshot (2026-10-30 re-run, all modules ≥79%): qelib 86.8, qespec 80.1,
+api 94.8, archive 88.9, cli 81.6, launch 79.0, ops 82.7,
+plugin-market 81.0, ports 82.2, proc 89.4, qmp 88.1, toml 96.7,
+vm 83.0, catalog 86.6, quickget-cli 82.8, quickget-vm 82.1,
+quickgetc 81.6, quickreport 86.2. Catalog: 377 families
+(274 scrape + 100 static + 3 aggregate), ~2500 release×edition combos.
+
 ## 1. ISO/IEC 25010 verdict
 
 | Characteristic | Grade | Evidence |
@@ -97,3 +104,4 @@ in `quickemu-cli/main.go` size; everything else is peripheral.
 |---|---|---|
 | 2026-10-28 | `507bd4b` | Initial evaluation — Strong overall; backlog derived into P0–P3 tasks |
 | 2026-10-28 | `571b0fe` | **Re-evaluation: A** — God-file split (cli 2376→713), structural QMP, exec seams everywhere (4 direct sites left, harness-only), API auth hardened (throttle/bind/token-file/constant-time), KVM ioctl probe (`KVM_GET_API_VERSION` — WSL device-EPERM fixed), schema-validated envelopes, adversarial lock/network matrix, metrics automated (`qedev metrics structure`: 17k/12.6k LOC, ratio 0.74, 417 tests, 0 go.work drift). Remaining: darwin CI, optional split of ops.go/scrape.go (>1k LOC, cohesive domains) |
+| 2026-10-30 | `7f3b33d` | **Re-evaluation: A** — Coverage floor now 79% (worst: launch 79.0; was 53.7 on quickget-vm → 82.1). 22.1k product LOC / 17.3k test LOC (ratio 0.78), 528 test funcs, 26 direct exec sites. Catalog 165→377 families (~2500 combos), all new resolvers fixture-covered. Docs sweep: stale Bash-era references purged (vision/roadmap/threat-model/adapter-contract/schema READMEs), qespec e2e fixture bug fixed (`iso=` missing → 90s timeout→1.5s pass). Remaining: launch 79.0% is the only sub-80 module; darwin CI still open. |

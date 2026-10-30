@@ -12,7 +12,7 @@
 
 ## Host — Level 2 (compatible, community-verified)
 
-- openSUSE, Linux Mint, Pop!_OS — same Bash/QEMU requirements
+- openSUSE, Linux Mint, Pop!_OS — same QEMU/runtime-tool requirements
 - **WSL2** — works with limitations:
   - No KVM → TCG (slower); nested-virt possible on Windows 11 +
     `wsl --set-version` + enabled nestedVirtualization
@@ -42,10 +42,9 @@
 | 7.x | supported, some args deprecated |
 | < 7.0 | untested, may fail |
 
-## Bash
+## Go toolchain (build-time only)
 
-| Bash | Status |
+| Go | Status |
 |---|---|
-| >= 5.x | tested |
-| 4.x | minimum supported (explicit check) |
-| < 4.0 | refused at runtime |
+| >= 1.25 | tested (CI/devshell pin) |
+| < 1.25 | untested — go.mod may refuse |

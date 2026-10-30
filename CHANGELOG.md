@@ -26,10 +26,10 @@ Versioning follows the structured-contract version in `schemas/v1/`.
 - SECURITY.md, CODE_OF_CONDUCT.md, threat-model, supported-platforms,
   error-codes, adapter-contract docs (QE-09/04/03 governance)
 - `quickget --minimum-trust <A-E>` — enforce source integrity policy
-- `lib/quickget/catalog/trust.sh` — trust levels inferred/overridable
-- `spec/e2e/qemu_boot_spec.sh` — real-QEMU E2E (TCG, skip-gated)
-- `spec/e2e/uat_scenarios_spec.sh` — acceptance scenarios (QE-14)
-- `lib/quickemu/cli/verbosity.sh` — quiet/normal/verbose/debug levels
+- Trust levels inferred/overridable in `tools/quickget-catalog`
+- `tools/qespec` e2e — real-QEMU boot cycle (TCG, skip-gated)
+- `tools/qespec` UAT scenarios (QE-14)
+- Verbosity levels in `tools/quickemu-cli` — quiet/normal/verbose/debug
 - `docs/quality/benchmarks.md` — performance baselines (QE-12)
 - QMP socket owner/symlink validation + command allowlist (QE-04)
 - CI: e2e job + `actions/checkout` pinned to SHA (QE-10)
@@ -47,4 +47,4 @@ Versioning follows the structured-contract version in `schemas/v1/`.
 - Initial hardening fork of quickemu-project/quickemu
 - JSON v1 contract with meta.operationId
 - Stable error codes (LOCK_BUSY, PLAN_EXPIRED, OPERATION_NOT_FOUND, PORT_BUSY)
-- ~165 OS catalog, verified on real Linux
+- ~165 OS catalog, verified on real Linux (since grown to 377 families)

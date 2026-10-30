@@ -11,7 +11,7 @@ reports, untested declared features, undocumented .conf/TOML divergence.
 | TD-001 | QMP client is single-request (no async events/mux) | quickemu-qmp | medium | accepted | Extract `quickemu-qmp` when protocol trigger fires (ADR-0001) |
 | TD-002 | Port registry records PID+timestamp, not instanceId | quickemu-launch | low | resolved | instanceId recorded alongside pid |
 | TD-003 | telnet monitor exposed when configured | quickemu-qmp | medium | documented | Warned in docs; loopback default; deprecation candidate |
-| TD-004 | .conf is executable code | config | high | mitigated | TOML declarative format exists; .conf kept for compat (deprecate post-parity) |
+| TD-004 | .conf is executable code | config | high | resolved | Go backend parses .conf as data — never executed; TOML path also available |
 | TD-005 | HMP fallback paths remain alongside QMP | quickemu-qmp | low | accepted | Documented fallback contract |
 | TD-006 | ops registry has no generic progress% | quickemu-ops | low | resolved | running 10/30/40 + completed 100 in export/import |
 | TD-007 | external snapshots lack consolidate/rebase ops | quickemu-cli | medium | resolved | snapshot_consolidate commits leaf overlays |

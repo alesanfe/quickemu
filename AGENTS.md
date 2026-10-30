@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Quickemu is a Go wrapper around QEMU that automates VM creation for ~1000 operating systems (Linux, macOS, Windows, BSDs). Two main tools: `quickget` downloads ISOs and creates configs; `quickemu` launches VMs with optimised hardware detection.
+Quickemu is a Go wrapper around QEMU that automates VM creation for ~2500 operating-system editions across ~370 OS families (Linux, macOS, Windows, BSDs). Two main tools: `quickget` downloads ISOs and creates configs; `quickemu` launches VMs with optimised hardware detection.
 
 ## Project structure
 
@@ -21,6 +21,7 @@ tools/            # Go modules — one dir per tool
   quickemu-qmp    #   QMP/HMP client, allowlist, socket defenses
   quickemu-ports  #   port registry: reserve/release/list/check/find
   quickemu-proc   #   process identity + comm checks
+  quickemu-plugin-market# conf-template marketplace client
   quickemu-archive#   export/import with tar-slip validation
   quickemu-toml   #   .conf ⇄ TOML parse/emit
   quickemu-api    #   v1 HTTP/unix-socket API daemon
@@ -116,7 +117,8 @@ fix(quickget): remove Athena OS (no longer getting updates)
 
 - PR titles must match Conventional Commits format (enforced by CI)
 - Single-commit PRs: commit message must match PR title
-- Run `go run ./tools/dev check` and `shellcheck` before submitting
+- Run `go run ./tools/dev check` before submitting (shellcheck is no
+  longer relevant — the product is pure Go)
 - Test affected OS downloads with `./bin/quickget --check <os> <release>`
 
 ## CI workflows

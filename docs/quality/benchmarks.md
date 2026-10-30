@@ -5,7 +5,7 @@ Measured on the CI runner (ubuntu-latest, 2 vCPU, 7GB) unless stated.
 | Operation | Command | Budget | Notes |
 |---|---|---|---|
 | CLI startup | `quickget --version` | < 500ms | Go binary, near-instant |
-| Catalog list | `quickget --list` | < 2s | all ~165 OSes |
+| Catalog list | `quickget --list` | < 2s | all ~377 OS families |
 | Release validation | `quickget --check debian 13` | < 60s | network-bound |
 | Port detection | `port_forwards` parse | < 50ms | in-memory |
 | JSON emit | `OUTPUT_FORMAT=json` | < 100ms | envelope only |

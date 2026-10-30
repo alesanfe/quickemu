@@ -1,14 +1,14 @@
 # Vision
 
-Quickemu is a **CLI VM manager** (Bash today, Go helpers behind the
-same contract) that also serves as the **backend for QuickGUI** via
-a stable machine-readable v1 surface.
+Quickemu is a **CLI VM manager** (Go backend in `tools/`) that also
+serves as the **backend for QuickGUI** via a stable machine-readable
+v1 surface.
 
 ## Is
 
-- A shell-first automation layer over QEMU (no daemon).
+- A scriptable automation layer over QEMU (no daemon).
 - A structured-API backend: envelopes, ops, events, plans.
-- An incremental Go migration target (ADR-0001).
+- A single Go workspace (ADR-0003/0015 superseded).
 
 ## Is not
 
@@ -18,7 +18,8 @@ a stable machine-readable v1 surface.
 
 ## Non-negotiables
 
-- Bash compatibility: every Go path falls back to the shell one.
+- On-disk compatibility: every artifact (`.conf`, TOML, ops/ports
+  registries, socket names) matches the formats frozen in ADR 0011.
 - The contract (`schemas/v1/`) is stable from 4.9.9 — changes are
   additive or versioned, never silently breaking.
 - Exit codes and `errors[].code` are the API, not stderr text.

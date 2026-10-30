@@ -1,6 +1,6 @@
 # Quickemu
 
-Quickemu is a Bash wrapper around QEMU that automates the creation and
+Quickemu is a Go wrapper around QEMU that automates the creation and
 launch of optimised Windows, macOS and Linux virtual machines.
 
 See the [README](../README.md) for installation and usage, or jump to:

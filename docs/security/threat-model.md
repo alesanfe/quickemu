@@ -1,6 +1,6 @@
 # Threat Model — quickemu / quickget
 
-Scope: the Bash CLI + Go backend + quickget catalog + quickemu runtime.
+Scope: the Go CLI/backend + quickget catalog + quickemu runtime.
 Assets at risk: the host filesystem, QEMU processes, downloaded images,
 user config, and the host network (port forwards, QMP).
 
@@ -20,15 +20,15 @@ user config, and the host network (port forwards, QMP).
 3. **QMP socket** — local control channel; hijack = VM takeover.
 4. **Process table** — PID reuse could make us signal the wrong process.
 5. **Import path** — archives extracted to disk; tar-slip risk.
-6. **Config file** — sourced as bash; code injection risk if attacker
-   controls the .conf.
+6. **Config file** — parsed as data by the Go backend; hostile values
+   (paths, extra_args) can still steer QEMU if attacker controls the .conf.
 7. **CI** — workflow inputs could leak credentials or poison artifacts.
 
 ## Threats (STRIDE)
 
 | ID | Threat | Mitigation |
 |---|---|---|
-| T01 | `.conf` code injection via malicious values | `--inspect-conf` parses without source; quoted assignments only |
+| T01 | `.conf` hostile values steer QEMU argv (extra_args, paths) | parsed as data — never executed; `--inspect-conf` reviews safely |
 | T02 | tar-slip on `import_vm` | temp extraction + member validation + atomic mv |
 | T03 | delete escapes workspace via symlinked path | realpath confinement under conf dir |
 | T04 | PID reuse — signal wrong process | comm=qemu fingerprint + start-time check |

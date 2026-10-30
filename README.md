@@ -53,7 +53,7 @@ required to run the virtual machines.
 - **ARM64 guest support** for running aarch64 VMs (native on ARM hosts, emulated on x86_64)
 - [Ubuntu](https://ubuntu.com/desktop) and all the **[official Ubuntu
   flavours](https://ubuntu.com/download/flavours)**
-- **Nearly 1000 operating system editions are supported!**
+- **Over 2500 operating system editions are supported** across ~370 OS families!
 - Full SPICE support including host/guest clipboard sharing
 - VirtIO-webdavd file sharing for Linux and Windows guests
 - VirtIO-fs file sharing for Linux guests (*automatically preferred over 9p when `virtiofsd` is installed on the host and a public directory is configured*)

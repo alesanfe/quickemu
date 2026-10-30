@@ -2,10 +2,11 @@
 
 ## Configuration files
 
-- `.conf` is executable Bash — treat like code; `--inspect-conf` reads
-  it without executing; prefer TOML (`--migrate-conf`) which is parsed,
-  never executed.
-- Imported `.conf` keeps that risk — review before booting an import.
+- `.conf` is parsed as data by the Go backend — never executed;
+  `--inspect-conf` reads it. TOML (`--migrate-conf`) is equally
+  inert and declarative.
+- Imported `.conf`/`.toml` may still carry hostile QEMU options
+  (paths, extra_args) — review before booting an import.
 
 ## Remote exposure
 
