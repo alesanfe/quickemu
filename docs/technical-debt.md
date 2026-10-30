@@ -22,7 +22,10 @@ reports, untested declared features, undocumented .conf/TOML divergence.
 | TD-012 | `exec.Command` sites without context | launch/cli/qespec | low | resolved | All probes/info/convert sites now `CommandContext` + timeout (5–60s) |
 | TD-013 | Oversized files (scrape_new 1530, scrape 1427, hw 1013, vm 927…) | catalog/launch/vm | medium | resolved | Split into mechanism files: scrape_{gh,sf,index,api,html,mirror,ubuntu,lists,util,fetch}, hw_{probe,firmware,pinning}, storage, conf_parse, metrics, output/delete_plan/vmutil, paths/ops_adapter/args_norm/usage, lifecycle_state, conf_gen/fetch/seed, catalog/validate/format; flat
 dispatches band-split (scrape_html -> html+html2, scrape_index ->
-index+index2, image -> extract+unattended) — largest file now ~620 |
+index+index2, image -> extract+unattended); heavy op bodies extracted
+from run() switches (quickemu-vm ops_lifecycle+ops_snapshot); oversized
+tests split (scrape2_test -> harness+table+resolvers, args2_test ->
+display+firmware) — largest file now ~590 (cli dispatch table) |
 | TD-014 | `cp -a` from NTFS leaves debian/* +x → dh runs them | packaging | low | resolved | CI normalizes `chmod 644` on debian/* after copy — dh-exec can never fire |
 | TD-015 | `.gitignore` carries a long per-module binary list | repo | low | resolved | Collapsed to 19 glob rules, verified with git check-ignore |
 | TD-016 | 26 direct `exec.Command` sites remain | all | low | resolved | All remaining sites either seam'd or `CommandContext`-bounded; 3 fixture helpers in qespec bounded too |
