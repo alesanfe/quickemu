@@ -5315,6 +5315,34 @@
    "support_level": "experimental"
   },
   {
+   "os": "osgeolive",
+   "releases": [
+    "latest",
+    "17.0",
+    "16.0",
+    "15.0",
+    "14.0",
+    "13.0",
+    "12.0",
+    "11.0",
+    "10.5",
+    "10.0",
+    "9.5",
+    "9.0"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64"
+   ],
+   "scrape": true,
+   "status": "archived",
+   "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "community"
+  },
+  {
    "os": "ovirt-node",
    "arch": [
     "amd64"

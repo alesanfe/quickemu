@@ -2261,6 +2261,12 @@
    "homepage": "https://sourceforge.net/projects/nemesis-linux/",
    "info": "Lightweight Debian-based distribution (XFCE, LXQt, LXDE, Cinnamon)",
    "name": "Nemesis Linux"
+  },
+  "osgeolive": {
+   "credentials": "-",
+   "homepage": "https://live.osgeo.org/",
+   "info": "Ubuntu-based live DVD preloaded with open-source geospatial software",
+   "name": "OSGeoLive"
   }
  }
 }

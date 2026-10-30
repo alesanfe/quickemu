@@ -593,6 +593,18 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 		return `"name":"Nemesis-v26.09-XFCE-x86_64.iso" "name":"Nemesis-v26.09-LXQT-x86_64.iso" "name":"Nemesis-v26.09-CINNAMON-x86_64.iso"`, nil
 	case strings.Contains(url, "nemesis"):
 		return `"name":"26.09" "name":"26.06"`, nil
+	case strings.Contains(url, "osgeo") && strings.Contains(url, ".md5"):
+		return shaX[:32] + "  osgeolive-17.0-amd64.iso\n", nil
+	case strings.Contains(url, "osgeo") && strings.Contains(url, "17.0"):
+		return `<a href="osgeolive-17.0-amd64.iso">x</a>`, nil
+	case strings.Contains(url, "osgeo") && strings.Contains(url, "12.0"):
+		return `<a href="osgeolive-12.0-amd64.iso">x</a>`, nil
+	case strings.Contains(url, "osgeo") && strings.Contains(url, "11.0"):
+		return `<a href="osgeo-live-11.0-amd64.iso">x</a>`, nil
+	case strings.Contains(url, "osgeo") && strings.Contains(url, "9.5"):
+		return `<a href="osgeo-live-9.5-amd64.iso">x</a>`, nil
+	case strings.Contains(url, "osgeo"):
+		return `<a href="17.0/">a</a><a href="12.0/">b</a><a href="11.0/">c</a><a href="9.5/">d</a>`, nil
 	case strings.Contains(url, "9front.org"):
 		return `<a href="9front-11952.amd64.iso.gz">9</a>
 			<a href="9front-11952.amd64.qcow2.gz">9</a>
@@ -810,6 +822,11 @@ func TestScrapeAll(t *testing.T) {
 		{"nemesis", "latest", "xfce", "amd64", false},
 		{"nemesis", "26.09", "cinnamon", "amd64", false},
 		{"nemesis", "latest", "bogus", "amd64", true},
+		{"osgeolive", "latest", "", "amd64", false},
+		{"osgeolive", "17.0", "", "amd64", false},
+		{"osgeolive", "12.0", "", "amd64", false},
+		{"osgeolive", "11.0", "", "amd64", false},
+		{"osgeolive", "9.5", "", "amd64", false},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},

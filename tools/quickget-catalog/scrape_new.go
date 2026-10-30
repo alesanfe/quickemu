@@ -1414,6 +1414,21 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		base := "https://mirror.rosalab.ru/rosa/rosa13/iso/ROSA.FRESH.13/" + edition + "/"
 		return indexISOsum(base,
 			`ROSA\.FRESH\.`+strings.ToUpper(edition)+`\.`+ver+`\.x86_64\.iso`, ".md5sum")
+	case "osgeolive":
+		// osgeo-live-<ver>-amd64.iso + .iso.md5 under releases/<ver>/.
+		base := "https://download.osgeo.org/livedvd/releases/" + release + "/"
+		ver := regexp.QuoteMeta(release)
+		if release == "latest" || release == "" {
+			d, err := latestDir("https://download.osgeo.org/livedvd/releases/", `[0-9.]+`)
+			if err != nil {
+				return "", "", err
+			}
+			d = strings.TrimRight(d, "/")
+			ver = regexp.QuoteMeta(d[strings.LastIndex(d, "/")+1:])
+			base = d + "/"
+		}
+		// osgeo-live- <= 11.x, osgeolive- >= 12.x
+		return indexISOsum(base, `osgeo-?live-`+ver+`-amd64\.iso`, ".md5")
 	case "nemesis":
 		// Nemesis-v<ver>-<DE>-x86_64.iso under files/ISO/<ver>/.
 		ed := strings.ToUpper(edition)
