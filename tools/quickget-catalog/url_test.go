@@ -76,6 +76,26 @@ func TestResolveURLHash(t *testing.T) {
 	}
 }
 
+func TestFindHash(t *testing.T) {
+	sha := strings.Repeat("a", 64)
+	// hash-first "sha  name" (Bash `cut -d' ' -f1` order).
+	if h := findHash(sha+"  img-1.iso\n", "img-1.iso"); h != sha {
+		t.Fatalf("hash-first %q", h)
+	}
+	// name-first "name  sha" (MD5SUMS order).
+	if h := findHash("img-1.iso  "+sha+"\n", "img-1.iso"); h != sha {
+		t.Fatalf("name-first %q", h)
+	}
+	// bare-hash file with no ISO mention.
+	if h := findHash(sha+"\n", "img-1.iso"); h != sha {
+		t.Fatalf("bare-hash %q", h)
+	}
+	// ISO named elsewhere but never on a hash line → no match.
+	if h := findHash("img-1.iso is great\n"+sha+"  other.iso\n", "img-1.iso"); h != "" {
+		t.Fatalf("non-matching iso should yield no hash, got %q", h)
+	}
+}
+
 // TestTrustOf: trust_os parity — hash-bearing sources grade C, sources
 // whose probe returns no hash grade D (including fetch failures).
 func TestTrustOf(t *testing.T) {

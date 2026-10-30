@@ -21,6 +21,48 @@ var finalURL = func(u string) (string, error) { return qelib.FinalURL(u) }
 // extracting group `field` (1-indexed) or the whole match when field==0.
 // The regex may come from the catalog (hash_re) — an invalid pattern is
 // a miss, never a panic.
+// hashTok matches a bare checksum token: md5/sha1/sha256/sha512
+// lengths (check_hash parity).
+var hashTok = regexp.MustCompile(`^([a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{64}|[a-fA-F0-9]{128})$`)
+
+// findHash picks the checksum for iso out of a checksum file. Lines
+// come in both orders — "hash  name" (Bash `cut -d' ' -f1`) and
+// "name  hash" — so match the line containing the ISO name and take
+// its hex token. A bare-hash file (no ISO mention anywhere) yields
+// its first hex token.
+func findHash(body, iso string) string {
+	fallback := ""
+	sawISO := false
+	for _, line := range strings.Split(body, "\n") {
+		if iso != "" && strings.Contains(line, iso) {
+			sawISO = true
+		}
+		var tok string
+		for _, f := range strings.Fields(line) {
+			if hashTok.MatchString(strings.ToLower(f)) {
+				tok = f
+				break
+			}
+		}
+		if tok == "" {
+			continue
+		}
+		if iso != "" && strings.Contains(line, iso) {
+			return tok
+		}
+		if fallback == "" {
+			fallback = tok
+		}
+	}
+	// The ISO name appeared somewhere but never on a hash line → no
+	// match (Bash grep returns nothing); the bare-token fallback only
+	// covers checksum files that never name the ISO at all.
+	if sawISO {
+		return ""
+	}
+	return fallback
+}
+
 func findLine(body, re string, field int) string {
 	r, err := regexp.Compile(re)
 	if err != nil {
@@ -72,11 +114,11 @@ func resolveURL(e *Entry, release, edition, arch string) (string, string) {
 		src := strings.ReplaceAll(sub(e.HashURL), "%ISO%", iso)
 		src = expandVars(src, base, iso, release, edition)
 		if body, err := fetchString(src); err == nil {
-			re := e.HashRE
-			if re == "" {
-				re = `(?i)` + regexp.QuoteMeta(iso) + `.*?([a-f0-9]{64})`
+			if re := e.HashRE; re != "" {
+				hash = findLine(body, re, 1)
+			} else {
+				hash = findHash(body, iso)
 			}
-			hash = findLine(body, re, 1)
 		}
 	}
 	full := base
