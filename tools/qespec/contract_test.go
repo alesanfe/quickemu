@@ -16,8 +16,8 @@ import (
 // Source audits: the download path must carry web_get hardening.
 
 func TestContractDownloadAdapters(t *testing.T) {
-	src := SourceFile(t, "tools/quickget-vm/main.go")
-	http := SourceFile(t, "tools/qelib/http.go")
+	src := SourceTree(t, "tools/quickget-vm")
+	http := SourceTree(t, "tools/qelib")
 
 	for _, tc := range []struct {
 		name string
@@ -121,7 +121,7 @@ func TestPropertyInvariants(t *testing.T) {
 		t.Fatalf("exhausted range rc=%d out=%q", r.Code, r.Combined())
 	}
 	// Realpath confinement must exist in the delete/import plan.
-	src := SourceFile(t, "tools/quickemu-vm/main.go")
+	src := SourceTree(t, "tools/quickemu-vm")
 	if !strings.Contains(src, "EvalSymlinks") || !strings.Contains(src, "filepath.Rel") {
 		t.Error("path confinement guards absent")
 	}

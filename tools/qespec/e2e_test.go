@@ -66,7 +66,7 @@ func TestE2EJSONEnvelope(t *testing.T) {
 // ---- e2e/download/resume_spec.sh ----
 
 func TestDownloadResumeContract(t *testing.T) {
-	src := SourceFile(t, "tools/quickget-vm/main.go")
+	src := SourceTree(t, "tools/quickget-vm")
 	for _, p := range []string{"Range", "bytes=%d-", "O_APPEND", "StatusPartialContent"} {
 		if !strings.Contains(src, p) {
 			t.Errorf("resume contract: %q absent", p)

@@ -10,9 +10,9 @@ import (
 // Bash web.sh enforced.
 
 func TestAdversarialDownload(t *testing.T) {
-	vm := SourceFile(t, "tools/quickget-vm/main.go")
-	http := SourceFile(t, "tools/qelib/http.go")
-	cli := SourceFile(t, "tools/quickget-cli/main.go")
+	vm := SourceTree(t, "tools/quickget-vm")
+	http := SourceTree(t, "tools/qelib")
+	cli := SourceTree(t, "tools/quickget-cli")
 
 	checks := []struct {
 		name string

@@ -345,14 +345,14 @@ func SpawnFakeVM(t *testing.T, dir, name string) int {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, "60")
 	if err := cmd.Start(); err != nil {
+		cancel()
 		t.Fatal(err)
 	}
 	pid := cmd.Process.Pid
 	os.WriteFile(filepath.Join(dir, name+".pid"), []byte(fmt.Sprint(pid)), 0o644)
-	t.Cleanup(func() { cmd.Process.Kill() })
+	t.Cleanup(func() { cmd.Process.Kill(); cancel() })
 	return pid
 }
 
@@ -364,6 +364,29 @@ func SourceFile(t *testing.T, rel string) string {
 		t.Fatalf("read %s: %v", rel, err)
 	}
 	return string(b)
+}
+
+// SourceTree concatenates every non-test .go file in a package dir —
+// the grep-based audit specs keep working after a package is split
+// out of its original main.go.
+func SourceTree(t *testing.T, dir string) string {
+	t.Helper()
+	ents, err := os.ReadDir(filepath.Join(Root(), dir))
+	if err != nil {
+		t.Fatalf("read dir %s: %v", dir, err)
+	}
+	var buf strings.Builder
+	for _, e := range ents {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(Root(), dir, e.Name()))
+		if err != nil {
+			t.Fatalf("read %s/%s: %v", dir, e.Name(), err)
+		}
+		buf.Write(b)
+	}
+	return buf.String()
 }
 
 // ---------- fakebin ----------
