@@ -139,6 +139,18 @@ func actCheck(osName, release, edition, arch string) int {
 		}
 	}
 	for _, c := range combos {
+		// catalog_check_all_arch windows branch: for a supported arch
+		// the SKIP carries the "(Windows not supported in check mode)"
+		// reason; unsupported arches keep the catalog's own SKIP.
+		if checkAllArc && release != "" &&
+			(osName == "windows" || osName == "windows-server") && archSupport(e, arch) {
+			label := osName + "-" + c[0]
+			if c[1] != "" {
+				label += "-" + c[1]
+			}
+			fmt.Printf("SKIP: %-35s (Windows not supported in check mode)\n", label)
+			continue
+		}
 		out, err := tool("quickget-catalog", "check", osName, c[0], c[1], arch)
 		fmt.Println(out)
 		if err != nil || strings.HasPrefix(out, "FAIL") {

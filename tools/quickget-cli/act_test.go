@@ -16,8 +16,8 @@ import (
 func setupCatalog(t *testing.T) []string {
 	t.Helper()
 	dir := t.TempDir()
-	cat := `{"entries":[{"os":"alpine","releases":["3.19","3.20"],"editions":["virt","standard"],"arch":["amd64","arm64"]},{"os":"plain","releases":["1"],"editions":[],"arch":["amd64"]},{"os":"fedora","releases":["39","40"],"editions":["Onyx","Sericea","Kinoite"],"arch":["amd64","arm64"]}]}`
-	info := `{"entries":{"alpine":{"Name":"Alpine Linux","Credentials":"root","Homepage":"https://alpine.example","Info":"Small distro"},"plain":{"Name":"Plain","Credentials":"","Homepage":"","Info":""},"fedora":{"Name":"Fedora","Credentials":"","Homepage":"","Info":""}}}`
+	cat := `{"entries":[{"os":"alpine","releases":["3.19","3.20"],"editions":["virt","standard"],"arch":["amd64","arm64"]},{"os":"plain","releases":["1"],"editions":[],"arch":["amd64"]},{"os":"fedora","releases":["39","40"],"editions":["Onyx","Sericea","Kinoite"],"arch":["amd64","arm64"]},{"os":"windows","releases":["10","11"],"editions":[],"arch":["amd64"]}]}`
+	info := `{"entries":{"alpine":{"Name":"Alpine Linux","Credentials":"root","Homepage":"https://alpine.example","Info":"Small distro"},"plain":{"Name":"Plain","Credentials":"","Homepage":"","Info":""},"fedora":{"Name":"Fedora","Credentials":"","Homepage":"","Info":""},"windows":{"Name":"Windows","Credentials":"","Homepage":"","Info":""}}}`
 	os.WriteFile(filepath.Join(dir, "catalog.json"), []byte(cat), 0o644)
 	os.WriteFile(filepath.Join(dir, "info.json"), []byte(info), 0o644)
 
@@ -25,7 +25,7 @@ func setupCatalog(t *testing.T) []string {
 	os.WriteFile(filepath.Join(stub, "quickget-catalog"), []byte(`#!/bin/sh
 # Stub: answers driven by QC_STUB_* env.
 case "$1" in
- releases) [ "$2" = "nope" ] && exit 1; [ "$2" = "fedora" ] && echo "39 40" || echo "${QC_REL:-3.19 3.20}";;
+ releases) [ "$2" = "nope" ] && exit 1; case "$2" in fedora) echo "39 40";; windows) echo "10 11";; *) echo "${QC_REL:-3.19 3.20}";; esac;;
  editions) [ "$2" = "plain" ] && echo "" || { [ "$2" = "fedora" ] && echo "Onyx Sericea Kinoite" || echo "${QC_ED:-virt standard}"; };;
  arch) echo "${QC_ARCH:-amd64 arm64}";;
  url) echo "${QC_URL:-https://x/a.iso}";;
@@ -266,6 +266,32 @@ func TestCheckPrecheck(t *testing.T) {
 	defer func() { checkAllArc = oldC }()
 	if rc := actCheck("alpine", "3.19", "", "amd64"); rc != 0 {
 		t.Fatalf("check-all-arch rc=%d", rc)
+	}
+}
+
+// TestCheckAllArchWindows: catalog_check_all_arch windows branch — a
+// supported arch prints the "(Windows not supported in check mode)"
+// reason; the plain --check path carries no reason.
+func TestCheckAllArchWindows(t *testing.T) {
+	setupCatalog(t)
+	oldC := checkAllArc
+	checkAllArc = true
+	defer func() { checkAllArc = oldC }()
+	out := captureStdout(t, func() {
+		if rc := actCheck("windows", "11", "English", "amd64"); rc != 0 {
+			t.Fatalf("rc=%d", rc)
+		}
+	})
+	if !strings.Contains(out, "SKIP: windows-11-English") ||
+		!strings.Contains(out, "(Windows not supported in check mode)") {
+		t.Fatalf("windows check-all-arch out=%q", out)
+	}
+	// Unsupported arch falls through to the catalog check (stub → PASS).
+	out = captureStdout(t, func() {
+		_ = actCheck("windows", "11", "English", "arm64")
+	})
+	if strings.Contains(out, "Windows not supported in check mode") {
+		t.Fatalf("arm64 should not take the supported-arch SKIP: %q", out)
 	}
 }
 

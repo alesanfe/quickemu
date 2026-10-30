@@ -187,6 +187,13 @@ func run() int {
 		if len(args) > 4 {
 			arch = args[4]
 		}
+		if e.OS == "macos" {
+			// get_macos show op: prints the raw recovery dmg link;
+			// the caller pads it into the test_result label column.
+			link, _ := macosRecoveryLink(release)
+			fmt.Println(link)
+			return 0
+		}
 		if e.Scrape {
 			// Live resolution is native Go (scrape.go) — the scraper
 			// mirrors the Bash get_<os> logic 1:1. No Bash delegation.
@@ -240,6 +247,22 @@ func run() int {
 		// Microsoft flow can't be URL-probed (check.sh windows branch).
 		if e.OS == "windows" || e.OS == "windows-server" {
 			fmt.Printf("%s: %-35s %s\n", "SKIP", label, "")
+			return 0
+		}
+		if e.OS == "macos" {
+			// get_macos test op: recovery session → dmg link, then a
+			// headered web_check (AssetToken cookie); prints PASS/FAIL.
+			link, sess := macosRecoveryLink(release)
+			res := "FAIL"
+			if link != "" && qelib.WebCheck(link, map[string]string{
+				"Host":       "oscdn.apple.com",
+				"Connection": "close",
+				"User-Agent": "InternetRecovery/1.0",
+				"Cookie":     "AssetToken=" + sess,
+			}) {
+				res = "PASS"
+			}
+			fmt.Printf("%s: %-35s %s\n", res, label, link)
 			return 0
 		}
 		full := ""
