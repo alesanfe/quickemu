@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,4 +77,41 @@ func TestRegistryReleaseOwnerScoped(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(reg, "55904")); err != nil {
 		t.Fatal("foreign record must survive release")
 	}
+}
+
+// A live lock owner can never be stolen: the second acquirer retries
+// (~5s) then reports the lock timeout, matching get_port's -1.
+func TestRegistryLockTimeout(t *testing.T) {
+	regEnv(t)
+	if !portRegistryLock() {
+		t.Fatal("first lock failed")
+	}
+	defer portRegistryUnlock()
+	if portRegistryLock() {
+		portRegistryUnlock()
+		t.Fatal("live lock must not be stolen")
+	}
+	if p := getPort(5900, 3, os.Getpid(), "vm"); p != -1 {
+		t.Fatalf("getPort under held lock: %d, want -1", p)
+	}
+}
+
+// get_port reservations are global: a port taken via getPort must be
+// skipped by firstFreePort's scan, and a fully-reserved range reads
+// as exhausted.
+func TestFirstFreePortSkipsRegistryTaken(t *testing.T) {
+	regEnv(t)
+	oldListen := netListen
+	netListen = func(_, _ string) (net.Listener, error) {
+		return net.Listen("tcp", "127.0.0.1:0")
+	}
+	defer func() { netListen = oldListen }()
+	me := os.Getpid()
+	portRegistryLock()
+	portRegistryReserve(22220, me, "i", "other")
+	portRegistryUnlock()
+	if p := firstFreePort("", 22220, 22229, "vm"); p != "22221" {
+		t.Fatalf("firstFreePort must skip registry-taken port: %q", p)
+	}
+	portRegistryRelease(me)
 }
