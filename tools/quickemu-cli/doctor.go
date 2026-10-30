@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -220,14 +221,26 @@ func actDoctor() int {
 	conf := confKV()
 	issues := 0
 	fmt.Println("Checking " + vmname() + " against host capabilities:")
-	if fileExists("/dev/kvm") {
+	// host_has_kvm: macOS accelerates via HVF; elsewhere /dev/kvm must
+	// be *writable* ([ -w /dev/kvm ]) — an existing but inaccessible
+	// device still forces TCG.
+	if runtime.GOOS == "darwin" {
+		fmt.Println(" o Host: macOS (HVF acceleration)")
+	} else if f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0); err == nil {
+		f.Close()
 		fmt.Println(" o KVM:  /dev/kvm available")
 	} else {
 		fmt.Println(" x KVM:  /dev/kvm not writable, VM will use slow TCG emulation")
 		issues++
 	}
-	if _, err := exec.LookPath("qemu-system-x86_64"); err != nil {
-		fmt.Println(" x QEMU: qemu-system-x86_64 not executable")
+	qemu := "qemu-system-x86_64"
+	if a := conf["arch"]; a != "" {
+		qemu = "qemu-system-" + a
+	} else if runtime.GOARCH == "arm64" {
+		qemu = "qemu-system-aarch64"
+	}
+	if _, err := exec.LookPath(qemu); err != nil {
+		fmt.Println(" x QEMU: " + qemu + " not executable")
 		issues++
 	}
 	if d := conf["disk_img"]; d != "" && !fileExists(d) {
@@ -244,7 +257,12 @@ func actDoctor() int {
 				found = true
 			}
 		}
+		// ls OVMF*/AAVMF* || command -v "${QEMU}" — Bash also passes the
+		// check when the QEMU binary itself is on PATH (system firmware
+		// lookup happens at launch).
 		if found {
+			fmt.Println(" o EFI:  firmware files present")
+		} else if _, err := exec.LookPath(qemu); err == nil {
 			fmt.Println(" o EFI:  firmware files present")
 		} else {
 			fmt.Println(" x EFI:  no OVMF/AAVMF firmware found")
