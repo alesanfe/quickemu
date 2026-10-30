@@ -492,8 +492,12 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 		return `<a href="smeserver-10.1-x86_64.iso">x</a>`, nil
 	case strings.Contains(url, "contribs"):
 		return `<a href="smeserver-10.1-x86_64.iso">x</a>`, nil
+	case strings.Contains(url, "t2sde") && strings.HasSuffix(url, ".sha"):
+		return shaX + "  t2-26.6-x86-64-desktop-glibc-gcc-nocona.iso\n", nil
 	case strings.Contains(url, "t2sde"):
-		return `<a href="t2-24.10-x86-64-base-wayland-glibc-gcc-nocona.iso">x</a><a href="t2-24.11-x86-64-base-wayland-glibc-gcc-nocona.iso">y</a><a href="t2-24.12-x86-64-base-wayland-glibc-gcc-nocona.iso">z</a>`, nil
+		return `<a href="t2-24.10-x86-64-base-wayland-glibc-gcc-nocona.iso">x</a><a href="t2-24.11-x86-64-base-wayland-glibc-gcc-nocona.iso">y</a><a href="t2-24.12-x86-64-base-wayland-glibc-gcc-nocona.iso">z</a>
+			<a href="t2-26.6-x86-64-desktop-glibc-gcc-nocona.iso">n</a>
+			<a href="t2-26.6-x86-64-musl-clang-desktop-musl-clang-nocona.iso">m</a>`, nil
 	case strings.Contains(url, "fiwix"):
 		return `<a href="FiwixOS-3.1-i386.iso">x</a>`, nil
 	case strings.Contains(url, "genode"):
@@ -569,6 +573,13 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 		return shaX + "  abora-gnome-2026.10.03-x86_64-v4.1.iso\n" + shaX + "  abora-kde-2026.10.03-x86_64-v4.1.iso\n" + shaX + "  abora-kde-2026.08.28-x86_64-v4.0.iso\n", nil
 	case strings.Contains(url, "gh/SHA256SUMS"):
 		return shaX + "  vinix-amd64.iso\n" + shaX + "  vinix-arm64.iso\n", nil
+	case strings.Contains(url, "bastillebsd") && strings.Contains(url, "CHECKSUM"):
+		return "SHA256 (BastilleBSD-15.1-RELEASE-amd64-memstick.iso) = " + shaX + "\n", nil
+	case strings.Contains(url, "bastillebsd") && strings.Contains(url, "15.1"):
+		return `<a href="BastilleBSD-15.1-RELEASE-amd64-memstick.iso.xz">x</a>
+			<a href="BastilleBSD-15.1-RELEASE-amd64-memstick.img.xz">y</a>`, nil
+	case strings.Contains(url, "bastillebsd"):
+		return `<a href="15.1/">a</a><a href="15.0/">b</a>`, nil
 	default:
 		// generic index page: iso links + version dirs + current.iso
 		return `<a href="backbox-8-desktop-amd64.iso">b</a>
@@ -738,6 +749,10 @@ func TestScrapeAll(t *testing.T) {
 		{"cervus", "v0.0.1", "", "amd64", false},
 		{"rou2exos", "latest", "", "amd64", false},
 		{"lateralus", "latest", "", "amd64", false},
+		{"bastillebsd", "latest", "", "amd64", false},
+		{"bastillebsd", "15.1", "", "amd64", false},
+		{"t2sde", "latest", "glibc-gcc", "amd64", false},
+		{"t2sde", "26.6", "musl-clang", "amd64", false},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},

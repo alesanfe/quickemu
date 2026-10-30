@@ -588,6 +588,20 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 		}
 		return indexISO(dir+"/live/", `ploplinux-[0-9.]+-x86_64\.iso`)
 	case "t2sde":
+		// 2026+ naming: t2-<ver>-x86-64-desktop-glibc-gcc-nocona.iso and
+		// t2-<ver>-x86-64-musl-clang-desktop-musl-clang-nocona.iso + .sha.
+		if release == "latest" || release == "" || strings.HasPrefix(release, "26.") {
+			flavor := "desktop-glibc-gcc-nocona"
+			if edition == "musl-clang" {
+				flavor = "musl-clang-desktop-musl-clang-nocona"
+			}
+			ver := `[0-9.]+`
+			if release != "latest" && release != "" {
+				ver = regexp.QuoteMeta(release)
+			}
+			return indexISOsum("https://dl.t2sde.org/binary/2026/",
+				`t2-`+ver+`-x86-64-`+flavor+`\.iso`, ".sha")
+		}
 		u, _, err := indexISO("https://dl.t2sde.org/binary/2024/", `t2-`+regexp.QuoteMeta(release)+`-x86-64-base-wayland-glibc-gcc-nocona\.iso`)
 		if err != nil {
 			return "", "", err
@@ -1363,6 +1377,31 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 	case "lateralus":
 		// lateralus-os.iso research OS (only the v3.2.0 release ships it).
 		return ghISO("bad-antics/lateralus-lang", `lateralus-os\.iso`)
+	case "bastillebsd":
+		// BastilleBSD-<rel>-RELEASE-amd64-memstick.iso.xz; BSD-style
+		// CHECKSUM covers the uncompressed .iso name.
+		dir := release
+		if dir == "latest" || dir == "" {
+			d, err := latestDir("https://download.bastillebsd.org/releases/ISO-IMAGES/", `[0-9.]+`)
+			if err != nil {
+				return "", "", err
+			}
+			dir = strings.TrimRight(d, "/")
+			dir = dir[strings.LastIndex(dir, "/")+1:]
+		}
+		base := "https://download.bastillebsd.org/releases/ISO-IMAGES/" + dir + "/"
+		u, _, err := indexISO(base,
+			`BastilleBSD-`+regexp.QuoteMeta(dir)+`-RELEASE-amd64-memstick\.iso\.xz`)
+		if err != nil {
+			return "", "", err
+		}
+		sha := ""
+		if b, err := fetchString(base + "CHECKSUM.SHA256-BastilleBSD-" + dir + "-RELEASE-amd64"); err == nil {
+			name := u[strings.LastIndex(u, "/")+1:]
+			sha = sumForISO(b, strings.TrimSuffix(name, ".xz"))
+		}
+		return u, sha, nil
+
 
 	// --- JSON APIs ---
 	case "fedora-coreos":

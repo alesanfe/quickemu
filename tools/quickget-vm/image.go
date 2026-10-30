@@ -337,7 +337,7 @@ func imageNormalize(osName, iso, vmPath string) string {
 				iso = "disk.qcow2"
 			}
 		}
-	case "dietpi":
+	case "dietpi", "bastillebsd":
 		if strings.HasSuffix(iso, ".xz") {
 			if decompressXZ(filepath.Join(vmPath, iso)) {
 				iso = strings.TrimSuffix(iso, ".xz")
