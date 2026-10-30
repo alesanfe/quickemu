@@ -1270,6 +1270,106 @@ func TestScrapeQ4os(t *testing.T) {
 	}
 }
 
+func TestScrapeBazzite(t *testing.T) {
+	fakeFetch(t, map[string]string{
+		"https://download.bazzite.gg/bazzite-stable-amd64.iso-CHECKSUM": "cafebabe  bazzite-stable-amd64.iso",
+	})
+	// plasma maps to bazzite-stable (edition name is NOT in the file).
+	u, h, err := scrape("bazzite", "latest", "plasma", "x86_64")
+	if err != nil || u != "https://download.bazzite.gg/bazzite-stable-amd64.iso" || h != "cafebabe" {
+		t.Fatalf("bazzite u=%q h=%q err=%v", u, h, err)
+	}
+}
+
+func TestScrapeBodhi(t *testing.T) {
+	fakeFetch(t, map[string]string{
+		"https://sourceforge.net/projects/bodhilinux/files/7.0.0/bodhi-7.0.0-64-hwe.iso.sha256": "deadbeef  bodhi-7.0.0-64-hwe.iso",
+	})
+	u, h, err := scrape("bodhi", "7.0.0", "hwe", "x86_64")
+	if err != nil || u != "https://sourceforge.net/projects/bodhilinux/files/7.0.0/bodhi-7.0.0-64-hwe.iso" || h != "deadbeef" {
+		t.Fatalf("bodhi hwe u=%q h=%q err=%v", u, h, err)
+	}
+	// standard drops the edition suffix entirely.
+	u, _, _ = scrape("bodhi", "7.0.0", "standard", "x86_64")
+	if !strings.HasSuffix(u, "bodhi-7.0.0-64.iso") {
+		t.Fatalf("bodhi standard u=%q", u)
+	}
+}
+
+func TestScrapeGnomeos(t *testing.T) {
+	// 46.0 drops the minor in the iso name; the final URL comes from
+	// web_redirect (finalURL seam).
+	oldF := finalURL
+	finalURL = func(u string) (string, error) { return u + "?dl", nil }
+	t.Cleanup(func() { finalURL = oldF })
+	u, h, err := scrape("gnomeos", "46.0", "", "x86_64")
+	if err != nil || u != "https://download.gnome.org/gnomeos/46.0/gnome_os_installer_46.iso?dl" || h != "" {
+		t.Fatalf("gnomeos u=%q h=%q err=%v", u, h, err)
+	}
+	u, _, _ = scrape("gnomeos", "nightly", "", "x86_64")
+	if u != "https://os.gnome.org/download/latest/gnome_os_installer.iso?dl" {
+		t.Fatalf("gnomeos nightly u=%q", u)
+	}
+}
+
+func TestScrapeMxlinux(t *testing.T) {
+	fakeFetch(t, map[string]string{
+		"https://sourceforge.net/projects/mx-linux/files/Final/Fluxbox/MX-25.3_fluxbox_x64.iso.sha256": "aabbccdd  MX-25.3_fluxbox_x64.iso",
+	})
+	u, h, err := scrape("mxlinux", "25.3", "Fluxbox", "x86_64")
+	// Fluxbox is lowercase in the filename (not %EDITION%).
+	if err != nil || u != "https://sourceforge.net/projects/mx-linux/files/Final/Fluxbox/MX-25.3_fluxbox_x64.iso" || h != "aabbccdd" {
+		t.Fatalf("mxlinux u=%q h=%q err=%v", u, h, err)
+	}
+}
+
+func TestScrapePeppermint(t *testing.T) {
+	sha512 := strings.Repeat("ab", 64)
+	fakeFetch(t, map[string]string{
+		"https://sourceforge.net/projects/peppermintos/files/isos/Gnome_FlashBack/PeppermintOS-Debian_64_gfb.iso-sha512.checksum": sha512 + "  PeppermintOS-Debian_64_gfb.iso",
+	})
+	u, h, err := scrape("peppermint", "latest", "debian-gnome", "x86_64")
+	if err != nil || u != "https://sourceforge.net/projects/peppermintos/files/isos/Gnome_FlashBack/PeppermintOS-Debian_64_gfb.iso" || h != sha512 {
+		t.Fatalf("peppermint u=%q h=%q err=%v", u, h, err)
+	}
+}
+
+func TestScrapeFreedos(t *testing.T) {
+	// 1.4: verify.txt has multiple hash sections; only the sha256sum
+	// block counts (grep -A8 sha256sum | grep ISO).
+	verify := "md5sum:\nmd5aaa  FD14-LiveCD.zip\nsha1sum:\nsha111  FD14-LiveCD.zip\n" +
+		"sha256sum:\nline filler\nmore filler\npad\npad2\npad3\npad4\n256hex  FD14-LiveCD.zip"
+	fakeFetch(t, map[string]string{
+		"https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/1.4/verify.txt": verify,
+	})
+	u, h, err := scrape("freedos", "1.4", "", "x86_64")
+	if err != nil || u != "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/1.4/FD14-LiveCD.zip" {
+		t.Fatalf("freedos 1.4 u=%q err=%v", u, err)
+	}
+	if h != "256hex" {
+		t.Fatalf("freedos hash must come from sha256sum section, got %q", h)
+	}
+	// Unknown release → empty (case table has no default).
+	if u, _, _ := scrape("freedos", "9.9", "", "x86_64"); u != "" {
+		t.Fatalf("freedos unknown rel u=%q", u)
+	}
+}
+
+func TestScrapeTinycore(t *testing.T) {
+	fakeFetch(t, map[string]string{
+		"http://www.tinycorelinux.net/15.x/x86_64/release/TinyCorePure64-15.0.iso.md5.txt": "md5hash  TinyCorePure64-15.0.iso",
+	})
+	u, h, err := scrape("tinycore", "15", "TinyCorePure64", "x86_64")
+	// *Pure* edition → x86_64 path even though the guest arch is amd64.
+	if err != nil || u != "http://www.tinycorelinux.net/15.x/x86_64/release/TinyCorePure64-15.0.iso" || h != "md5hash" {
+		t.Fatalf("tinycore u=%q h=%q err=%v", u, h, err)
+	}
+	u, _, _ = scrape("tinycore", "15", "Core", "x86_64")
+	if !strings.Contains(u, "/x86/release/") {
+		t.Fatalf("non-Pure edition must stay x86: %q", u)
+	}
+}
+
 func TestScrapeAndroid(t *testing.T) {
 	settings := `x var settings = {"pool":{"f":[
 		{"n":"android-x86_64-9.0-r2.iso","hash":{"sha256":"andsha"}},

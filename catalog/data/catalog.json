@@ -810,13 +810,13 @@
    ],
    "url": "https://download.bazzite.gg",
    "iso": "bazzite-gnome-stable-amd64.iso",
-   "hash_url": "${URL}/%ISO%-CHECKSUM",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "bbqlinux",
@@ -1000,13 +1000,13 @@
    ],
    "url": "https://sourceforge.net/projects/bodhilinux/files/%RELEASE%",
    "iso": "bodhi-%RELEASE%-64.iso",
-   "hash_url": "${URL}/%ISO%.sha256",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "boot-repair",
@@ -2445,13 +2445,13 @@
    ],
    "url": "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/%RELEASE%",
    "iso": "FD12CD.iso",
-   "hash_url": "${URL}/FD12.sha",
    "status": "experimental",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "bios",
-   "support_level": "experimental"
+   "support_level": "experimental",
+   "scrape": true
   },
   {
    "os": "freenas",
@@ -2761,7 +2761,8 @@
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "experimental"
+   "support_level": "experimental",
+   "scrape": true
   },
   {
    "os": "gnu-hurd",
@@ -4430,13 +4431,13 @@
    ],
    "url": "https://sourceforge.net/projects/mx-linux/files/Final/%EDITION%",
    "iso": "MX-%RELEASE%_Xfce_x64.iso",
-   "hash_url": "${URL}/%ISO%.sha256",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "mythbuntu",
@@ -5533,13 +5534,13 @@
    ],
    "url": "https://sourceforge.net/projects/peppermintos/files/isos",
    "iso": "PeppermintOS-devuan_64_xfce.iso",
-   "hash_url": "${URL}/%ISO%-sha512.checksum",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "peppermintos",
@@ -7135,13 +7136,13 @@
    ],
    "url": "http://www.tinycorelinux.net/%RELEASE%.x/%ARCH%/release",
    "iso": "%EDITION%-%RELEASE%.0.iso",
-   "hash_url": "${URL}/%ISO%.md5.txt",
    "status": "active",
    "image_type": "iso",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "scrape": true
   },
   {
    "os": "toaruos",

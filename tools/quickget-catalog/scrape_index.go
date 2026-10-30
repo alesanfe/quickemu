@@ -695,6 +695,157 @@ func scrapeIndex(osName, release, edition, arch string) (string, string, error) 
 			sha = sumForISO(b, strings.TrimSuffix(name, ".xz"))
 		}
 		return u, sha, nil
+	case "bazzite":
+		// get_bazzite: edition→iso map (names aren't prefix-consistent:
+		// plasma loses its suffix, deck-* keeps only -deck).
+		iso := map[string]string{
+			"gnome":       "bazzite-gnome-stable-amd64.iso",
+			"plasma":      "bazzite-stable-amd64.iso",
+			"deck-gnome":  "bazzite-deck-gnome-stable-amd64.iso",
+			"deck-plasma": "bazzite-deck-stable-amd64.iso",
+		}[edition]
+		if iso == "" {
+			return "", "", nil
+		}
+		u := "https://download.bazzite.gg/" + iso
+		sha := ""
+		if b, err := fetchString(u + "-CHECKSUM"); err == nil {
+			if f := strings.Fields(b); len(f) > 0 {
+				sha = f[0]
+			}
+		}
+		return u, sha, nil
+	case "bodhi":
+		// get_bodhi: standard has no edition suffix; every other edition
+		// appends -<edition> before .iso.
+		iso := fmt.Sprintf("bodhi-%s-64.iso", release)
+		if edition != "standard" && edition != "" {
+			iso = fmt.Sprintf("bodhi-%s-64-%s.iso", release, edition)
+		}
+		u := fmt.Sprintf("https://sourceforge.net/projects/bodhilinux/files/%s/%s", release, iso)
+		sha := ""
+		if b, err := fetchString(u + ".sha256"); err == nil {
+			if f := strings.Fields(b); len(f) > 0 {
+				sha = f[0]
+			}
+		}
+		return u, sha, nil
+	case "gnomeos":
+		// get_gnomeos: nightly/3x live under a different host+name and
+		// 46.0 drops the minor; the final URL comes from web_redirect.
+		iso := fmt.Sprintf("gnome_os_installer_%s.iso", release)
+		u := "https://download.gnome.org/gnomeos/" + release
+		switch {
+		case release == "nightly":
+			iso, u = "gnome_os_installer.iso", "https://os.gnome.org/download/latest"
+		case release == "46.0":
+			iso = "gnome_os_installer_46.iso"
+		case strings.HasPrefix(release, "3"):
+			iso = "gnome_os_installer.iso"
+		}
+		fin, err := finalURL(u + "/" + iso)
+		if err != nil {
+			return "", "", err
+		}
+		return fin, "", nil
+	case "mxlinux":
+		// get_mxlinux: edition→iso map with mixed case (Fluxbox is
+		// lowercase in the filename).
+		iso := map[string]string{
+			"Xfce":    fmt.Sprintf("MX-%s_Xfce_x64.iso", release),
+			"KDE":     fmt.Sprintf("MX-%s_KDE_x64.iso", release),
+			"Fluxbox": fmt.Sprintf("MX-%s_fluxbox_x64.iso", release),
+		}[edition]
+		if iso == "" {
+			return "", "", nil
+		}
+		u := fmt.Sprintf("https://sourceforge.net/projects/mx-linux/files/Final/%s/%s", edition, iso)
+		sha := ""
+		if b, err := fetchString(u + ".sha256"); err == nil {
+			if f := strings.Fields(b); len(f) > 0 {
+				sha = f[0]
+			}
+		}
+		return u, sha, nil
+	case "peppermint":
+		// get_peppermint: edition picks both the iso name AND the
+		// SourceForge subdirectory (XFCE vs Gnome_FlashBack).
+		var iso, dir string
+		switch edition {
+		case "devuan-xfce":
+			iso, dir = "PeppermintOS-devuan_64_xfce.iso", "XFCE"
+		case "debian-xfce":
+			iso, dir = "PeppermintOS-Debian-64.iso", "XFCE"
+		case "devuan-gnome":
+			iso, dir = "PeppermintOS-devuan_64_gfb.iso", "Gnome_FlashBack"
+		case "debian-gnome":
+			iso, dir = "PeppermintOS-Debian_64_gfb.iso", "Gnome_FlashBack"
+		default:
+			return "", "", nil
+		}
+		u := fmt.Sprintf("https://sourceforge.net/projects/peppermintos/files/isos/%s/%s", dir, iso)
+		sha := ""
+		if b, err := fetchString(u + "-sha512.checksum"); err == nil {
+			sha = sumForISO(b, iso)
+		}
+		return u, sha, nil
+	case "freedos":
+		// get_freedos: per-release url/iso table; 1.3/1.4 hashes live in
+		// verify.txt's sha256sum section (grep -A8 sha256sum | grep ISO).
+		base := "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/" + release
+		var u, iso, hashFile string
+		switch release {
+		case "1.2":
+			u, iso, hashFile = base+"/official", "FD12CD.iso", base+"/official/FD12.sha"
+		case "1.3":
+			u, iso, hashFile = base+"/official", "FD13-LiveCD.zip", base+"/official/verify.txt"
+		case "1.4":
+			u, iso, hashFile = base, "FD14-LiveCD.zip", base+"/verify.txt"
+		default:
+			return "", "", nil
+		}
+		sha := ""
+		if b, err := fetchString(hashFile); err == nil {
+			if release == "1.2" {
+				sha = sumForISO(b, iso)
+			} else {
+				// Only lines under a "sha256sum" header count.
+				in256 := false
+				left := 0
+				for _, l := range strings.Split(b, "\n") {
+					if strings.Contains(l, "sha256sum") {
+						in256, left = true, 8
+						continue
+					}
+					if in256 && left > 0 {
+						left--
+						if strings.Contains(l, iso) {
+							if f := strings.Fields(l); len(f) > 0 {
+								sha = f[0]
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+		return u + "/" + iso, sha, nil
+	case "tinycore":
+		// get_tinycore: arch derives from the EDITION (*Pure* → x86_64,
+		// else x86) — not the guest arch; ISO is <ed>-<rel>.0.iso.
+		arch := "x86"
+		if strings.Contains(edition, "Pure") {
+			arch = "x86_64"
+		}
+		iso := fmt.Sprintf("%s-%s.0.iso", edition, release)
+		u := fmt.Sprintf("http://www.tinycorelinux.net/%s.x/%s/release", release, arch)
+		sha := ""
+		if b, err := fetchString(u + "/" + iso + ".md5.txt"); err == nil {
+			if f := strings.Fields(b); len(f) > 0 {
+				sha = f[0]
+			}
+		}
+		return u + "/" + iso, sha, nil
 	case "garuda":
 		// get_garuda: <edition>/latest.iso + sidecar .sha256 (hash-first).
 		base := "https://iso.builds.garudalinux.org/iso/latest/garuda"

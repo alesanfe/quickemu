@@ -206,7 +206,7 @@ func indexISOsums(base, isoRe, sumsName string) (string, string, error) {
 	return u, sha, nil
 }
 
-var hexRe = regexp.MustCompile(`^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{64}$`)
+var hexRe = regexp.MustCompile(`^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$|^[a-fA-F0-9]{128}$`)
 
 // sumAt fetches a checksum file/URL and returns the first hex digest.
 func sumAt(u string) string {
