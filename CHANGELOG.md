@@ -7,7 +7,7 @@ Versioning follows the structured-contract version in `schemas/v1/`.
 
 ### Changed
 - **Backend is now 100% Go** — `bin/{quickemu,quickget,quickgetc,quickreport}`
-  exec the 15 `tools/` binaries directly (resolve `libexec/quickemu/` in
+  exec the 16 `tools/` binaries directly (resolve `libexec/quickemu/` in
   packages, `tools/*/` in dev trees). The Bash implementation
   (`lib/`, `libexec/`, `bin/*.bash`) has been removed along with its
   internals suite (`spec/unit/`); behavior coverage moved to Go unit
