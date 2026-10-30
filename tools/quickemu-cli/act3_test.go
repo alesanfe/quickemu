@@ -121,21 +121,36 @@ func TestMonitorCmdBranches(t *testing.T) {
 		t.Fatal("empty msg should fail")
 	}
 	extra["monitor-cmd"] = "info vms"
-	// no monitor socket → falls back to QMP hmp (stub succeeds).
-	if rc := actMonitorCmd(); rc != 0 {
-		t.Fatal("hmp fallback failed")
-	}
-	// monitor=telnet → tcp send; no listener → fail.
-	os.WriteFile(vmConf, []byte("monitor=\"telnet\"\nmonitor_telnet_host=\"127.0.0.1\"\nmonitor_telnet_port=\"9\"\n"), 0o644)
+	// monitor_send_cmd never touches QMP: monitor=socket default with
+	// no socket → warn + 1.
 	if rc := actMonitorCmd(); rc != 1 {
-		t.Fatal("telnet send to closed port should fail")
+		t.Fatal("missing monitor socket should warn+1")
+	}
+	// A live monitor socket flips it to the send path (rc 0).
+	ln, err := net.Listen("unix", filepath.Join(vd, vmname()+"-monitor.socket"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for c, err := ln.Accept(); err == nil; c, err = ln.Accept() {
+			c.Close()
+		}
+	}()
+	if rc := actMonitorCmd(); rc != 0 {
+		t.Fatal("socket send failed")
+	}
+	// monitor=telnet → the socat pipeline swallows dial errors: rc 0
+	// even with nothing listening.
+	os.WriteFile(vmConf, []byte("monitor=\"telnet\"\nmonitor_telnet_host=\"127.0.0.1\"\nmonitor_telnet_port=\"9\"\n"), 0o644)
+	if rc := actMonitorCmd(); rc != 0 {
+		t.Fatal("telnet send is best-effort — errors do not fail the action")
 	}
 	// monitor=bogus → error path.
 	os.WriteFile(vmConf, []byte("monitor=\"bogus\"\n"), 0o644)
 	if rc := actMonitorCmd(); rc != 1 {
 		t.Fatal("unknown monitor type should fail")
 	}
-	_ = vd
 }
 
 func TestLaunchDryRunSpice(t *testing.T) {
@@ -317,4 +332,68 @@ func TestDoctorStatsInventory(t *testing.T) {
 		t.Fatal("phantom tool found")
 	}
 	vmVerifyInvariants()
+}
+
+// monSock binds a listening unix socket at the VM's channel path
+// (e.g. "-monitor.socket"), mimicking a live QEMU endpoint for
+// monitor_send_cmd/vm_control tests. Accepted conns close at once.
+func monSock(t *testing.T, name string) net.Listener {
+	t.Helper()
+	ln, err := net.Listen("unix", filepath.Join(vmdir(), vmname()+name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ln.Close() })
+	go func() {
+		for c, err := ln.Accept(); err == nil; c, err = ln.Accept() {
+			c.Close()
+		}
+	}()
+	return ln
+}
+
+func TestSendKeyQMPShape(t *testing.T) {
+	// vm_send_key_combo: 'ctrl-alt-delete' splits on '-' into a qcode
+	// array inside the send-key envelope.
+	got := sendKeyQMP("ctrl-alt-delete")
+	for _, want := range []string{`"execute":"send-key"`,
+		`"type":"qcode"`, `"data":"ctrl"`, `"data":"alt"`, `"data":"delete"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("sendKeyQMP missing %q: %s", want, got)
+		}
+	}
+}
+
+func TestVMControlChannels(t *testing.T) {
+	stubTools(t)
+	withConf(t, "")
+	// No channel at all → straight to monitor_send_cmd → warn + 1.
+	if rc := vmControl("sendkey ret", sendKeyQMP("ret")); rc != 1 {
+		t.Fatalf("vmControl no-channel rc=%d", rc)
+	}
+	// Monitor socket up (no QMP) → the HMP send path accepts.
+	monSock(t, "-monitor.socket")
+	if rc := vmControl("sendkey ret", sendKeyQMP("ret")); rc != 0 {
+		t.Fatalf("vmControl monitor-socket rc=%d", rc)
+	}
+	// QMP socket also up → the qmp stub succeeds through the
+	// structured channel.
+	monSock(t, "-qmp.socket")
+	if rc := vmControl("sendkey ret", sendKeyQMP("ret")); rc != 0 {
+		t.Fatalf("vmControl qmp rc=%d", rc)
+	}
+}
+
+func TestActTypeUnmappedAndRc(t *testing.T) {
+	stubTools(t)
+	withConf(t, "")
+	old := extra["type"]
+	defer func() { extra["type"] = old }()
+	// '€' is outside the Bash char→sendkey map → "Skipping unmapped
+	// char" + continue; sends still warn on a dead VM, but type_text
+	// ignores per-key failures → rc 0.
+	extra["type"] = "a€z"
+	if rc := actType(); rc != 0 {
+		t.Fatalf("actType rc=%d — type_text never propagates per-key failures", rc)
+	}
 }

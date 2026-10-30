@@ -62,10 +62,12 @@ func TestMainDispatch(t *testing.T) {
 		{"resume", []string{"--vm", conf, "--resume"}, 1},
 		{"stop", []string{"--vm", conf, "--stop"}, 0},
 		{"kill", []string{"--vm", conf, "--kill"}, 0},
-		{"monitor-cmd", []string{"--vm", conf, "--monitor-cmd", "info vms"}, 0},
+		// Dead VM: monitor_send_cmd → socket missing → 1; type_text
+		// ignores per-key rc → 0; send_keys propagates vm_control → 1.
+		{"monitor-cmd", []string{"--vm", conf, "--monitor-cmd", "info vms"}, 1},
 		{"type", []string{"--vm", conf, "--type", "hi"}, 0},
-		{"send-keys", []string{"--vm", conf, "--send-keys", "ret"}, 0},
-		{"screenshot", []string{"--vm", conf, "--screenshot"}, 0},
+		{"send-keys", []string{"--vm", conf, "--send-keys", "ret"}, 1},
+		{"screenshot", []string{"--vm", conf, "--screenshot"}, 1},
 		{"publicdir", []string{"--vm", conf, "--publicdir"}, 1},
 		{"vnc", []string{"--vm", conf, "--vnc"}, 1},
 		{"serial-console", []string{"--vm", conf, "--serial-console"}, 1},
@@ -285,8 +287,9 @@ func TestMigrateConfAndHotplug(t *testing.T) {
 		func() string { return "ok" })(); rc != 0 {
 		t.Fatalf("qmpOp rc=%d", rc)
 	}
-	// monitorSendBest with no socket → hmp stub.
-	monitorSendBest("sendkey ret")
+	// monitorSendCmd with no socket → warn + 1 (monitor_send_cmd
+	// socket gate); a unix listener flips it to the send path.
+	monitorSendCmd("sendkey ret")
 }
 
 func TestDoctorBranches(t *testing.T) {

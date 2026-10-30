@@ -238,16 +238,18 @@ func TestEmitAndSendPaths(t *testing.T) {
 	emitFail("test.cmd", "CODE", "msg")
 	emitEnvelope("test.cmd", true, nil, nil)
 
-	// actType/actSendKeys/actScreenshot exercise hmp→qmp→missing tool.
+	// actType/actSendKeys/actScreenshot exercise vmControl→monitorSendCmd
+	// with no live channel.
 	old := extra["type"]
-	// Contract: monitor actions on a VM that is not running must
-	// report failure — hmp cannot reach a monitor that does not
-	// exist, so every action returns non-zero.
+	// Contract: type_text ignores per-key send failures (the loop
+	// always completes) — rc 0 even with no running VM; each char
+	// still produces the "No qemu-monitor socket" warning.
 	extra["type"] = "Az -"
-	if rc := actType(); rc == 0 {
-		t.Errorf("actType succeeded with no running VM")
+	if rc := actType(); rc != 0 {
+		t.Errorf("actType rc=%d: Bash type_text never propagates per-key failures", rc)
 	}
 	extra["type"] = old
+	// send_keys propagates the vm_control rc — no live channel → 1.
 	old = extra["send-keys"]
 	extra["send-keys"] = "ret"
 	if rc := actSendKeys(); rc == 0 {

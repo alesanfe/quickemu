@@ -345,21 +345,16 @@ func runtimeCleanup() {
 // monitorReady: a live monitor channel exists (QMP or HMP socket) —
 // the vm_qmp_socket_ready || vm_monitor_socket_ready disjunction.
 func monitorReady() bool {
-	if _, err := os.Stat(qmpSock()); err == nil {
+	if st, err := os.Stat(qmpSock()); err == nil && st.Mode()&os.ModeSocket != 0 {
 		return true
 	}
-	_, err := os.Stat(filepath.Join(vmdir(), vmname()+"-monitor.socket"))
-	return err == nil
+	return monitorSockReady()
 }
 
-// monitorControl: vm_control parity — QMP execute first, HMP
-// human-monitor-command as the fallback path.
+// monitorControl: vm_control parity for a bare HMP verb (stop/cont) —
+// QMP execute first, human monitor as the fallback path.
 func monitorControl(cmd string) bool {
-	if _, err := qmp(cmd); err == nil {
-		return true
-	}
-	_, err := hmp(cmd)
-	return err == nil
+	return vmControl(cmd, qmpCmd(cmd, nil)) == 0
 }
 
 func actPause() int {
@@ -410,11 +405,15 @@ func actShutdown() int {
 		return 1
 	}
 	conf := confKV()
-	if conf["monitor"] == "none" || !monitorReady() {
+	if conf["monitor"] == "none" || !monitorSockReady() {
 		fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
 		return 1
 	}
-	monitorSendBest("system_powerdown")
+	// Bash: monitor_send_cmd "system_powerdown" && { event + echo } —
+	// a failed send surfaces only the monitor warning, no success line.
+	if monitorSendCmd("system_powerdown") != 0 {
+		return 1
+	}
 	qeEvent("vm.shutdown-requested", "")
 	fmt.Printf(" - %s (%d) shutdown requested.\n", vmname(), readPID())
 	return 0
@@ -427,11 +426,13 @@ func actReset() int {
 		return 1
 	}
 	conf := confKV()
-	if conf["monitor"] == "none" || !monitorReady() {
+	if conf["monitor"] == "none" || !monitorSockReady() {
 		fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
 		return 1
 	}
-	monitorSendBest("system_reset")
+	if monitorSendCmd("system_reset") != 0 {
+		return 1
+	}
 	qeEvent("vm.reset-requested", "")
 	fmt.Printf(" - %s (%d) reset requested.\n", vmname(), readPID())
 	return 0
@@ -507,7 +508,7 @@ func actLaunch() int {
 			vmConf, vmname(), readPID())
 		startViewer(get)
 		if mc := get("monitor_cmd"); mc != "" {
-			monitorSendBest(mc)
+			monitorSendCmd(mc)
 		}
 		return 0
 	}
@@ -556,12 +557,12 @@ func actLaunch() int {
 	if get("iso") != "" && strings.HasPrefix(get("guest_os"), "windows") {
 		for i := 0; i < 5; i++ {
 			time.Sleep(1 * time.Second)
-			monitorSendBest("sendkey ret")
+			monitorSendCmd("sendkey ret")
 		}
 	}
 	// monitor_cmd conf key: Bash sends it after every boot.
 	if mc := get("monitor_cmd"); mc != "" && extra["monitor-cmd"] == "" {
-		monitorSendBest(mc)
+		monitorSendCmd(mc)
 	}
 	return 0
 }
