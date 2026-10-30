@@ -296,8 +296,14 @@ exit 0
 `), 0o755)
 	env2 := append(env, "PATH="+stub+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"FAKEIMG_STATE="+state, "FAKEIMG_BACKS="+backs)
-	if _, rc := runTool(t, env2, "linked-clone", dir2, "a.qcow2", "b.qcow2"); rc != 0 {
+	src := filepath.Join(t.TempDir(), "a.qcow2")
+	os.WriteFile(src, []byte("img"), 0o600)
+	if _, rc := runTool(t, env2, "linked-clone", dir2, src, filepath.Join(t.TempDir(), "b.qcow2")); rc != 0 {
 		t.Fatalf("linked-clone rc=%d", rc)
+	}
+	// A missing source is refused before qemu-img ([ -f SRC ]).
+	if _, rc := runTool(t, env2, "linked-clone", dir2, filepath.Join(dir2, "gone.qcow2"), "x.qcow2"); rc != 1 {
+		t.Fatalf("linked-clone missing-src rc=%d", rc)
 	}
 	if _, rc := runTool(t, env2, "linked-clone", dir2); rc != -1 {
 		t.Fatalf("linked-clone short rc=%d", rc)

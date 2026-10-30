@@ -383,7 +383,7 @@ func run() int {
 			fmt.Fprintln(os.Stderr, "ERROR! '--disk-resize' needs a size (e.g. 32G).")
 			return 1
 		}
-		vmStoppedOrDie(dir, "resizing its disk")
+		vmStoppedOrDie(dir, "resizing")
 		disk := confDisk(dir)
 		if _, err := os.Stat(disk); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
@@ -400,8 +400,13 @@ func run() int {
 		// disk_compact: qemu-img convert to .compact then atomic swap.
 		vmStoppedOrDie(dir, "compacting its disk")
 		disk := confDisk(dir)
+		// ${disk_img:-disk_img} — an unset key reports the literal name.
+		shown := disk
+		if shown == "" {
+			shown = "disk_img"
+		}
 		if _, err := os.Stat(disk); err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
+			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", shown)
 			return 1
 		}
 		fmt_ := confGet(dir, "disk_format")
@@ -477,10 +482,14 @@ func run() int {
 			actual := deletePlanID(name, deletePlanItems(dir))
 			if actual != planID {
 				code := "PLAN_MISMATCH"
+				shown := actual
 				if actual == "" || actual == "sha256:empty" {
 					code = "PLAN_EXPIRED"
 				}
-				die(code, fmt.Sprintf("delete plan is stale (expected %s, got %s); regenerate with --delete-plan", planID, actual))
+				if shown == "" {
+					shown = "none"
+				}
+				die(code, fmt.Sprintf("delete plan is stale (expected %s, got %s); regenerate with --delete-plan", planID, shown))
 			}
 		}
 		info("Deleting " + name + " completely")
@@ -675,9 +684,18 @@ func run() int {
 		if len(args) < 4 {
 			die("INVALID_ARGS", "linked-clone needs src dst")
 		}
+		// clone_vm_linked: [ -f SRC ] check, then qemu-img create -b —
+		// its output goes to the user (Bash's `2>&1`), failure is a
+		// fixed message, not the raw exec error.
+		if _, err := os.Stat(args[2]); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! source not found: %s\n", args[2])
+			return 1
+		}
 		cmd := execCommand("qemu-img", "create", "-f", "qcow2", "-b", args[2], "-F", "qcow2", args[3])
-		if err := cmd.Run(); err != nil {
-			die("LINKED_CLONE_FAILED", err.Error())
+		if out, err := cmd.CombinedOutput(); err != nil {
+			fmt.Print(string(out))
+			fmt.Fprintln(os.Stderr, "ERROR! linked clone failed.")
+			return 1
 		}
 		okMap(map[string]any{"linkedClone": args[3]})
 	case "snapshot-create", "snapshot-apply", "snapshot-delete":

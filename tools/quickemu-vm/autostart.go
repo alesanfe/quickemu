@@ -68,6 +68,10 @@ func autostartCreate(name, confPath string) int {
 		self = launcherPath()
 	}
 	abs, _ := filepath.Abs(confPath)
+	// Bash readlink -f's the conf too — resolve symlinks when possible.
+	if r, err := filepath.EvalSymlinks(abs); err == nil {
+		abs = r
+	}
 	if hasCtl(self) || hasCtl(abs) {
 		return rcFail("INVALID_ARGS", "paths with control characters cannot go into a unit file")
 	}
@@ -96,6 +100,7 @@ func shortcutCreate(name, conf, opts string) int {
 	if !validVMName(name) || hasCtl(conf) || hasCtl(opts) {
 		return rcFail("INVALID_ARGS", "shortcut needs a valid name, conf path and options")
 	}
+	info("Creating " + name + " desktop shortcut file")
 	dir := filepath.Join(qelib.XDGData(), "applications")
 	os.MkdirAll(dir, 0755)
 	file := filepath.Join(dir, name+".desktop")

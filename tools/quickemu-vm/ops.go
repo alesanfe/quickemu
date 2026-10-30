@@ -135,19 +135,29 @@ func vmStoppedOrDie(dir, verb string) {
 // deleteDisk: remove the VM disk + EFI vars + shortcut when the VM is
 // stopped (delete_disk parity).
 func deleteDisk(dir, pidFile string) int {
-	if pidFile != "" {
-		if b, err := os.ReadFile(pidFile); err == nil && len(b) > 0 {
-			die("VM_MUST_BE_STOPPED", "Stop the VM before deleting its disk.")
-		}
-	}
 	name := filepath.Base(dir)
 	if c := vmConfPath(dir); c != "" {
 		name = strings.TrimSuffix(filepath.Base(c), ".conf")
 	}
 	info("Deleting " + name + " virtual hard disk")
+	// vm_running VMDIR VMNAME — the pidfile lives inside the VM dir.
+	running := vmRunningDir(dir, name)
+	if !running && pidFile != "" {
+		if b, err := os.ReadFile(pidFile); err == nil && len(strings.TrimSpace(string(b))) > 0 {
+			running = true
+		}
+	}
+	if running {
+		die("VM_MUST_BE_STOPPED", "Stop "+name+" before deleting its disk.")
+	}
 	disk := confDisk(dir)
+	// [ -e "${disk_img}" ] — unset or missing takes the NOTE path.
 	if disk == "" {
-		info(" - disk_img not found. Doing nothing.")
+		info(" - " + disk + " not found. Doing nothing.")
+		return 0
+	}
+	if _, err := os.Stat(disk); err != nil {
+		info(" - " + disk + " not found. Doing nothing.")
 		return 0
 	}
 	os.Remove(disk)
