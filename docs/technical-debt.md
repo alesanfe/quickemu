@@ -10,7 +10,7 @@ reports, untested declared features, undocumented .conf/TOML divergence.
 |----|------|-----------|----------|--------|------------|
 | TD-001 | QMP client is single-request (no async events/mux) | quickemu-qmp | medium | accepted | Extract `quickemu-qmp` when protocol trigger fires (ADR-0001) |
 | TD-002 | Port registry records PID+timestamp, not instanceId | quickemu-launch | low | resolved | instanceId recorded alongside pid |
-| TD-003 | telnet monitor exposed when configured | quickemu-qmp | medium | documented | Warned in docs; loopback default; deprecation candidate |
+| TD-003 | telnet monitor exposed when configured | quickemu-qmp | medium | resolved | Loopback default; launch warns on stderr for any non-loopback telnet bind (unauthenticated HMP) |
 | TD-004 | .conf is executable code | config | high | resolved | Go backend parses .conf as data — never executed; TOML path also available |
 | TD-005 | HMP fallback paths remain alongside QMP | quickemu-qmp | low | accepted | Documented fallback contract |
 | TD-006 | ops registry has no generic progress% | quickemu-ops | low | resolved | running 10/30/40 + completed 100 in export/import |
@@ -24,7 +24,7 @@ reports, untested declared features, undocumented .conf/TOML divergence.
 | TD-014 | `cp -a` from NTFS leaves debian/* +x → dh runs them | packaging | low | resolved | CI normalizes `chmod 644` on debian/* after copy — dh-exec can never fire |
 | TD-015 | `.gitignore` carries a long per-module binary list | repo | low | resolved | Collapsed to 19 glob rules, verified with git check-ignore |
 | TD-016 | 26 direct `exec.Command` sites remain | all | low | resolved | All remaining sites either seam'd or `CommandContext`-bounded; 3 fixture helpers in qespec bounded too |
-| TD-017 | `tools/dev` ~15-20% coverage | tooling | low | accepted | Internal runner; dispatch/metrics/structure covered via stubExec harness + pure-helper tests |
+| TD-017 | `tools/dev` ~15-20% coverage | tooling | low | resolved | 73.6% — dispatch/metrics/structure covered via stubExec harness + pure-helper and real-tree walk tests |
 
 Resolved this cycle: instance fingerprint, RW locks, planId, port
 registry, import/export verification, JSON envelope, QMP channel,
