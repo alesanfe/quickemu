@@ -21,5 +21,11 @@ override_dh_auto_build:
 	(cd tools/quickgetc && go build -trimpath -ldflags "-s -w" -o ../../bin/quickgetc .)
 	(cd tools/quickreport && go build -trimpath -ldflags "-s -w" -o ../../bin/quickreport .)
 
+# zsh completions must land as _<cmd>; debian/install cannot rename.
+override_dh_install:
+	dh_install
+	install -Dm644 completions/quickemu.zsh debian/quickemu/usr/share/zsh/site-functions/_quickemu
+	install -Dm644 completions/quickget.zsh debian/quickemu/usr/share/zsh/site-functions/_quickget
+
 override_dh_builddeb:
 	dh_builddeb -- -Zgzip

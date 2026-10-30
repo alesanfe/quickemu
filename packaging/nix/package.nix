@@ -86,6 +86,14 @@ stdenv.mkDerivation (finalAttrs: {
     runHook preInstall
 
     installManPage docs/quickget.1 docs/quickemu.1 docs/quickemu_conf.5
+    installShellCompletion --cmd quickemu \
+      --bash completions/quickemu.bash \
+      --zsh completions/quickemu.zsh \
+      --fish completions/quickemu.fish
+    installShellCompletion --cmd quickget \
+      --bash completions/quickget.bash \
+      --zsh completions/quickget.zsh \
+      --fish completions/quickget.fish
     install -d "$out/libexec/quickemu"
     install -Dm755 -t "$out/libexec/quickemu" build/quickemu-* build/quickget-*
     install -Dm755 -t "$out/bin" build/quickemu build/quickget build/quickgetc build/quickreport

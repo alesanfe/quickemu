@@ -20,3 +20,7 @@ tools/quickgetc/quickgetc usr/libexec/quickemu
 tools/quickreport/quickreport usr/libexec/quickemu
 schemas usr/share/quickemu
 catalog usr/share/quickemu
+completions/quickemu.bash usr/share/bash-completion/completions
+completions/quickget.bash usr/share/bash-completion/completions
+completions/quickemu.fish usr/share/fish/vendor_completions.d
+completions/quickget.fish usr/share/fish/vendor_completions.d
