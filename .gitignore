@@ -41,42 +41,19 @@ X-Test*/
 
 # Debian build output (source lives in packaging/debian/)
 /debian/
-tools/quickemu-qmp/quickemu-qmp
-tools/quickemu-proc/quickemu-proc
-tools/quickemu-ops/quickemu-ops
-tools/quickemu-ports/quickemu-ports
-tools/quickemu-archive/quickemu-archive
 quickreport.json
 quickreport.txt
-tools/quickemu-api/quickemu-api
-tools/quickemu-toml/quickemu-toml
-tools/quickemu-cli/quickemu-cli
-tools/quickemu-launch/quickemu-launch
-tools/quickemu-vm/quickemu-vm
-tools/quickget-catalog/quickget-catalog
-tools/quickget-vm/quickget-vm
-tools/quickget-cli/quickget
-tools/quickget-vm/vm
-tools/quickget-catalog/catalog
-tools/quickget-cli/cli
-tools/quickreport/quickreport
-tools/quickemu-cli/cli
-tools/quickemu-vm/vm
-tools/quickemu-api/api
-tools/quickemu-archive/archive
-tools/quickemu-launch/launch
-tools/quickemu-ops/ops
-tools/quickemu-ports/ports
-tools/quickemu-proc/proc
-tools/quickemu-qmp/qmp
-tools/quickemu-toml/toml
-tools/quickgetc/quickgetc
 
-# Go coverage artifacts (CI uploads them, never commit)
-tools/*/coverage.out
-tools/quickget-cli/quickget-cli
-# stray short-name binaries from `go build` in module dirs
+# Built tool binaries land beside sources — never commit them.
+# Full-name binaries (dir-name builds, `go run ./tools/dev build`):
+tools/*/quickemu-*
+tools/*/quickget*
+tools/*/quickreport
+tools/*/quickgetc
+tools/*/qespec
 tools/*/qelib
+tools/*/dev
+# Stray short-name binaries from `go build` inside module dirs:
 tools/*/api
 tools/*/archive
 tools/*/catalog
@@ -88,7 +65,6 @@ tools/*/proc
 tools/*/qmp
 tools/*/toml
 tools/*/vm
-tools/dev/dev
-tools/qespec/qespec
+
+# Go coverage artifacts (CI uploads them, never commit)
 tools/*/coverage.out
-tools/quickemu-plugin-market/quickemu-plugin-market

@@ -249,7 +249,9 @@ func VMFixture(t *testing.T, dir string) string {
 	conf := VMConf(t, dir, "")
 	disk := filepath.Join(dir, "disk.qcow2")
 	if img, err := exec.LookPath("qemu-img"); err == nil {
-		if out, err := exec.Command(img, "create", "-f", "qcow2", disk, "64M").CombinedOutput(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if out, err := exec.CommandContext(ctx, img, "create", "-f", "qcow2", disk, "64M").CombinedOutput(); err != nil {
 			t.Fatalf("qemu-img create: %v\n%s", err, out)
 		}
 	} else if err := os.WriteFile(disk, []byte{0}, 0o644); err != nil {
@@ -342,7 +344,9 @@ func SpawnFakeVM(t *testing.T, dir, name string) int {
 	if err := os.WriteFile(bin, src, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(bin, "60")
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, "60")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -378,7 +382,9 @@ func FakeBinDir(t *testing.T) string {
 			return
 		}
 		out := filepath.Join(fakeDir, "fakebin")
-		cmd := exec.Command("go", "build", "-o", out, "./fakebin")
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "go", "build", "-o", out, "./fakebin")
 		cmd.Dir = filepath.Join(Root(), "tools", "qespec")
 		if b, err := cmd.CombinedOutput(); err != nil {
 			fakeErr = fmt.Errorf("build fakebin: %v\n%s", err, b)

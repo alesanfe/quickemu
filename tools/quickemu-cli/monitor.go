@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -226,15 +227,19 @@ func actScreenshot() int {
 	}
 	if png {
 		if bin, err := exec.LookPath("convert"); err == nil {
-			if exec.Command(bin, ppm, out).Run() == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if exec.CommandContext(ctx, bin, ppm, out).Run() == nil {
 				os.Remove(ppm)
 			}
+			cancel()
 		} else if bin, err := exec.LookPath("pnmtopng"); err == nil {
-			if ob, err := exec.Command(bin, ppm).Output(); err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			if ob, err := exec.CommandContext(ctx, bin, ppm).Output(); err == nil {
 				if os.WriteFile(out, ob, 0644) == nil {
 					os.Remove(ppm)
 				}
 			}
+			cancel()
 		} else {
 			out = ppm
 			fmt.Println(" - WARNING! 'convert'/'pnmtopng' not found; saved PPM instead.")

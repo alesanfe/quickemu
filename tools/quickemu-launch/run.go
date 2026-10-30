@@ -5,6 +5,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -370,7 +371,9 @@ func virtiofsdFail(errB []byte) {
 // fuser (unambiguous owner); else scan /proc for comm==name whose
 // cmdline carries the socket path.
 func daemonSockPid(sock, name string, fallback int) int {
-	if out, err := exec.Command("fuser", sock).Output(); err == nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "fuser", sock).Output(); err == nil {
 		pid := 0
 		if _, err := fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &pid); err == nil && pid > 0 {
 			return pid

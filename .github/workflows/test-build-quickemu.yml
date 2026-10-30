@@ -39,6 +39,10 @@ jobs:
         sudo apt-get -y update
         sudo apt-get -y install debhelper devscripts golang-go
         cp -a packaging/debian debian
+        # debhelper treats EXECUTABLE debian/* config files as dh-exec
+        # programs — normalize so a too-broad +x (e.g. copied from a
+        # non-ext4 checkout) can never make dh run them as scripts.
+        find debian -type f ! -name rules -exec chmod 644 {} +
         REL_VER=$(grep 'QEVersion = "' tools/qelib/qelib.go | cut -d'"' -f2)
         rm debian/changelog
         dch --package quickemu --newversion="${REL_VER}-1" --distribution=unstable "New upstream release." --create
