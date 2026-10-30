@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -69,8 +70,17 @@ func runQEMU(confPath string, vmdir string, args []string, conf ...Conf) error {
 	// companion line precedes the QEMU invocation like configure_tpm).
 	script := filepath.Join(dir, name+".sh")
 	pre := ""
+	// Companion-daemon lines precede the QEMU invocation in configure
+	// order: virtiofsd (start_virtiofsd) then swtpm (configure_tpm).
+	if len(conf) > 0 && conf[0]["_virtiofsd_bin"] != "" {
+		var vb strings.Builder
+		for _, a := range virtiofsdArgv(conf[0]["_virtiofsd_bin"], conf[0]) {
+			vb.WriteString(shq(a) + " ")
+		}
+		pre = vb.String() + "&\n"
+	}
 	if _, err := os.Stat(filepath.Join(dir, name+".swtpm-pid")); err == nil {
-		pre = "swtpm socket --ctrl type=unixio,path=" + shq(filepath.Join(dir, name+".swtpm-sock")) +
+		pre += "swtpm socket --ctrl type=unixio,path=" + shq(filepath.Join(dir, name+".swtpm-sock")) +
 			" --terminate --tpmstate dir=" + shq(dir) + " --tpm2 &\n"
 	}
 	var sb strings.Builder
@@ -231,6 +241,75 @@ func reapVM(pid int, dir, name string) {
 	}
 	os.Remove(filepath.Join(dir, name+".lock"))
 	os.RemoveAll(filepath.Join(dir, name+".lock.shared"))
+	// vm_runtime_cleanup tail: registry + event. Without this a QEMU
+	// that exits on its own leaves no vm.stopped transition — the CLI
+	// only emits for user-initiated stops.
+	inventoryTouchStopped(dir, name, pid)
+	qeEventAt(dir, name, "vm.stopped", pid, "")
+}
+
+// qeEventAt: qe_event parity for the detached reaper — appends a JSONL
+// record to <dir>/<name>.events.jsonl (same schema as the CLI's
+// qeEvent: seq, ts, event, vm, pid, data; ~1MiB rotation to .1).
+func qeEventAt(dir, name, typ string, pid int, data string) {
+	f := filepath.Join(dir, name+".events.jsonl")
+	if st, err := os.Stat(f); err == nil && st.Size() >= 1048576 {
+		os.Rename(f, f+".1")
+	}
+	seq := 1
+	if b, err := os.ReadFile(f); err == nil {
+		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+		var last struct {
+			Seq int `json:"seq"`
+		}
+		if json.Unmarshal([]byte(lines[len(lines)-1]), &last) == nil {
+			seq = last.Seq + 1
+		}
+	}
+	if data == "" {
+		data = "null"
+	}
+	rec, _ := json.Marshal(map[string]any{
+		"seq": seq, "ts": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
+		"event": typ, "vm": name, "pid": pid,
+		"data": json.RawMessage(data)})
+	fh, err := os.OpenFile(f, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+	fh.Write(append(rec, '\n'))
+}
+
+// inventoryTouchStopped: inventory_touch parity — upsert this
+// instance into the global vms.json registry keyed by QE_INSTANCE_ID
+// (the reaper inherits the launcher's env) with the watched pid as
+// fallback.
+func inventoryTouchStopped(dir, name string, pid int) {
+	db := filepath.Join(qelib.XDGData(), "quickemu", "vms.json")
+	if err := os.MkdirAll(filepath.Dir(db), 0755); err != nil {
+		return
+	}
+	id := os.Getenv("QE_INSTANCE_ID")
+	if id == "" {
+		id = fmt.Sprint(pid)
+	}
+	m := map[string]any{}
+	if b, err := os.ReadFile(db); err == nil {
+		json.Unmarshal(b, &m)
+	}
+	m[id] = map[string]any{"vm": name, "state": "stopped",
+		"dir": dir, "lastSeen": time.Now().UTC().Format(time.RFC3339)}
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	tmp := db + ".tmp"
+	if os.WriteFile(tmp, b, 0644) == nil {
+		os.Rename(tmp, db)
+	} else {
+		os.Remove(tmp)
+	}
 }
 
 // alivePid: EPERM-aware liveness — a foreign-owned daemon counts as
@@ -262,6 +341,59 @@ func stopDaemon(dir, name, comm string) {
 	}
 }
 
+// virtiofsdArgv: the daemon invocation line — shared by startVirtiofsd
+// and the .sh preamble (start_virtiofsd appends it with a trailing &).
+func virtiofsdArgv(bin string, c Conf) []string {
+	dir, name := c["_vmdir"], c["_vmname"]
+	return []string{bin,
+		"--socket-path=" + filepath.Join(dir, name+".virtiofsd-sock"),
+		"--shared-dir=" + c["_public"],
+		"--announce-submounts",
+		fmt.Sprintf("--translate-uid=squash-guest:0:%d:65536", os.Getuid()),
+		fmt.Sprintf("--translate-gid=squash-guest:0:%d:65536", os.Getgid())}
+}
+
+// virtiofsdFail: start_virtiofsd failure reporting — the "Operation
+// not permitted" case gets its own two-line warning.
+func virtiofsdFail(errB []byte) {
+	if strings.Contains(string(errB), "Operation not permitted") {
+		fmt.Println(" - WARNING! virtiofsd failed to start (insufficient permissions); falling back to 9p.")
+		fmt.Println("            Install the standalone virtiofsd package to enable virtiofs support.")
+	} else {
+		fmt.Println(" - WARNING! virtiofsd failed to start; falling back to 9p.")
+	}
+}
+
+// daemonSockPid: resolve the daemon child's pid. virtiofsd forks, so
+// cmd.Process.Pid is the launcher that exits immediately — the pidfile
+// must hold the socket owner or the reaper cannot kill it. Prefer
+// fuser (unambiguous owner); else scan /proc for comm==name whose
+// cmdline carries the socket path.
+func daemonSockPid(sock, name string, fallback int) int {
+	if out, err := exec.Command("fuser", sock).Output(); err == nil {
+		pid := 0
+		if _, err := fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &pid); err == nil && pid > 0 {
+			return pid
+		}
+	}
+	entries, _ := os.ReadDir("/proc")
+	for _, e := range entries {
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil {
+			continue
+		}
+		cb, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+		if err != nil || strings.TrimSpace(string(cb)) != name {
+			continue
+		}
+		cmdline, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		if err == nil && strings.Contains(strings.ReplaceAll(string(cmdline), "\x00", " "), sock) {
+			return pid
+		}
+	}
+	return fallback
+}
+
 // startVirtiofsd: spawn the standalone virtiofsd before QEMU and poll
 // for its socket (start_virtiofsd parity). The caller falls back to 9p
 // when this returns false.
@@ -272,34 +404,57 @@ func startVirtiofsd(bin string, c Conf) bool {
 	logF, _ := os.OpenFile(filepath.Join(dir, name+".log"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	defer logF.Close()
-	cmd := execCommand(bin,
-		"--socket-path="+sock,
-		"--shared-dir="+c["_public"],
-		"--announce-submounts",
-		fmt.Sprintf("--translate-uid=squash-guest:0:%d:65536", os.Getuid()),
-		fmt.Sprintf("--translate-gid=squash-guest:0:%d:65536", os.Getgid()))
+	// stderr captured apart (Bash mktemp): the "Operation not
+	// permitted" probe must not race stale entries in the shared log.
+	errF, _ := os.CreateTemp("", "virtiofsd-*.err")
+	if errF != nil {
+		defer os.Remove(errF.Name())
+		defer errF.Close()
+	}
+	cmd := execCommand(bin, virtiofsdArgv(bin, c)[1:]...)
 	if logF != nil {
-		cmd.Stdout, cmd.Stderr = logF, logF
+		cmd.Stdout = logF
+	}
+	if errF != nil {
+		cmd.Stderr = errF
 	}
 	detach(cmd)
-	if err := cmd.Start(); err != nil {
+	startErr := cmd.Start()
+	readErr := func() []byte {
+		if errF == nil {
+			return nil
+		}
+		errF.Sync()
+		b, _ := os.ReadFile(errF.Name())
+		if logF != nil {
+			logF.Write(b)
+		}
+		return b
+	}
+	if startErr != nil {
+		virtiofsdFail(readErr())
 		return false
 	}
+	go cmd.Wait()
 	for i := 0; i < 20; i++ {
 		if st, err := os.Stat(sock); err == nil && st.Mode()&os.ModeSocket != 0 {
+			dpid := daemonSockPid(sock, "virtiofsd", cmd.Process.Pid)
 			if err := os.WriteFile(filepath.Join(dir, name+".virtiofsd-pid"),
-				[]byte(fmt.Sprint(cmd.Process.Pid)), 0644); err != nil {
+				[]byte(fmt.Sprint(dpid)), 0644); err != nil {
 				// Without the pidfile the reaper cannot kill the
 				// daemon at cleanup — fail rather than leak it.
-				cmd.Process.Kill()
+				syscall.Kill(dpid, syscall.SIGKILL)
 				return false
 			}
-			fmt.Printf(" - virtiofsd: %s (%d)\n", sock, cmd.Process.Pid)
+			readErr()
+			fmt.Printf(" - virtiofsd: %s (%d)\n", sock, dpid)
 			return true
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+	errB := readErr()
 	cmd.Process.Kill()
+	virtiofsdFail(errB)
 	return false
 }
 

@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -60,6 +61,9 @@ func TestReapVM(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("posix")
 	}
+	// reapVM's inventoryTouchStopped tail must not write to the real
+	// user registry during tests.
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	dir := t.TempDir()
 	name := "vm"
 	// Dead pid → immediate cleanup: all runtime artifacts removed.
@@ -276,5 +280,82 @@ func TestRunQEMU(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(dir, name+".sh")); !strings.Contains(string(b), "swtpm socket") {
 		t.Fatal("companion line missing from launch script")
+	}
+	// virtiofsd companion line: _virtiofsd_bin + pidfile → the daemon
+	// argv precedes the swtpm line in configure order.
+	os.WriteFile(filepath.Join(dir, name+".virtiofsd-pid"), []byte("1"), 0o600)
+	c := Conf{"_virtiofsd_bin": "/bin/true", "_vmdir": dir, "_vmname": name, "_public": dir}
+	if err := runQEMU(conf, dir, []string{filepath.Join(stub, "qsleep2")}, c); err != nil {
+		t.Fatalf("runQEMU3 %v", err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, name+".sh")); !strings.Contains(string(b), "--socket-path=") {
+		t.Fatal("virtiofsd line missing from launch script")
+	}
+}
+
+// startVirtiofsd: the pidfile must name the live daemon child, not the
+// forked launcher that exits immediately — else the reaper cannot
+// kill it (vm_runtime_cleanup leak).
+func TestStartVirtiofsdDaemonPid(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("posix")
+	}
+	socat, err := exec.LookPath("socat")
+	if err != nil {
+		t.Skip("socat required")
+	}
+	dir := t.TempDir()
+	sock := filepath.Join(dir, "vm.virtiofsd-sock")
+	stub := t.TempDir()
+	// socat renamed to virtiofsd so the /proc comm scan matches, run
+	// backgrounded so the launcher child exits like the real daemon.
+	bin := filepath.Join(stub, "virtiofsd")
+	if b, err := os.ReadFile(socat); err == nil {
+		os.WriteFile(bin, b, 0o755)
+	}
+	vf := filepath.Join(stub, "vf.sh")
+	os.WriteFile(vf, []byte("#!/bin/sh\n"+bin+" UNIX-LISTEN:"+sock+" EXEC:/bin/cat &\n"), 0o755)
+	c := Conf{"_vmdir": dir, "_vmname": "vm", "_public": dir}
+	if !startVirtiofsd(vf, c) {
+		t.Fatal("startVirtiofsd failed with socket-listener fake daemon")
+	}
+	b, _ := os.ReadFile(filepath.Join(dir, "vm.virtiofsd-pid"))
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(b)))
+	if pid == 0 || !alivePid(pid) {
+		t.Fatalf("pidfile pid %d not the live daemon", pid)
+	}
+	defer syscall.Kill(pid, syscall.SIGKILL)
+}
+
+// startVirtiofsd failure warnings: "Operation not permitted" gets the
+// two-line hint, any other stderr gets the generic line.
+func TestStartVirtiofsdFailWarnings(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("posix")
+	}
+	dir := t.TempDir()
+	stub := t.TempDir()
+	c := Conf{"_vmdir": dir, "_vmname": "vm", "_public": dir}
+	ep := filepath.Join(stub, "vfeperm.sh")
+	os.WriteFile(ep, []byte("#!/bin/sh\necho 'x: Operation not permitted' >&2\n"), 0o755)
+	out := captureStdout(t, func() {
+		if startVirtiofsd(ep, c) {
+			t.Fatal("eperm daemon should not come up")
+		}
+	})
+	if !strings.Contains(out, "insufficient permissions") ||
+		!strings.Contains(out, "standalone virtiofsd package") {
+		t.Fatalf("eperm warning missing: %q", out)
+	}
+	gen := filepath.Join(stub, "vfgen.sh")
+	os.WriteFile(gen, []byte("#!/bin/sh\necho 'random daemon error' >&2\n"), 0o755)
+	out = captureStdout(t, func() {
+		if startVirtiofsd(gen, c) {
+			t.Fatal("generic daemon should not come up")
+		}
+	})
+	if !strings.Contains(out, "virtiofsd failed to start; falling back to 9p.") ||
+		strings.Contains(out, "insufficient permissions") {
+		t.Fatalf("generic warning wrong: %q", out)
 	}
 }

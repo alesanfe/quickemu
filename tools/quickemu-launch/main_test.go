@@ -50,14 +50,22 @@ func fwStubEnv(t *testing.T) string {
 // launch runs the binary as a helper; rc comes from the process exit.
 func launch(t *testing.T, env []string, args ...string) (string, int) {
 	t.Helper()
-	hasFW := false
+	hasFW, hasXDG := false, false
 	for _, e := range env {
 		if strings.HasPrefix(e, "QE_FIRMWARE_DIR=") {
 			hasFW = true
 		}
+		if strings.HasPrefix(e, "XDG_DATA_HOME=") {
+			hasXDG = true
+		}
 	}
 	if !hasFW {
 		env = append(env, fwStubEnv(t))
+	}
+	// --run launches spawn detached reapers that touch the global
+	// vms.json registry — keep them off the real user XDG in tests.
+	if !hasXDG {
+		env = append(env, "XDG_DATA_HOME="+t.TempDir())
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^$")
 	cmd.Env = append(os.Environ(), append(env, "QE_HELPER=1",

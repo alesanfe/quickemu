@@ -118,18 +118,10 @@ func main() {
 	}
 	resolvePublic(conf)
 
-	// virtiofs decision happens before arg assembly (start_virtiofsd):
-	// linux guest + resolved PUBLIC + no ISO + daemon available. On
-	// --run the daemon is actually spawned now; a failed start falls
-	// back to 9p. Plan mode just checks the binary resolves.
+	// The virtiofsd spawn itself happens at the start_virtiofsd
+	// position in the configure sequence (after storageEcho) — linux
+	// guest + resolved PUBLIC + no ISO + daemon available.
 	runMode := len(os.Args) > 2 && os.Args[2] == "--run"
-	if conf.get("guest_os", "") == "linux" && conf["_public"] != "" && conf.get("iso", "") == "" {
-		if bin, err := exec.LookPath("virtiofsd"); err == nil {
-			if !runMode || startVirtiofsd(bin, conf) {
-				conf["_virtiofsd"] = "1"
-			}
-		}
-	}
 	// swtpm decision mirrors virtiofsd (configure_tpm): spawn the daemon
 	// before arg assembly on --run so the socket exists when the chardev
 	// is emitted (swtpm_socket_ready). Plan mode always emits.
@@ -312,6 +304,24 @@ func main() {
 		os.Exit(1)
 	}
 	storageEcho(conf, dir)
+	// start_virtiofsd runs between configure_storage and
+	// configure_display in vm_boot: run mode spawns the daemon now so
+	// the socket exists when QEMU starts; plan mode prints the planned
+	// socket. Failure falls back to 9p with a warning.
+	if conf.get("guest_os", "") == "linux" && conf["_public"] != "" && conf.get("iso", "") == "" {
+		if bin, err := exec.LookPath("virtiofsd"); err == nil {
+			if runMode {
+				if startVirtiofsd(bin, conf) {
+					conf["_virtiofsd"] = "1"
+					conf["_virtiofsd_bin"] = bin
+				}
+			} else {
+				fmt.Printf(" - virtiofsd: %s (planned)\n",
+					dotdir(vmdir)+vmname+".virtiofsd-sock")
+				conf["_virtiofsd"] = "1"
+			}
+		}
+	}
 	displayA := displayArgs(conf, dir, osName, arch)
 	audioA := audioArgs(conf, osName, t)
 	planPorts(conf, t) // -ssh:/-PORTS: echoes + resolve _fwd
