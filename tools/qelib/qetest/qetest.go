@@ -8,6 +8,7 @@ package qetest
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,4 +93,26 @@ func RunExit(t *testing.T, envVar string, env []string, args ...string) (string,
 		rc = ee.ExitCode()
 	}
 	return out.String() + errb.String(), rc
+}
+
+// CaptureStdout redirects os.Stdout while fn runs and returns what
+// was written. A goroutine drains the pipe so output larger than the
+// OS pipe buffer cannot deadlock the writer.
+func CaptureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	done := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	fn()
+	w.Close()
+	os.Stdout = old
+	return <-done
 }

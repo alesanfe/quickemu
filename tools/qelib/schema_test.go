@@ -3,25 +3,19 @@ package qelib
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"os"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 // captureStdout grabs one synchronous Emit call's output — Emit
 // returns before the writer is restored, so no goroutine races on
 // the swapped global (unlike the leaked-watcher case).
-func captureStdout(f func()) string {
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-	f()
-	w.Close()
-	os.Stdout = old
-	b, _ := io.ReadAll(r)
-	return string(b)
+func captureStdout(t *testing.T, f func()) string {
+	return qetest.CaptureStdout(t, f)
 }
 
 // TestEmitMatchesResponseSchema validates the produced envelope
@@ -62,7 +56,7 @@ func TestEmitMatchesResponseSchema(t *testing.T) {
 		}},
 	}
 	for _, tc := range cases {
-		out := captureStdout(tc.emit)
+		out := captureStdout(t, tc.emit)
 		var v any
 		if err := json.Unmarshal([]byte(out), &v); err != nil {
 			t.Fatalf("%s: not JSON: %v\n%s", tc.name, err, out)
@@ -73,7 +67,7 @@ func TestEmitMatchesResponseSchema(t *testing.T) {
 	}
 	// operationId flows from OPID into meta.
 	t.Setenv("OPID", "op-123")
-	out := captureStdout(func() { EmitOK("x", "t/1", nil) })
+	out := captureStdout(t, func() { EmitOK("x", "t/1", nil) })
 	if !bytes.Contains([]byte(out), []byte(`"operationId":"op-123"`)) {
 		t.Fatalf("operationId missing: %s", out)
 	}

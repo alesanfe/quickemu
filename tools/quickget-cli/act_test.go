@@ -3,11 +3,12 @@
 package main
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 // setupCatalog writes a catalog.json + info.json fixture and returns
@@ -226,22 +227,7 @@ func TestFedoraMissing(t *testing.T) {
 
 // captureStdout redirects os.Stdout for fn and returns what it wrote.
 func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = w
-	done := make(chan string)
-	go func() {
-		b, _ := io.ReadAll(r)
-		done <- string(b)
-	}()
-	fn()
-	w.Close()
-	os.Stdout = old
-	return <-done
+	return qetest.CaptureStdout(t, fn)
 }
 
 // TestCheckPrecheck: release-scoped ops run the bottom-flow gates —

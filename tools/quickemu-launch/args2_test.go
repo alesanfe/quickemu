@@ -2,7 +2,6 @@
 package main
 
 import (
-	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -10,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func has(args []string, sub string) bool {
@@ -438,20 +439,7 @@ func TestSystemDiskMatrix(t *testing.T) {
 
 // captureStdout: capture fmt.Print output produced by fn.
 func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	old := os.Stdout
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	os.Stdout = w
-	fn()
-	w.Close()
-	os.Stdout = old
-	var buf strings.Builder
-	io.Copy(&buf, r)
-	r.Close()
-	return buf.String()
+	return qetest.CaptureStdout(t, fn)
 }
 
 // STATUS_QUO (vm.sh): -snapshot is appended right after each writable
