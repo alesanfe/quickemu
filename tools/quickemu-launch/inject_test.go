@@ -66,7 +66,7 @@ func TestOptionInjectionViaConfValues(t *testing.T) {
 	}
 
 	// SPICE unix socket path derived from vmdir+vmname.
-	a = spiceArgs(Conf{"display": "spice", "access": "local", "_vmdir": dir, "_vmname": "v,x"}, dir, "v,x", "linux", "x86_64", tun)
+	a = spiceArgs(Conf{"display": "spice", "access": "local", "_vmdir": dir, "_vmname": "v,x"}, dir, "v,x", "linux")
 	if j := strings.Join(a, " "); strings.Contains(j, "addr=/vmdir/v,x.sock") {
 		t.Fatalf("comma in socket path split the -spice options: %v", a)
 	}

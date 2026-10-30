@@ -5,6 +5,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,6 +18,29 @@ import (
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
+
+// instanceUUID: vm_instance_uuid parity — kernel uuid source, or a
+// timestamp+pid+random fallback when /proc is unreadable.
+func instanceUUID() string {
+	if b, err := os.ReadFile("/proc/sys/kernel/random/uuid"); err == nil {
+		return strings.TrimSpace(string(b))
+	}
+	return fmt.Sprintf("%d-%d-%d", time.Now().UnixNano(), os.Getpid(), time.Now().Unix()%100000)
+}
+
+// procStartTime: vm_proc_start_time — jiffies-since-boot from
+// /proc/<pid>/stat field 22 ("" on non-Linux / unreadable).
+func procStartTime(pid int) string {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return ""
+	}
+	f := strings.Fields(string(b))
+	if len(f) < 22 {
+		return ""
+	}
+	return f[21]
+}
 
 // detach puts the child in its own session — the Bash `&` + `disown`
 // equivalent. Without it QEMU dies on SIGHUP when the spawning
@@ -82,20 +107,45 @@ func runQEMU(confPath string, vmdir string, args []string, conf ...Conf) error {
 	// and kill(pid,0) still succeeds, so the liveness probe below
 	// would report "Started" for a guest that already crashed.
 	go cmd.Wait()
-	// wait 250ms — if it died, print the log and fail (bash parity)
+	// wait 250ms — if it died, qemu_spawn prints the ERROR line, drops
+	// the boot-state files and cats the log (all stdout, echo contract).
 	time.Sleep(250 * time.Millisecond)
 	if err := syscall.Kill(pid, 0); err != nil {
+		fmt.Printf(" - Process:  ERROR! Failed to start %s as %s\n", confPath, name)
+		os.Remove(filepath.Join(dir, name+".pid"))
+		os.Remove(filepath.Join(dir, name+".spice"))
+		os.Remove(dotdir(dir) + name + ".sock")
+		fmt.Println()
 		logB, _ := os.ReadFile(logPath)
-		fmt.Fprintln(os.Stderr, string(logB))
+		fmt.Println(string(logB))
 		return fmt.Errorf("qemu died on start")
 	}
-	// publish instance identity (same JSON contract as vm_instance_publish)
+	// publish instance identity (same JSON contract as vm_instance_publish):
+	// uuid + proc start-time + uid + command fingerprint, atomic 0600.
 	rt := filepath.Join(dir, name+".runtime.json")
-	rtJSON, _ := json.Marshal(map[string]any{
-		"pid": pid, "name": name, "startedAt": time.Now().UTC().Format(time.RFC3339),
-		"qmp": filepath.Join(dir, name+"-qmp.socket"),
-	})
-	if err := os.WriteFile(rt, rtJSON, 0644); err != nil {
+	fpv := sha256.Sum256([]byte(args[0] + "|" + confPath + "|" + name))
+	rec := map[string]any{
+		"schemaVersion":      1,
+		"instanceId":         instanceUUID(),
+		"vmId":               name,
+		"pid":                pid,
+		"uid":                os.Getuid(),
+		"commandFingerprint": "sha256:" + hex.EncodeToString(fpv[:]),
+		"configPath":         confPath,
+		"createdAt":          time.Now().UTC().Format(time.RFC3339),
+	}
+	if st := procStartTime(pid); st != "" {
+		rec["processStartTime"] = st
+	} else {
+		rec["processStartTime"] = nil
+	}
+	rtJSON, _ := json.Marshal(rec)
+	tmp := filepath.Join(dir, "."+name+".runtime.json.tmp")
+	if err := os.WriteFile(tmp, append(rtJSON, '\n'), 0600); err == nil {
+		if err := os.Rename(tmp, rt); err != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: runtime.json rename failed: %v\n", err)
+		}
+	} else {
 		fmt.Fprintf(os.Stderr, "WARNING: runtime.json write failed: %v — API/CLI state will show stopped\n", err)
 	}
 	// Detached reaper: quickemu exits right after spawning QEMU, so a
@@ -110,7 +160,7 @@ func runQEMU(confPath string, vmdir string, args []string, conf ...Conf) error {
 			reaper.Process.Release()
 		}
 	}
-	fmt.Printf(" - Process: Started %s (%d)\n", name, pid)
+	fmt.Printf(" - Process:  Started %s as %s (%d)\n", confPath, name, pid)
 	return nil
 }
 

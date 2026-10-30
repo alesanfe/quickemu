@@ -213,9 +213,22 @@ func TestRunQEMU(t *testing.T) {
 	os.WriteFile(conf, []byte("guest_os=\"linux\"\n"), 0o644)
 	// Dead-on-start: /bin/true exits before the liveness probe → error.
 	stub := t.TempDir()
+	// qemu_spawn drops the boot-state files when the spawn fails.
+	for _, ext := range []string{".pid", ".spice"} {
+		os.WriteFile(filepath.Join(dir, name+ext), []byte("stale"), 0o600)
+	}
+	os.WriteFile(dotdir(dir)+name+".sock", []byte("stale"), 0o600)
 	os.WriteFile(filepath.Join(stub, "qtrue"), []byte("#!/bin/sh\nexit 0\n"), 0o755)
 	if err := runQEMU(conf, dir, []string{filepath.Join(stub, "qtrue")}); err == nil {
 		t.Fatal("dead qemu should error")
+	}
+	for _, p := range []string{
+		filepath.Join(dir, name+".pid"), filepath.Join(dir, name+".spice"),
+		dotdir(dir) + name + ".sock",
+	} {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Fatalf("failed spawn left stale state file %s", p)
+		}
 	}
 	// Live qemu: script writes pidfile? runQEMU publishes runtime.json
 	// and spawns the detached reaper — use sleep so it stays alive.
@@ -226,8 +239,31 @@ func TestRunQEMU(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, name+".sh")); err != nil {
 		t.Fatal("launch script not written")
 	}
-	if _, err := os.Stat(filepath.Join(dir, name+".runtime.json")); err != nil {
+	rtPath := filepath.Join(dir, name+".runtime.json")
+	fi, err := os.Stat(rtPath)
+	if err != nil {
 		t.Fatal("runtime.json not published")
+	}
+	if fi.Mode().Perm() != 0o600 {
+		t.Fatalf("runtime.json mode %v, want 0600", fi.Mode().Perm())
+	}
+	// vm_instance_publish schema: uuid, vm id, pid, uid, fingerprint.
+	var rt map[string]any
+	rtB, _ := os.ReadFile(rtPath)
+	if err := json.Unmarshal(rtB, &rt); err != nil {
+		t.Fatalf("runtime.json unmarshal: %v", err)
+	}
+	if rt["schemaVersion"] != float64(1) || rt["vmId"] != name || rt["configPath"] != conf {
+		t.Fatalf("runtime.json fields wrong: %v", rt)
+	}
+	if id, _ := rt["instanceId"].(string); id == "" {
+		t.Fatal("runtime.json missing instanceId")
+	}
+	if fp, _ := rt["commandFingerprint"].(string); !strings.HasPrefix(fp, "sha256:") {
+		t.Fatalf("commandFingerprint %v", rt["commandFingerprint"])
+	}
+	if _, ok := rt["pid"].(float64); !ok {
+		t.Fatalf("pid %v", rt["pid"])
 	}
 	if _, err := os.Stat(filepath.Join(dir, name+".log")); err != nil {
 		t.Fatal("log not created")

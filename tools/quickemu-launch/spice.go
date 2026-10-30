@@ -20,7 +20,7 @@ import (
 //	none           -> disable-ticketing=on,port=<p>,addr=127.0.0.1|<ip|"">
 //
 // `access` in the conf stands in for the Bash --access CLI option.
-func spiceArgs(c Conf, dir, vmname, osName, arch string, t OsTuning) []string {
+func spiceArgs(c Conf, dir, vmname, osName string) []string {
 	d := c.get("display", "none")
 	var a []string
 	// -spice + agent/vdagent/webdav channels only in the spice gate;
@@ -101,32 +101,38 @@ func spiceArgs(c Conf, dir, vmname, osName, arch string, t OsTuning) []string {
 		a = append(a, "-chardev", "spiceport,id=webdav0,name=org.spice-space.webdav.0")
 		a = append(a, "-device", "virtserialport,chardev=webdav0,name=org.spice-space.webdav.0")
 	}
-	// usb redirection (3 channels) + smartcard passthrough — the
-	// spicepass controller follows USB_HOST_PASSTHROUGH_CONTROLLER.
-	// vm.sh gates the whole block on OS_KERNEL==Linux; macOS QEMU
-	// builds lack the SPICE chardev entirely.
-	if runtime.GOOS == "linux" {
-		spctl := t.UsbPassthrough
-		if spctl == "" {
-			spctl = "qemu-xhci"
-		}
-		a = append(a, "-device", spctl+",id=spicepass")
-		for i := 1; i <= 3; i++ {
-			a = append(a, "-chardev", fmt.Sprintf("spicevmc,id=usbredirchardev%d,name=usbredir", i))
-			a = append(a, "-device", fmt.Sprintf("usb-redir,chardev=usbredirchardev%d,id=usbredirdev%d", i, i))
-		}
-		a = append(a, "-device", "pci-ohci,id=smartpass")
-		a = append(a, "-device", "usb-ccid")
-		// Smartcard passthrough needs QEMU's ccid-card-passthru —
-		// probe like Bash (`qemu -device help | grep "passthrough
-		// smartcard"`), warn instead of emitting when unavailable.
-		if strings.Contains(qemuDeviceHelp(arch), "passthrough smartcard") {
-			a = append(a, "-chardev", "spicevmc,id=ccid,name=smartcard")
-			a = append(a, "-device", "ccid-card-passthru,chardev=ccid")
-		} else {
-			fmt.Printf(" - WARNING!  %s or SPICE was not compiled with support for smartcard devices\n",
-				"qemu-system-"+arch)
-		}
+	return a
+}
+
+// spiceUSBArgs: the Linux usbredir/smartcard stack (vm_boot, right
+// after the rng object — emitted separately from the -spice block).
+// vm.sh gates the whole block on OS_KERNEL==Linux; macOS QEMU builds
+// lack the SPICE chardev entirely.
+func spiceUSBArgs(arch string, t OsTuning) []string {
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+	var a []string
+	spctl := t.UsbPassthrough
+	if spctl == "" {
+		spctl = "qemu-xhci"
+	}
+	a = append(a, "-device", spctl+",id=spicepass")
+	for i := 1; i <= 3; i++ {
+		a = append(a, "-chardev", fmt.Sprintf("spicevmc,id=usbredirchardev%d,name=usbredir", i))
+		a = append(a, "-device", fmt.Sprintf("usb-redir,chardev=usbredirchardev%d,id=usbredirdev%d", i, i))
+	}
+	a = append(a, "-device", "pci-ohci,id=smartpass")
+	a = append(a, "-device", "usb-ccid")
+	// Smartcard passthrough needs QEMU's ccid-card-passthru — probe like
+	// Bash (`qemu -device help | grep "passthrough smartcard"`), warn
+	// instead of emitting when unavailable.
+	if strings.Contains(qemuDeviceHelp(arch), "passthrough smartcard") {
+		a = append(a, "-chardev", "spicevmc,id=ccid,name=smartcard")
+		a = append(a, "-device", "ccid-card-passthru,chardev=ccid")
+	} else {
+		fmt.Printf(" - WARNING!  %s or SPICE was not compiled with support for smartcard devices\n",
+			"qemu-system-"+arch)
 	}
 	return a
 }
