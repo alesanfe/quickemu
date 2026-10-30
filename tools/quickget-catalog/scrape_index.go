@@ -694,6 +694,46 @@ func scrapeIndex(osName, release, edition, arch string) (string, string, error) 
 			sha = sumForISO(b, strings.TrimSuffix(name, ".xz"))
 		}
 		return u, sha, nil
+	case "gentoo":
+		// get_gentoo: the <release>-iso.txt manifest names the ISO,
+		// then <ISO>.DIGESTS carries the sha512 (line after the SHA512
+		// header, iso-named, skipping the CONTENTS entry).
+		base := "https://mirrors.kernel.org/gentoo/releases/amd64/autobuilds"
+		want := "install"
+		if edition == "livegui" {
+			want = "livegui"
+		}
+		body, err := fetchString(base + "/" + release + "-iso.txt")
+		if err != nil {
+			return "", "", err
+		}
+		iso := ""
+		for _, l := range strings.Split(body, "\n") {
+			if f := strings.Fields(l); len(f) > 0 && strings.Contains(l, want) {
+				iso = f[0]
+				break
+			}
+		}
+		if iso == "" {
+			return "", "", fmt.Errorf("gentoo: no iso in %s-iso.txt", release)
+		}
+		sha := ""
+		if b, err := fetchString(base + "/" + iso + ".DIGESTS"); err == nil {
+			lines := strings.Split(b, "\n")
+			for i, l := range lines {
+				if !strings.Contains(l, "SHA512") || i+1 >= len(lines) {
+					continue
+				}
+				nx := lines[i+1]
+				if strings.Contains(nx, "iso") && !strings.Contains(nx, "CONTENTS") {
+					if f := strings.Fields(nx); len(f) > 0 {
+						sha = f[0]
+						break
+					}
+				}
+			}
+		}
+		return base + "/" + iso, sha, nil
 
 		// --- JSON APIs ---
 	}

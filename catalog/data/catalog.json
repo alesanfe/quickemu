@@ -2665,13 +2665,13 @@
     "amd64"
    ],
    "url": "https://mirrors.kernel.org/gentoo/releases/amd64/autobuilds",
-   "hash_url": "${URL}/%RELEASE%-iso.txt",
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "stable"
+   "support_level": "stable",
+   "scrape": true
   },
   {
    "os": "ghostbsd",

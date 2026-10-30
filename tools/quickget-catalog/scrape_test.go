@@ -316,3 +316,17 @@ func TestScrapeAPIScrapers(t *testing.T) {
 		}
 	}
 }
+
+func TestScrapeGentoo(t *testing.T) {
+	sha := strings.Repeat("c", 128)
+	base := "https://mirrors.kernel.org/gentoo/releases/amd64/autobuilds"
+	pages := map[string]string{
+		base + "/latest-iso.txt":                                     "install-amd64-minimal-20260101T000000Z.iso 2026-01-01\nlatest-stage3-amd64-openrc.tar.xz\n",
+		base + "/install-amd64-minimal-20260101T000000Z.iso.DIGESTS": "# SHA512 HASH\n" + sha + "  install-amd64-minimal-20260101T000000Z.iso\n# SHA512 HASH\n" + strings.Repeat("d", 128) + "  install-amd64-minimal-20260101T000000Z.iso.CONTENTS\n",
+	}
+	fakeFetch(t, pages)
+	u, h, err := scrape("gentoo", "latest", "minimal", "amd64")
+	if err != nil || !strings.HasSuffix(u, "install-amd64-minimal-20260101T000000Z.iso") || h != sha {
+		t.Fatalf("gentoo u=%q h=%q err=%v", u, h, err)
+	}
+}

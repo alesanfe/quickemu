@@ -94,6 +94,16 @@ func TestFindHash(t *testing.T) {
 	if h := findHash("img-1.iso is great\n"+sha+"  other.iso\n", "img-1.iso"); h != "" {
 		t.Fatalf("non-matching iso should yield no hash, got %q", h)
 	}
+	// BSD format: "SHA256 (name) = hash".
+	if h := findHash("SHA256 (img-1.iso) = "+sha+"\n", "img-1.iso"); h != sha {
+		t.Fatalf("bsd sums %q", h)
+	}
+	// grep -v .xz parity: an <iso>.xz row is not the iso itself.
+	xz := strings.Repeat("b", 64)
+	body := "SHA256 (img-1.iso.xz) = " + xz + "\nSHA256 (img-1.iso) = " + sha + "\n"
+	if h := findHash(body, "img-1.iso"); h != sha {
+		t.Fatalf("xz exclusion %q", h)
+	}
 }
 
 // TestTrustOf: trust_os parity — hash-bearing sources grade C, sources

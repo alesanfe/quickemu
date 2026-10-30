@@ -31,23 +31,31 @@ var hashTok = regexp.MustCompile(`^([a-fA-F0-9]{32}|[a-fA-F0-9]{40}|[a-fA-F0-9]{
 // its hex token. A bare-hash file (no ISO mention anywhere) yields
 // its first hex token.
 func findHash(body, iso string) string {
+	// isoField: the ISO name as a whole token — BSD sums wrap it as
+	// "(name)" and GNU adds "*" for binary mode. A substring match
+	// would accept "<iso>.xz" rows (Bash's grep -v .xz exclusion).
+	isoField := func(f string) bool {
+		f = strings.Trim(f, "()*")
+		return f == iso
+	}
 	fallback := ""
 	sawISO := false
 	for _, line := range strings.Split(body, "\n") {
-		if iso != "" && strings.Contains(line, iso) {
-			sawISO = true
-		}
 		var tok string
+		isoLine := false
 		for _, f := range strings.Fields(line) {
 			if hashTok.MatchString(strings.ToLower(f)) {
-				tok = f
-				break
+				if tok == "" {
+					tok = f
+				}
+				continue
+			}
+			if isoField(f) {
+				sawISO = true
+				isoLine = true
 			}
 		}
-		if tok == "" {
-			continue
-		}
-		if iso != "" && strings.Contains(line, iso) {
+		if isoLine && tok != "" {
 			return tok
 		}
 		if fallback == "" {
