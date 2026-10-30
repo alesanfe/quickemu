@@ -136,14 +136,17 @@ func procCmdline(pid int) string {
 // vmProcOwned: ownership proof for a live pid — the process is THIS
 // VM's qemu. Cmdline tokens are the strongest check (a quickemu qemu
 // always carries the VM dir in its drive args and -name process=<vm>);
-// comm matching (vmname, 15-char truncation, qemu*) is the legacy
-// fallback when cmdline is unreadable.
+// comm matching (vmname, 15-char truncation, qemu*) is the Bash
+// vm_running check — a readable-but-nonmatching cmdline still falls
+// through to it (a VM started under a renamed/relative argv[0] keeps
+// its comm identity).
 func vmProcOwned(pid int) bool {
 	name := vmname()
-	if cl := procCmdline(pid); cl != "" {
-		return strings.Contains(cl, vmdir()+string(filepath.Separator)) ||
+	if cl := procCmdline(pid); cl != "" &&
+		(strings.Contains(cl, vmdir()+string(filepath.Separator)) ||
 			strings.Contains(cl, "process="+name+",") ||
-			strings.HasSuffix(cl, "process="+name)
+			strings.HasSuffix(cl, "process="+name)) {
+		return true
 	}
 	comm := procComm(pid)
 	if comm == "" {
