@@ -102,10 +102,15 @@ func probeGPUs() []string {
 	return pciGPUNames()
 }
 
-// probeQemuArch: arm64 → aarch64, else uname -m.
+// probeQemuArch: the qemu-system-<arch> suffix for the host — Bash
+// maps uname -m (arm64 → aarch64); Go must also map amd64 → x86_64
+// since GOARCH names differ from QEMU's.
 func probeQemuArch() string {
-	if runtime.GOARCH == "arm64" {
+	switch runtime.GOARCH {
+	case "arm64":
 		return "aarch64"
+	case "amd64":
+		return "x86_64"
 	}
 	return runtime.GOARCH
 }

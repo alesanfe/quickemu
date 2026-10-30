@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -64,6 +65,18 @@ func TestProbes(t *testing.T) {
 	}
 	if probeQemuArch() == "" {
 		t.Error("qemu arch empty")
+	}
+	// probe_qemu_arch parity: qemu-system-* names, not GOARCH names —
+	// amd64 hosts look up qemu-system-x86_64, arm64 → aarch64.
+	switch runtime.GOARCH {
+	case "amd64":
+		if probeQemuArch() != "x86_64" {
+			t.Errorf("amd64 host should probe x86_64, got %q", probeQemuArch())
+		}
+	case "arm64":
+		if probeQemuArch() != "aarch64" {
+			t.Errorf("arm64 host should probe aarch64, got %q", probeQemuArch())
+		}
 	}
 	// probeQuickemu may return "" (not installed); probeGPUs may be empty.
 	_ = probeQuickemu()

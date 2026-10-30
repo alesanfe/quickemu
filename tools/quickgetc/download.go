@@ -154,7 +154,7 @@ func webGet(url, dir, file string, headers [][2]string) int {
 	}
 	resp, err := httpDL.Do(req)
 	if err != nil {
-		fmt.Printf("ERROR! Failed to download %s\n", url)
+		fmt.Printf("ERROR! Failed to download %s with curl.\n", url)
 		return 1
 	}
 	defer resp.Body.Close()
@@ -164,7 +164,7 @@ func webGet(url, dir, file string, headers [][2]string) int {
 		return 0
 	}
 	if resp.StatusCode >= 400 {
-		fmt.Printf("ERROR! Failed to download %s (HTTP %d)\n", url, resp.StatusCode)
+		fmt.Printf("ERROR! Failed to download %s with curl. (HTTP %d)\n", url, resp.StatusCode)
 		return 1
 	}
 	flag := os.O_CREATE | os.O_WRONLY
@@ -181,7 +181,7 @@ func webGet(url, dir, file string, headers [][2]string) int {
 	}
 	defer f.Close()
 	if _, err := io.Copy(f, resp.Body); err != nil {
-		fmt.Printf("ERROR! Failed to download %s\n", url)
+		fmt.Printf("ERROR! Failed to download %s with curl.\n", url)
 		os.Remove(dest)
 		return 1
 	}

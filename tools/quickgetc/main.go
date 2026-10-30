@@ -212,6 +212,7 @@ func makeVMConfig(e *OSEntry, entry *Release, vmPath string, images map[string]s
 		fmt.Println(err)
 		return 1
 	}
+	fmt.Println(" - Setting " + conf + " executable")
 	return 0
 }
 
@@ -398,7 +399,6 @@ func main() {
 				os.Exit(1)
 			}
 			showOSInfo(e)
-			listReleasesDisplay(e)
 			return
 		case "--version", "-version", "-V":
 			fmt.Println(version)
@@ -496,20 +496,30 @@ func main() {
 	}
 	entry, edEntries, err := findEditionEntry(relEntries, edition, arch, hostArch())
 	if err != nil {
-		if arch != "" {
+		// Edition empties error first (Bash checks EDITION_ENTRIES
+		// before the arch preference), arch rejection second.
+		if len(edEntries) == 0 {
+			var eds []string
+			seen := map[string]bool{}
+			for _, r := range relEntries {
+				if !seen[r.Edition] {
+					seen[r.Edition] = true
+					eds = append(eds, r.Edition)
+				}
+			}
+			fmt.Printf("ERROR! %s is not a supported %s %s edition.\n - Supported editions: %s\n",
+				edition, e.PrettyName, rel, strings.Join(eds, " "))
+		} else if arch != "" {
 			var archs []string
 			for _, r := range edEntries {
 				archs = append(archs, r.Arch)
 			}
-			fmt.Printf("ERROR! %s is not a supported architecture for %s %s.\n - Supported architectures: %s\n",
-				arch, e.PrettyName, rel, strings.Join(archs, " "))
-		} else {
-			var eds []string
-			for _, r := range relEntries {
-				eds = append(eds, r.Edition)
+			suffix := ""
+			if edition != "" {
+				suffix = " " + edition
 			}
-			fmt.Printf("ERROR! %s is not a supported %s %s edition.\n - Supported editions: %s\n",
-				edition, e.PrettyName, rel, strings.Join(eds, " "))
+			fmt.Printf("ERROR! %s is not a supported architecture for %s %s%s.\n - Supported architectures: %s\n",
+				arch, e.PrettyName, rel, suffix, strings.Join(archs, " "))
 		}
 		os.Exit(1)
 	}
