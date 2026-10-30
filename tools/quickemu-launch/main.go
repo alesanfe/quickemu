@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +27,21 @@ func joinConf(dir, p string) string {
 		return p
 	}
 	return filepath.Join(dir, p)
+}
+
+// warnTelnetExposure flags telnet monitor/serial endpoints bound to a
+// non-loopback address — the QEMU monitor has no authentication, so a
+// network-reachable binding hands HMP control to the whole network.
+// Only provably-loopback bindings stay silent (no DNS lookups here —
+// resolving names would stall launch on unreachable resolvers).
+func warnTelnetExposure(kind, host string) {
+	if host == "" || host == "localhost" {
+		return
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "WARNING! %s telnet endpoint bound to %q — QEMU monitor is unauthenticated; prefer loopback or %s=socket.\n", kind, host, kind)
 }
 
 func main() {
@@ -364,6 +380,7 @@ func main() {
 		fmt.Printf(" - Monitor:  (off)\n")
 	case "telnet":
 		host := conf.get("monitor_telnet_host", "localhost")
+		warnTelnetExposure("monitor", host)
 		portStr := conf.get("monitor_telnet_port", "4440")
 		start, _ := strconv.Atoi(portStr)
 		if start <= 0 {
@@ -409,6 +426,7 @@ func main() {
 		args = append(args, "-serial", "none")
 	case "telnet":
 		host := conf.get("serial_telnet_host", "localhost")
+		warnTelnetExposure("serial", host)
 		portStr := conf.get("serial_telnet_port", "6660")
 		start, _ := strconv.Atoi(portStr)
 		if start <= 0 {

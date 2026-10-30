@@ -5,11 +5,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/alesanfe/quickemu/tools/qelib"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 var fetchString = func(url string) (string, error) { return qelib.FetchString(url, 16<<20) }
