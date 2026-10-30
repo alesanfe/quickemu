@@ -331,8 +331,14 @@ func main() {
 	// swtpm mirrors virtiofsd: spawn before emit on --run so the socket
 	// exists when the chardev lands (swtpm_socket_ready); plan always.
 	checkUSBPassthrough(conf)
-	if confOn(conf, "tpm") && (!runMode || startSwtpm(conf)) {
-		conf["_swtpm"] = "1"
+	if confOn(conf, "tpm") {
+		// plan mode prints the (planned) line without spawning.
+		if !runMode {
+			fmt.Printf(" - TPM:      %s (planned)\n", filepath.Join(vmdir, vmname+".swtpm-sock"))
+			conf["_swtpm"] = "1"
+		} else if startSwtpm(conf) {
+			conf["_swtpm"] = "1"
+		}
 	}
 
 	// ============ emit phase (vm_boot args+= order) ============
