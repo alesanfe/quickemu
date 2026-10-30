@@ -8,11 +8,11 @@ reports, untested declared features, undocumented .conf/TOML divergence.
 
 | ID | Item | Subsystem | Severity | Status | Resolution |
 |----|------|-----------|----------|--------|------------|
-| TD-001 | QMP client is single-request (no async events/mux) | quickemu-qmp | medium | accepted | Extract `quickemu-qmp` when protocol trigger fires (ADR-0001) |
+| TD-001 | QMP client is single-request (no async events/mux) | quickemu-qmp | medium | resolved | Async `{"event":...}` records are separated from replies (id-correlated), echoed to stderr, persisted to `<vm>.events.jsonl` as `qemu.<EVENT>` and streamed via `watch`; concurrency is serialized by the VM op lock — QEMU enforces one QMP client per socket, so an in-client mux adds nothing |
 | TD-002 | Port registry records PID+timestamp, not instanceId | quickemu-launch | low | resolved | instanceId recorded alongside pid |
 | TD-003 | telnet monitor exposed when configured | quickemu-qmp | medium | resolved | Loopback default; launch warns on stderr for any non-loopback telnet bind (unauthenticated HMP) |
 | TD-004 | .conf is executable code | config | high | resolved | Go backend parses .conf as data — never executed; TOML path also available |
-| TD-005 | HMP fallback paths remain alongside QMP | quickemu-qmp | low | accepted | Documented fallback contract |
+| TD-005 | HMP fallback paths remain alongside QMP | quickemu-qmp | low | resolved | Dead HMP/helper surface deleted from quickemu-qmp (SendCmd/SendKeys/TypeText/Screenshot/Hotplug*/HotplugPersist/SocketReady — unreachable, no dispatch); one HMP transport remains: cli `monitorSend` (monitor_send_cmd parity) + `vmControl` QMP-first → HMP fallback + `hmp()` via QMP human-monitor-command |
 | TD-006 | ops registry has no generic progress% | quickemu-ops | low | resolved | running 10/30/40 + completed 100 in export/import |
 | TD-007 | external snapshots lack consolidate/rebase ops | quickemu-cli | medium | resolved | snapshot_consolidate commits leaf overlays |
 | TD-008 | hotplug persists to .conf only (no TOML write) | quickemu-qmp | low | resolved | TOML arrays written when VM is .toml |

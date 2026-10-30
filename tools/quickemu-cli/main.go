@@ -568,6 +568,7 @@ func main() {
 			"kill_vm": true, "pause_vm": true, "resume_vm": true,
 			"shutdown_vm": true, "reset_vm": true, "stop_vm": true,
 			"send_keys": true, "type_text": true, "screenshot_vm": true,
+			"monitor_cmd": true, // HMP socket is single-client like QMP
 		}
 		if fn := dispatch(act); fn != nil {
 			if locked[act] && !vmLockAcquire() {

@@ -34,18 +34,8 @@ func TestDeniedAndErrorPaths(t *testing.T) {
 	if rc := runExecute(filepath.Join(t.TempDir(), "x"), `{"foo":1}`, time.Second); rc != 1 {
 		t.Fatalf("no-exec rc=%d", rc)
 	}
-	// Hotunplug against a dead socket → error.
-	if err := Hotunplug(filepath.Join(t.TempDir(), "none"), "id1"); err == nil {
+	// Allowlisted command against a dead socket → dial failure.
+	if rc := runExecute(filepath.Join(t.TempDir(), "none"), `{"execute":"query-status"}`, time.Second); rc != 1 {
 		t.Fatal("dead sock must fail")
-	}
-	// Screenshot against a dead socket → error.
-	if err := Screenshot(filepath.Join(t.TempDir(), "none"), "/tmp/s.ppm"); err == nil {
-		t.Fatal("dead sock screendump must fail")
-	}
-	// HotplugDisk with dead socket after valid stat.
-	f := filepath.Join(t.TempDir(), "d.qcow2")
-	_ = f
-	if _, err := HotplugDisk(filepath.Join(t.TempDir(), "none"), f); err == nil {
-		t.Fatal("dead sock disk must fail")
 	}
 }

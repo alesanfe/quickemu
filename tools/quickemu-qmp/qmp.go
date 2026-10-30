@@ -4,28 +4,24 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // QMP client: connect -> read greeting -> qmp_capabilities -> command.
-// Each response may be interleaved with async {"event":...} records;
-// execute skips them, watch emits them.
+// Each response may be interleaved with async {"event":...} records —
+// execute echoes them to stderr AND appends them to the VM's
+// events.jsonl (durable qe_event surface); watch streams them as JSONL.
 
 var qmpRaw bool // --raw: emit the bare QMP reply line for Bash callers
 
 var qmpSeq int // monotonic command ids for request/response correlation
-
-var nonAlnum = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
 type qmpConn struct {
 	c net.Conn
@@ -144,13 +140,15 @@ func runExecute(socket, command string, timeout time.Duration) int {
 	if err := q.write(map[string]any{"execute": "qmp_capabilities"}); err != nil {
 		return emit("qmp.execute", nil, "QMP_CAPABILITIES", err.Error())
 	}
-	// find the capabilities reply, skipping async events
+	// find the capabilities reply; async events still land in the log
 	for i := 0; i < 64; i++ {
 		m, ev, err := q.readMsg()
 		if err != nil {
 			return emit("qmp.execute", nil, "QMP_CAPABILITIES", err.Error())
 		}
-		_ = ev
+		if ev != nil {
+			qmpEventSink(socket, ev)
+		}
 		if m != nil {
 			if e, ok := m["error"]; ok {
 				b, _ := json.Marshal(e)
@@ -174,6 +172,7 @@ func runExecute(socket, command string, timeout time.Duration) int {
 		}
 		if ev != nil {
 			fmt.Fprintf(os.Stderr, "qmp event: %s\n", mustJSON(ev))
+			qmpEventSink(socket, ev)
 			continue // strictly separated from the response stream
 		}
 		if m == nil {
@@ -232,136 +231,20 @@ func mustJSON(v any) string {
 	return string(b)
 }
 
-// SocketReady mirrors vm_monitor_socket_ready: socket exists, is a unix
-// socket, is not a symlink, and is owned by the current user.
-func SocketReady(path string) bool {
-	fi, err := os.Lstat(path)
-	if err != nil || fi.Mode()&os.ModeSymlink != 0 {
-		return false
+// qmpEventSink: async events are durable, not just a stderr echo —
+// appended to the VM's <vmdir>/<vm>.events.jsonl (qe_event parity) as
+// qemu.<EVENT> with the raw record as data. The socket layout
+// <vmdir>/<vm>-qmp.socket carries the identity; a non-VM socket (odd
+// basename or unwritable dir) degrades to a silent no-op, matching
+// AppendEvent's best-effort contract.
+func qmpEventSink(sock string, ev map[string]any) {
+	name := strings.TrimSuffix(filepath.Base(sock), "-qmp.socket")
+	if name == "" || name == filepath.Base(sock) {
+		return // socket not named <vm>-qmp.socket — nothing to attribute to
 	}
-	if fi.Mode()&os.ModeSocket == 0 {
-		return false
+	typ := "qemu.event"
+	if n, ok := ev["event"].(string); ok && n != "" {
+		typ = "qemu." + n
 	}
-	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-		return stat.Uid == uint32(os.Getuid())
-	}
-	return true
-}
-
-// SendCmd mirrors monitor_send_cmd: writes a raw command to the monitor
-// socket (not QMP) and returns the reply.
-func SendCmd(path, cmd string) (string, error) {
-	conn, err := net.DialTimeout("unix", path, 5*time.Second)
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-	conn.SetDeadline(time.Now().Add(5 * time.Second))
-	fmt.Fprintf(conn, "%s\n", cmd)
-	conn.(*net.UnixConn).CloseWrite()
-	b, err := io.ReadAll(conn)
-	return string(b), err
-}
-
-// qmpCmd marshals a QMP execute envelope — replaces hand-built
-// fmt.Sprintf JSON (proper escaping of embedded filenames/ids).
-func qmpCmd(execute string, args map[string]any) string {
-	return qelib.QMPCmd(execute, args)
-}
-
-// HotplugUSB mirrors vm_hotplug_usb: QMP device_add usb-host with hex
-// vendor:product parsing. Returns the device id on success.
-func HotplugUSB(sock, vidpid string) (string, error) {
-	parts := strings.SplitN(vidpid, ":", 2)
-	if len(parts) != 2 {
-		return "", fmt.Errorf("need vendor:product hex (e.g. 05ac:12a8)")
-	}
-	v, err1 := strconv.ParseUint(parts[0], 16, 32)
-	p, err2 := strconv.ParseUint(parts[1], 16, 32)
-	if err1 != nil || err2 != nil || v == 0 || p == 0 {
-		return "", fmt.Errorf("bad vendor:product %q", vidpid)
-	}
-	id := "hotusb" + parts[0] + parts[1]
-	cmd := qmpCmd("device_add", map[string]any{"driver": "usb-host", "id": id, "vendorid": v, "productid": p})
-	if rc := runExecute(sock, cmd, 5*time.Second); rc != 0 {
-		return "", fmt.Errorf("device_add failed (rc=%d)", rc)
-	}
-	return id, nil
-}
-
-// HotplugDisk mirrors vm_hotplug_disk: blockdev-add the file then
-// device_add virtio-blk-pci with the node name.
-func HotplugDisk(sock, file string) (string, error) {
-	if _, err := os.Stat(file); err != nil {
-		return "", err
-	}
-	id := "hotdisk" + nonAlnum.ReplaceAllString(filepath.Base(file), "")
-	abs, _ := filepath.Abs(file)
-	node := id + "node"
-	// blockdev-add first (registers the file), then device_add references it
-	q := qmpCmd("blockdev-add", map[string]any{"node-name": node, "driver": "qcow2", "file": map[string]any{"driver": "file", "filename": abs}})
-	if rc := runExecute(sock, q, 5*time.Second); rc != 0 {
-		return "", fmt.Errorf("blockdev-add failed (rc=%d)", rc)
-	}
-	dev := qmpCmd("device_add", map[string]any{"driver": "virtio-blk-pci", "id": id, "drive": node})
-	if rc := runExecute(sock, dev, 5*time.Second); rc != 0 {
-		return "", fmt.Errorf("device_add failed (rc=%d)", rc)
-	}
-	return id, nil
-}
-
-// Hotunplug mirrors vm_hotunplug: device_del by id.
-func Hotunplug(sock, devid string) error {
-	if rc := runExecute(sock, qmpCmd("device_del", map[string]any{"id": devid}), 5*time.Second); rc != 0 {
-		return fmt.Errorf("device_del failed (rc=%d)", rc)
-	}
-	return nil
-}
-
-// SendKeys mirrors send_keys/vm_send_key_combo: sends a key combo via
-// the human monitor ("sendkey ctrl-alt-f" style).
-func SendKeys(monSock, combo string) error {
-	if combo == "" {
-		return fmt.Errorf("empty combo")
-	}
-	// normalize "ctrl+alt+f1" -> "ctrl-alt-f1" (monitor syntax)
-	key := strings.ReplaceAll(combo, "+", "-")
-	_, err := SendCmd(monSock, "sendkey "+key)
-	return err
-}
-
-// sendkeyName maps a printable character to its QEMU monitor
-// sendkey name — delegates to the shared qelib table so the cli
-// --type path and this tool agree.
-func sendkeyName(ch rune) string { return qelib.SendkeyName(ch) }
-
-// TypeText mirrors type_text: sendkey each character (with shift for
-// uppercase/punct) at ~30cps, matching the Bash pacing.
-func TypeText(monSock, text string) error {
-	for _, ch := range text {
-		key := sendkeyName(ch)
-		if key == "" {
-			continue
-		}
-		if _, err := SendCmd(monSock, "sendkey "+key); err != nil {
-			return err
-		}
-		time.Sleep(33 * time.Millisecond) // ~30 chars/sec
-	}
-	return nil
-}
-
-// Screenshot mirrors screenshot_vm: QMP screendump to a PPM file.
-func Screenshot(sock, out string) error {
-	q := qmpCmd("screendump", map[string]any{"filename": out})
-	if rc := runExecute(sock, q, 5*time.Second); rc != 0 {
-		return fmt.Errorf("screendump failed")
-	}
-	return nil
-}
-
-// HotplugPersist appends a hotplugged device to the VM config —
-// lives in qelib so the cli tool shares one implementation.
-func HotplugPersist(confPath, kind, val string) error {
-	return qelib.HotplugPersist(confPath, kind, val)
+	qelib.AppendEvent(filepath.Dir(sock), name, 0, typ, mustJSON(ev))
 }
