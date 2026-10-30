@@ -116,6 +116,7 @@ func portRegistryRelease(owner int) {
 // PORT_BUSY message).
 func getPort(start, rng, vmPid int, vmname string) int {
 	if !portRegistryLock() {
+		fmt.Fprintln(os.Stderr, "ERROR! Could not acquire the port allocation lock.")
 		return -1 // LOCK_TIMEOUT
 	}
 	defer portRegistryUnlock()
@@ -132,6 +133,8 @@ func getPort(start, rng, vmPid int, vmname string) int {
 		portRegistryReserve(p, vmPid, "", vmname)
 		return p
 	}
+	fmt.Fprintf(os.Stderr, "ERROR! No free host port in range %d-%d.\n",
+		start, start+rng)
 	return 0 // PORT_BUSY
 }
 

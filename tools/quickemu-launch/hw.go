@@ -591,7 +591,7 @@ func planPorts(c Conf, t OsTuning) {
 		return // none/bridge/passt have no user-netdev forwards
 	}
 	fwd := ""
-	if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229); p != "" {
+	if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229, c["_vmname"]); p != "" {
 		// ssh_access picks the bind address (local→loopback,
 		// remote→wildcard, otherwise a specific interface IP).
 		addr, sshHost := "127.0.0.1", "localhost"
@@ -771,18 +771,31 @@ func qemuVersionShort(arch string) int {
 var netListen = net.Listen
 
 // firstFreePort: returns p if set, else the first free TCP port in
-// [lo,hi] — get_port(22220,9) parity.
-func firstFreePort(p string, lo, hi int) string {
+// [lo,hi] — the ssh/SPICE callers of get_port parity: the pick runs
+// under the registry lock, skips reservations owned by live VMs and
+// records its own so concurrent instances cannot double-allocate.
+// vmname lands in the reservation record (pid ts instance vm).
+func firstFreePort(p string, lo, hi int, vmname string) string {
 	if p != "" {
 		return p
 	}
+	if !portRegistryLock() {
+		fmt.Fprintln(os.Stderr, "ERROR! Could not acquire the port allocation lock.")
+		return ""
+	}
+	defer portRegistryUnlock()
 	for port := lo; port <= hi; port++ {
+		if portRegistryTaken(port) {
+			continue
+		}
 		ln, err := netListen("tcp", fmt.Sprintf(":%d", port))
 		if err == nil {
 			ln.Close()
+			portRegistryReserve(port, os.Getpid(), "", vmname)
 			return fmt.Sprint(port)
 		}
 	}
+	fmt.Fprintf(os.Stderr, "ERROR! No free host port in range %d-%d.\n", lo, hi)
 	return ""
 }
 

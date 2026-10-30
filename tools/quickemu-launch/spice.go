@@ -55,7 +55,7 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 				if addr == "remote" {
 					addr = ""
 				}
-				port := firstFreePort(c.get("spice_port", ""), 5930, 5939)
+				port := firstFreePort(c.get("spice_port", ""), 5930, 5939, vmname)
 				if port == "" {
 					fmt.Println(" - SPICE:    All SPICE ports have been exhausted.")
 					fmt.Println("             ERROR! Requested SPICE display, but no SPICE ports are free.")
@@ -76,7 +76,7 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 			default:
 				addr = access
 			}
-			port := firstFreePort(c.get("spice_port", ""), 5930, 5939)
+			port := firstFreePort(c.get("spice_port", ""), 5930, 5939, vmname)
 			if port == "" {
 				fmt.Println(" - SPICE:    All SPICE ports have been exhausted.")
 				fmt.Println("             ERROR! Requested SPICE display, but no SPICE ports are free.")
