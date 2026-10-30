@@ -179,7 +179,7 @@ func listReleasesDisplay(e *OSEntry) {
 	if uniqueEd {
 		fmt.Printf(" - %-15s | %s\n", "Releases", "Editions")
 		for _, r := range rels {
-			fmt.Printf("  %-16s | %s\n", r, strings.Join(eds[r], " "))
+			fmt.Printf("  %-16s | %s\n", r, strings.ReplaceAll(strings.Join(eds[r], " "), "!", " "))
 		}
 		return
 	}

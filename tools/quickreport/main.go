@@ -16,6 +16,11 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func hasTool(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
+}
+
 func cmdOut(name string, args ...string) string {
 	if bin, err := exec.LookPath(name); err == nil {
 		if out, err := execCommand(bin, args...).Output(); err == nil {
@@ -274,7 +279,8 @@ func quickReportJSON() int {
 		"data": map[string]any{
 			"os": probeOSName(), "kernel": uname("-sr"), "arch": uname("-m"),
 			"quickemu": probeQuickemu(), "qemu": firstLine(qver),
-			"tools": tools},
+			// "curl" is the Bash field; "tools" is an additive extension.
+			"curl": hasTool("curl"), "tools": tools},
 		"warnings": []any{}, "errors": []any{},
 		"meta": map[string]any{"redacted": true}})
 	fmt.Println(qrRedact(string(b)))
