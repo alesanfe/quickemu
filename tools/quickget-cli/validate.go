@@ -64,7 +64,8 @@ func actURL(osName, release, edition, arch string) int {
 	for _, c := range combinations(e, release, edition) {
 		out, err := tool("quickget-catalog", "url", osName, c[0], c[1], arch)
 		if err != nil {
-			fmt.Fprint(os.Stderr, out+"\n")
+			// get_* die() text is a stdout contract, not a diagnostic.
+			fmt.Fprint(os.Stdout, out+"\n")
 			rc = 1
 			continue
 		}

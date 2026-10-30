@@ -192,8 +192,10 @@ func run() int {
 			// mirrors the Bash get_<os> logic 1:1. No Bash delegation.
 			full, hash, err := scrape(e.OS, release, edition, arch)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "scrape:%s %v\n", e.OS, err)
-				return 3
+				// A get_* die() surfaces its ERROR! line on stdout and
+				// the whole run exits 1.
+				fmt.Printf("ERROR! %v\n", err)
+				return 1
 			}
 			out := full
 			if hash != "" {
@@ -236,12 +238,15 @@ func run() int {
 		}
 		full := ""
 		if e.Scrape {
+			// Resolution failures degrade to an empty URL like the
+			// Bash $(get_*) capture — web_check "" fails → FAIL line,
+			// the op still completes rc0. The diagnostic stays on stderr.
 			f, _, err := scrape(e.OS, release, edition, arch)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "scrape:%s %v\n", e.OS, err)
-				return 3
+			} else {
+				full = f
 			}
-			full = f
 		} else {
 			full, _ = resolveURL(e, release, edition, arch)
 		}
