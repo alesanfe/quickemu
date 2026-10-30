@@ -672,7 +672,12 @@ func run() int {
 		}
 		okMap(map[string]any{"linkedClone": args[3]})
 	case "snapshot-create", "snapshot-apply", "snapshot-delete":
-		// qemu-img snapshot -c/-a/-d <tag> <disk> — same as vm.sh.
+		// qemu-img snapshot -c/-a/-d <tag> <disk> — same as vm.sh,
+		// including the headline echo printed before the tag check.
+		disk0 := confDisk(dir)
+		fmt.Println(map[string]string{
+			"snapshot-create": "Snapshotting", "snapshot-apply": "Snapshot apply to",
+			"snapshot-delete": "Snapshot removal"}[op] + " " + disk0)
 		if len(args) < 3 {
 			die("INVALID_ARGS", "snapshot op needs a tag")
 		}
@@ -682,13 +687,15 @@ func run() int {
 		if !snapTagOk(tag) {
 			die("INVALID_ARGS", "snapshot tag must match [A-Za-z0-9._-]+ and not start with '-'")
 		}
-		// vm_running guard: qemu-img snapshot on a live disk corrupts it.
+		// vm_running guard: qemu-img snapshot on a live disk corrupts
+		// it — liveness+identity, not a bare pidfile read.
+		sname := filepath.Base(dir)
 		if c := vmConfPath(dir); c != "" {
-			pf := filepath.Join(dir, strings.TrimSuffix(filepath.Base(c), ".conf")+".pid")
-			if b, err := os.ReadFile(pf); err == nil && len(strings.TrimSpace(string(b))) > 0 {
-				fmt.Fprintln(os.Stderr, " - ERROR! Stop the VM before managing snapshots.")
-				return 1
-			}
+			sname = strings.TrimSuffix(filepath.Base(c), ".conf")
+		}
+		if vmRunningDir(dir, sname) {
+			fmt.Fprintln(os.Stderr, " - ERROR! Stop "+sname+" before managing snapshots.")
+			return 1
 		}
 		// --external/-external [desc]: qcow2 overlay chain instead of
 		// an internal qemu-img snapshot (snapshot_create_external).
@@ -708,14 +715,38 @@ func run() int {
 			}
 		}
 		disk := confDisk(dir)
-		if disk == "" {
-			die("NO_DISK", "no disk_img in "+dir)
+		// snapshot_tag_exists gates: create refuses a used tag,
+		// delete refuses a missing one (qe_die SNAPSHOT_CONFLICT /
+		// NOT_FOUND parity).
+		switch op {
+		case "snapshot-create":
+			if snapTagExists(disk, tag) {
+				die("SNAPSHOT_CONFLICT", "snapshot tag '"+tag+"' already exists in "+disk)
+			}
+		case "snapshot-delete":
+			if !snapTagExists(disk, tag) {
+				die("NOT_FOUND", "snapshot '"+tag+"' not found in "+disk)
+			}
+		}
+		if _, err := os.Stat(disk); err != nil || disk == "" {
+			fmt.Println(" - NOTE! " + disk + " not found. Doing nothing.")
+			return 0
 		}
 		flag := map[string]string{"snapshot-create": "-c", "snapshot-apply": "-a", "snapshot-delete": "-d"}[op]
 		cmd := execCommand("qemu-img", "snapshot", "-q", flag, tag, disk)
 		if err := cmd.Run(); err != nil {
-			die("SNAPSHOT_FAILED", err.Error())
+			fmt.Fprintf(os.Stderr, " - ERROR! Failed to %s snapshot '%s' %s %s\n",
+				map[string]string{"snapshot-create": "create", "snapshot-apply": "apply",
+					"snapshot-delete": "delete"}[op],
+				tag, map[string]string{"snapshot-create": "for", "snapshot-apply": "to",
+					"snapshot-delete": "from"}[op], disk)
+			return 1
 		}
+		fmt.Printf(" - %s snapshot '%s' %s %s\n",
+			map[string]string{"snapshot-create": "Created", "snapshot-apply": "Applied",
+				"snapshot-delete": "Deleted"}[op],
+			tag, map[string]string{"snapshot-create": "for", "snapshot-apply": "to",
+				"snapshot-delete": "from"}[op], disk)
 		okMap(map[string]any{"snapshot": tag, "op": op})
 	case "snapshot-tree":
 		return snapshotTree(dir)
@@ -748,6 +779,34 @@ func run() int {
 func xdgData() string { return qelib.XDGData() }
 
 // confGet: read a bare key="value" line from the VM's .conf.
+// pathWithin: p resolves inside base (no '..' escape).
+func pathWithin(base, p string) bool {
+	rel, err := filepath.Rel(base, p)
+	return err == nil && rel != ".." &&
+		!strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// snapTagExists: snapshot_tag_exists parity — `qemu-img snapshot -l`
+// output contains the tag as a whole field (grep -qw).
+func snapTagExists(disk, tag string) bool {
+	if disk == "" {
+		return false
+	}
+	if _, err := os.Stat(disk); err != nil {
+		return false
+	}
+	out, err := execCommand("qemu-img", "snapshot", "-l", disk).Output()
+	if err != nil {
+		return false
+	}
+	for _, f := range strings.Fields(string(out)) {
+		if f == tag {
+			return true
+		}
+	}
+	return false
+}
+
 func confGet(dir, key string) string {
 	conf := vmConfPath(dir)
 	if conf == "" {
@@ -787,12 +846,15 @@ func confDisk(dir string) string {
 			if filepath.IsAbs(v) {
 				return v
 			}
-			// A relative disk must stay inside the VM dir — ops act on
-			// the resolved path (compact/resize/delete), so '..' that
-			// escapes would hit files outside the VM.
-			joined := filepath.Join(dir, v)
-			if rel, err := filepath.Rel(dir, joined); err != nil ||
-				rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			// Bash resolves a relative disk_img against the conf's
+			// directory (VMPATH) — VMDIR is derived from its dirname —
+			// so '<vm>/disk.qcow2' in a sibling <vm>.conf lands inside
+			// the VM dir. Ops act on the resolved path
+			// (compact/resize/delete): keep it under the conf's dir or
+			// the VM dir so '..' can't hit files outside the VM tree.
+			base := filepath.Dir(conf)
+			joined := filepath.Join(base, v)
+			if !pathWithin(base, joined) && !pathWithin(dir, joined) {
 				return ""
 			}
 			return joined

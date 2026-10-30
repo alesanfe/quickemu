@@ -139,9 +139,15 @@ func TestDispatchCloneDelete(t *testing.T) {
 	xdg := t.TempDir()
 	parent, dir := mkVM(t, "clvm")
 	conf := dir + ".conf"
-	env := []string{"QE_VMCONF=" + conf, "XDG_DATA_HOME=" + xdg, "HOME=" + parent}
+	// Fake qemu-img: create/convert "produce" their last arg so the
+	// shared-backing clone path runs end-to-end.
+	stub := t.TempDir()
+	os.WriteFile(filepath.Join(stub, "qemu-img"),
+		[]byte("#!/bin/sh\ncase \"$1\" in create|convert) eval \"touch \\${$#}\";; esac\nexit 0\n"), 0o755)
+	env := []string{"QE_VMCONF=" + conf, "XDG_DATA_HOME=" + xdg, "HOME=" + parent,
+		"PATH=" + stub + string(os.PathListSeparator) + os.Getenv("PATH")}
 
-	// clone (config-only: no disk → qemu-img not reached).
+	// clone copies the disk via qemu-img (shared backing).
 	if out, rc := runTool(t, env, "clone", dir, "clvm2"); rc != 0 {
 		t.Fatalf("clone rc=%d %s", rc, out)
 	}
@@ -251,8 +257,45 @@ func TestDispatchRenameMoveMisc(t *testing.T) {
 		t.Fatalf("preset rc=%d %s", rc, out)
 	}
 	stub := t.TempDir()
-	os.WriteFile(filepath.Join(stub, "qemu-img"), []byte("#!/bin/sh\nexit 0\n"), 0o755)
-	env2 := append(env, "PATH="+stub+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// Stateful fake: records `snapshot -c` tags, drops `-d` ones, lists
+	// them for `snapshot -l` (snapshot_tag_exists parity gate), creates
+	// the output file on create/convert, and reports the recorded
+	// `-b` backing on `info` (snapshotVerify parses `backing file:`).
+	state := filepath.Join(stub, "snaps")
+	backs := filepath.Join(stub, "backs")
+	os.WriteFile(state, nil, 0o600)
+	os.WriteFile(backs, nil, 0o600)
+	os.WriteFile(filepath.Join(stub, "qemu-img"), []byte(`#!/bin/sh
+st="${FAKEIMG_STATE:?}"
+bk="${FAKEIMG_BACKS:?}"
+if [ "$1" = "snapshot" ] && [ "$2" = "-l" ]; then cat "$st" 2>/dev/null; exit 0; fi
+if [ "$1" = "snapshot" ] && [ "$2" = "-q" ]; then
+	case "$3" in
+	-c) echo "$4" >> "$st" ;;
+	-d) grep -vx -- "$4" "$st" > "$st.t" 2>/dev/null; mv "$st.t" "$st" ;;
+	esac
+	exit 0
+fi
+if [ "$1" = "info" ]; then
+	f="$2"; [ "$f" = "--output=json" ] && f="$3"
+	grep -F "$f|" "$bk" 2>/dev/null | tail -1 | cut -d'|' -f2- | sed 's/^/backing file: /'
+	exit 0
+fi
+case "$1" in
+create|convert)
+	eval "out=\${$#}"
+	touch "$out"
+	prev=""
+	for a in "$@"; do
+		[ "$prev" = "-b" ] && echo "$out|$a" >> "$bk"
+		prev="$a"
+	done
+	;;
+esac
+exit 0
+`), 0o755)
+	env2 := append(env, "PATH="+stub+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"FAKEIMG_STATE="+state, "FAKEIMG_BACKS="+backs)
 	if _, rc := runTool(t, env2, "linked-clone", dir2, "a.qcow2", "b.qcow2"); rc != 0 {
 		t.Fatalf("linked-clone rc=%d", rc)
 	}
@@ -271,7 +314,9 @@ func TestDispatchRenameMoveMisc(t *testing.T) {
 	if _, rc := runTool(t, env2, "snapshot-create", dir2, "snap1"); rc != 0 {
 		t.Fatalf("snapshot-create rc=%d", rc)
 	}
-	if _, rc := runTool(t, env2, "snapshot-create", dir2, "ext1", "--external"); rc != 1 {
+	// --external on a present disk creates the qcow2 overlay and
+	// repoints disk_img at it (the fake qemu-img touches the file).
+	if _, rc := runTool(t, env2, "snapshot-create", dir2, "ext1", "--external"); rc != 0 {
 		t.Fatalf("external rc=%d", rc)
 	}
 	if _, rc := runTool(t, env2, "snapshot-apply", dir2, "snap1"); rc != 0 {
