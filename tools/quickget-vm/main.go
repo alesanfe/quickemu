@@ -152,11 +152,13 @@ func osTweaks(osName, release, edition string) []string {
 
 var goArch = runtime.GOARCH
 
+// hostArch: Bash NORMALISED_HOST_ARCH parity — quickget names
+// (amd64/arm64), not QEMU's (x86_64/aarch64).
 func hostArch() string {
 	if goArch == "arm64" {
 		return "arm64"
 	}
-	return "x86_64"
+	return "amd64"
 }
 
 func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, cloudInit ...bool) int {
@@ -251,11 +253,13 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 	} else {
 		b.WriteString(typeLine + "\n")
 	}
-	for _, l := range osTweaks(osName, release, edition) {
-		b.WriteString(l + "\n")
-	}
+	// Bash appends fixed_iso right after the base conf block (before the
+	// per-OS tweaks land).
 	if isoFile != "" {
 		b.WriteString("fixed_iso=\"" + dir + "/" + isoFile + "\"\n")
+	}
+	for _, l := range osTweaks(osName, release, edition) {
+		b.WriteString(l + "\n")
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		fmt.Println(err)
@@ -265,6 +269,7 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 		fmt.Println(err)
 		return 1
 	}
+	fmt.Println(" - Setting " + confFile + " executable")
 	// gen_seed_iso parity: --cloud-init appends seed="..." to the conf
 	// and builds user-data/meta-data/seed.iso inside the VM dir.
 	if len(cloudInit) > 0 && cloudInit[0] {
@@ -564,11 +569,18 @@ func fetchVerify(part, wantSHA string) int {
 	if wantSHA == "" {
 		return 0
 	}
-	want, h := hashFor(wantSHA)
+	want, h, algo := hashFor(wantSHA)
 	if h == nil {
-		fmt.Printf("WARNING! Can't guess hash algorithm, not checking %s hash.\n", part)
+		if strings.Contains(wantSHA, ":") {
+			fmt.Printf("WARNING! Unknown hash algorithm '%s', not checking %s hash.\n",
+				strings.ToLower(wantSHA[:strings.Index(wantSHA, ":")]), part)
+		} else {
+			fmt.Printf("WARNING! Can't guess hash algorithm, not checking %s hash.\n", part)
+		}
 		return 0
 	}
+	disp := strings.TrimSuffix(part, ".part")
+	fmt.Printf("Checking %s with %ssum... ", disp, algo)
 	f, err := os.Open(part)
 	if err != nil {
 		fmt.Println(err)
@@ -583,48 +595,49 @@ func fetchVerify(part, wantSHA string) int {
 	sum := fmt.Sprintf("%x", h.Sum(nil))
 	if !strings.EqualFold(sum, want) {
 		os.Remove(part)
-		fmt.Printf("checksum mismatch: got %s want %s\n", sum, want)
+		fmt.Printf("ERROR!\n%s doesn't match %s. Try running 'quickget' again.\n", disp, want)
 		return 1
 	}
+	fmt.Println("Good!")
 	return 0
 }
 
 // hashFor resolves the digest string to (bare-hex, hasher): explicit
 // "algo:hex" prefixes win over the length guess — 32 md5, 40 sha1
 // (trisquel), 64 sha256, 128 sha512.
-func hashFor(digest string) (string, hash.Hash) {
+func hashFor(digest string) (string, hash.Hash, string) {
 	if i := strings.Index(digest, ":"); i >= 0 {
 		algo := strings.ToLower(digest[:i])
 		digest = digest[i+1:]
 		switch algo {
 		case "md5":
-			return digest, md5.New()
+			return digest, md5.New(), "md5"
 		case "sha1":
-			return digest, sha1.New()
+			return digest, sha1.New(), "sha1"
 		case "sha256":
-			return digest, sha256.New()
+			return digest, sha256.New(), "sha256"
 		case "sha512":
-			return digest, sha512.New()
+			return digest, sha512.New(), "sha512"
 		case "b2sum", "blake2", "blake2b":
 			b, err := blake2b.New512(nil)
 			if err != nil {
-				return "", nil
+				return "", nil, ""
 			}
-			return digest, b
+			return digest, b, "b2"
 		}
-		return "", nil // unknown prefix: warn+skip like Bash
+		return "", nil, "" // unknown prefix: warn+skip like Bash
 	}
 	switch len(digest) {
 	case 32:
-		return digest, md5.New()
+		return digest, md5.New(), "md5"
 	case 40:
-		return digest, sha1.New()
+		return digest, sha1.New(), "sha1"
 	case 64:
-		return digest, sha256.New()
+		return digest, sha256.New(), "sha256"
 	case 128:
-		return digest, sha512.New()
+		return digest, sha512.New(), "sha512"
 	}
-	return "", nil
+	return "", nil, ""
 }
 
 // getOS: the quickget pipeline — resolve url+hash via the catalog
@@ -715,6 +728,20 @@ func getOS(osName, release, edition, dir, arch string) int {
 			}
 			os.Remove(hf)
 		}
+	}
+	// web_get echo parity: "Downloading <pretty> <rel> <ed>" + "- URL:".
+	// zsync_get prints its own "… from <url>" form instead.
+	pretty := osName
+	if out, err := execCommand(cat, "info", osName).Output(); err == nil {
+		if f := strings.SplitN(strings.TrimSpace(string(out)), "|", 2); f[0] != "" {
+			pretty = f[0]
+		}
+	}
+	if strings.HasSuffix(url, ".zsync") {
+		fmt.Printf("Downloading %s %s %s from %s\n", pretty, release, edition, url)
+	} else {
+		fmt.Printf("Downloading %s %s %s\n", pretty, release, edition)
+		fmt.Println("- URL: " + url)
 	}
 	// zsync sources prefer the external zsync binary (delta download);
 	// the fallback fetches the underlying image URL (.zsync stripped),

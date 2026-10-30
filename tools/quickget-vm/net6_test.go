@@ -146,7 +146,11 @@ func TestHostArchVariants(t *testing.T) {
 		t.Fatal("arm64 should map to arm64")
 	}
 	goArch = "amd64"
-	if hostArch() != "x86_64" {
-		t.Fatal("amd64 should map to x86_64")
+	if hostArch() != "amd64" {
+		t.Fatal("amd64 stays amd64 (quickget names, not QEMU's x86_64)")
+	}
+	goArch = "x86_64"
+	if hostArch() != "amd64" {
+		t.Fatal("non-arm64 falls back to amd64")
 	}
 }

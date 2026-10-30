@@ -175,6 +175,21 @@ func customConf(vmPath, input, flag string) int {
 			return 1
 		}
 	} else {
+		// create_config parity: extension decides before the move —
+		// unsupported types are rejected without touching the file.
+		low := strings.ToLower(input)
+		switch {
+		case strings.HasSuffix(low, ".iso"), strings.HasSuffix(low, ".img"),
+			strings.HasSuffix(low, ".qcow2"), strings.HasSuffix(low, ".vmdk"),
+			strings.HasSuffix(low, ".raw"), strings.HasSuffix(low, ".vdi"):
+		default:
+			if _, err := os.Stat(input); err != nil {
+				fmt.Println("ERROR! The input must be a valid URL or path to an ISO, IMG, or QCOW2 file.")
+				return 1
+			}
+			fmt.Println("ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config")
+			return 1
+		}
 		if _, err := os.Stat(input); err != nil {
 			fmt.Println("ERROR! The input must be a valid URL or path to an ISO, IMG, or QCOW2 file.")
 			return 1
@@ -192,14 +207,6 @@ func customConf(vmPath, input, flag string) int {
 		input = base
 	}
 	low := strings.ToLower(input)
-	switch {
-	case strings.HasSuffix(low, ".iso"), strings.HasSuffix(low, ".img"),
-		strings.HasSuffix(low, ".qcow2"), strings.HasSuffix(low, ".vmdk"),
-		strings.HasSuffix(low, ".raw"), strings.HasSuffix(low, ".vdi"):
-	default:
-		fmt.Println("ERROR! Only ISO,IMG and QCOW2 file types are supported for --create-config")
-		return 1
-	}
 	fmt.Println("Creating custom VM config for " + input + ".")
 	customOS := "linux"
 	fixedISO := ""
