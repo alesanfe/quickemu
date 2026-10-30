@@ -552,13 +552,15 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		if t.MacDiskDev != "" {
 			dev = t.MacDiskDev
 		}
-		sys := "-drive id=SystemDisk,if=none,format=" + dfmt + ",file=" +
+		// -drive and its spec must be separate argv elements: Bash's
+		// SHELL_ARGS relied on shell word-splitting, exec.Command does not.
+		sys := "id=SystemDisk,if=none,format=" + dfmt + ",file=" +
 			qemuOptEsc(joinConf(dir, d)) + ",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads"
 		// Per-guest SystemDisk emit (vm.sh): ahci/ide variants, then
 		// the virtio default; aarch64 gets bootindex=2 so the installer
 		// CD-ROM (bootindex=1) wins during installation.
 		sysDevice := func(devspec string) {
-			a = append(a, "-device", devspec, sys)
+			a = append(a, "-device", devspec, "-drive", sys)
 			if sq != "" {
 				a = append(a, sq)
 			}
@@ -568,7 +570,7 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 			sysDevice(dev + ",drive=SystemDisk")
 		case osn == "kolibrios":
 			a = append(a, "-device", "ahci,id=ahci",
-				"-device", "ide-hd,bus=ahci.0,drive=SystemDisk", sys)
+				"-device", "ide-hd,bus=ahci.0,drive=SystemDisk", "-drive", sys)
 			if sq != "" {
 				a = append(a, sq)
 			}

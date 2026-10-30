@@ -1239,13 +1239,17 @@ func TestStatusQuoPerDrive(t *testing.T) {
 	if n := strings.Count(j, "-snapshot"); n != 2 {
 		t.Fatalf("snapshot count=%d want 2 (SystemDisk+ExtraDisk): %v", n, a)
 	}
-	// Each -snapshot must immediately follow its -drive element —
-	// either the single-token "-drive id=…" form or the value of a
-	// two-token "-drive <spec>" pair.
+	// Each -snapshot must immediately follow its two-token
+	// "-drive <spec>" element (single-token "-drive id=…" elements are
+	// rejected by exec-style spawning — no shell word-splitting).
 	for i, s := range a {
-		if s == "-snapshot" &&
-			!(strings.HasPrefix(a[i-1], "-drive ") || (i > 1 && a[i-2] == "-drive")) {
+		if s == "-snapshot" && !(i > 1 && a[i-2] == "-drive") {
 			t.Fatalf("-snapshot does not follow a -drive: %v", a)
+		}
+	}
+	for _, s := range a {
+		if strings.HasPrefix(s, "-drive ") {
+			t.Fatalf("single-token -drive element would break exec spawn: %v", a)
 		}
 	}
 	// reactos if=ide drive also carries it.
