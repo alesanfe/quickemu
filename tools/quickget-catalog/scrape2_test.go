@@ -410,10 +410,16 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 	case strings.Contains(url, "almalinux"):
 		return `<a href="AlmaLinux-10-latest-x86_64-dvd.iso">a</a><a href="AlmaLinux-10.2-x86_64-boot.iso">b</a><a href="AlmaLinux-10-latest-aarch64-dvd.iso">c</a>`, nil
 	// --- fourth-expansion fixtures ---
+	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, ".sha256"):
+		return shaX + "  Rhino-Linux-2026.1-amd64.iso\n", nil
 	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, "2026.1"):
-		return `"name":"Rhino-Linux-2026.1-amd64.iso"`, nil
+		return `"name":"Rhino-Linux-2026.1-amd64.iso" "name":"Rhino-Linux-2026.1-arm64.iso" "name":"Rhino-Linux-2026.1-amd64-lomiri.iso"`, nil
+	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, "2025.4"):
+		return `"name":"Rhino-Linux-2025.4-amd64.iso" "name":"Rhino-Linux-2025.4-arm64.iso"`, nil
+	case strings.Contains(url, "rhino-linux-builder") && strings.Contains(url, "2023.4"):
+		return `"name":"Rhino-Linux-2023.4-amd64.iso" "name":"Rhino-Linux-2023.4-arm64.iso"`, nil
 	case strings.Contains(url, "rhino-linux-builder"):
-		return `"name":"2026.1"`, nil
+		return `"name":"2026.1" "name":"2025.4" "name":"2023.4"`, nil
 	case strings.Contains(url, "ubuntudde") && strings.Contains(url, "23.04"):
 		return `"name":"ubuntudde-23.04-amd64-desktop.iso"`, nil
 	case strings.Contains(url, "ubuntudde"):
@@ -563,6 +569,10 @@ SHA256 (AlmaLinux-10.2-x86_64-boot.iso) = b3f865468075bcada8f208d830289302c67529
 		return `<a href="finnix-125.iso">x</a>`, nil
 	case strings.Contains(url, "finnix"):
 		return `<a href="125/">a</a><a href="124/">b</a>`, nil
+	case strings.Contains(url, "9front.org"):
+		return `<a href="9front-11952.amd64.iso.gz">9</a>
+			<a href="9front-11952.amd64.qcow2.gz">9</a>
+			<a href="9front-11952.arm64.qcow2.gz">9</a>`, nil
 	case strings.Contains(url, "jatayuos") && strings.Contains(url, "SHA256SUMS"):
 		return shaX + "  JatayuOS-1.0-Udaan-amd64.iso\n", nil
 	case strings.Contains(url, "jatayuos"):
@@ -760,6 +770,11 @@ func TestScrapeAll(t *testing.T) {
 		{"moros", "latest", "", "amd64", false},
 		{"moros", "v0.11.0", "", "amd64", false},
 		{"hellosystem", "latest", "", "amd64", false},
+		{"rhino-linux", "latest", "lomiri", "amd64", false},
+		{"rhino-linux", "latest", "standard", "arm64", false},
+		{"rhino-linux", "2025.4", "standard", "arm64", false},
+		{"rhino-linux", "2023.4", "standard", "amd64", false},
+		{"rhino-linux", "2025.4", "lomiri", "amd64", true},
 		{"openmamba", "latest", "", "amd64", false},
 		{"umbrelos", "latest", "", "amd64", false},
 		{"yunohost", "latest", "", "amd64", false},

@@ -168,12 +168,13 @@ func scrape(osName, release, edition, arch string) (string, string, error) {
 		}
 		return u, "", nil
 	case "9front":
-		// get_9front: index page, latest 9front-*.amd64.iso (sort -Vr).
+		// get_9front: index page, latest 9front-*.amd64.iso.gz
+		// (upstream ships the ISO gzip-compressed; imageNormalize unpacks).
 		body, err := fetchString("https://9front.org/iso/")
 		if err != nil {
 			return "", "", err
 		}
-		iso := latestMatch(body, `9front-[0-9]+\.amd64\.iso`)
+		iso := latestMatch(body, `9front-[0-9]+\.amd64\.iso\.gz`)
 		if iso == "" {
 			return "", "", fmt.Errorf("9front: no iso in index")
 		}

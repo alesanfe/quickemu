@@ -6184,18 +6184,34 @@
   {
    "os": "rhino-linux",
    "arch": [
-    "amd64"
+    "amd64",
+    "arm64"
    ],
    "scrape": true,
    "releases": [
-    "latest"
+    "latest",
+    "2026.1",
+    "2025.4",
+    "2025.3",
+    "2025.2",
+    "2025.1",
+    "2024.2",
+    "2024.1",
+    "2023.4",
+    "2023.3",
+    "2023.2",
+    "2023.1"
    ],
    "status": "active",
    "image_type": "iso",
    "download_mode": "mirror",
    "license": "redistributable",
    "boot_mode": "both",
-   "support_level": "community"
+   "support_level": "community",
+   "editions": [
+    "standard",
+    "lomiri"
+   ]
   },
   {
    "os": "risios",

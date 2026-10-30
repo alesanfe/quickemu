@@ -343,6 +343,12 @@ func imageNormalize(osName, iso, vmPath string) string {
 				iso = strings.TrimSuffix(iso, ".xz")
 			}
 		}
+	case "9front":
+		if strings.HasSuffix(iso, ".gz") {
+			if decompressGZ(filepath.Join(vmPath, iso)) {
+				iso = strings.TrimSuffix(iso, ".gz")
+			}
+		}
 	case "nomadbsd":
 		if strings.HasSuffix(iso, ".lzma") {
 			if decompressLZMA(filepath.Join(vmPath, iso)) {

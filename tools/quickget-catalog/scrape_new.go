@@ -420,11 +420,27 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 
 	// --- batch 4: SF (cont.) ---
 	case "rhino-linux":
-		dir, err := sfLatestDir("rhino-linux-builder", "", `[0-9]{4}\.[0-9]+`)
-		if err != nil {
-			return "", "", err
+		// Rhino-Linux-<ver>-<arch>[-lomiri].iso + .sha256 sidecars;
+		// lomiri only exists on the newest release dir.
+		base := "https://sourceforge.net/projects/rhino-linux-builder/files/" + release + "/"
+		ver := regexp.QuoteMeta(release)
+		if release == "latest" || release == "" {
+			d, err := sfLatestDir("rhino-linux-builder", "", `[0-9]{4}\.[0-9]+`)
+			if err != nil {
+				return "", "", err
+			}
+			base = d
+			ver = `[0-9.]+`
 		}
-		u, _, err := sfISOat(dir, `Rhino-Linux-[0-9.]+-amd64\.iso`)
+		a := "amd64"
+		if arch == "arm64" {
+			a = "arm64"
+		}
+		suf := ""
+		if edition == "lomiri" {
+			suf = "-lomiri"
+		}
+		u, _, err := sfISOat(base, `Rhino-Linux-`+ver+`-`+a+suf+`\.iso`)
 		if err != nil {
 			return "", "", err
 		}
@@ -1386,6 +1402,7 @@ func scrapeRescued(osName, release, edition, arch string) (string, string, error
 			ver = regexp.QuoteMeta(strings.TrimPrefix(release, "v"))
 		}
 		return ghISO("vinc/moros", `moros-v`+ver+`\.bin`)
+
 	case "bastillebsd":
 		// BastilleBSD-<rel>-RELEASE-amd64-memstick.iso.xz; BSD-style
 		// CHECKSUM covers the uncompressed .iso name.
