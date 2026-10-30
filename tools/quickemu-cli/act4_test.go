@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func TestMain(m *testing.M) {
@@ -23,18 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 func runMain(t *testing.T, args ...string) (string, int) {
-	t.Helper()
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	cmd.Env = append(os.Environ(), "QE_HELPER=1",
-		"QC_ARGS="+strings.Join(args, "\x1f"))
-	var out, errb strings.Builder
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	err := cmd.Run()
-	rc := 0
-	if ee, ok := err.(*exec.ExitError); ok {
-		rc = ee.ExitCode()
-	}
-	return out.String() + errb.String(), rc
+	return qetest.RunExit(t, "QC_ARGS", nil, args...)
 }
 
 func TestMainDispatch(t *testing.T) {

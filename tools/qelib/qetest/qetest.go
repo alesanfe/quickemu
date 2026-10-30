@@ -73,3 +73,23 @@ func RunTool(t *testing.T, args ...string) (string, int) {
 	out, _, rc := RunToolFull(t, nil, "", args...)
 	return out, rc
 }
+
+// RunExit re-execs the test binary for helpers whose rc is the
+// process exit code (main()-style helpers — no rc file). envVar is
+// the suite's arg-passing env name (QC_ARGS/QL_ARGS/…); env vars are
+// appended BEFORE the protocol vars. Returns combined stdout+stderr
+// and the exit code.
+func RunExit(t *testing.T, envVar string, env []string, args ...string) (string, int) {
+	t.Helper()
+	cmd := exec.Command(os.Args[0], "-test.run=^$")
+	cmd.Env = append(append(os.Environ(), env...), "QE_HELPER=1",
+		envVar+"="+strings.Join(args, "\x1f"))
+	var out, errb strings.Builder
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	err := cmd.Run()
+	rc := 0
+	if ee, ok := err.(*exec.ExitError); ok {
+		rc = ee.ExitCode()
+	}
+	return out.String() + errb.String(), rc
+}

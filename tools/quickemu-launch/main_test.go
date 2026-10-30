@@ -4,10 +4,11 @@ package main
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func TestMain(m *testing.M) {
@@ -88,17 +89,7 @@ func launch(t *testing.T, env []string, args ...string) (string, int) {
 	if !hasReg {
 		env = append(env, "QE_PORT_REGISTRY="+t.TempDir())
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	cmd.Env = append(os.Environ(), append(env, "QE_HELPER=1",
-		"QL_ARGS="+strings.Join(args, "\x1f"))...)
-	var out, errb strings.Builder
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	err := cmd.Run()
-	rc := 0
-	if ee, ok := err.(*exec.ExitError); ok {
-		rc = ee.ExitCode()
-	}
-	return out.String() + errb.String(), rc
+	return qetest.RunExit(t, "QL_ARGS", env, args...)
 }
 
 func richConf(t *testing.T, extra string) string {

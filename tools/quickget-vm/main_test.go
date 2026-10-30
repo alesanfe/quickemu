@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
 
 func newTestServer(payload []byte) *httptest.Server {
@@ -33,18 +34,7 @@ func TestMain(m *testing.M) {
 }
 
 func runVM(t *testing.T, args ...string) (string, int) {
-	t.Helper()
-	cmd := exec.Command(os.Args[0], "-test.run=^$")
-	cmd.Env = append(os.Environ(), "QE_HELPER=1",
-		"QV_ARGS="+strings.Join(args, "\x1f"))
-	var out, errb strings.Builder
-	cmd.Stdout, cmd.Stderr = &out, &errb
-	err := cmd.Run()
-	rc := 0
-	if ee, ok := err.(*exec.ExitError); ok {
-		rc = ee.ExitCode()
-	}
-	return out.String() + errb.String(), rc
+	return qetest.RunExit(t, "QV_ARGS", nil, args...)
 }
 
 func TestChunkcheckSubcommand(t *testing.T) {
