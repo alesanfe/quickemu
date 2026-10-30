@@ -21,10 +21,6 @@ func startViewer(get func(string) string) {
 	if viewer == "none" || get("display") != "spice" {
 		return
 	}
-	bin, err := exec.LookPath(viewer)
-	if err != nil {
-		return
-	}
 	var args []string
 	spiceInfo := ""
 	if b, err := os.ReadFile(filepath.Join(vmdir(), vmname()+".spice")); err == nil {
@@ -73,12 +69,17 @@ func startViewer(get func(string) string) {
 	if vea := get("viewer_extra_args"); vea != "" {
 		args = append(args, strings.Fields(vea)...)
 	}
-	cmd := execCommand(bin, args...)
-	// start_viewer echo (stdout) then detached spawn — the viewer
-	// outlives the CLI; a spawn failure must not be silent (the VM
-	// still runs, just headless).
+	// start_viewer echo (stdout) — Bash prints the intent line
+	// unconditionally before spawning, so a missing viewer binary still
+	// shows what would have run.
 	fmt.Printf(" - Viewer:   %s %s >/dev/null 2>&1 &\n", viewer, strings.Join(args, " "))
-	if err := cmd.Start(); err != nil {
+	bin, err := exec.LookPath(viewer)
+	if err != nil {
+		return
+	}
+	// detached spawn — the viewer outlives the CLI; a spawn failure
+	// warns but leaves the (still running) VM headless.
+	if err := execCommand(bin, args...).Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "WARNING! Could not start viewer (%s) Err: %v\n", viewer, err)
 	}
 }
