@@ -1,3 +1,5 @@
+//lint:file-ignore ST1005 Bash parity error strings keep capitalization/punctuation.
+
 // scrape_html.go — HTML/regex page-scrape resolvers (original scrape switch).
 package main
 
