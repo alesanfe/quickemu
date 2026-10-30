@@ -3,8 +3,10 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -14,8 +16,8 @@ import (
 func setupCatalog(t *testing.T) []string {
 	t.Helper()
 	dir := t.TempDir()
-	cat := `{"entries":[{"os":"alpine","releases":["3.19","3.20"],"editions":["virt","standard"],"arch":["x86_64","aarch64"]},{"os":"plain","releases":["1"],"editions":[],"arch":["x86_64"]}]}`
-	info := `{"entries":{"alpine":{"Name":"Alpine Linux","Credentials":"root","Homepage":"https://alpine.example","Info":"Small distro"},"plain":{"Name":"Plain","Credentials":"","Homepage":"","Info":""}}}`
+	cat := `{"entries":[{"os":"alpine","releases":["3.19","3.20"],"editions":["virt","standard"],"arch":["amd64","arm64"]},{"os":"plain","releases":["1"],"editions":[],"arch":["amd64"]},{"os":"fedora","releases":["39","40"],"editions":["Onyx","Sericea","Kinoite"],"arch":["amd64","arm64"]}]}`
+	info := `{"entries":{"alpine":{"Name":"Alpine Linux","Credentials":"root","Homepage":"https://alpine.example","Info":"Small distro"},"plain":{"Name":"Plain","Credentials":"","Homepage":"","Info":""},"fedora":{"Name":"Fedora","Credentials":"","Homepage":"","Info":""}}}`
 	os.WriteFile(filepath.Join(dir, "catalog.json"), []byte(cat), 0o644)
 	os.WriteFile(filepath.Join(dir, "info.json"), []byte(info), 0o644)
 
@@ -23,9 +25,9 @@ func setupCatalog(t *testing.T) []string {
 	os.WriteFile(filepath.Join(stub, "quickget-catalog"), []byte(`#!/bin/sh
 # Stub: answers driven by QC_STUB_* env.
 case "$1" in
- releases) [ "$2" = "nope" ] && exit 1; echo "${QC_REL:-3.19 3.20}";;
- editions) [ "$2" = "plain" ] && echo "" || echo "${QC_ED:-virt standard}";;
- arch) echo "${QC_ARCH:-x86_64 aarch64}";;
+ releases) [ "$2" = "nope" ] && exit 1; [ "$2" = "fedora" ] && echo "39 40" || echo "${QC_REL:-3.19 3.20}";;
+ editions) [ "$2" = "plain" ] && echo "" || { [ "$2" = "fedora" ] && echo "Onyx Sericea Kinoite" || echo "${QC_ED:-virt standard}"; };;
+ arch) echo "${QC_ARCH:-amd64 arm64}";;
  url) echo "${QC_URL:-https://x/a.iso}";;
  check) echo "${QC_CHECK:-PASS}";;
  trust) echo "${QC_TRUST:-A}";;
@@ -164,6 +166,106 @@ func TestActGetAndOpen(t *testing.T) {
 	}
 	if rc := actOpenHomepage("plain"); rc != 1 {
 		t.Fatalf("homepage empty rc=%d", rc)
+	}
+}
+
+// TestArchGates: catalog_check_os_arch / catalog_resolve_edition
+// parity — unsupported arch dies for non-edition OSes before release
+// validation, and after the edition resolves for edition OSes.
+func TestArchGates(t *testing.T) {
+	setupCatalog(t)
+	old := arch
+	defer func() { arch = old }()
+	// Non-edition OS, unsupported arch → ERROR before anything else.
+	arch = "arm64"
+	if rc := actGet("plain", "1", "", false); rc != 1 {
+		t.Fatalf("non-edition arch gate rc=%d", rc)
+	}
+	// Edition OS, unsupported arch → ERROR naming the edition.
+	if rc := actGet("alpine", "3.19", "virt", false); rc != 1 {
+		t.Fatalf("edition arch gate rc=%d", rc)
+	}
+	// Supported arch passes the gate (dies later in the tool chain —
+	// deterministic rc 1 without a quickget-vm stub is still rc 1).
+	arch = "amd64"
+	// --check with a release on an unsupported non-edition arch → SKIP.
+	arch = "arm64"
+	if rc := actCheck("plain", "1", "", "arm64"); rc != 0 {
+		t.Fatalf("check SKIP rc=%d", rc)
+	}
+}
+
+// TestFedoraMissing: handle_missing parity — Fedora < 40 with the
+// Onyx/Sericea spins is an unsupported combination.
+func TestFedoraMissing(t *testing.T) {
+	setupCatalog(t)
+	old := arch
+	defer func() { arch = old }()
+	arch = "amd64"
+	for _, ed := range []string{"Onyx", "Sericea"} {
+		if rc := actGet("fedora", "39", ed, false); rc != 1 {
+			t.Fatalf("fedora 39 %s rc=%d", ed, rc)
+		}
+		// _Beta release names hit the same gate.
+		if rc := actGet("fedora", "39_Beta", ed, false); rc != 1 {
+			t.Fatalf("fedora 39_Beta %s rc=%d", ed, rc)
+		}
+	}
+	// 40+ and other editions are not rejected by the gate itself —
+	// they must reach the downstream tool chain (no "Unsupported
+	// combination" on stdout).
+	out := captureStdout(t, func() { _ = actGet("fedora", "40", "Onyx", false) })
+	if strings.Contains(out, "Unsupported combination") {
+		t.Fatalf("fedora 40 Onyx wrongly rejected: %s", out)
+	}
+	out = captureStdout(t, func() { _ = actGet("fedora", "39", "Kinoite", false) })
+	if strings.Contains(out, "Unsupported combination") {
+		t.Fatalf("fedora 39 Kinoite wrongly rejected: %s", out)
+	}
+}
+
+// captureStdout redirects os.Stdout for fn and returns what it wrote.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	done := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	fn()
+	w.Close()
+	os.Stdout = old
+	return <-done
+}
+
+// TestCheckPrecheck: release-scoped ops run the bottom-flow gates —
+// trust warn fires on D/E sources even for --check.
+func TestCheckPrecheck(t *testing.T) {
+	setupCatalog(t)
+	oldA, oldM := arch, minTrust
+	defer func() { arch, minTrust = oldA, oldM }()
+	arch = "amd64"
+	// Bad release under --check → release validation error (rc 1).
+	if rc := actCheck("alpine", "9.99", "virt", "amd64"); rc != 1 {
+		t.Fatalf("check bad release rc=%d", rc)
+	}
+	// Editions OS without edition arg → "must specify an edition".
+	if rc := actCheck("alpine", "3.19", "", "amd64"); rc != 1 {
+		t.Fatalf("check missing edition rc=%d", rc)
+	}
+	// --check-all-arch with release: no trust/edition gates, single
+	// release+edition combo per arch.
+	oldC := checkAllArc
+	checkAllArc = true
+	defer func() { checkAllArc = oldC }()
+	if rc := actCheck("alpine", "3.19", "", "amd64"); rc != 0 {
+		t.Fatalf("check-all-arch rc=%d", rc)
 	}
 }
 

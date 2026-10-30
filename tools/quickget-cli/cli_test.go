@@ -79,7 +79,7 @@ func TestTrust(t *testing.T) {
 			t.Errorf("trustOK(%s,%s)", c.lvl, c.min)
 		}
 	}
-	if trustLevel("alpine") == "" {
+	if trustLevel("alpine", "", "", "amd64") == "" {
 		t.Fatal("trustLevel empty")
 	}
 }

@@ -290,22 +290,44 @@ func run() int {
 		b, _ := json.Marshal(info[args[1]])
 		fmt.Println(string(b))
 	case "trust":
+		// trust_os parity: resolve like get_<os> and report C when a
+		// hash field comes back, D otherwise. No trust_<os> overrides
+		// existed in Bash, so levels are only C/D (+E for misses).
 		e := find(cat, args[1])
 		if e == nil {
 			fmt.Println("E")
 			return 0
 		}
-		// A = checksum-signed, B = hash-verified, C = plain https, D = http/mirror, E = unknown
-		if strings.Contains(e.URL, "releases.ubuntu.com") || strings.Contains(e.URL, "fedoraproject.org") {
-			fmt.Println("A")
-		} else if strings.HasPrefix(e.URL, "https://") {
-			fmt.Println("C")
-		} else {
-			fmt.Println("E")
+		release, edition, arch := "", "", "amd64"
+		if len(args) > 2 {
+			release = args[2]
 		}
+		if len(args) > 3 {
+			edition = args[3]
+		}
+		if len(args) > 4 {
+			arch = args[4]
+		}
+		fmt.Println(trustOf(e, release, edition, arch))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", args[0])
 		return 2
 	}
 	return 0
+}
+
+// trustOf resolves the entry like get_<os> and reports C when a hash
+// field comes back, D otherwise (trust_os parity — a failed probe
+// yields no hash, same as an empty get_* output in Bash).
+func trustOf(e *Entry, release, edition, arch string) string {
+	hash := ""
+	if e.Scrape {
+		_, hash, _ = scrape(e.OS, release, edition, arch)
+	} else {
+		_, hash = resolveURL(e, release, edition, arch)
+	}
+	if hash != "" {
+		return "C"
+	}
+	return "D"
 }

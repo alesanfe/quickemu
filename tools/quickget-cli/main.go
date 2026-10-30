@@ -12,13 +12,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 var (
-	arch              = hostArch()
+	arch = hostArch()
 	// MINIMUM_TRUST env seeds the trust gate (Bash ${MINIMUM_TRUST:-E}
 	// semantics: unset/invalid env is permissive, --minimum-trust wins
 	// and is validated).
@@ -270,19 +271,25 @@ func actUpdate(osName string) int {
 	return 0
 }
 
+// errSpecifyOS: error_specify_os parity — message, supported-OS list,
+// and the help hint.
+func errSpecifyOS() {
+	fmt.Fprintln(os.Stdout, "ERROR! You must specify an operating system.")
+	fmt.Fprintln(os.Stdout, "- Supported Operating Systems:")
+	var names []string
+	for _, e := range loadCatalog() {
+		names = append(names, e.OS)
+	}
+	fmt.Fprintln(os.Stdout, strings.Join(names, " "))
+	fmt.Fprintln(os.Stdout, "\nTo see all possible arguments, use:\n   quickget -h  or  quickget --help")
+}
+
 func actOpenHomepage(osName string) int {
 	info := loadInfo()
 	inf, ok := info[osName]
 	if !ok || inf.Homepage == "" {
 		// open_homepage parity: os_info miss → error_specify_os.
-		fmt.Fprintln(os.Stdout, "ERROR! You must specify an operating system.")
-		fmt.Fprintln(os.Stdout, "- Supported Operating Systems:")
-		var names []string
-		for _, e := range loadCatalog() {
-			names = append(names, e.OS)
-		}
-		fmt.Fprintln(os.Stdout, strings.Join(names, " "))
-		fmt.Fprintln(os.Stdout, "\nTo see all possible arguments, use:\n   quickget -h  or  quickget --help")
+		errSpecifyOS()
 		return 1
 	}
 	for _, opener := range []string{"xdg-open", "sensible-browser", "x-www-browser", "gnome-open"} {
@@ -342,6 +349,14 @@ func actURL(osName, release, edition, arch string) int {
 		return 1
 	}
 	rc := 0
+	// With a release arg, Bash's bottom flow applies: arch-skip for
+	// non-edition OSes, trust gate + warn, edition required, release
+	// validated. test_all (no release) iterates freely.
+	if release != "" {
+		if rc := releaseScopedPrecheck(osName, release, edition, arch, e); rc >= 0 {
+			return rc
+		}
+	}
 	for _, c := range combinations(e, release, edition) {
 		out, err := tool("quickget-catalog", "url", osName, c[0], c[1], arch)
 		if err != nil {
@@ -358,6 +373,41 @@ func actURL(osName, release, edition, arch string) int {
 	return rc
 }
 
+// releaseScopedPrecheck runs the pre-resolution gates Bash applies in
+// its bottom flow for ops with an explicit release (test/show/download).
+// Returns an exit code when the op should terminate, -1 to continue.
+func releaseScopedPrecheck(osName, release, edition, arch string, e *Entry) int {
+	if len(e.Editions) == 0 && !archSupport(e, arch) {
+		// catalog_check_os_arch → test/show ops SKIP instead of dying.
+		label := osName + "-" + release
+		fmt.Printf("%s: %-35s (not available for %s)\n", "SKIP", label, arch)
+		return 0
+	}
+	lvl := trustLevel(osName, release, edition, arch)
+	if !trustOK(lvl, minTrust) {
+		fmt.Fprintf(os.Stderr, "ERROR! %s source trust level %s is below --minimum-trust %s\n", osName, lvl, minTrust)
+		return 1
+	}
+	switch lvl {
+	case "D":
+		fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
+	case "E":
+		fmt.Fprintf(os.Stderr, "warning: %s source unverifiable (trust E: community mirror)\n", osName)
+	}
+	if !validateRelease(osName, release) {
+		return 1
+	}
+	if len(e.Editions) > 0 && edition == "" {
+		specifyReleaseInfo(osName)
+		if out, err := tool("quickget-catalog", "editions", osName); err == nil {
+			fmt.Println(" - Editions:\t" + out)
+		}
+		fmt.Fprintln(os.Stdout, "\nERROR! You must specify an edition.")
+		return 1
+	}
+	return -1
+}
+
 func actCheck(osName, release, edition, arch string) int {
 	cat := loadCatalog()
 	e := findEntry(cat, osName)
@@ -366,7 +416,20 @@ func actCheck(osName, release, edition, arch string) int {
 		return 1
 	}
 	rc := 0
-	for _, c := range combinations(e, release, edition) {
+	combos := combinations(e, release, edition)
+	if release != "" && checkAllArc {
+		// catalog_check_all_arch: validates the release, but runs no
+		// trust gate and resolves exactly the release/edition given.
+		if !validateRelease(osName, release) {
+			return 1
+		}
+		combos = [][2]string{{release, edition}}
+	} else if release != "" {
+		if rc := releaseScopedPrecheck(osName, release, edition, arch, e); rc >= 0 {
+			return rc
+		}
+	}
+	for _, c := range combos {
 		out, err := tool("quickget-catalog", "check", osName, c[0], c[1], arch)
 		fmt.Println(out)
 		if err != nil || strings.HasPrefix(out, "FAIL") {
@@ -376,13 +439,37 @@ func actCheck(osName, release, edition, arch string) int {
 	return rc
 }
 
-// trustLevel maps catalog trust output A-E.
-func trustLevel(osName string) string {
-	out, err := tool("quickget-catalog", "trust", osName)
+// trustLevel maps catalog trust output A-E. Release/edition/arch feed
+// the live resolution probe (trust_os ran get_<os> with the globals
+// already set).
+func trustLevel(osName, release, edition, arch string) string {
+	out, err := tool("quickget-catalog", "trust", osName, release, edition, arch)
 	if err != nil || out == "" {
 		return "E"
 	}
 	return out
+}
+
+// archSupport: is_arch_supported parity — Entry.Arch empty means the
+// Bash default (amd64 only).
+func archSupport(e *Entry, arch string) bool {
+	list := e.Arch
+	if len(list) == 0 {
+		list = []string{"amd64"}
+	}
+	for _, a := range list {
+		if a == arch {
+			return true
+		}
+	}
+	return false
+}
+
+func prettyName(osName string) string {
+	if inf, ok := loadInfo()[osName]; ok {
+		return inf.Name
+	}
+	return osName
 }
 
 func trustOK(level, min string) bool {
@@ -521,37 +608,50 @@ func actGet(osName, release, edition string, noConf bool) int {
 	if release == "" {
 		return specifyRelease(osName)
 	}
-	lvl := trustLevel(osName)
+	e := findEntry(loadCatalog(), osName)
+	// catalog_check_os_arch parity: OSes without editions gate before
+	// release validation; download ops die, test/show SKIP.
+	if e != nil && len(e.Editions) == 0 && !archSupport(e, arch) {
+		fmt.Fprintf(os.Stdout, "ERROR! %s is not available for %s architecture.\n", prettyName(osName), arch)
+		return 1
+	}
+	lvl := trustLevel(osName, release, edition, arch)
 	if !trustOK(lvl, minTrust) {
 		fmt.Fprintf(os.Stderr, "ERROR! %s source trust level %s is below --minimum-trust %s\n", osName, lvl, minTrust)
 		return 1
 	}
 	// trust_warn parity: unverifiable sources warn on every download
-	// (before release/edition validation, like main.sh). Bash runs the
-	// per-OS get_* resolver live: a checksummed source (A-C) whose hash
-	// cannot be resolved right now — e.g. an invalid release — also
-	// warns as unverifiable; the catalog check reproduces that probe.
+	// (before release/edition validation, like main.sh). The catalog
+	// trust probe already ran get_<os>-equivalent resolution, so a
+	// checksum source whose hash fails to resolve reports D here.
 	switch lvl {
 	case "D":
 		fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
 	case "E":
 		fmt.Fprintf(os.Stderr, "warning: %s source unverifiable (trust E: community mirror)\n", osName)
-	default:
-		if e := findEntry(loadCatalog(), osName); e != nil {
-			for _, c := range combinations(e, release, edition) {
-				out, err := tool("quickget-catalog", "check", osName, c[0], c[1], arch)
-				if err != nil || strings.HasPrefix(out, "FAIL") {
-					fmt.Fprintf(os.Stderr, "warning: %s source integrity not verifiable (trust D: https only)\n", osName)
-					break
-				}
-			}
-		}
 	}
 	if !validateRelease(osName, release) {
 		return 1
 	}
 	if !resolveEdition(osName, edition) {
 		return 1
+	}
+	// catalog_resolve_edition parity: edition OSes gate arch after the
+	// edition resolves; handle_missing rejects the Fedora pre-40
+	// Onyx/Sericea combinations.
+	if e != nil && len(e.Editions) > 0 {
+		if !archSupport(e, arch) {
+			fmt.Fprintf(os.Stdout, "ERROR! %s %s is not available for %s architecture.\n", prettyName(osName), edition, arch)
+			return 1
+		}
+		if osName == "fedora" {
+			nrel := strings.TrimSuffix(release, "_Beta")
+			if n, err := strconv.Atoi(nrel); err == nil && n < 40 && (edition == "Onyx" || edition == "Sericea") {
+				fmt.Fprintln(os.Stdout, "ERROR! Unsupported combination")
+				fmt.Fprintf(os.Stdout, "       Fedora %s %s is not available, please choose another Release or Edition\n", release, edition)
+				return 1
+			}
+		}
 	}
 	args := []string{"get", osName}
 	if release != "" {
@@ -697,7 +797,10 @@ func main() {
 			return
 		default:
 			if strings.HasPrefix(a, "-") {
-				fmt.Fprintf(os.Stdout, "ERROR! Not supported argument '%s'\n", a)
+				// error_not_supported_argument: no arg echo, help hint.
+				fmt.Fprintln(os.Stdout, "ERROR! Not supported argument")
+				fmt.Fprintln(os.Stdout, "To see all possible arguments, use:")
+				fmt.Fprintln(os.Stdout, "   quickget -h  or  quickget --help")
 				os.Exit(1)
 			}
 			pos = append(pos, a)
@@ -793,8 +896,7 @@ func main() {
 	default:
 		// Positional default: download + create config (create_vm parity).
 		if osName == "" {
-			fmt.Fprintln(os.Stdout, "ERROR! You must specify an OS.")
-			usage()
+			errSpecifyOS()
 			os.Exit(1)
 		}
 		rc = actGet(osName, release, edition, false)

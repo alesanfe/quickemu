@@ -76,6 +76,30 @@ func TestResolveURLHash(t *testing.T) {
 	}
 }
 
+// TestTrustOf: trust_os parity — hash-bearing sources grade C, sources
+// whose probe returns no hash grade D (including fetch failures).
+func TestTrustOf(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("img-1.iso  deadbeef" + strings.Repeat("0", 56) + "\n"))
+	}))
+	defer srv.Close()
+	e := &Entry{URL: "https://cdn/", ISO: "img-%RELEASE%.iso",
+		HashURL: srv.URL + "/SUMS"}
+	if got := trustOf(e, "1", "", "amd64"); got != "C" {
+		t.Fatalf("trusted source %q", got)
+	}
+	// No hash source at all → D.
+	if got := trustOf(&Entry{URL: "https://cdn/x.iso"}, "", "", "amd64"); got != "D" {
+		t.Fatalf("hashless source %q", got)
+	}
+	// Broken hash source → probe yields no hash → D.
+	bad := &Entry{URL: "https://cdn/", ISO: "i.iso", HashURL: srv.URL + "/gone"}
+	srv.Close()
+	if got := trustOf(bad, "", "", "amd64"); got != "D" {
+		t.Fatalf("failed probe %q", got)
+	}
+}
+
 func TestExpandVars(t *testing.T) {
 	cases := map[string]string{
 		"${URL}/x":        "BASE/x",

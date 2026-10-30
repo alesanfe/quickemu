@@ -91,13 +91,13 @@ func TestFixtureSetup(t *testing.T) {
 	if rc != 0 || !strings.Contains(out, "x.iso") {
 		t.Fatalf("url rc=%d %s", rc, out)
 	}
-	// trust grades
+	// trust grades: no hash source → D (probe yields no hash field)
 	out, rc = runTool(t, "trust", "alpine")
-	if rc != 0 || strings.TrimSpace(out) != "C" {
+	if rc != 0 || strings.TrimSpace(out) != "D" {
 		t.Fatalf("trust https %q", out)
 	}
 	out, _ = runTool(t, "trust", "tiny")
-	if strings.TrimSpace(out) != "E" {
+	if strings.TrimSpace(out) != "D" {
 		t.Fatalf("trust http %q", out)
 	}
 	out, _ = runTool(t, "trust", "nope")
