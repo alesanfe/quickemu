@@ -256,10 +256,17 @@ func openListener(listen string) (net.Listener, error) {
 		}
 		os.Remove(listen)
 		ln, err := net.Listen("unix", listen)
-		if err == nil {
-			os.Chmod(listen, 0600)
+		if err != nil {
+			return nil, err
 		}
-		return ln, err
+		// 0600 is the auth boundary — a socket the whole system can
+		// dial exposes every endpoint, so chmod failure = no listen.
+		if err := os.Chmod(listen, 0600); err != nil {
+			ln.Close()
+			os.Remove(listen)
+			return nil, fmt.Errorf("socket chmod 0600: %w", err)
+		}
+		return ln, nil
 	}
 	return net.Listen("tcp", listen)
 }
