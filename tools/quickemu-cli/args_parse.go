@@ -260,6 +260,18 @@ func parseSnapshotFlags(p *argParser, a string) bool {
 		actions = append(actions, "snapshot_delete")
 	case "--snapshot-list":
 		actions = append(actions, "snapshot_list")
+	case "--memory":
+		memFlag = true
+	case "--quiesce":
+		quiesceFlag = true
+	case "--snapshot-desc":
+		snapshotDesc = p.val()
+	case "--snapshot-policy":
+		policyVerb = p.val()
+		if policyVerb == "" {
+			policyVerb = "run"
+		}
+		actions = append(actions, "snapshot_policy")
 	default:
 		return false
 	}

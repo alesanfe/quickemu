@@ -486,6 +486,11 @@ func (p *launchPlan) emit() []string {
 	// QE-020: -incoming for resume-from-suspend — emitted before the
 	// extra_args escape hatch so a user override can still win.
 	args = append(args, resumeArgs(conf)...)
+	// QE-021: -loadvm <tag> cold-boots into a memory snapshot —
+	// mutually exclusive with -incoming (resume_from wins the gate).
+	if conf.get("resume_from", "") == "" {
+		args = append(args, loadvmArgs(conf)...)
+	}
 	// extra_args verbatim append (vm.sh): word-split like the unquoted
 	// Bash expansion — the escape hatch for any QEMU flag quickemu
 	// does not model (e.g. extra_args="-accel tcg" to force TCG).

@@ -18,6 +18,10 @@ var (
 	shortcutOpts []string              // SHORTCUT_OPTIONS accumulated for --shortcut
 	snapshotAct  string                // --snapshot <action>
 	snapshotTag  string                // --snapshot <action> <tag>
+	memFlag      bool                  // --memory: snapshot carries guest RAM
+	quiesceFlag  bool                  // --quiesce: fsfreeze around snapshot
+	snapshotDesc string                // --snapshot-desc <text>
+	policyVerb   string                // --snapshot-policy <run|status|units>
 	dryRunFlag   bool                  // --dry-run/--echo
 )
 
@@ -54,7 +58,8 @@ var subcommandAliases = map[string]bool{
 	"backup-list": true, "trash": true, "trash-list": true, "clone": true,
 	"rename": true, "snapshot-apply": true, "snapshot-create": true,
 	"snapshot-delete": true, "snapshot-info": true, "snapshot-list": true,
-	"monitor-cmd": true, "send-keys": true, "type": true, "screenshot": true,
+	"snapshot-policy": true,
+	"monitor-cmd":     true, "send-keys": true, "type": true, "screenshot": true,
 	"viewer": true, "fullscreen": true, "status-quo": true, "vnc": true,
 	"spice-console": true, "publicdir": true, "serial-console": true,
 	"monitor-console": true, "ignore-msrs": true,
@@ -87,6 +92,7 @@ var knownFlags = func() map[string]bool {
 --serial --serial-console --serial-telnet-host --serial-telnet-port
 --shortcut --shutdown --snapshot --snapshot-apply --snapshot-create
 --snapshot-delete --snapshot-list --snapshot-tree --snapshot-verify
+--memory --quiesce --snapshot-desc --snapshot-policy
 --sound-card --sound-duplex --spice-console --spice-port --ssh-access --suspend
 --ssh-port --start --stats --status --status-quo --stop --trash
 --trash-empty --trash-list --trash-restore --type --usb-controller

@@ -305,6 +305,35 @@ func run() int {
 		okMap(map[string]any{"linkedClone": args[3]})
 	case "snapshot-create", "snapshot-apply", "snapshot-delete":
 		return runSnapshotOp(op, dir, args)
+	case "snapshot-register":
+		// QE-021: record a monitor-created snapshot (savevm) — the
+		// CLI does the monitor work; the sidecar lives here.
+		if len(args) < 3 {
+			die("INVALID_ARGS", "snapshot-register needs a tag")
+		}
+		typ, desc := "vmstate", ""
+		if len(args) > 3 {
+			typ = args[3]
+		}
+		if len(args) > 4 {
+			desc = args[4]
+		}
+		return snapshotRegister(dir, args[2], typ, desc)
+	case "snapshot-unregister":
+		if len(args) < 3 {
+			die("INVALID_ARGS", "snapshot-unregister needs a tag")
+		}
+		return snapshotUnregister(dir, args[2])
+	case "snapshot-policy":
+		verb, dry := "run", false
+		for _, a := range args[2:] {
+			if a == "--dry" {
+				dry = true
+			} else {
+				verb = a
+			}
+		}
+		return snapshotPolicy(dir, verb, dry)
 	case "snapshot-tree":
 		return snapshotTree(dir)
 	case "snapshot-verify":

@@ -11,10 +11,16 @@ import (
 func actSnapshotCmd() int {
 	switch snapshotAct {
 	case "apply":
+		if snapshotIsMem(snapshotTag) {
+			return actSnapshotMemApply()
+		}
 		r := vmOp("snapshot-apply", vmdir(), snapshotTag)()
 		vmOp("snapshot-info", vmdir())()
 		return r
 	case "create":
+		if memFlag {
+			return actSnapshotMemCreate()
+		}
 		args := []string{"snapshot-create", vmdir(), snapshotTag}
 		if externalFlag {
 			args = append(args, "--external")
@@ -31,6 +37,9 @@ func actSnapshotCmd() int {
 		vmOp("snapshot-tree", vmdir())()
 		return r
 	case "delete":
+		if snapshotIsMem(snapshotTag) && vmRunning() {
+			return actSnapshotMemDelete()
+		}
 		r := vmOp("snapshot-delete", vmdir(), snapshotTag)()
 		vmOp("snapshot-info", vmdir())()
 		return r

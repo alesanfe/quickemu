@@ -284,3 +284,14 @@ func resumeArgs(c Conf) []string {
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
+
+// loadvmArgs: -loadvm <tag> boots a stopped VM straight into an
+// in-disk memory snapshot (QE-021 apply path). The tag is charset-
+// gated like savevm's so a hostile conf cannot smuggle an option.
+func loadvmArgs(c Conf) []string {
+	tag := c.get("loadvm", "")
+	if !snapTagChars.MatchString(tag) {
+		return nil
+	}
+	return []string{"-loadvm", tag}
+}

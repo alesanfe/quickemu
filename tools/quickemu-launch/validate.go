@@ -18,6 +18,11 @@ import (
 // no catalog membership check. Empty warns and assumes linux heuristics.
 var guestOSRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+// snapTagChars: savevm/loadvm tags reach QEMU through conf keys and
+// monitor commands — the same charset quickemu-vm enforces so a
+// hostile conf cannot smuggle an option through -loadvm.
+var snapTagChars = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
 // digitsOnly: the Bash port/core checks are strict [0-9]+ — Sscanf("%d")
 // accepts a numeric prefix ("22x" → 22) and lets junk reach QEMU.
 func digitsOnly(s string) bool {

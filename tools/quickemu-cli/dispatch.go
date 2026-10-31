@@ -188,6 +188,8 @@ func dispatchSnapshotDisk(act string) func() int {
 		return vmOp("snapshot-verify", vmdir())
 	case "snapshot_cmd":
 		return actSnapshotCmd
+	case "snapshot_policy":
+		return actSnapshotPolicy
 	}
 	return nil
 }
