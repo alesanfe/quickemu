@@ -333,6 +333,10 @@ func newMux() *http.ServeMux {
 				}
 			}
 			write(w, 200, map[string]any{"data": map[string]any{"operations": ops}})
+		case "stats":
+			vmStatsHandler(w, vm)
+		case "events":
+			vmEventsHandler(w, r, vm)
 		default:
 			write(w, 404, map[string]any{"errors": []any{map[string]any{"code": "NOT_FOUND"}}})
 		}
@@ -366,6 +370,11 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/v1/health", func(w http.ResponseWriter, _ *http.Request) {
 		write(w, 200, map[string]any{"data": map[string]any{"ok": true}})
 	})
+	// QE-080–083: read-only telemetry/journal/capability surface.
+	mux.HandleFunc("/v1/stats", auth(handleStats))
+	mux.HandleFunc("/v1/capabilities", auth(handleCapabilities))
+	mux.HandleFunc("/v1/ops", auth(handleOps))
+	mux.HandleFunc("/v1/ops/", auth(handleOpByID))
 	return mux
 }
 
