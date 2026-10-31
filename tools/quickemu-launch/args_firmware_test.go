@@ -8,7 +8,42 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/alesanfe/quickemu/tools/qelib/qetest"
 )
+
+// Regression: seedEFIVars broke out of the legacy-migration loop even
+// when os.Rename failed — a blocked vars target skipped the other
+// legacy name and, worse, stayed silent. Both candidates must be
+// tried, each failure warned, and no old file must be lost.
+func TestSeedEFIVarsMigrationFailureWarns(t *testing.T) {
+	dir := t.TempDir()
+	c := Conf{"_vmdir": dir, "_run": "1", "_vmname": "vm"}
+	for _, n := range []string{"vm-vars.fd", "OVMF_VARS_4M.fd"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("old-"+n), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses directory permissions")
+	}
+	// The target must stay absent (the migration only runs when vars
+	// is missing) while every rename fails: a read-only vmdir denies
+	// the directory write rename(2) needs.
+	if err := os.Chmod(dir, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(dir, 0o755)
+	errOut := qetest.CaptureStderr(t, func() { seedEFIVars(c, "") })
+	for _, n := range []string{"vm-vars.fd", "OVMF_VARS_4M.fd"} {
+		if !strings.Contains(errOut, n) {
+			t.Fatalf("migration failure for %s must warn, got %q", n, errOut)
+		}
+		if _, err := os.Stat(filepath.Join(dir, n)); err != nil {
+			t.Fatalf("failed migration must preserve %s", n)
+		}
+	}
+}
 
 func TestSeedEFIVars(t *testing.T) {
 	dir := t.TempDir()

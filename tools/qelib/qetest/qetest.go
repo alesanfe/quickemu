@@ -116,3 +116,24 @@ func CaptureStdout(t *testing.T, fn func()) string {
 	os.Stdout = old
 	return <-done
 }
+
+// CaptureStderr is CaptureStdout for os.Stderr — warnings and trust
+// messages live on stderr by convention.
+func CaptureStderr(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stderr = w
+	done := make(chan string)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	fn()
+	w.Close()
+	os.Stderr = old
+	return <-done
+}

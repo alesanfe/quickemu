@@ -163,7 +163,9 @@ func run() int {
 		}
 		n, err := io.Copy(w, tr)
 		if out != nil {
-			out.Close()
+			if cerr := out.Close(); cerr != nil && err == nil {
+				return die("EXTRACT_FAIL", cerr.Error())
+			}
 		}
 		if err != nil {
 			return die("ARCHIVE_BAD", err.Error())

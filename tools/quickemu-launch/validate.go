@@ -111,4 +111,14 @@ func validateConf(c Conf, confPath string) []string {
 func memMB(s string) int { return qelib.MemMB(s) }
 
 // hostFreeMemMB: MemAvailable from /proc/meminfo (host_free_mem_mb).
-func hostFreeMemMB() int { return qelib.HostFreeMemMB() }
+// QE_HOST_FREE_MEM_MB overrides the live figure — cgroup-limited
+// containers often misreport host memory, and tests need a fixed conf
+// to validate regardless of the host's current memory pressure.
+var hostFreeMemMB = func() int {
+	if s := os.Getenv("QE_HOST_FREE_MEM_MB"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			return n
+		}
+	}
+	return qelib.HostFreeMemMB()
+}

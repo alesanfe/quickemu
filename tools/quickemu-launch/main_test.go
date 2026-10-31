@@ -239,8 +239,11 @@ spice_port="5930"
 }
 
 func TestValidateAndErrors(t *testing.T) {
+	// The ram gate reads live MemAvailable — pin it via env so a rich
+	// conf validates regardless of the host's memory pressure.
+	env := []string{"QE_HOST_FREE_MEM_MB=1048576"}
 	conf := richConf(t, "")
-	out, rc := launch(t, nil, conf, "--validate")
+	out, rc := launch(t, env, conf, "--validate")
 	if rc != 0 || !strings.Contains(out, "valid") {
 		t.Fatalf("validate rc=%d %s", rc, out)
 	}

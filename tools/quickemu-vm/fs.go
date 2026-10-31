@@ -1,8 +1,6 @@
 package main
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"errors"
 	"io"
 	"io/fs"
@@ -42,45 +40,6 @@ func moveAny(src, dst string) error {
 	return os.Remove(src)
 }
 
-func tarGz(src, dst string) error {
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	gz := gzip.NewWriter(out)
-	defer gz.Close()
-	tw := tar.NewWriter(gz)
-	defer tw.Close()
-	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || p == src {
-			return err
-		}
-		rel, _ := filepath.Rel(src, p)
-		if d.IsDir() {
-			return nil
-		}
-		info, _ := d.Info()
-		var link string
-		if d.Type()&os.ModeSymlink != 0 {
-			link, _ = os.Readlink(p) // store the link, never its target
-		}
-		h, _ := tar.FileInfoHeader(info, link)
-		h.Name = rel
-		tw.WriteHeader(h)
-		if link != "" {
-			return nil // symlink entries carry no body
-		}
-		f, err := os.Open(p)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		_, err = io.Copy(tw, f)
-		return err
-	})
-}
-
 func cpDir(src, dst string) error {
 	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -88,7 +47,10 @@ func cpDir(src, dst string) error {
 		}
 		rel, _ := filepath.Rel(src, p)
 		t := filepath.Join(dst, rel)
-		info, _ := d.Info()
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
 		if d.IsDir() {
 			return os.MkdirAll(t, info.Mode())
 		}

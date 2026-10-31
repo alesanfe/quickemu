@@ -90,9 +90,7 @@ func exportVm(dir, out string) int {
 	}
 	defer f.Close()
 	gz := gzip.NewWriter(f)
-	defer gz.Close()
 	tw := tar.NewWriter(gz)
-	defer tw.Close()
 	// Checksum file accumulated while streaming members.
 	var sums strings.Builder
 	writeFile := func(arcName, diskPath string) error {
@@ -127,11 +125,28 @@ func exportVm(dir, out string) int {
 		"createdAt": time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 		"vm":        name, "checksums": "quickvm-checksums.sha256"})
 	manifest := string(mb) + "\n"
-	tw.WriteHeader(&tar.Header{Name: "quickvm-manifest.json", Mode: 0644, Size: int64(len(manifest))})
-	tw.Write([]byte(manifest))
+	if err := tw.WriteHeader(&tar.Header{Name: "quickvm-manifest.json", Mode: 0644, Size: int64(len(manifest))}); err != nil {
+		die("EXPORT_FAILED", err.Error())
+	}
+	if _, err := tw.Write([]byte(manifest)); err != nil {
+		die("EXPORT_FAILED", err.Error())
+	}
 	sumb := sums.String()
-	tw.WriteHeader(&tar.Header{Name: "quickvm-checksums.sha256", Mode: 0644, Size: int64(len(sumb))})
-	tw.Write([]byte(sumb))
+	if err := tw.WriteHeader(&tar.Header{Name: "quickvm-checksums.sha256", Mode: 0644, Size: int64(len(sumb))}); err != nil {
+		die("EXPORT_FAILED", err.Error())
+	}
+	if _, err := tw.Write([]byte(sumb)); err != nil {
+		die("EXPORT_FAILED", err.Error())
+	}
+	// Flush+close the streams BEFORE reporting success: a failed
+	// gzip/tar finalise (ENOSPC, EIO) would otherwise leave a
+	// truncated archive the caller believes is complete.
+	if err := tw.Close(); err != nil {
+		die("EXPORT_FAILED", err.Error())
+	}
+	if err := gz.Close(); err != nil {
+		die("EXPORT_FAILED", err.Error())
+	}
 	opDone(dir, opID)
 	infof(" - Exported %s to %s (operation %s)\n", name, out, opTag(opID))
 	okMap(map[string]any{"export": out})
@@ -237,8 +252,18 @@ func importVm(in, destDir, opVmdir string) int {
 			fmt.Fprintln(os.Stderr, "ERROR! Failed to extract "+in+".")
 			return 1
 		}
-		io.Copy(w, tr2)
-		w.Close()
+		// A truncated/corrupt member must abort the import — a short
+		// io.Copy lands a partial file that only a checksum entry
+		// would catch, and unlisted members have none.
+		if _, err := io.Copy(w, tr2); err != nil {
+			w.Close()
+			fmt.Fprintln(os.Stderr, "ERROR! Failed to extract "+h.Name+" from "+in+".")
+			return 1
+		}
+		if err := w.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, "ERROR! Failed to extract "+in+".")
+			return 1
+		}
 	}
 	// Manifest + checksum verification.
 	mf := filepath.Join(tmp, "quickvm-manifest.json")

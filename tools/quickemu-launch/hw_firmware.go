@@ -169,10 +169,17 @@ func seedEFIVars(c Conf, template string) string {
 	if _, err := os.Stat(vars); err != nil {
 		for _, old := range []string{c["_vmname"] + "-vars.fd", "OVMF_VARS_4M.fd"} {
 			op := filepath.Join(vmdir, old)
-			if _, err := os.Stat(op); err == nil {
-				os.Rename(op, vars)
-				break
+			if _, err := os.Stat(op); err != nil {
+				continue
 			}
+			// Only stop looking on a successful rename — a failed
+			// migration must not skip the other legacy name (the
+			// old file stays put either way; warn like Bash's mv).
+			if err := os.Rename(op, vars); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not migrate vars %s -> %s: %v\n", op, vars, err)
+				continue
+			}
+			break
 		}
 	}
 	if _, err := os.Stat(vars); err == nil {

@@ -101,7 +101,13 @@ func backupVerify(fpath string) int {
 			break
 		}
 		if h.Name == "quickvm-checksums.sha256" {
-			b, _ := io.ReadAll(io.LimitReader(tr, 1<<20))
+			b, err := io.ReadAll(io.LimitReader(tr, 1<<20))
+			// A truncated checksums member must not verify: unlisted
+			// members would pass integrity unchecked.
+			if err != nil || int64(len(b)) != h.Size {
+				fmt.Fprintln(os.Stderr, "ERROR! "+fpath+" has a corrupt checksums member.")
+				return 1
+			}
 			for _, l := range strings.Split(string(b), "\n") {
 				flds := strings.Fields(l)
 				if len(flds) == 2 {
@@ -114,10 +120,12 @@ func backupVerify(fpath string) int {
 			hasManifest = true
 		}
 		// Hash while streaming — ReadAll per member OOMs on real
-		// backups (qcow2 payloads are GBs).
+		// backups (qcow2 payloads are GBs). A short copy leaves no
+		// hash, so the sums comparison below flags it as corrupt.
 		hh := sha256.New()
-		io.Copy(hh, tr)
-		hashes[h.Name] = fmt.Sprintf("%x", hh.Sum(nil))
+		if _, err := io.Copy(hh, tr); err == nil {
+			hashes[h.Name] = fmt.Sprintf("%x", hh.Sum(nil))
+		}
 	}
 	if !hasManifest {
 		fmt.Fprintln(os.Stderr, "ERROR! No quickvm-manifest.json (not a verified backup).")

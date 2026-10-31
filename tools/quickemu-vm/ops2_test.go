@@ -43,14 +43,6 @@ func TestFsHelpers(t *testing.T) {
 	if err := cpFile(filepath.Join(src, "none"), cf, 0o600); err == nil {
 		t.Fatal("cpFile missing")
 	}
-	// tarGz roundtrip.
-	arc := filepath.Join(t.TempDir(), "x.tar.gz")
-	if err := tarGz(src, arc); err != nil {
-		t.Fatalf("tarGz %v", err)
-	}
-	if st, _ := os.Stat(arc); st == nil || st.Size() == 0 {
-		t.Fatal("empty tar")
-	}
 }
 
 func TestProfilesAndPresets(t *testing.T) {
