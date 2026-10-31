@@ -1,24 +1,33 @@
-// quickemu-archive: ADR-0001 phase 6 — manifest verification and safe
-// extraction for .quickvm.tar.gz exports. Mirrors the Bash whitelist:
-// no absolute paths, .., symlinks, hardlinks, devices, FIFOs.
+// quickemu-archive: ADR-0001 phase 6 + QE-090/QE-091 — manifest
+// verification and safe extraction for .quickvm.tar.gz exports.
+//
+//	quickemu-archive verify  --archive <tgz>
+//	quickemu-archive inspect --archive <tgz>
+//	quickemu-archive extract --archive <tgz> --dest <dir> [--force]
+//	quickemu-archive import  --archive <tgz> --dest <dir> [--force]
+//	quickemu-archive recover --dest <dir>
+//
+// verify validates structure + manifests only. extract unpacks the
+// raw member tree through staging. import is VM-aware: the archive's
+// <vm>.conf + <vm>/ land as <dest>/<vm>.conf + <dest>/<vm> via a
+// journalised <vm>.import.tmp staging dir and atomic renames.
+// recover resolves leftover .import.tmp state (completing a fully
+// staged import, cleaning a partial one). Both manifest formats are
+// understood: v1 (quickvm-manifest.json + checksums) and v2
+// (manifest.json, format_version 2).
 package main
 
 import (
-	"archive/tar"
-	"compress/gzip"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
-	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
 func die(c, m string) int {
 	qelib.Emit(qelib.CmdName("archive"), "quickemu-archive/"+version, false, nil,
@@ -33,178 +42,230 @@ func ok(d string) int {
 	return 0
 }
 
-const maxMembers = 100000
-const maxDepth = 16
-const maxSize = int64(512 << 30) // 512GiB total
-
-type manifest struct {
-	SchemaVersion int      `json:"schemaVersion"`
-	VM            string   `json:"vm"`
-	CreatedAt     string   `json:"createdAt"`
-	Members       []string `json:"members"`
-}
-
-func safeMember(name string) bool {
-	// Empty names slip past every lexical check below but are not
-	// local paths — reject before anything else.
-	if !filepath.IsLocal(name) {
-		return false
-	}
-	if strings.HasPrefix(name, "/") || strings.HasPrefix(name, "\\") || strings.Contains(name, ":") {
-		return false
-	}
-	clean := filepath.ToSlash(filepath.Clean(name))
-	if clean == ".." || strings.HasPrefix(clean, "../") {
-		return false
-	}
-	return strings.Count(clean, "/") < maxDepth
+// warnf writes a warning to stderr — the only channel integrity and
+// trust messages may use (stdout carries the envelope/errors).
+func warnf(format string, a ...any) {
+	fmt.Fprintf(os.Stderr, " - WARNING! "+format+"\n", a...)
 }
 
 func main() { os.Exit(run()) }
 
+// args holds the parsed flag set; bool flags arrive with value "true".
+type args struct {
+	kv  map[string]string
+	pos []string
+}
+
+// parseArgs accepts "--flag value", "--flag=value" (post-NormArgs both
+// arrive split) and bare "--bool" flags.
+func parseArgs(a []string, bools ...string) args {
+	isBool := map[string]bool{}
+	for _, b := range bools {
+		isBool[b] = true
+	}
+	out := args{kv: map[string]string{}}
+	for i := 0; i < len(a); i++ {
+		s := a[i]
+		if !strings.HasPrefix(s, "--") {
+			out.pos = append(out.pos, s)
+			continue
+		}
+		k := strings.TrimPrefix(s, "--")
+		if isBool[k] {
+			out.kv[k] = "true"
+			continue
+		}
+		if i+1 < len(a) {
+			out.kv[k] = a[i+1]
+			i++
+		} else {
+			out.kv[k] = ""
+		}
+	}
+	return out
+}
+
 func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: quickemu-archive <verify|extract> --archive <tgz> [--dest <dir>]")
+		fmt.Fprintln(os.Stderr, "usage: quickemu-archive <verify|inspect|extract|import|recover> --archive <tgz> [--dest <dir>] [--force]")
 		return 2
 	}
 	sub := os.Args[1]
-	var arch, dest string
-	for i := 2; i+1 < len(os.Args); i += 2 {
-		switch os.Args[i] {
-		case "--archive":
-			arch = os.Args[i+1]
-		case "--dest":
-			dest = os.Args[i+1]
+	a := parseArgs(os.Args[2:], "force")
+	arch := a.kv["archive"]
+	if arch == "" && len(a.pos) > 0 {
+		arch = a.pos[0]
+	}
+	dest := a.kv["dest"]
+	if dest == "" {
+		dest = "."
+	}
+	force := a.kv["force"] == "true"
+
+	switch sub {
+	case "verify":
+		if arch == "" {
+			fmt.Fprintln(os.Stderr, "usage: quickemu-archive verify --archive <tgz>")
+			return 2
 		}
+		return cmdVerify(arch)
+	case "inspect":
+		if arch == "" {
+			fmt.Fprintln(os.Stderr, "usage: quickemu-archive inspect --archive <tgz>")
+			return 2
+		}
+		return cmdInspect(arch)
+	case "extract":
+		if arch == "" {
+			fmt.Fprintln(os.Stderr, "usage: quickemu-archive extract --archive <tgz> --dest <dir> [--force]")
+			return 2
+		}
+		return cmdExtract(arch, dest, force)
+	case "import":
+		if arch == "" {
+			fmt.Fprintln(os.Stderr, "usage: quickemu-archive import --archive <tgz> --dest <dir> [--force]")
+			return 2
+		}
+		return cmdImport(arch, dest, force)
+	case "recover":
+		return cmdRecover(dest)
+	default:
+		fmt.Fprintf(os.Stderr, "usage: quickemu-archive <verify|inspect|extract|import|recover> ... (unknown %q)\n", sub)
+		return 2
 	}
-	f, err := os.Open(arch)
+}
+
+func cmdVerify(arch string) int {
+	s, err := scanArchive(arch, true)
 	if err != nil {
-		return die("NOT_FOUND", err.Error())
-	}
-	defer f.Close()
-	gz, err := gzip.NewReader(f)
-	if err != nil {
+		if qe, ok := err.(*qeErr); ok {
+			return die(qe.code, qe.msg)
+		}
 		return die("ARCHIVE_BAD", err.Error())
 	}
-	defer gz.Close()
+	if err := s.verifyManifests(); err != nil {
+		code := "CHECKSUM_MISMATCH"
+		if i := strings.Index(err.Error(), ":"); i > 0 {
+			code = err.Error()[:i]
+		}
+		return die(code, err.Error())
+	}
+	if s.v2 != nil && s.v2.IncludesTPM {
+		warnf("archive carries TPM/swtpm state — secrets travel with it.")
+	}
+	var links []map[string]string
+	for _, l := range s.links {
+		kind := "symlink"
+		if l.hardlink {
+			kind = "hardlink"
+		}
+		links = append(links, map[string]string{
+			"member": l.member, "target": l.target, "type": kind})
+	}
+	fv := 0
+	vm := s.vmName
+	if s.v2 != nil {
+		fv = s.v2.FormatVersion
+	} else if s.v1 != nil {
+		fv = 1
+	}
+	d, _ := json.Marshal(map[string]any{
+		"members": s.entries, "verified": len(s.files),
+		"links": links, "format_version": fv, "vm": vm,
+	})
+	return ok(string(d))
+}
 
-	tr := tar.NewReader(gz)
-	var man manifest
-	var haveMan bool
-	sums := map[string]string{} // name -> expected sha256 (from .sha256 file)
-	entries := 0
-	var total int64
-	var files []struct{ name, sum string }
+func cmdInspect(arch string) int {
+	s, err := scanArchive(arch, false)
+	if err != nil {
+		if qe, ok := err.(*qeErr); ok {
+			return die(qe.code, qe.msg)
+		}
+		return die("ARCHIVE_BAD", err.Error())
+	}
+	data := map[string]any{
+		"archive": arch, "members": s.entries, "total_bytes": s.total,
+		"vm": s.vmName, "links": len(s.links),
+	}
+	var names []string
+	for _, m := range s.members {
+		names = append(names, m.name)
+	}
+	sort.Strings(names)
+	data["member_names"] = names
+	if s.v2 != nil {
+		data["format_version"] = s.v2.FormatVersion
+		data["created_at"] = s.v2.CreatedAt
+		data["quickemu_version"] = s.v2.QuickemuVersion
+		data["min_qemu_version"] = s.v2.MinQemuVersion
+		data["conf"] = s.v2.Conf
+		data["includes_tpm"] = s.v2.IncludesTPM
+		var blobs []map[string]any
+		for _, b := range s.v2.Blobs {
+			blobs = append(blobs, map[string]any{
+				"path": b.Path, "sha256": b.SHA256,
+				"size": b.Size, "kind": b.Kind})
+		}
+		data["blobs"] = blobs
+		var disks []map[string]any
+		for _, dsk := range s.v2.Disks {
+			disks = append(disks, map[string]any{
+				"path": dsk.Path, "format": dsk.Format,
+				"virtual_size": dsk.VirtualSize,
+				"backing_file": dsk.BackingFile,
+				"snapshots":    len(dsk.Snapshots)})
+		}
+		data["disks"] = disks
+	} else if s.v1 != nil {
+		data["format_version"] = 1
+		data["created_at"] = s.v1.CreatedAt
+	}
+	d, _ := json.Marshal(data)
+	return ok(string(d))
+}
 
-	// First pass for verify; for extract we stream into dest.
-	for {
-		h, err := tr.Next()
-		if err == io.EOF {
-			break
+func cmdExtract(arch, dest string, force bool) int {
+	exn, err := runExtraction(arch, dest, false, force)
+	if err != nil {
+		if qe, ok := err.(*qeErr); ok {
+			return die(qe.code, qe.msg)
 		}
-		if err != nil {
-			return die("ARCHIVE_BAD", err.Error())
-		}
-		entries++
-		if entries > maxMembers {
-			return die("ARCHIVE_BOMB", "member limit")
-		}
-		total += h.Size
-		if total > maxSize {
-			return die("ARCHIVE_BOMB", "size limit")
-		}
-		if !safeMember(h.Name) {
-			return die("TAR_SLIP", "unsafe member "+h.Name)
-		}
-		if !filepath.IsLocal(h.Name) {
-			return die("TAR_SLIP", "non-local member "+h.Name)
-		}
-		switch h.Typeflag {
-		case tar.TypeReg:
-		case tar.TypeDir:
-			continue
-		default: // symlink, link, char, block, fifo, xattr
-			return die("ARCHIVE_LINK", "unsafe member type "+h.Name)
-		}
-		base := filepath.Base(h.Name)
-		// Metadata members are small — read bounded. qcow2 data
-		// members stream through the hasher/extractor; ReadAll
-		// would OOM on multi-GB archives.
-		if base == "quickvm-manifest.json" || base == "quickvm-checksums.sha256" {
-			body, err := io.ReadAll(io.LimitReader(tr, 1<<20))
-			if err != nil {
-				return die("ARCHIVE_BAD", err.Error())
-			}
-			if int64(len(body)) != h.Size {
-				return die("ARCHIVE_BAD", "short read on "+h.Name)
-			}
-			if base == "quickvm-manifest.json" {
-				haveMan = json.Unmarshal(body, &man) == nil
-				continue
-			}
-			for _, l := range strings.Split(string(body), "\n") {
-				p := strings.Fields(l)
-				if len(p) == 2 {
-					sums[p[1]] = p[0]
-				}
-			}
-			continue
-		}
-		h256 := sha256.New()
-		var w io.Writer = h256
-		var out *os.File
-		if sub == "extract" && dest != "" {
-			p := filepath.Join(dest, h.Name)
-			if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-				return die("EXTRACT_FAIL", err.Error())
-			}
-			f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
-			if err != nil {
-				return die("EXTRACT_FAIL", err.Error())
-			}
-			out = f
-			w = io.MultiWriter(h256, f)
-		}
-		n, err := io.Copy(w, tr)
-		if out != nil {
-			if cerr := out.Close(); cerr != nil && err == nil {
-				return die("EXTRACT_FAIL", cerr.Error())
-			}
-		}
-		if err != nil {
-			return die("ARCHIVE_BAD", err.Error())
-		}
-		if n != h.Size {
-			return die("ARCHIVE_BAD", "short read on "+h.Name)
-		}
-		cname := filepath.ToSlash(filepath.Clean(h.Name))
-		files = append(files, struct{ name, sum string }{cname, hex.EncodeToString(h256.Sum(nil))})
+		return die("EXTRACT_FAIL", err.Error())
 	}
-	if !haveMan {
-		return die("MANIFEST_MISSING", "quickvm-manifest.json absent")
+	var installed []string
+	for _, rel := range exn.ex.rel {
+		installed = append(installed, rel)
 	}
-	// Verify every declared member checksum by CANONICAL FULL PATH —
-	// basename matching lets disk1/data.qcow2 collide with
-	// disk2/data.qcow2. Reject duplicate/equivalent paths outright.
-	mismatch := 0
-	seen := map[string]bool{}
-	for _, fm := range files {
-		if seen[fm.name] {
-			return die("MANIFEST_DUP", "duplicate member path "+fm.name)
+	sort.Strings(installed)
+	d, _ := json.Marshal(map[string]any{
+		"dest": dest, "installed": installed, "members": exn.scan.entries,
+	})
+	return ok(string(d))
+}
+
+func cmdImport(arch, dest string, force bool) int {
+	exn, err := runExtraction(arch, dest, true, force)
+	if err != nil {
+		if qe, ok := err.(*qeErr); ok {
+			return die(qe.code, qe.msg)
 		}
-		seen[fm.name] = true
-		want, declared := sums[fm.name]
-		if !declared { // tolerate manifests that key by basename
-			want, declared = sums[filepath.Base(fm.name)]
-		}
-		if declared && want != fm.sum {
-			mismatch++
-		}
+		return die("EXTRACT_FAIL", err.Error())
 	}
-	if mismatch > 0 {
-		return die("CHECKSUM_MISMATCH", fmt.Sprintf("%d members failed sha256", mismatch))
+	vm := exn.scan.vmName
+	warnf("%s.conf is executed as code on launch; review it before running the VM.", vm)
+	d, _ := json.Marshal(map[string]any{
+		"import": vm, "dest": dest, "members": exn.scan.entries,
+	})
+	return ok(string(d))
+}
+
+func cmdRecover(dest string) int {
+	actions, err := recoverDest(dest)
+	if err != nil {
+		return die("EXTRACT_FAIL", err.Error())
 	}
-	d, _ := json.Marshal(map[string]any{"members": entries, "verified": len(files)})
+	d, _ := json.Marshal(map[string]any{"dest": dest, "actions": actions})
 	return ok(string(d))
 }
