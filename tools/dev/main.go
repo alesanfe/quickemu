@@ -35,6 +35,7 @@ var entries = map[string]string{
 	"quickget-cli": "quickget",
 	"quickgetc":    "quickgetc",
 	"quickreport":  "quickreport",
+	"quicktest":    "quicktest",
 }
 
 // noBin are modules whose binaries never ship to bin/.

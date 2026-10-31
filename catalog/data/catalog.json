@@ -206,6 +206,31 @@
    "support_level": "stable"
   },
   {
+   "os": "alpine-cloud",
+   "releases": [
+    "v3.24",
+    "v3.23",
+    "v3.22",
+    "v3.21",
+    "v3.20",
+    "v3.19"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ],
+   "url": "https://dl-cdn.alpinelinux.org/alpine/%RELEASE%/releases/cloud",
+   "scrape": true,
+   "qarch": true,
+   "status": "active",
+   "image_type": "qcow2",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
+  },
+  {
    "os": "altlinux",
    "releases": [
     "11"
@@ -1633,6 +1658,27 @@
    "support_level": "stable"
   },
   {
+   "os": "debian-cloud",
+   "releases": [
+    "13",
+    "12",
+    "11"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ],
+   "url": "https://cloud.debian.org/images/cloud",
+   "scrape": true,
+   "status": "active",
+   "image_type": "qcow2",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
+  },
+  {
    "os": "debian-edu",
    "releases": [
     "latest"
@@ -2269,6 +2315,27 @@
    "scrape": true,
    "status": "active",
    "image_type": "iso",
+   "download_mode": "direct",
+   "license": "redistributable",
+   "boot_mode": "both",
+   "support_level": "stable"
+  },
+  {
+   "os": "fedora-cloud",
+   "releases": [
+    "44",
+    "43",
+    "42"
+   ],
+   "editions": [],
+   "arch": [
+    "amd64",
+    "arm64"
+   ],
+   "url": "https://download.fedoraproject.org/pub/fedora/linux/releases",
+   "scrape": true,
+   "status": "active",
+   "image_type": "qcow2",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",

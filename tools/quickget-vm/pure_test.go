@@ -226,6 +226,34 @@ func TestImageNormalize(t *testing.T) {
 	}
 }
 
+func TestDiskFormatFor(t *testing.T) {
+	dir := t.TempDir()
+	qcow2 := append([]byte{'Q', 'F', 'I', 0xfb}, make([]byte, 64)...)
+	raw := make([]byte, 64)
+	cases := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{"disk.img", raw, "raw"},
+		{"disk.img", qcow2, "qcow2"}, // cirros: qcow2 named .img
+		{"disk.qcow2", qcow2, "qcow2"},
+		{"disk.qcow2", raw, "raw"}, // raw named .qcow2 is equally wrong
+		{"disk.vmdk", raw, "vmdk"},
+		{"disk.raw", raw, "raw"},
+		{"disk.vdi", raw, "vdi"},
+		{"missing.qcow2", nil, "qcow2"}, // unreadable → extension wins
+	}
+	for _, c := range cases {
+		if c.data != nil {
+			os.WriteFile(filepath.Join(dir, c.name), c.data, 0o600)
+		}
+		if got := diskFormatFor(dir, c.name); got != c.want {
+			t.Fatalf("diskFormatFor(%s)=%s want %s", c.name, got, c.want)
+		}
+	}
+}
+
 func TestCheckChunklistHeader(t *testing.T) {
 	dir := t.TempDir()
 	cl := filepath.Join(dir, "c.chunklist")

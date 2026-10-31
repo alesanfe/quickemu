@@ -1,0 +1,38 @@
+# Smoke profile — CirrOS is a ~25MB pre-imaged disk that honours the
+# NoCloud seed for SSH keys. Fastest possible end-to-end of the run
+# pipeline: acquire → prepare → launch → wait-ssh → verify → seal.
+[profile]
+name = "cirros-smoke"
+description = "pipeline smoke test on a pre-imaged disk"
+
+[system]
+os = "cirros"
+release = "0.6.3"
+arch = "amd64"
+
+[machine]
+cpus = 1
+ram = "512M"
+boot = "legacy"          # cirros disk.img is MBR — OVMF can't boot it
+
+[identity]
+hostname = "cirros-smoke"
+username = "cirros"          # CirrOS's fixed built-in user
+allow_pw_auth = false
+
+[automation]
+provider = "auto"            # catalog image_type=raw → nocloud-image
+ssh_timeout_min = 5
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "cirros"
+
+[[verify]]
+name = "kernel"
+run = "uname -r"

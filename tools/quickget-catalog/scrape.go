@@ -9,7 +9,7 @@ import "errors"
 // get_<os> logic exactly.
 func scrape(osName, release, edition, arch string) (string, string, error) {
 	for _, resolve := range []func(string, string, string, string) (string, string, error){
-		scrapeHTML, scrapeMirror, scrapeAPI0, scrapeUbuntuFamily,
+		scrapeHTML, scrapeMirror, scrapeAPI0, scrapeUbuntuFamily, scrapeCloud,
 	} {
 		u, h, err := resolve(osName, release, edition, arch)
 		if !errors.Is(err, errScrapeSkip) {

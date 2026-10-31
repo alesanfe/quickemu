@@ -214,7 +214,7 @@ func sumAt(u string) string {
 	if err != nil {
 		return ""
 	}
-	return regexp.MustCompile(`[a-fA-F0-9]{64}|[a-fA-F0-9]{32}`).FindString(body)
+	return regexp.MustCompile(`[a-fA-F0-9]{128}|[a-fA-F0-9]{64}|[a-fA-F0-9]{40}|[a-fA-F0-9]{32}`).FindString(body)
 }
 
 // sumForISO finds iso's digest inside a sums manifest body; supports

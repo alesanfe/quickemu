@@ -18,11 +18,23 @@
    "info": "Patchset distribution of Plan 9 from Bell Labs with community fixes and improvements.",
    "name": "9legacy"
   },
+  "abora": {
+   "credentials": "-",
+   "homepage": "https://www.aboraos.org/",
+   "info": "NixOS-based desktop OS with atomic updates and 23 desktop profiles (COSMIC, GNOME, KDE, Hyprland)",
+   "name": "Abora OS"
+  },
   "academix": {
    "credentials": "-",
    "homepage": "https://academixproject.com/",
    "info": "Debian-based educational distribution bundling curricula-aligned software (archived).",
    "name": "AcademiX"
+  },
+  "adelie": {
+   "credentials": "-",
+   "homepage": "https://www.adelielinux.org/",
+   "info": "Musl+Linux-libre distribution for many architectures, including legacy PPC.",
+   "name": "Adélie Linux"
   },
   "aerynos": {
    "name": "AerynOS",
@@ -41,6 +53,12 @@
    "homepage": "https://alpinelinux.org/",
    "info": "Security-oriented, lightweight Linux distribution based on musl libc and busybox.",
    "name": "Alpine Linux"
+  },
+  "alpine-cloud": {
+   "credentials": "-",
+   "homepage": "https://alpinelinux.org/cloud/",
+   "info": "Official Alpine cloud image with cloud-init (NoCloud seed).",
+   "name": "Alpine Linux (cloud image)"
   },
   "altlinux": {
    "credentials": "-",
@@ -66,6 +84,12 @@
    "info": "Port Android Open Source Project to x86 platform.",
    "name": "Android x86"
   },
+  "android-x86": {
+   "credentials": "-",
+   "homepage": "https://www.android-x86.org/",
+   "info": "Port of Android to x86 platforms; project currently unmaintained.",
+   "name": "Android-x86"
+  },
   "anolis": {
    "credentials": "-",
    "homepage": "https://openanolis.cn/",
@@ -83,6 +107,12 @@
    "homepage": "https://antixlinux.com/",
    "info": "Fast, lightweight and easy to install systemd-free linux live CD distribution based on Debian Stable for Intel-AMD x86 compatible systems.",
    "name": "Antix"
+  },
+  "aosc": {
+   "name": "AOSC OS",
+   "credentials": "-",
+   "homepage": "https://aosc.io/",
+   "info": "Independent Linux distribution (Anthon OS) with rolling releases and an offline installer."
   },
   "apodio": {
    "credentials": "-",
@@ -120,11 +150,29 @@
    "info": "Turkish Arch-based distribution with its own repositories and Xfce desktop.",
    "name": "Archman Linux"
   },
+  "archstrike": {
+   "credentials": "-",
+   "homepage": "https://archstrike.org/",
+   "info": "Arch-based security testing distro (archived)",
+   "name": "ArchStrike"
+  },
+  "armbian": {
+   "credentials": "-",
+   "homepage": "https://www.armbian.com/",
+   "info": "Debian/Ubuntu-based images incl. UEFI x86 ISOs",
+   "name": "Armbian"
+  },
   "artixlinux": {
    "credentials": "-",
    "homepage": "https://artixlinux.org/",
    "info": "The Art of Linux. Simple. Fast. Systemd-free.",
    "name": "Artix Linux"
+  },
+  "asterinas": {
+   "credentials": "-",
+   "homepage": "https://asterinas.github.io/",
+   "info": "Rust framekernel OS implementing the Linux ABI (NixOS live image)",
+   "name": "Asterinas"
   },
   "astralinux": {
    "credentials": "-",
@@ -162,6 +210,12 @@
    "info": "The original Slackware-based pentesting live distribution, ancestor of Kali.",
    "name": "BackTrack"
   },
+  "bastillebsd": {
+   "credentials": "-",
+   "homepage": "https://bastillebsd.org/",
+   "info": "FreeBSD distribution with Bastille container management built in",
+   "name": "BastilleBSD"
+  },
   "batocera": {
    "credentials": "-",
    "homepage": "https://batocera.org/",
@@ -173,6 +227,12 @@
    "homepage": "https://github.com/ublue-os/bazzite/",
    "info": "Container native gaming and a ready-to-game SteamOS like.",
    "name": "Bazzite"
+  },
+  "bbqlinux": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/bbqlinux/",
+   "info": "Arch-based Cinnamon desktop (archived 2021)",
+   "name": "BBQLinux"
   },
   "beos": {
    "credentials": "-",
@@ -294,6 +354,12 @@
    "info": "Continuously delivered distro that tracks just ahead of Red Hat Enterprise Linux (RHEL) development, positioned as a midstream between Fedora Linux and RHEL.",
    "name": "CentOS Stream"
   },
+  "cervus": {
+   "credentials": "-",
+   "homepage": "https://github.com/VeoQeoOrg/Cervus",
+   "info": "Complete self-hosted x86_64 OS written from scratch with live ISO",
+   "name": "Cervus OS"
+  },
   "chimeralinux": {
    "credentials": "anon:chimera root:chimera",
    "homepage": "https://chimera-linux.org/",
@@ -311,6 +377,12 @@
    "homepage": "https://cirros-cloud.net/",
    "info": "Tiny cloud test image used to verify OpenStack and cloud deployments.",
    "name": "CirrOS"
+  },
+  "clearndr": {
+   "credentials": "-",
+   "homepage": "https://www.stamus-networks.com/",
+   "info": "Stamus Networks SELKS successor — Suricata IDS/NSM appliance (ClearNDR community)",
+   "name": "ClearNDR"
   },
   "clonezilla": {
    "credentials": "-",
@@ -390,6 +462,12 @@
    "info": "Complete Free Operating System with perfect level of ease of use and stability.",
    "name": "Debian"
   },
+  "debian-cloud": {
+   "credentials": "-",
+   "homepage": "https://cloud.debian.org/",
+   "info": "Official Debian genericcloud image with cloud-init preinstalled.",
+   "name": "Debian (cloud image)"
+  },
   "debian-edu": {
    "credentials": "-",
    "homepage": "https://blends.debian.org/edu/",
@@ -426,6 +504,12 @@
    "info": "Debian-based Linux distribution focused on software defined radio (SDR).",
    "name": "DragonOS"
   },
+  "dragora": {
+   "credentials": "-",
+   "homepage": "https://www.dragora.org/",
+   "info": "independent GNU/Linux-Libre distro",
+   "name": "Dragora"
+  },
   "drauger-os": {
    "credentials": "-",
    "homepage": "https://draugeros.org/",
@@ -437,6 +521,18 @@
    "homepage": "https://drbl.org/",
    "info": "Diskless Remote Boot in Linux live environment for mass PC cloning and classrooms.",
    "name": "DRBL Live"
+  },
+  "drweb": {
+   "credentials": "-",
+   "homepage": "https://free.drweb.com/aid_admin/",
+   "info": "Dr.Web LiveDisk antivirus rescue CD",
+   "name": "Dr.Web LiveDisk"
+  },
+  "dynebolic": {
+   "credentials": "-",
+   "homepage": "https://dyne.org/dynebolic/",
+   "info": "GNU/Linux-libre live distro for media production",
+   "name": "dyne:bolic"
   },
   "easynas": {
    "credentials": "-",
@@ -510,17 +606,41 @@
    "info": "Polish RHEL-compatible enterprise distribution.",
    "name": "EuroLinux"
   },
+  "extix": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/extix/",
+   "info": "Debian/Ubuntu-based live respins by Exton",
+   "name": "ExTiX"
+  },
   "ezarcher": {
    "credentials": "-",
    "homepage": "https://sourceforge.net/projects/ezarch/",
    "info": "Simple Arch Linux live installer distribution.",
    "name": "EzArcher"
   },
+  "eznixos": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/eznixos/",
+   "info": "Debian-based live respin with Xfce or KDE",
+   "name": "EznixOS"
+  },
+  "fatdog64": {
+   "credentials": "-",
+   "homepage": "https://distro.ibiblio.org/fatdog/web/",
+   "info": "Lightweight Puppy-derived 64-bit distribution for older hardware.",
+   "name": "Fatdog64 Linux"
+  },
   "fedora": {
    "credentials": "-",
    "homepage": "https://www.fedoraproject.org/",
    "info": "Innovative platform for hardware, clouds, and containers, built with love by you.",
    "name": "Fedora"
+  },
+  "fedora-cloud": {
+   "credentials": "-",
+   "homepage": "https://fedoraproject.org/cloud/",
+   "info": "Official Fedora Cloud Base image with cloud-init preinstalled.",
+   "name": "Fedora Cloud"
   },
   "fedora-coreos": {
    "credentials": "-",
@@ -600,6 +720,12 @@
    "info": "Fedora-based rolling desktop distribution with a classic desktop (archived).",
    "name": "Fuduntu"
   },
+  "funtoo": {
+   "credentials": "-",
+   "homepage": "https://www.funtoo.org/",
+   "info": "Gentoo-derived distro (ISO archived)",
+   "name": "Funtoo"
+  },
   "furybsd": {
    "credentials": "-",
    "homepage": "https://www.furybsd.org/",
@@ -672,6 +798,12 @@
    "info": "Debian live system for partition editing and rescue.",
    "name": "GParted Live"
   },
+  "graphite": {
+   "credentials": "-",
+   "homepage": "https://graphiteos.org/",
+   "info": "Arch-based distro focused on simplicity and aesthetics (alpha)",
+   "name": "Graphite OS"
+  },
   "grml": {
    "credentials": "-",
    "homepage": "https://grml.org/",
@@ -738,6 +870,12 @@
    "info": "Rancher hyperconverged infrastructure platform (KVM+Kubernetes).",
    "name": "Harvester"
   },
+  "harvey": {
+   "credentials": "-",
+   "homepage": "https://harvey-os.org/",
+   "info": "Plan 9-derived OS with a 64-bit kernel (bzipped CD image)",
+   "name": "Harvey OS"
+  },
   "hefftorlinux": {
    "credentials": "-",
    "homepage": "https://sourceforge.net/projects/hefftorlinux/",
@@ -755,6 +893,12 @@
    "homepage": "https://hellosystem.github.io/",
    "info": "FreeBSD-based desktop system inspired by classic macOS simplicity.",
    "name": "helloSystem"
+  },
+  "hirens": {
+   "credentials": "-",
+   "homepage": "https://www.hirensbootcd.org/",
+   "info": "Windows PE rescue environment",
+   "name": "Hirens BootCD PE"
   },
   "instantos": {
    "credentials": "-",
@@ -780,11 +924,23 @@
    "info": "Elastix-fork unified communications server bundling Asterisk PBX, fax and messaging.",
    "name": "Issabel PBX"
   },
+  "jatayuos": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/jatayuos/",
+   "info": "Debian-based Indian distribution with KDE Plasma",
+   "name": "JatayuOS"
+  },
   "jnode": {
    "credentials": "-",
    "homepage": "https://www.jnode.org/",
    "info": "Java New Operating System Design - OS written in Java.",
    "name": "JNode"
+  },
+  "justbrowsing": {
+   "credentials": "-",
+   "homepage": "https://justbrowsing.info/",
+   "info": "browser-centric live distro (archived 2014)",
+   "name": "JustBrowsing"
   },
   "k3os": {
    "credentials": "-",
@@ -840,6 +996,12 @@
    "info": "Hardened Debian-based security-focused distribution.",
    "name": "Kicksecure"
   },
+  "kiro": {
+   "credentials": "-",
+   "homepage": "https://kiroproject.com/",
+   "info": "Arch-based KDE Plasma distribution with its own repositories",
+   "name": "Kiro"
+  },
   "knoppix": {
    "credentials": "-",
    "homepage": "https://knopper.net/knoppix/",
@@ -875,6 +1037,12 @@
    "homepage": "https://lakka.tv/",
    "info": "LibreELEC-based retro-gaming console distribution.",
    "name": "Lakka"
+  },
+  "lateralus": {
+   "credentials": "-",
+   "homepage": "https://github.com/bad-antics/lateralus-lang",
+   "info": "Research operating system built around the Lateralus language",
+   "name": "LateralusOS"
   },
   "lernstick": {
    "credentials": "-",
@@ -954,6 +1122,12 @@
    "info": "Historic embedded FreeBSD firewall distribution; forerunner of pfSense/OPNsense (archived).",
    "name": "m0n0wall"
   },
+  "mabox": {
+   "credentials": "-",
+   "homepage": "https://maboxlinux.org/",
+   "info": "Manjaro-based desktop with Openbox",
+   "name": "Mabox Linux"
+  },
   "maboxlinux": {
    "credentials": "-",
    "homepage": "https://maboxlinux.org/",
@@ -1002,6 +1176,12 @@
    "info": "MAdrid_linuX — education distro by the Madrid regional government.",
    "name": "MAX"
   },
+  "memtest86plus": {
+   "credentials": "-",
+   "homepage": "https://memtest.org/",
+   "info": "memory testing tool",
+   "name": "Memtest86+"
+  },
   "metamorphose": {
    "credentials": "-",
    "homepage": "https://metamorphose.miraheze.org/",
@@ -1044,17 +1224,35 @@
    "info": "Microkernel teaching OS by Andrew S. Tanenbaum.",
    "name": "MINIX 3"
   },
+  "mobian": {
+   "credentials": "-",
+   "homepage": "https://mobian.org/",
+   "info": "Debian for mobile devices — also ships amd64 installer images (phosh, plasma-mobile)",
+   "name": "Mobian"
+  },
   "mocaccinoos": {
    "credentials": "-",
    "homepage": "https://www.mocaccino.org/",
    "info": "Independent distribution built on the Luet package manager.",
    "name": "MocaccinoOS"
   },
+  "mofolinux": {
+   "credentials": "-",
+   "homepage": "https://mofolinux.com/",
+   "info": "live distro with privacy tools preinstalled",
+   "name": "MOFO Linux"
+  },
   "molinux": {
    "credentials": "-",
    "homepage": "https://archiveos.org/molinux/",
    "info": "Historic Castilla-La Mancha education distro (preserved on ArchiveOS).",
    "name": "MoLinux"
+  },
+  "moros": {
+   "credentials": "-",
+   "homepage": "https://moros.cc/",
+   "info": "Hobby OS written in Rust with a Lisp-like shell (raw disk image)",
+   "name": "MOROS"
   },
   "mxlinux": {
    "credentials": "-",
@@ -1067,6 +1265,12 @@
    "homepage": "http://www.mythbuntu.org/",
    "info": "Ubuntu flavor shipping MythTV for digital video recording (archived at 16.04).",
    "name": "Mythbuntu"
+  },
+  "nemesis": {
+   "credentials": "-",
+   "homepage": "https://sourceforge.net/projects/nemesis-linux/",
+   "info": "Lightweight Debian-based distribution (XFCE, LXQt, LXDE, Cinnamon)",
+   "name": "Nemesis Linux"
   },
   "neptune": {
    "credentials": "-",
@@ -1248,6 +1452,12 @@
    "info": "Slower-paced rolling variant of openSUSE Tumbleweed.",
    "name": "openSUSE Slowroll"
   },
+  "openthos": {
+   "credentials": "-",
+   "homepage": "https://www.openthos.com/",
+   "info": "Android-x86-based desktop (Chinese)",
+   "name": "openTHOS"
+  },
   "openwrt": {
    "credentials": "-",
    "homepage": "https://openwrt.org/",
@@ -1272,11 +1482,23 @@
    "info": "",
    "name": ""
   },
+  "osgeolive": {
+   "credentials": "-",
+   "homepage": "https://live.osgeo.org/",
+   "info": "Ubuntu-based live DVD preloaded with open-source geospatial software",
+   "name": "OSGeoLive"
+  },
   "ovirt-node": {
    "credentials": "-",
    "homepage": "https://ovirt.org/",
    "info": "Minimal CentOS-based hypervisor node image for the oVirt virtualization platform (archived).",
    "name": "oVirt Node NG"
+  },
+  "paldo": {
+   "credentials": "-",
+   "homepage": "https://www.paldo.org/",
+   "info": "upkg-based desktop Linux with live and rescue images",
+   "name": "paldo GNU/Linux"
   },
   "parabola": {
    "credentials": "-",
@@ -1314,6 +1536,18 @@
    "info": "Provides a user with the opportunity to build the system that best fits their needs. While at the same time providing a functioning OS with minimum hassle out of the box.",
    "name": "PeppermintOS"
   },
+  "peppermintos": {
+   "credentials": "-",
+   "homepage": "https://peppermintos.com/",
+   "info": "Lightweight Devuan-based desktop with minimal Xfce experience.",
+   "name": "Peppermint OS"
+  },
+  "peropesis": {
+   "credentials": "-",
+   "homepage": "https://peropesis.org/",
+   "info": "minimal CLI-centric live Linux",
+   "name": "Peropesis"
+  },
   "pfsense": {
    "credentials": "-",
    "homepage": "https://www.pfsense.org/",
@@ -1331,6 +1565,12 @@
    "homepage": "https://pinguyos.com/",
    "info": "Ubuntu-based beginner-friendly desktop distribution with GNOME tweaks (archived).",
    "name": "Pinguy OS"
+  },
+  "pisilinux": {
+   "name": "Pisi Linux",
+   "credentials": "-",
+   "homepage": "https://pisilinux.org/",
+   "info": "Independent Turkish distribution continuing the PiSi package system; KDE6/Minimal/LXQt images."
   },
   "plan9": {
    "credentials": "-",
@@ -1368,6 +1608,12 @@
    "info": "Alpine-based sustainable phone OS; also publishes generic x86_64 prebuilt images.",
    "name": "postmarketOS"
   },
+  "predator-os": {
+   "credentials": "-",
+   "homepage": "https://predator-os.ir/",
+   "info": "security-focused distro",
+   "name": "Predator-OS"
+  },
   "primeos": {
    "credentials": "-",
    "homepage": "https://primeos.in/",
@@ -1385,6 +1631,12 @@
    "homepage": "https://www.proxmox.com/en/proxmox-backup-server",
    "info": "Backup appliance for Proxmox VE and file-level backups.",
    "name": "Proxmox Backup Server"
+  },
+  "proxmox-datacenter-manager": {
+   "name": "Proxmox Datacenter Manager",
+   "credentials": "-",
+   "homepage": "https://www.proxmox.com/en/proxmox-datacenter-manager",
+   "info": "Central management appliance for Proxmox VE/Backup clusters."
   },
   "proxmox-mail-gateway": {
    "credentials": "-",
@@ -1524,11 +1776,23 @@
    "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.",
    "name": "Rocky Linux"
   },
+  "rosa": {
+   "credentials": "-",
+   "homepage": "https://www.rosalinux.ru/",
+   "info": "Russian desktop/server distribution (Plasma, GNOME, LXQt editions)",
+   "name": "ROSA Linux"
+  },
   "rosalinux": {
    "credentials": "-",
    "homepage": "https://www.rosalinux.ru/",
    "info": "Russian enterprise Linux distribution.",
    "name": "ROSA Linux"
+  },
+  "rou2exos": {
+   "credentials": "-",
+   "homepage": "https://github.com/krustowski/rou2exOS",
+   "info": "Hobby protected-mode operating system (Rust/assembly)",
+   "name": "Rou2exOS"
   },
   "salix": {
    "credentials": "-",
@@ -1559,6 +1823,12 @@
    "homepage": "https://github.com/PartialVolume/shredos.x86_64",
    "info": "nwipe-based disk-erasure live OS for x86_64.",
    "name": "ShredOS"
+  },
+  "shrine": {
+   "credentials": "-",
+   "homepage": "https://github.com/minexew/Shrine",
+   "info": "TempleOS-derived distribution with improved networking and package manager.",
+   "name": "Shrine"
   },
   "siduction": {
    "credentials": "-",
@@ -1596,6 +1866,12 @@
    "info": "Simple, fast and low resource Linux OS for servers & desktops.",
    "name": "SliTaz"
   },
+  "smartos": {
+   "name": "SmartOS",
+   "credentials": "-",
+   "homepage": "https://www.smartos.org/",
+   "info": "OpenSolaris-derived hypervisor OS by Triton; runs from live media (no install)."
+  },
   "smoothwall": {
    "credentials": "-",
    "homepage": "http://www.smoothwall.org/",
@@ -1607,6 +1883,12 @@
    "homepage": "https://getsol.us/",
    "info": "Designed for home computing. Every tweak enables us to deliver a cohesive computing experience.",
    "name": "Solus"
+  },
+  "solydxk": {
+   "credentials": "-",
+   "homepage": "https://solydxk.com/",
+   "info": "Debian-based desktop (solydX=Xfce, solydK=KDE)",
+   "name": "SolydXK"
   },
   "sortix": {
    "credentials": "-",
@@ -1625,6 +1907,12 @@
    "homepage": "https://spirallinux.github.io/",
    "info": "Selection of Linux spins built from Debian GNU/Linux, with a focus on simplicity and out-of-the-box usability across all the major desktop environments.",
    "name": "SpiralLinux"
+  },
+  "springdale": {
+   "credentials": "-",
+   "homepage": "https://springdale.princeton.edu/",
+   "info": "RHEL-compatible distribution maintained by Princeton University.",
+   "name": "Springdale Linux"
   },
   "steamos": {
    "credentials": "-",
@@ -1698,6 +1986,12 @@
    "info": "Tencent's CentOS-compatible enterprise Linux distribution.",
    "name": "TencentOS Server"
   },
+  "tinkeros": {
+   "credentials": "-",
+   "homepage": "https://tinkeros.github.io/",
+   "info": "TempleOS fork focused on keeping the original design while fixing issues.",
+   "name": "TinkerOS"
+  },
   "tinycore": {
    "credentials": "-",
    "homepage": "http://www.tinycorelinux.net/",
@@ -1739,6 +2033,12 @@
    "homepage": "https://tsurugi-linux.org/",
    "info": "DFIR analysis and live-response Linux distribution.",
    "name": "Tsurugi Linux"
+  },
+  "turnkey": {
+   "credentials": "-",
+   "homepage": "https://www.turnkeylinux.org/",
+   "info": "Debian-based server appliance library (91 appliances)",
+   "name": "TurnKey GNU/Linux"
   },
   "turnkeylinux": {
    "credentials": "-",
@@ -1860,6 +2160,18 @@
    "info": "Bootable live environment for the Ventoy multi-boot USB toolkit.",
    "name": "Ventoy Live"
   },
+  "vicibox": {
+   "name": "ViciBox",
+   "credentials": "root / vicidial",
+   "homepage": "https://www.vicibox.com/",
+   "info": "OpenSUSE-based appliance installer for the ViciDial call-center suite."
+  },
+  "vinix": {
+   "credentials": "-",
+   "homepage": "https://vinix.gg/",
+   "info": "Independent OS written in V, not Linux (amd64 and arm64 ISOs)",
+   "name": "Vinix"
+  },
   "vitalinux": {
    "credentials": "-",
    "homepage": "https://vitalinux.educa.aragon.es/",
@@ -1926,6 +2238,12 @@
    "info": "Open-source Xen hypervisor platform managed by Xen Orchestra.",
    "name": "XCP-ng"
   },
+  "xebian": {
+   "credentials": "-",
+   "homepage": "https://xebian.org/",
+   "info": "Debian Sid-based live hybrid with Xfce",
+   "name": "Xebian"
+  },
   "xigmanas": {
    "credentials": "-",
    "homepage": "https://www.xigmanas.com/",
@@ -1944,6 +2262,12 @@
    "info": "Debian-based self-hosting server with one-click app installs.",
    "name": "YunoHost"
   },
+  "zentyal": {
+   "credentials": "-",
+   "homepage": "https://zentyal.com/",
+   "info": "Linux small business server",
+   "name": "Zentyal"
+  },
   "zenwalk": {
    "credentials": "-",
    "homepage": "https://www.zenwalk.org/",
@@ -1961,312 +2285,6 @@
    "homepage": "https://zorin.com/os/",
    "info": "Alternative to Windows and macOS designed to make your computer faster, more powerful, secure, and privacy-respecting.",
    "name": "Zorin OS"
-  },
-  "aosc": {
-   "name": "AOSC OS",
-   "credentials": "-",
-   "homepage": "https://aosc.io/",
-   "info": "Independent Linux distribution (Anthon OS) with rolling releases and an offline installer."
-  },
-  "proxmox-datacenter-manager": {
-   "name": "Proxmox Datacenter Manager",
-   "credentials": "-",
-   "homepage": "https://www.proxmox.com/en/proxmox-datacenter-manager",
-   "info": "Central management appliance for Proxmox VE/Backup clusters."
-  },
-  "smartos": {
-   "name": "SmartOS",
-   "credentials": "-",
-   "homepage": "https://www.smartos.org/",
-   "info": "OpenSolaris-derived hypervisor OS by Triton; runs from live media (no install)."
-  },
-  "vicibox": {
-   "name": "ViciBox",
-   "credentials": "root / vicidial",
-   "homepage": "https://www.vicibox.com/",
-   "info": "OpenSUSE-based appliance installer for the ViciDial call-center suite."
-  },
-  "pisilinux": {
-   "name": "Pisi Linux",
-   "credentials": "-",
-   "homepage": "https://pisilinux.org/",
-   "info": "Independent Turkish distribution continuing the PiSi package system; KDE6/Minimal/LXQt images."
-  },
-  "fatdog64": {
-   "credentials": "-",
-   "homepage": "https://distro.ibiblio.org/fatdog/web/",
-   "info": "Lightweight Puppy-derived 64-bit distribution for older hardware.",
-   "name": "Fatdog64 Linux"
-  },
-  "peppermintos": {
-   "credentials": "-",
-   "homepage": "https://peppermintos.com/",
-   "info": "Lightweight Devuan-based desktop with minimal Xfce experience.",
-   "name": "Peppermint OS"
-  },
-  "android-x86": {
-   "credentials": "-",
-   "homepage": "https://www.android-x86.org/",
-   "info": "Port of Android to x86 platforms; project currently unmaintained.",
-   "name": "Android-x86"
-  },
-  "shrine": {
-   "credentials": "-",
-   "homepage": "https://github.com/minexew/Shrine",
-   "info": "TempleOS-derived distribution with improved networking and package manager.",
-   "name": "Shrine"
-  },
-  "tinkeros": {
-   "credentials": "-",
-   "homepage": "https://tinkeros.github.io/",
-   "info": "TempleOS fork focused on keeping the original design while fixing issues.",
-   "name": "TinkerOS"
-  },
-  "springdale": {
-   "credentials": "-",
-   "homepage": "https://springdale.princeton.edu/",
-   "info": "RHEL-compatible distribution maintained by Princeton University.",
-   "name": "Springdale Linux"
-  },
-  "adelie": {
-   "credentials": "-",
-   "homepage": "https://www.adelielinux.org/",
-   "info": "Musl+Linux-libre distribution for many architectures, including legacy PPC.",
-   "name": "Adélie Linux"
-  },
-  "mofolinux": {
-   "credentials": "-",
-   "homepage": "https://mofolinux.com/",
-   "info": "live distro with privacy tools preinstalled",
-   "name": "MOFO Linux"
-  },
-  "peropesis": {
-   "credentials": "-",
-   "homepage": "https://peropesis.org/",
-   "info": "minimal CLI-centric live Linux",
-   "name": "Peropesis"
-  },
-  "predator-os": {
-   "credentials": "-",
-   "homepage": "https://predator-os.ir/",
-   "info": "security-focused distro",
-   "name": "Predator-OS"
-  },
-  "solydxk": {
-   "credentials": "-",
-   "homepage": "https://solydxk.com/",
-   "info": "Debian-based desktop (solydX=Xfce, solydK=KDE)",
-   "name": "SolydXK"
-  },
-  "armbian": {
-   "credentials": "-",
-   "homepage": "https://www.armbian.com/",
-   "info": "Debian/Ubuntu-based images incl. UEFI x86 ISOs",
-   "name": "Armbian"
-  },
-  "archstrike": {
-   "credentials": "-",
-   "homepage": "https://archstrike.org/",
-   "info": "Arch-based security testing distro (archived)",
-   "name": "ArchStrike"
-  },
-  "zentyal": {
-   "credentials": "-",
-   "homepage": "https://zentyal.com/",
-   "info": "Linux small business server",
-   "name": "Zentyal"
-  },
-  "memtest86plus": {
-   "credentials": "-",
-   "homepage": "https://memtest.org/",
-   "info": "memory testing tool",
-   "name": "Memtest86+"
-  },
-  "hirens": {
-   "credentials": "-",
-   "homepage": "https://www.hirensbootcd.org/",
-   "info": "Windows PE rescue environment",
-   "name": "Hirens BootCD PE"
-  },
-  "funtoo": {
-   "credentials": "-",
-   "homepage": "https://www.funtoo.org/",
-   "info": "Gentoo-derived distro (ISO archived)",
-   "name": "Funtoo"
-  },
-  "dragora": {
-   "credentials": "-",
-   "homepage": "https://www.dragora.org/",
-   "info": "independent GNU/Linux-Libre distro",
-   "name": "Dragora"
-  },
-  "openthos": {
-   "credentials": "-",
-   "homepage": "https://www.openthos.com/",
-   "info": "Android-x86-based desktop (Chinese)",
-   "name": "openTHOS"
-  },
-  "eznixos": {
-   "credentials": "-",
-   "homepage": "https://sourceforge.net/projects/eznixos/",
-   "info": "Debian-based live respin with Xfce or KDE",
-   "name": "EznixOS"
-  },
-  "extix": {
-   "credentials": "-",
-   "homepage": "https://sourceforge.net/projects/extix/",
-   "info": "Debian/Ubuntu-based live respins by Exton",
-   "name": "ExTiX"
-  },
-  "paldo": {
-   "credentials": "-",
-   "homepage": "https://www.paldo.org/",
-   "info": "upkg-based desktop Linux with live and rescue images",
-   "name": "paldo GNU/Linux"
-  },
-  "mabox": {
-   "credentials": "-",
-   "homepage": "https://maboxlinux.org/",
-   "info": "Manjaro-based desktop with Openbox",
-   "name": "Mabox Linux"
-  },
-  "dynebolic": {
-   "credentials": "-",
-   "homepage": "https://dyne.org/dynebolic/",
-   "info": "GNU/Linux-libre live distro for media production",
-   "name": "dyne:bolic"
-  },
-  "turnkey": {
-   "credentials": "-",
-   "homepage": "https://www.turnkeylinux.org/",
-   "info": "Debian-based server appliance library (91 appliances)",
-   "name": "TurnKey GNU/Linux"
-  },
-  "xebian": {
-   "credentials": "-",
-   "homepage": "https://xebian.org/",
-   "info": "Debian Sid-based live hybrid with Xfce",
-   "name": "Xebian"
-  },
-  "justbrowsing": {
-   "credentials": "-",
-   "homepage": "https://justbrowsing.info/",
-   "info": "browser-centric live distro (archived 2014)",
-   "name": "JustBrowsing"
-  },
-  "bbqlinux": {
-   "credentials": "-",
-   "homepage": "https://sourceforge.net/projects/bbqlinux/",
-   "info": "Arch-based Cinnamon desktop (archived 2021)",
-   "name": "BBQLinux"
-  },
-  "drweb": {
-   "credentials": "-",
-   "homepage": "https://free.drweb.com/aid_admin/",
-   "info": "Dr.Web LiveDisk antivirus rescue CD",
-   "name": "Dr.Web LiveDisk"
-  },
-  "clearndr": {
-   "credentials": "-",
-   "homepage": "https://www.stamus-networks.com/",
-   "info": "Stamus Networks SELKS successor — Suricata IDS/NSM appliance (ClearNDR community)",
-   "name": "ClearNDR"
-  },
-  "abora": {
-   "credentials": "-",
-   "homepage": "https://www.aboraos.org/",
-   "info": "NixOS-based desktop OS with atomic updates and 23 desktop profiles (COSMIC, GNOME, KDE, Hyprland)",
-   "name": "Abora OS"
-  },
-  "kiro": {
-   "credentials": "-",
-   "homepage": "https://kiroproject.com/",
-   "info": "Arch-based KDE Plasma distribution with its own repositories",
-   "name": "Kiro"
-  },
-  "jatayuos": {
-   "credentials": "-",
-   "homepage": "https://sourceforge.net/projects/jatayuos/",
-   "info": "Debian-based Indian distribution with KDE Plasma",
-   "name": "JatayuOS"
-  },
-  "graphite": {
-   "credentials": "-",
-   "homepage": "https://graphiteos.org/",
-   "info": "Arch-based distro focused on simplicity and aesthetics (alpha)",
-   "name": "Graphite OS"
-  },
-  "asterinas": {
-   "credentials": "-",
-   "homepage": "https://asterinas.github.io/",
-   "info": "Rust framekernel OS implementing the Linux ABI (NixOS live image)",
-   "name": "Asterinas"
-  },
-  "vinix": {
-   "credentials": "-",
-   "homepage": "https://vinix.gg/",
-   "info": "Independent OS written in V, not Linux (amd64 and arm64 ISOs)",
-   "name": "Vinix"
-  },
-  "cervus": {
-   "credentials": "-",
-   "homepage": "https://github.com/VeoQeoOrg/Cervus",
-   "info": "Complete self-hosted x86_64 OS written from scratch with live ISO",
-   "name": "Cervus OS"
-  },
-  "rou2exos": {
-   "credentials": "-",
-   "homepage": "https://github.com/krustowski/rou2exOS",
-   "info": "Hobby protected-mode operating system (Rust/assembly)",
-   "name": "Rou2exOS"
-  },
-  "lateralus": {
-   "credentials": "-",
-   "homepage": "https://github.com/bad-antics/lateralus-lang",
-   "info": "Research operating system built around the Lateralus language",
-   "name": "LateralusOS"
-  },
-  "bastillebsd": {
-   "credentials": "-",
-   "homepage": "https://bastillebsd.org/",
-   "info": "FreeBSD distribution with Bastille container management built in",
-   "name": "BastilleBSD"
-  },
-  "moros": {
-   "credentials": "-",
-   "homepage": "https://moros.cc/",
-   "info": "Hobby OS written in Rust with a Lisp-like shell (raw disk image)",
-   "name": "MOROS"
-  },
-  "mobian": {
-   "credentials": "-",
-   "homepage": "https://mobian.org/",
-   "info": "Debian for mobile devices — also ships amd64 installer images (phosh, plasma-mobile)",
-   "name": "Mobian"
-  },
-  "harvey": {
-   "credentials": "-",
-   "homepage": "https://harvey-os.org/",
-   "info": "Plan 9-derived OS with a 64-bit kernel (bzipped CD image)",
-   "name": "Harvey OS"
-  },
-  "rosa": {
-   "credentials": "-",
-   "homepage": "https://www.rosalinux.ru/",
-   "info": "Russian desktop/server distribution (Plasma, GNOME, LXQt editions)",
-   "name": "ROSA Linux"
-  },
-  "nemesis": {
-   "credentials": "-",
-   "homepage": "https://sourceforge.net/projects/nemesis-linux/",
-   "info": "Lightweight Debian-based distribution (XFCE, LXQt, LXDE, Cinnamon)",
-   "name": "Nemesis Linux"
-  },
-  "osgeolive": {
-   "credentials": "-",
-   "homepage": "https://live.osgeo.org/",
-   "info": "Ubuntu-based live DVD preloaded with open-source geospatial software",
-   "name": "OSGeoLive"
   }
  }
 }

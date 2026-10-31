@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -67,7 +68,7 @@ func osTweaks(osName, release, edition string) []string {
 		t = append(t, `disk_size="64G"`)
 	case "qubes":
 		t = append(t, `disk_size="128G"`)
-	case "dragonflybsd", "haiku", "openbsd", "netbsd", "slackware", "slax", "tinycore":
+	case "dragonflybsd", "haiku", "openbsd", "netbsd", "slackware", "slax", "tinycore", "cirros", "alpine-cloud":
 		t = append(t, `boot="legacy"`)
 	case "debian":
 		if strings.Contains(release, "12") || strings.Contains(release, "13") {
@@ -129,6 +130,38 @@ var goArch = runtime.GOARCH
 // (amd64/arm64), not QEMU's (x86_64/aarch64).
 func hostArch() string { return qelib.QuickgetArch(goArch) }
 
+// diskFormatFor guesses a disk image's format from its extension, then
+// sniffs the QCOW magic (QFI\xfb) on the file itself — extensions lie:
+// CirrOS ships a qcow2 file named .img, and a raw file named .qcow2
+// would be just as wrong. The file's truth wins.
+func diskFormatFor(dir, imageFile string) string {
+	format := "qcow2"
+	switch strings.ToLower(filepath.Ext(imageFile)) {
+	case ".vmdk":
+		format = "vmdk"
+	case ".raw", ".img":
+		format = "raw"
+	case ".vdi":
+		format = "vdi"
+	}
+	if f, err := os.Open(filepath.Join(dir, imageFile)); err == nil {
+		var hdr [4]byte
+		if _, err := io.ReadFull(f, hdr[:]); err == nil {
+			switch {
+			case hdr == [4]byte{'Q', 'F', 'I', 0xfb}:
+				format = "qcow2"
+			case string(hdr[:]) == "KDMV": // vmdk sparse extent
+				format = "vmdk"
+			case format == "qcow2":
+				// Named .qcow2 but no QCOW magic — treat as raw.
+				format = "raw"
+			}
+		}
+		f.Close()
+	}
+	return format
+}
+
 func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, cloudInit ...bool) int {
 	if dir == "" {
 		dir = osName + "-" + release
@@ -156,22 +189,12 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 		typeLine = ""
 	default:
 		switch {
-		case strings.HasSuffix(strings.ToLower(imageFile), ".qcow2"):
-			diskFormat = "qcow2"
-			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
-			typeLine = ""
-		case strings.HasSuffix(strings.ToLower(imageFile), ".vmdk"):
-			diskFormat = "vmdk"
-			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
-			typeLine = ""
-		case strings.HasSuffix(strings.ToLower(imageFile), ".raw"), strings.HasSuffix(strings.ToLower(imageFile), ".img"):
-			diskFormat = "raw"
-			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
-			typeLine = ""
-		case strings.HasSuffix(strings.ToLower(imageFile), ".vdi"):
-			// Bash emits a dead `disk=` line for .vdi; disk_img is the
-			// functional equivalent the launcher actually consumes.
-			diskFormat = "vdi"
+		case strings.HasSuffix(strings.ToLower(imageFile), ".qcow2"),
+			strings.HasSuffix(strings.ToLower(imageFile), ".vmdk"),
+			strings.HasSuffix(strings.ToLower(imageFile), ".raw"),
+			strings.HasSuffix(strings.ToLower(imageFile), ".img"),
+			strings.HasSuffix(strings.ToLower(imageFile), ".vdi"):
+			diskFormat = diskFormatFor(dir, imageFile)
 			diskLine = `disk_img="` + dir + `/` + imageFile + `"`
 			typeLine = ""
 		}
