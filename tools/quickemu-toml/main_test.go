@@ -61,10 +61,30 @@ func TestParseFlattensSectionsAndArrays(t *testing.T) {
 }
 
 func TestValidateCountsKeys(t *testing.T) {
+	// sampleTOML has no schema_version (QE-110) — the validator must
+	// still parse it, count keys and report the missing-version error.
 	f := writeTOML(t, sampleTOML)
 	out, _, rc := runTool(t, "validate", "--file", f)
 	env := envelope(t, out)
-	if rc != 0 || env["data"].(map[string]any)["keys"].(float64) != 3 {
+	data := env["data"].(map[string]any)
+	if rc != 1 || data["keys"].(float64) != 3 || data["valid"] != false {
+		t.Fatalf("rc=%d env=%v", rc, env)
+	}
+	ds := data["diagnostics"].([]any)
+	foundVer := false
+	for _, d := range ds {
+		if strings.Contains(d.(map[string]any)["message"].(string), "schema_version") {
+			foundVer = true
+		}
+	}
+	if !foundVer {
+		t.Fatalf("no schema_version diagnostic in %v", ds)
+	}
+	// A versioned document validates clean.
+	g := writeTOML(t, "schema_version = 1\nguest_os = \"linux\"\n")
+	out, _, rc = runTool(t, "validate", "--file", g)
+	env = envelope(t, out)
+	if rc != 0 || env["data"].(map[string]any)["valid"] != true {
 		t.Fatalf("rc=%d env=%v", rc, env)
 	}
 }
@@ -112,14 +132,17 @@ func TestFromConfEmitsOrderedTOML(t *testing.T) {
 		t.Fatalf("rc=%d", rc)
 	}
 	for _, want := range []string{
-		"# Migrated", "formatVersion = 1",
-		`guest_os = "windows"`, `ssh_port = "2222"`, `display = "sdl\\\"x"`} {
+		"# Migrated", "schema_version = 1",
+		`guest_os = "windows"`, `ssh_port = "2222"`, `display = "sdl\"x"`} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "foo") || strings.Contains(out, "empty") {
-		t.Fatalf("unknown/empty keys must be dropped:\n%s", out)
+	// QE-111: unknown keys are preserved under [extra], empty values
+	// migrate too — nothing is silently dropped.
+	if !strings.Contains(out, "[extra]") || !strings.Contains(out, `foo = "bar"`) ||
+		!strings.Contains(out, `empty = ""`) {
+		t.Fatalf("[extra] preservation failed:\n%s", out)
 	}
 	if _, _, rc := runTool(t, "from-conf", "--file", "/nonexistent"); rc != 1 {
 		t.Fatalf("rc")
