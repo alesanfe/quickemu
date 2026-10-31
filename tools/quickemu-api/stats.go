@@ -293,14 +293,14 @@ func hostStats() map[string]any {
 		usedPct = math2(float64(tot-avail) / float64(tot) * 100)
 	}
 	out := map[string]any{
-		"cpu_cores":     runtime.NumCPU(),
-		"mem_total_mb":  tot / 1024,
-		"mem_avail_mb":  avail / 1024,
-		"mem_used_pct":  usedPct,
-		"load1":         l1, "load5": l5, "load15": l15,
-		"uptime_s":      int64(procUptimeS()),
-		"vms_total":     len(collectVMs()),
-		"vms_running":   running,
+		"cpu_cores":    runtime.NumCPU(),
+		"mem_total_mb": tot / 1024,
+		"mem_avail_mb": avail / 1024,
+		"mem_used_pct": usedPct,
+		"load1":        l1, "load5": l5, "load15": l15,
+		"uptime_s":         int64(procUptimeS()),
+		"vms_total":        len(collectVMs()),
+		"vms_running":      running,
 		"data_dir_free_kb": freeKB,
 		"data_dir_free_ok": freeOK,
 	}
