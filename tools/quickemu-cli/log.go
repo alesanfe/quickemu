@@ -21,7 +21,7 @@ func logPath() string {
 	if p := os.Getenv("QE_LOG_JSONL"); p != "" {
 		return p
 	}
-	if vmdir() == "" {
+	if vmdir() == "" || vmname() == "" || vmname() == "." {
 		return ""
 	}
 	return filepath.Join(vmdir(), vmname()+".log.jsonl")
