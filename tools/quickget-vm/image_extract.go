@@ -111,8 +111,11 @@ func isoExtractBootfiles(iso, out, prefix string) bool {
 	// 7z/bsdtar may place files at OUT root or under PREFIX.
 	if st, err := os.Stat(out + "/vmlinuz"); err != nil || st.Size() == 0 {
 		if st, err := os.Stat(filepath.Join(out, prefix, "vmlinuz")); err == nil && st.Size() > 0 {
-			os.Rename(filepath.Join(out, prefix, "vmlinuz"), out+"/vmlinuz")
-			os.Rename(filepath.Join(out, prefix, "initrd"), out+"/initrd")
+			for _, k := range []string{"vmlinuz", "initrd"} {
+				if err := os.Rename(filepath.Join(out, prefix, k), out+"/"+k); err != nil {
+					fmt.Println("WARNING! could not move " + k + " into place: " + err.Error())
+				}
+			}
 		}
 	}
 	vok := fileNonEmpty(out + "/vmlinuz")
@@ -142,8 +145,17 @@ func extract7z(arc, dir string) bool {
 		}
 		out, err := os.Create(filepath.Join(dir, filepath.Base(f.Name)))
 		if err == nil {
-			io.Copy(out, rc)
-			out.Close()
+			if _, err := io.Copy(out, rc); err != nil {
+				out.Close()
+				rc.Close()
+				os.Remove(out.Name())
+				return false
+			}
+			if err := out.Close(); err != nil {
+				rc.Close()
+				os.Remove(out.Name())
+				return false
+			}
 			ok = true
 		}
 		rc.Close()
@@ -283,8 +295,19 @@ func extractZip(zipPath, dest string) bool {
 		os.MkdirAll(filepath.Dir(d), 0755)
 		w, err := os.Create(d)
 		if err == nil {
-			io.Copy(w, rc)
-			w.Close()
+			// A member that fails mid-copy (CRC mismatch, truncated
+			// store) leaves a partial file — fail, don't ship it.
+			if _, err := io.Copy(w, rc); err != nil {
+				w.Close()
+				rc.Close()
+				os.Remove(d)
+				return false
+			}
+			if err := w.Close(); err != nil {
+				rc.Close()
+				os.Remove(d)
+				return false
+			}
 		}
 		rc.Close()
 	}

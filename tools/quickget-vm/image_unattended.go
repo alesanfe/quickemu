@@ -147,9 +147,20 @@ func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 		fmt.Println(err)
 		return 1
 	}
-	defer f.Close()
-	fmt.Fprintf(f, "kernel=\"%s\"\ninitrd=\"%s\"\n", vmPath+"/vmlinuz", vmPath+"/initrd")
-	fmt.Fprintf(f, "boot_args=\"autoinstall ds=nocloud;s=/cdrom/\"\n")
+	if _, err := fmt.Fprintf(f, "kernel=\"%s\"\ninitrd=\"%s\"\n", vmPath+"/vmlinuz", vmPath+"/initrd"); err != nil {
+		f.Close()
+		fmt.Println("ERROR! Could not record kernel/initrd in " + confFile + ": " + err.Error())
+		return 1
+	}
+	if _, err := fmt.Fprintf(f, "boot_args=\"autoinstall ds=nocloud;s=/cdrom/\"\n"); err != nil {
+		f.Close()
+		fmt.Println("ERROR! Could not record boot_args in " + confFile + ": " + err.Error())
+		return 1
+	}
+	if err := f.Close(); err != nil {
+		fmt.Println("ERROR! Could not write " + confFile + ": " + err.Error())
+		return 1
+	}
 	fmt.Println(" - Unattended install configured (user: " + userName + ", password: quickemu)")
 	return 0
 }
@@ -362,7 +373,9 @@ func writeISO9660(out, volid string, files map[string]string) error {
 		if err == nil {
 			_, err = fh.Write(b)
 		}
-		fh.Close()
+		if cerr := fh.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
 		if err != nil {
 			return err
 		}

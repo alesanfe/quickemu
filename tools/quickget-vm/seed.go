@@ -89,9 +89,23 @@ func genSeedISO(vmPath, confFile string) int {
 		return 1
 	}
 	if _, err := os.Stat(seed); err == nil {
-		f, _ := os.OpenFile(confFile, os.O_APPEND|os.O_WRONLY, 0644)
-		fmt.Fprintf(f, "seed=\"%s\"\n", seed)
-		f.Close()
+		// The seed line must land in the conf or the ISO is orphaned —
+		// a nil f (open error) made Fprintf a silent no-op and still
+		// printed success.
+		f, err := os.OpenFile(confFile, os.O_APPEND|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Println("ERROR! Could not record seed.iso in " + confFile + ": " + err.Error())
+			return 1
+		}
+		if _, err := fmt.Fprintf(f, "seed=\"%s\"\n", seed); err != nil {
+			f.Close()
+			fmt.Println("ERROR! Could not record seed.iso in " + confFile + ": " + err.Error())
+			return 1
+		}
+		if err := f.Close(); err != nil {
+			fmt.Println("ERROR! Could not record seed.iso in " + confFile + ": " + err.Error())
+			return 1
+		}
 		fmt.Println(" - NoCloud seed.iso created (user: " + userName + ", password: quickemu)")
 	}
 	return 0

@@ -289,7 +289,10 @@ func extractArchive(format, file, vmPath, imageType string) string {
 				os.Remove(dest)
 				continue
 			}
-			w.Close()
+			if err := w.Close(); err != nil {
+				os.Remove(dest)
+				continue
+			}
 		}
 		if m, _ := filepath.Glob(filepath.Join(vmPath, "*."+imageType)); len(m) > 0 {
 			return m[0]
@@ -394,8 +397,8 @@ func extractArchive(format, file, vmPath, imageType string) string {
 				if _, cerr := io.Copy(w, rc); cerr != nil {
 					w.Close()
 					os.Remove(dest)
-				} else {
-					w.Close()
+				} else if w.Close() != nil {
+					os.Remove(dest)
 				}
 			}
 			rc.Close()

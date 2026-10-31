@@ -119,7 +119,12 @@ func fetchOnce(url, part, wantSHA string) int {
 		fmt.Println(err)
 		return 1
 	}
-	f.Close()
+	// A failing Close (ENOSPC on delayed-alloc filesystems, NFS) can
+	// leave the staged .part short — verify only a fully-flushed file.
+	if err := f.Close(); err != nil {
+		fmt.Println(err)
+		return 1
+	}
 	return fetchVerify(part, wantSHA)
 }
 
