@@ -4,6 +4,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
@@ -31,16 +33,18 @@ func emit(ok bool, data any, err string) int {
 }
 
 // verify --pid P [--start-time S] [--uid U] [--exe name]
+//
+//	[--exe-path abs] [--args-hash sha256:hex]
 func main() { os.Exit(run()) }
 
 func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 || os.Args[1] != "verify" {
-		fmt.Fprintln(os.Stderr, "usage: quickemu-proc verify --pid P [--start-time S] [--uid U] [--exe name]")
+		fmt.Fprintln(os.Stderr, "usage: quickemu-proc verify --pid P [--start-time S] [--uid U] [--exe name] [--exe-path abs] [--args-hash sha256:hex]")
 		return 2
 	}
 	var pid, wantStart, wantUID int
-	var wantExe, wantComm string
+	var wantExe, wantComm, wantExePath, wantArgsHash string
 	for i := 2; i+1 < len(os.Args); i += 2 {
 		switch os.Args[i] {
 		case "--comm":
@@ -53,6 +57,10 @@ func run() int {
 			wantUID, _ = strconv.Atoi(os.Args[i+1])
 		case "--exe":
 			wantExe = os.Args[i+1]
+		case "--exe-path":
+			wantExePath = os.Args[i+1]
+		case "--args-hash":
+			wantArgsHash = os.Args[i+1]
 		}
 	}
 	if pid <= 0 {
@@ -126,6 +134,38 @@ func run() int {
 		data["exe"] = base
 		if !strings.Contains(base, wantExe) {
 			return emit(false, data, "EXE_MISMATCH")
+		}
+	}
+	// 6) exe real path (QE fingerprint): the full readlink target must
+	// equal the recorded path — a " (deleted)" link means the binary
+	// was unlinked/replaced after exec and is an automatic mismatch.
+	if wantExePath != "" {
+		ex, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+		if err != nil {
+			return emit(false, data, "EXE_UNREADABLE")
+		}
+		if strings.HasSuffix(ex, " (deleted)") {
+			data["exe"] = strings.TrimSuffix(ex, " (deleted)")
+			return emit(false, data, "EXE_DELETED")
+		}
+		data["exe"] = ex
+		if ex != wantExePath {
+			return emit(false, data, "EXE_MISMATCH")
+		}
+	}
+	// 7) args hash (QE fingerprint): sha256 of the RAW cmdline bytes —
+	// any argv drift flips it, so a recycled pid running different
+	// args can never pass as the recorded process.
+	if wantArgsHash != "" {
+		raw, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
+		if err != nil || len(raw) == 0 {
+			return emit(false, data, "ARGS_UNREADABLE")
+		}
+		sum := sha256.Sum256(raw)
+		got := "sha256:" + hex.EncodeToString(sum[:])
+		data["argsHash"] = got
+		if got != wantArgsHash {
+			return emit(false, data, "ARGS_MISMATCH")
 		}
 	}
 	return emit(true, data, "")

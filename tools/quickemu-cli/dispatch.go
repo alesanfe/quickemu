@@ -68,6 +68,9 @@ func dispatchAdmin(act string) func() int {
 	switch act {
 	case "delete_vm":
 		return func() int {
+			// QE-003: deleting is a machine state — a delete that
+			// dies mid-way reconciles back instead of lying "stopped".
+			machineTransition(stDeleting, "delete", "quickemu-cli")
 			a := []string{"delete", vmdir()}
 			if trashFlag {
 				a = append(a, "--trash")
@@ -75,7 +78,13 @@ func dispatchAdmin(act string) func() int {
 			if extra["plan-id"] != "" {
 				a = append(a, "--plan-id="+extra["plan-id"])
 			}
-			return vmOp(a[0], a[1:]...)()
+			r := vmOp(a[0], a[1:]...)()
+			if r != 0 {
+				machineTransition(stError, "delete-failed", "quickemu-cli")
+			} else {
+				machineTransitionF(stStopped, "deleted", "quickemu-cli", true)
+			}
+			return r
 		}
 	case "clone_vm":
 		return func() int {
@@ -120,9 +129,9 @@ func dispatchBackup(act string) func() int {
 	case "trash_list":
 		return vmOp("trash-list", vmdir())
 	case "export_vm":
-		return func() int { return vmOp("export", vmdir(), extra["export"])() }
+		return func() int { return machineOpWrap(stExporting, "export", vmOp("export", vmdir(), extra["export"])) }
 	case "import_vm":
-		return func() int { return vmOp("import", vmdir(), extra["import"])() }
+		return func() int { return machineOpWrap(stImporting, "import", vmOp("import", vmdir(), extra["import"])) }
 	case "backup_verify":
 		return func() int { return vmOp("backup-verify", vmdir(), extra["backup-verify"])() }
 	case "backup_restore":
@@ -141,7 +150,22 @@ func dispatchBackup(act string) func() int {
 func dispatchSnapshotDisk(act string) func() int {
 	switch act {
 	case "snapshot_create":
-		return vmOp("snapshot-create", vmdir(), extra["snapshot-create"])
+		return func() int {
+			// QE-003: snapshotting a live guest passes through
+			// "saving" — the arc only exists from running/paused, so
+			// a stopped-VM snapshot skips the state silently; on
+			// success the machine returns to where it was.
+			prev := ""
+			if r := machineState(); r != nil {
+				prev = r.State
+			}
+			saved := machineTransition(stSaving, "snapshot-create", "quickemu-cli")
+			r := vmOp("snapshot-create", vmdir(), extra["snapshot-create"])()
+			if saved && prev != "" {
+				machineTransitionF(prev, "snapshot-done", "quickemu-cli", true)
+			}
+			return r
+		}
 	case "snapshot_apply":
 		return vmOp("snapshot-apply", vmdir(), extra["snapshot-apply"])
 	case "snapshot_delete":

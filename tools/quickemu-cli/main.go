@@ -116,14 +116,28 @@ func runActions() int {
 			"send_keys": true, "type_text": true, "screenshot_vm": true,
 			"monitor_cmd": true, // HMP socket is single-client like QMP
 		}
+		// QE-002: read-only actions take the shared lock — status,
+		// conf reads and snapshot listings run concurrently with each
+		// other but never under an exclusive writer.
+		shared := map[string]bool{
+			"status_vm": true, "inspect_conf": true, "events_read": true,
+			"vm_stats": true,
+		}
 		if fn := dispatch(act); fn != nil {
-			if locked[act] && !vmLockAcquire() {
+			if locked[act] && !vmLockAcquireOp(act) {
+				rcv = 1
+				continue
+			}
+			if shared[act] && !locked[act] && !vmLockAcquireShared(act) {
 				rcv = 1
 				continue
 			}
 			r := fn()
 			if locked[act] {
 				vmLockRelease()
+			}
+			if shared[act] && !locked[act] {
+				vmLockReleaseShared()
 			}
 			if r != 0 {
 				rcv = r

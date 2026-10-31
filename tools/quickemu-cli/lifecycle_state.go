@@ -2,13 +2,15 @@
 package main
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
@@ -26,84 +28,6 @@ func readPID() int {
 // alive reports whether pid is a live process (EPERM-aware — a
 // foreign owner's lock must never be reclaimed).
 func alive(pid int) bool { return qelib.Alive(pid) }
-
-// vmLockAcquire/vmLockRelease: vm_lock_* parity — mkdir-based
-// exclusive lock at <vmdir>/<vm>.lock with a pid file for stale-owner
-// reclaim. Bash defaults VM_LOCK_TRIES=1: one attempt, then LOCK_BUSY.
-func vmLockAcquire() bool {
-	lockDir := filepath.Join(vmdir(), vmname()+".lock")
-	if err := os.MkdirAll(vmdir(), 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Cannot create VM dir %s: %v\n", vmdir(), err)
-		return false
-	}
-	tries := 1
-	if t := os.Getenv("VM_LOCK_TRIES"); t != "" {
-		if n, err := strconv.Atoi(t); err == nil && n > 0 {
-			tries = n
-		}
-	}
-	writeOwner := func() bool {
-		// A lock without a readable owner is reclaimable by the next
-		// acquirer — on write failure drop the lock rather than hold
-		// an anonymous one.
-		if os.WriteFile(filepath.Join(lockDir, "pid"),
-			[]byte(strconv.Itoa(os.Getpid())), 0644) != nil {
-			os.RemoveAll(lockDir)
-			return false
-		}
-		return true
-	}
-	for i := 0; i < tries; i++ {
-		if err := os.Mkdir(lockDir, 0755); err == nil {
-			if writeOwner() {
-				return true
-			}
-		}
-		// Reclaim a dead writer (crash-safe, like Bash's kill -0 check)
-		// then retry the mkdir immediately — a reclaimed lock is
-		// ours to take, not a reason to fail this attempt.
-		reclaim := func() bool {
-			os.RemoveAll(lockDir)
-			return os.Mkdir(lockDir, 0755) == nil && writeOwner()
-		}
-		if b, err := os.ReadFile(filepath.Join(lockDir, "pid")); err == nil {
-			owner, _ := strconv.Atoi(strings.TrimSpace(string(b)))
-			switch {
-			case owner > 0 && !alive(owner):
-				// Dead owner — safe to reclaim.
-				if reclaim() {
-					return true
-				}
-			case owner <= 0:
-				// Corrupt/torn pid write — reclaim only once the
-				// lock is old enough that the writer cannot be
-				// mid-creation (same 2s window as a missing file).
-				if st, serr := os.Stat(lockDir); serr == nil &&
-					time.Since(st.ModTime()) > 2*time.Second && reclaim() {
-					return true
-				}
-			}
-		} else if st, err := os.Stat(lockDir); err == nil &&
-			time.Since(st.ModTime()) > 2*time.Second && reclaim() {
-			// Pid-less lock older than ~2s: crash remnant between
-			// mkdir and the pid write.
-			return true
-		}
-		if i+1 < tries {
-			time.Sleep(200 * time.Millisecond)
-		}
-	}
-	if outFmt == "json" {
-		emitFail("vm.lock", "VM_LOCKED", vmname()+" is locked by another operation.")
-	} else {
-		fmt.Fprintf(os.Stderr, "ERROR! %s is locked by another operation.\n", vmname())
-	}
-	return false
-}
-
-func vmLockRelease() {
-	os.RemoveAll(filepath.Join(vmdir(), vmname()+".lock"))
-}
 
 // procComm: /proc/<pid>/comm (linux) — vm_proc_comm parity; empty on
 // non-linux hosts where the fallback is plain liveness.
@@ -123,11 +47,54 @@ func procComm(pid int) string {
 // spaces; "" when the kernel hides it (non-linux, foreign owner) or
 // for kernel threads.
 func procCmdline(pid int) string {
+	return strings.ReplaceAll(
+		strings.TrimRight(string(procCmdlineRaw(pid)), "\x00"), "\x00", " ")
+}
+
+// procCmdlineRaw: the verbatim /proc/<pid>/cmdline bytes — the hash
+// input for the args fingerprint. Empty when unreadable.
+func procCmdlineRaw(pid int) []byte {
 	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid))
 	if err != nil {
+		return nil
+	}
+	return b
+}
+
+// cmdlineArgv0: argv[0] of a live process — the executable name QEMU
+// was exec'd as (the commandFingerprint input, not the resolved path).
+func cmdlineArgv0(pid int) string {
+	raw := procCmdlineRaw(pid)
+	if i := bytes.IndexByte(raw, 0); i > 0 {
+		return string(raw[:i])
+	}
+	return ""
+}
+
+// procExe: /proc/<pid>/exe readlink — the REAL binary on disk backing
+// the process. Second return reports a " (deleted)" link (the binary
+// was unlinked/replaced after exec — the recorded fingerprint can no
+// longer be reproduced on disk, so the process is unverifiable).
+func procExe(pid int) (string, bool) {
+	ex, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+	if err != nil {
+		return "", false
+	}
+	if strings.HasSuffix(ex, " (deleted)") {
+		return strings.TrimSuffix(ex, " (deleted)"), true
+	}
+	return ex, false
+}
+
+// procArgsHash: sha256 over the raw cmdline bytes — any argv change
+// (a different VM, a different qemu build flag set) flips the hash.
+func procArgsHash(pid int) string {
+	raw := procCmdlineRaw(pid)
+	if len(raw) == 0 {
 		return ""
 	}
-	return strings.ReplaceAll(strings.TrimRight(string(b), "\x00"), "\x00", " ")
+	sum := sha256.Sum256(raw)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // vmProcOwned: ownership proof for a live pid — the process is THIS
@@ -189,9 +156,26 @@ func procStartTimeJ(pid int) string {
 	return f[19]
 }
 
+// runtimeRec: the runtime.json identity record as the launcher
+// publishes it, plus the strong-fingerprint fields the CLI augments
+// (exe real path + full-args hash — QE fingerprint extension).
+type runtimeRec struct {
+	Pid              int    `json:"pid"`
+	Uid              int    `json:"uid"`
+	ProcessStartTime any    `json:"processStartTime"`
+	Exe              string `json:"exe"`
+	ArgsHash         string `json:"argsHash"`
+	CommandFp        string `json:"commandFingerprint"`
+	ConfigPath       string `json:"configPath"`
+	VmId             string `json:"vmId"`
+}
+
 // instanceVerify: vm_instance_verify parity — pidfile + sibling
 // runtime.json identity → a typed status word. Exit status in Bash is
 // folded into the word itself; callers only need the pair (word, pid).
+// A live pid is NOT enough (QE fingerprint): uid, process start-time,
+// the real exe path and the recorded args hash must all hold before
+// the process counts as ours — a recycled or forged pid is refused.
 func instanceVerify() (string, int) {
 	pid := readPID()
 	if pid <= 0 {
@@ -210,11 +194,7 @@ func instanceVerify() (string, int) {
 		}
 		return "foreign-process", 0
 	}
-	var rec struct {
-		Pid              int `json:"pid"`
-		Uid              int `json:"uid"`
-		ProcessStartTime any `json:"processStartTime"`
-	}
+	var rec runtimeRec
 	if json.Unmarshal(rtb, &rec) != nil || rec.Pid != pid {
 		return "runtime-corrupt", 0
 	}
@@ -229,10 +209,125 @@ func instanceVerify() (string, int) {
 			return "pid-reused", 0
 		}
 	}
+	if w := fingerprintCheck(pid, &rec); w != "" {
+		return w, 0
+	}
 	if !vmProcOwned(pid) {
 		return "foreign-process", 0
 	}
+	fingerprintAugment(pid)
 	return "alive", pid
+}
+
+// fingerprintCheck: the QE-001 strong-identity layer — everything
+// provable from /proc must match the recorded fingerprint before the
+// pid is trusted. Unreadable evidence is skipped (macOS / foreign
+// owners fall back to the comm heuristic, exactly like vmProcOwned);
+// contradicting evidence rejects.
+func fingerprintCheck(pid int, rec *runtimeRec) string {
+	cl := procCmdlineRaw(pid)
+	if len(cl) == 0 {
+		return "" // no procfs evidence — legacy path decides
+	}
+	ex, deleted := procExe(pid)
+	switch {
+	case deleted:
+		// The recorded binary no longer exists on disk — the process
+		// outlived its image, so nothing on disk can corroborate it.
+		return "exe-deleted"
+	case ex == "":
+		// cmdline readable but exe not: a process we can partially
+		// see is worse than one we can't see at all — refuse.
+		return "exe-unverifiable"
+	}
+	// The real binary must be the one argv[0] claims — an exec'd
+	// process whose image was swapped is not the recorded one.
+	if a0 := cmdlineArgv0(pid); a0 != "" && filepath.Base(a0) != filepath.Base(ex) {
+		return "exe-mismatch"
+	}
+	if rec.Exe != "" && rec.Exe != ex {
+		return "exe-mismatch"
+	}
+	// The args hash is the strongest check the CLI records itself
+	// (sha256 of the raw cmdline — any argv drift flips it).
+	if strings.HasPrefix(rec.ArgsHash, "sha256:") {
+		if h := procArgsHash(pid); h != "" && h != rec.ArgsHash {
+			return "fingerprint-mismatch"
+		}
+	} else if strings.HasPrefix(rec.CommandFp, "sha256:") &&
+		rec.ConfigPath != "" && rec.VmId != "" {
+		// Launcher fingerprint: sha256(argv0 | configPath | vmId) —
+		// recompute against both the raw argv[0] and the resolved
+		// exe so either spelling verifies.
+		ok := false
+		for _, a := range []string{cmdlineArgv0(pid), ex} {
+			if a == "" {
+				continue
+			}
+			sum := sha256.Sum256([]byte(a + "|" + rec.ConfigPath + "|" + rec.VmId))
+			if "sha256:"+hex.EncodeToString(sum[:]) == rec.CommandFp {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return "fingerprint-mismatch"
+		}
+	}
+	return ""
+}
+
+// fingerprintAugment: fills the strong-fingerprint fields the Bash
+// runtime.json predates (exe real path, full-args hash — plus any
+// missing legacy fields) into the live record. Runs after a
+// successful verify and after spawn; atomic rewrite so a concurrent
+// reader never sees a torn record. Best-effort, never fatal.
+func fingerprintAugment(pid int) {
+	rt := filepath.Join(vmdir(), vmname()+".runtime.json")
+	b, err := os.ReadFile(rt)
+	if err != nil {
+		return
+	}
+	var m map[string]any
+	if json.Unmarshal(b, &m) != nil {
+		return
+	}
+	if p, _ := m["pid"].(float64); int(p) != pid {
+		return // record belongs to another instance — never edit it
+	}
+	set := func(k string, v any) {
+		if _, ok := m[k]; !ok || m[k] == nil || m[k] == "" {
+			m[k] = v
+		}
+	}
+	if ex, deleted := procExe(pid); ex != "" && !deleted {
+		set("exe", ex)
+	}
+	if h := procArgsHash(pid); h != "" {
+		set("argsHash", h)
+	}
+	if _, ok := m["uid"]; !ok {
+		set("uid", os.Getuid())
+	}
+	if rtStartTime(m["processStartTime"]) == "" {
+		if st := procStartTimeJ(pid); st != "" {
+			if n, err := strconv.ParseInt(st, 10, 64); err == nil {
+				set("processStartTime", n)
+			}
+		}
+	}
+	set("configPath", vmConf)
+	set("vmId", vmname())
+	out, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	tmp := rt + ".tmp"
+	if os.WriteFile(tmp, append(out, '\n'), 0600) == nil {
+		os.Rename(tmp, rt)
+	} else {
+		os.Remove(tmp)
+	}
 }
 
 // rtStartTime: runtime.json "processStartTime" is a bare number or

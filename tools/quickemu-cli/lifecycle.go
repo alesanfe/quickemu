@@ -27,6 +27,16 @@ func requireRunning() bool {
 }
 
 func runtimeCleanup() {
+	// Boot reconcile (QE-003): sync the persisted machine record
+	// against pidfile/fingerprint/socket/QMP truth BEFORE anything
+	// acts on it — crash vs requested-stop is decided here.
+	machineReconcile()
+	// Op-journal reconnect (QE-004): ops whose worker died — or whose
+	// bootId predates this boot — are marked failed; output stays in
+	// the journal, not on the CLI's stdout contract.
+	if fileExists(filepath.Join(vmdir(), "ops")) {
+		tool("quickemu-ops", "recover", "--vmdir", vmdir())
+	}
 	if !(readPID() > 0 && !vmPidAlive()) {
 		return
 	}
@@ -37,6 +47,8 @@ func runtimeCleanup() {
 	} {
 		os.Remove(filepath.Join(dir, name+ext))
 	}
+	// <vm>.state.json is NOT reaped — the machine record survives
+	// cleanup so the next boot can tell crashed from stopped.
 	os.RemoveAll(filepath.Join(dir, name+".lock"))
 	os.RemoveAll(filepath.Join(dir, name+".lock.shared"))
 	inventoryTouch("stopped")
@@ -73,6 +85,7 @@ func actPause() int {
 	if werr := os.WriteFile(filepath.Join(vmdir(), vmname()+".paused"), nil, 0644); werr != nil {
 		fmt.Fprintf(os.Stderr, "WARNING: paused but marker write failed: %v\n", werr)
 	}
+	machineTransition(stPaused, "pause", "quickemu-cli")
 	qeEvent("vm.paused", "")
 	fmt.Printf(" - %s (%d) paused.\n", vmname(), readPID())
 	return 0
@@ -91,6 +104,7 @@ func actResume() int {
 	} else if err := syscall.Kill(readPID(), syscall.SIGCONT); err != nil {
 		return 1
 	}
+	machineTransition(stRunning, "resume", "quickemu-cli")
 	os.Remove(filepath.Join(vmdir(), vmname()+".paused"))
 	fmt.Printf(" - %s (%d) resumed.\n", vmname(), readPID())
 	return 0
@@ -98,8 +112,14 @@ func actResume() int {
 
 // actShutdown: shutdown_vm — graceful ACPI system_powerdown over the
 // monitor; errors when the VM has no monitor channel (--kill forces).
+// A successful request records running→stopping (guest-shutdown) so a
+// later dead pid reconciles as a completed stop, never a crash.
 func actShutdown() int {
-	return monitorAction("system_powerdown", "vm.shutdown-requested", "shutdown")
+	rc := monitorAction("system_powerdown", "vm.shutdown-requested", "shutdown")
+	if rc == 0 {
+		machineTransition(stStopping, "guest-shutdown", "quickemu-cli")
+	}
+	return rc
 }
 
 // actReset: reset_vm — immediate system_reset over the monitor.
@@ -128,13 +148,28 @@ func monitorAction(cmd, event, verb string) int {
 
 // vmOp runs `quickemu-vm <sub> <rest...>`; args are produced lazily at
 // dispatch time so vmdir()/vmname() see the parsed --vm flag.
-// vmLockedOps: the mutating ops Bash wraps in vm_lock_acquire in its
-// main dispatch (delete_vm, clone_vm, export_vm, autostart_vm,
-// create/delete_shortcut, delete_disk, rename_vm).
+// vmLockedOps: the mutating ops run under the EXCLUSIVE VM lock —
+// delete/clone/rename/export like Bash's vm_lock_acquire set, plus
+// the QE-002 exclusive set: import, disk ops, snapshot apply and
+// every other state-changing vm op.
 var vmLockedOps = map[string]bool{
-	"delete": true, "delete-disk": true, "clone": true, "linked-clone": true,
-	"rename": true, "export": true, "autostart": true,
+	"delete": true, "delete-disk": true, "delete-plan": true,
+	"clone": true, "linked-clone": true, "rename": true, "move": true,
+	"export": true, "import": true, "autostart": true,
 	"shortcut": true, "shortcut-delete": true,
+	"backup": true, "backup-restore": true, "backup-prune": true,
+	"trash-empty": true, "trash-restore": true,
+	"compact": true, "resize": true,
+	"snapshot-create": true, "snapshot-apply": true,
+	"snapshot-delete": true, "snapshot-consolidate": true,
+}
+
+// vmSharedOps: read-only vm ops — concurrent with other readers, never
+// concurrent with an exclusive writer (QE-002 shared lock).
+var vmSharedOps = map[string]bool{
+	"snapshot-list": true, "snapshot-list-json": true,
+	"snapshot-tree": true, "snapshot-info": true, "snapshot-verify": true,
+	"backup-list": true, "backup-verify": true, "trash-list": true,
 }
 
 func actStop(force bool) int {
@@ -151,6 +186,7 @@ func actStop(force bool) int {
 		return 0
 	}
 	if force {
+		machineTransition(stStopping, "quickemu-kill", "quickemu-cli")
 		killed := false
 		if p, err := os.FindProcess(pid); err == nil {
 			killed = p.Signal(syscall.SIGKILL) == nil
@@ -163,6 +199,7 @@ func actStop(force bool) int {
 			time.Sleep(100 * time.Millisecond)
 		}
 		fmt.Printf(" - %s (%d) killed.\n", vmname(), pid)
+		machineTransition(stStopped, "killed", "quickemu-cli")
 		runtimeCleanup()
 		return 0
 	}
@@ -170,6 +207,7 @@ func actStop(force bool) int {
 	// is a privileged monitor write — the human monitor first, QMP
 	// human-monitor-command when the VM runs monitor=none with only
 	// the control socket up.
+	machineTransition(stStopping, "quickemu-stop", "quickemu-cli")
 	if monitorSendCmd("quit") != 0 {
 		hmp("quit")
 	}
@@ -182,12 +220,16 @@ func actStop(force bool) int {
 		fmt.Printf(" - %s (%d) did not stop.\n", vmname(), pid)
 		return 1
 	}
+	machineTransition(stStopped, "stopped", "quickemu-cli")
 	runtimeCleanup()
 	fmt.Println(" - " + vmname() + " stopped.")
 	return 0
 }
 
 func actLaunch() int {
+	// actLaunch runs without runActions (the no-actions default path)
+	// — the boot reconcile has to happen here too.
+	machineReconcile()
 	conf := confKV()
 	get := func(k string) string {
 		if v := confOpts[k]; v != "" {
@@ -231,22 +273,31 @@ func actLaunch() int {
 			return 1
 		}
 	}
+	machineTransition(stPreparing, "launch", "quickemu-cli")
 	// vm_lock_acquire parity: the boot runs under the exclusive VM
 	// lock so a concurrent launch fails LOCK_BUSY instead of racing
 	// the pidfile/sockets window (release right after spawn, like
 	// Bash's vm_lock_release post-qemu_spawn).
-	if !vmLockAcquire() {
+	if !vmLockAcquireOp("start") {
+		machineTransition(stStopped, "lock-busy", "quickemu-cli")
 		return 1
 	}
+	machineTransition(stStarting, "spawn", "quickemu-cli")
 	out, err := tool("quickemu-launch", applyOverrides(), "--run")
 	fmt.Print(out)
 	vmLockRelease()
 	if err != nil {
+		machineTransition(stStopped, "launch-failed", "quickemu-cli")
 		return 1
 	}
+	machineTransition(stRunning, "spawned", "quickemu-cli")
 	inventoryTouch("running")
 	// qemu_spawn emits vm.started once the QEMU pid is published.
 	if p := readPID(); p > 0 {
+		// Strong fingerprint (QE-001): record the real exe path and
+		// the full-args hash into runtime.json while the freshly
+		// spawned pid is provably ours.
+		fingerprintAugment(p)
 		qeEvent("vm.started", fmt.Sprintf(`{"pid":%d}`, p))
 	}
 	startViewer(get)

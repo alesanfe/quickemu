@@ -27,12 +27,30 @@ func ok(data map[string]any) int {
 	return 0
 }
 
-func stale(meta string) bool { // "pid ts instance [lease]" -> owner dead or lease out
+// procStartTime: /proc/<pid>/stat field 22 (jiffies since boot) — the
+// fingerprint check a recycled pid always fails. "" when unreadable.
+func procStartTime(pid int) string {
+	b, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return ""
+	}
+	i := strings.LastIndexByte(string(b), ')')
+	if i < 0 || i+2 >= len(b) {
+		return ""
+	}
+	f := strings.Fields(string(b[i+2:]))
+	if len(f) <= 19 {
+		return ""
+	}
+	return f[19]
+}
+
+func stale(meta string) bool { // "pid ts instance [lease [starttime]]" -> owner dead, lease out or pid recycled
 	f := strings.Fields(meta)
 	if len(f) == 0 {
 		return true
 	}
-	if len(f) >= 4 { // lease expiry: field 4 = epoch deadline
+	if len(f) >= 4 { // lease expiry: field 4 = epoch deadline ("-" = none)
 		if dl, err := strconv.ParseInt(f[3], 10, 64); err == nil &&
 			time.Now().Unix() > dl {
 			return true
@@ -41,7 +59,18 @@ func stale(meta string) bool { // "pid ts instance [lease]" -> owner dead or lea
 	p, _ := strconv.Atoi(f[0])
 	// EPERM = alive: a foreign owner's lease must never be reclaimed.
 	// An unparseable/zero pid is a corrupt record — stale, not alive.
-	return p <= 0 || !qelib.Alive(p)
+	if p <= 0 || !qelib.Alive(p) {
+		return true
+	}
+	// Field 5 (optional) is the owner's recorded start-time: a live
+	// pid whose start-time changed was recycled and cannot hold the
+	// lease (QE fingerprint parity with the VM lock owner record).
+	if len(f) >= 5 && f[4] != "" && f[4] != "-" {
+		if st := procStartTime(p); st != "" && st != f[4] {
+			return true
+		}
+	}
+	return false
 }
 
 func lock(reg string) func() {
@@ -72,11 +101,11 @@ func main() { os.Exit(run()) }
 func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: quickemu-ports <reserve|release|list|check|find> --registry <dir> [--port N] [--pid P] [--instance I] [--lo N --hi N]")
+		fmt.Fprintln(os.Stderr, "usage: quickemu-ports <reserve|release|list|check|find> --registry <dir> [--port N] [--pid P] [--instance I] [--lo N --hi N] [--start-time S]")
 		return 2
 	}
 	sub := os.Args[1]
-	var reg, port, pidS, inst, proto, bind, lease string
+	var reg, port, pidS, inst, proto, bind, lease, startTime string
 	var lo, hi int
 	for i := 2; i+1 < len(os.Args); i += 2 {
 		switch os.Args[i] {
@@ -98,6 +127,8 @@ func run() int {
 			bind = os.Args[i+1] // 127.0.0.1, 0.0.0.0, ::1, ::
 		case "--lease":
 			lease = os.Args[i+1] // seconds; reservation auto-expires
+		case "--start-time":
+			startTime = os.Args[i+1] // owner start-time fingerprint
 		}
 	}
 	if reg == "" {
@@ -139,6 +170,14 @@ func run() int {
 			if ls, err := strconv.ParseInt(lease, 10, 64); err == nil && ls > 0 {
 				rec += " " + strconv.FormatInt(time.Now().Unix()+ls, 10)
 			}
+		}
+		if startTime != "" {
+			// Field 5 needs the lease slot filled — "-" keeps the
+			// positional layout when no expiry was requested.
+			if len(strings.Fields(rec)) < 4 {
+				rec += " -"
+			}
+			rec += " " + startTime
 		}
 		if err := os.WriteFile(f, []byte(rec), 0o600); err != nil {
 			return die("PORT_PERSIST", err.Error())

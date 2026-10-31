@@ -21,12 +21,21 @@ func vmOp(sub string, rest ...string) func() int {
 				os.Setenv("QE_LAUNCHER", self)
 			}
 		}
-		if vmLockedOps[sub] && !vmLockAcquire() {
+		// QE-002 lock split: mutating subs take the exclusive lock,
+		// read-only subs the shared one — either way the lock error
+		// names the holding operation.
+		if vmLockedOps[sub] && !vmLockAcquireOp(sub) {
+			return 1
+		}
+		if vmSharedOps[sub] && !vmLockAcquireShared(sub) {
 			return 1
 		}
 		out, err := tool("quickemu-vm", append([]string{sub}, rest...)...)
 		if vmLockedOps[sub] {
 			vmLockRelease()
+		}
+		if vmSharedOps[sub] {
+			vmLockReleaseShared()
 		}
 		fmt.Print(out)
 		return rc(err)

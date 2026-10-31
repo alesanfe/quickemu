@@ -28,10 +28,27 @@ type Op struct {
 	VM            string          `json:"vm"`
 	State         string          `json:"state"`
 	Progress      int             `json:"progress"`
+	Phase         string          `json:"phase,omitempty"`
+	Message       string          `json:"message,omitempty"`
 	StartedAt     string          `json:"startedAt"`
 	WorkerPid     int             `json:"workerPid,omitempty"`
+	BootID        string          `json:"bootId,omitempty"`
 	Result        json.RawMessage `json:"result"`
 	Error         json.RawMessage `json:"error"`
+}
+
+// procBootID is the kernel boot-id source — a seam so tests can point
+// it at a fixture file and simulate a host restart.
+var procBootID = "/proc/sys/kernel/random/boot_id"
+
+// bootID: the host's boot identity — an op whose recorded bootId
+// differs from the current one was orphaned by a host restart
+// (workerPid alone can't tell: pids recycle across boots).
+func bootID() string {
+	if b, err := os.ReadFile(procBootID); err == nil {
+		return strings.TrimSpace(string(b))
+	}
+	return ""
 }
 
 func die(code, msg string) { qelib.Fail(qelib.CmdName("ops"), "quickemu-ops/"+version, code, msg) }
@@ -165,24 +182,52 @@ func run() int {
 
 	switch sub {
 	case "new":
-		var typ, vm string
+		var typ, vm, id, phase, msg string
+		var maxOps int
 		for i := 0; i+1 < len(args); i++ {
 			switch args[i] {
 			case "--type":
 				typ = args[i+1]
 			case "--vm":
 				vm = args[i+1]
+			case "--id":
+				id = args[i+1]
+			case "--phase":
+				phase = args[i+1]
+			case "--message":
+				msg = args[i+1]
+			case "--max":
+				fmt.Sscanf(args[i+1], "%d", &maxOps)
 			}
 		}
-		id := uuid.NewString()
+		if id == "" {
+			id = uuid.NewString()
+		} else {
+			// Caller-chosen stable ids get the same traversal check as
+			// --id flags and must not collide with a live journal entry.
+			checkID(id)
+			if _, err := os.Stat(filepath.Join(dir, id+".json")); err == nil {
+				die("OP_EXISTS", "operation "+id+" already exists")
+			}
+		}
+		// Admission control (QE-004): per-VM concurrency cap and
+		// incompatible-type serialization refuse before the journal
+		// entry exists, so a rejected op leaves no residue.
+		admitNewOp(dir, vm, typ, maxOps)
 		o := &Op{SchemaVersion: 1, OperationID: id, Type: typ, VM: vm,
-			State: "queued", Progress: 0, StartedAt: time.Now().UTC().Format(time.RFC3339),
-			Result: json.RawMessage("null"), Error: json.RawMessage("null")}
+			State: "queued", Progress: 0, Phase: phase, Message: msg,
+			StartedAt: time.Now().UTC().Format(time.RFC3339),
+			BootID:    bootID(),
+			Result:    json.RawMessage("null"), Error: json.RawMessage("null")}
 		o.save(dir)
 		fmt.Println(id)
+		// Retention policy (QE-004): env-driven sweep keeps the
+		// journal bounded across runs.
+		retentionSweep(dir)
 	case "set":
-		var id, state string
+		var id, state, phase, msg string
 		var progress, wpid int
+		haveProgress, havePhase, haveMsg := false, false, false
 		for i := 0; i+1 < len(args); i++ {
 			switch args[i] {
 			case "--id":
@@ -191,6 +236,13 @@ func run() int {
 				state = args[i+1]
 			case "--progress":
 				fmt.Sscanf(args[i+1], "%d", &progress)
+				haveProgress = true
+			case "--phase":
+				phase = args[i+1]
+				havePhase = true
+			case "--message":
+				msg = args[i+1]
+				haveMsg = true
 			case "--worker-pid":
 				fmt.Sscanf(args[i+1], "%d", &wpid)
 			}
@@ -209,7 +261,15 @@ func run() int {
 			return 0
 		}
 		o.State = state
-		o.Progress = progress
+		if haveProgress {
+			o.Progress = progress
+		}
+		if havePhase {
+			o.Phase = phase
+		}
+		if haveMsg {
+			o.Message = msg
+		}
 		if wpid > 0 {
 			o.WorkerPid = wpid
 		}
@@ -269,23 +329,34 @@ func run() int {
 		o.State = "cancelled" // no live worker: cancel is final now
 		writeOp(dir, o)
 	case "prune":
+		// Retention policy: --keep N bounds entries, --days D bounds
+		// age; unset flags fall back to QE_OPS_KEEP / QE_OPS_DAYS.
 		keep := 10
-		fmt.Sscanf(flag(args, "--keep"), "%d", &keep)
-		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
-		slices.Sort(ents)
-		for i := 0; i < len(ents)-keep; i++ {
-			os.Remove(ents[i])
-		}
-		fmt.Printf("{\"pruned\":%d}\n", max(0, len(ents)-keep))
+		fmt.Sscanf(envOr("QE_OPS_KEEP", flag(args, "--keep")), "%d", &keep)
+		days := 0
+		fmt.Sscanf(envOr("QE_OPS_DAYS", flag(args, "--days")), "%d", &days)
+		fmt.Printf("{\"pruned\":%d}\n", pruneOps(dir, keep, days))
 	case "recover":
 		ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 		reaped := 0
+		boot := bootID()
 		for _, e := range ents {
 			var o Op
 			if json.Unmarshal(must(e), &o) != nil {
 				continue
 			}
-			if o.State != "queued" && o.State != "running" {
+			if o.State != "queued" && o.State != "running" && o.State != "cancelRequested" {
+				continue
+			}
+			// Host-restart reconnect (QE-004): an op journaled under a
+			// different boot is orphaned regardless of what its pid
+			// numbers look like now — they may name a recycled process.
+			if o.BootID != "" && boot != "" && o.BootID != boot {
+				o.State = "failed"
+				o.Error = json.RawMessage(`{"code":"HOST_RESTART","message":"host restart"}`)
+				writeOp(dir, &o)
+				reaped++
+				qeVerbose(fmt.Sprintf("op_recover: marked %s failed (host restart)", o.OperationID))
 				continue
 			}
 			if o.WorkerPid > 0 && qelib.Alive(o.WorkerPid) {
@@ -413,6 +484,135 @@ func flag(args []string, name string) string {
 		}
 	}
 	return ""
+}
+
+// envOr: flag value wins over env, env over "" — the layered config
+// QE_OPS_* knobs use.
+func envOr(env, v string) string {
+	if v != "" {
+		return v
+	}
+	return os.Getenv(env)
+}
+
+// exclusiveOpType: op types that must serialize against EVERY other
+// active op on the same VM — a delete racing an export corrupts both
+// sides. Non-exclusive types only conflict with exclusive ones.
+func exclusiveOpType(t string) bool {
+	switch t {
+	case "delete", "import", "export", "clone", "linked-clone",
+		"rename", "move", "start", "stop", "kill",
+		"snapshot-apply", "snapshot-create", "snapshot-delete",
+		"backup", "backup-restore", "compact", "resize":
+		return true
+	}
+	return false
+}
+
+// activeOps lists the non-terminal ops of a VM (empty vm matches all).
+// Unparseable files are skipped, never trusted.
+func activeOps(dir, vm string) []*Op {
+	out := []*Op{}
+	ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	for _, e := range ents {
+		b, err := os.ReadFile(e)
+		if err != nil {
+			continue
+		}
+		var o Op
+		if json.Unmarshal(b, &o) != nil {
+			continue
+		}
+		if vm != "" && o.VM != vm {
+			continue
+		}
+		switch o.State {
+		case "queued", "running", "cancelRequested":
+			out = append(out, &o)
+		}
+	}
+	return out
+}
+
+// admitNewOp: QE-004 admission control — a per-VM concurrency cap
+// (flag --max, else QE_OPS_MAX_CONCURRENT) plus incompatible-type
+// serialization: an exclusive-type op coexists with nothing, a
+// non-exclusive op only refuses exclusive holders.
+func admitNewOp(dir, vm, typ string, maxOps int) {
+	act := activeOps(dir, vm)
+	if maxOps <= 0 {
+		fmt.Sscanf(os.Getenv("QE_OPS_MAX_CONCURRENT"), "%d", &maxOps)
+	}
+	if maxOps > 0 && len(act) >= maxOps {
+		die("OPS_LIMIT", fmt.Sprintf(
+			"too many concurrent operations on %s (%d/%d)", vm, len(act), maxOps))
+	}
+	for _, o := range act {
+		if exclusiveOpType(o.Type) || exclusiveOpType(typ) {
+			die("OP_CONFLICT", fmt.Sprintf(
+				"operation %s (%s) already active on %s", o.OperationID, o.Type, vm))
+		}
+	}
+}
+
+// opAge: when an op file claims it started — StartedAt first, file
+// mtime as fallback (hand-planted journals often lack the field).
+func opAge(e string) time.Time {
+	var o Op
+	if b, err := os.ReadFile(e); err == nil && json.Unmarshal(b, &o) == nil {
+		if t, perr := time.Parse(time.RFC3339, o.StartedAt); perr == nil {
+			return t
+		}
+	}
+	if st, err := os.Stat(e); err == nil {
+		return st.ModTime()
+	}
+	return time.Now()
+}
+
+// pruneOps enforces the retention policy: entries older than `days`
+// go first, then the journal is bounded to the newest `keep` files
+// (keep<0 disables the count bound). Returns the removed count.
+func pruneOps(dir string, keep, days int) int {
+	ents, _ := filepath.Glob(filepath.Join(dir, "*.json"))
+	pruned := 0
+	var rest []string
+	if days > 0 {
+		cutoff := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+		for _, e := range ents {
+			if opAge(e).Before(cutoff) {
+				if os.Remove(e) == nil {
+					pruned++
+				}
+			} else {
+				rest = append(rest, e)
+			}
+		}
+	} else {
+		rest = ents
+	}
+	slices.Sort(rest)
+	for i := 0; keep >= 0 && i < len(rest)-keep; i++ {
+		if os.Remove(rest[i]) == nil {
+			pruned++
+		}
+	}
+	return pruned
+}
+
+// retentionSweep: env-driven auto-retention after `new` — QE_OPS_KEEP
+// bounds the journal length, QE_OPS_DAYS bounds entry age. Silent:
+// retention never breaks the caller's op.
+func retentionSweep(dir string) {
+	kd, dd := os.Getenv("QE_OPS_KEEP"), os.Getenv("QE_OPS_DAYS")
+	if kd == "" && dd == "" {
+		return
+	}
+	keep := -1
+	fmt.Sscanf(kd, "%d", &keep)
+	days := 0
+	fmt.Sscanf(dd, "%d", &days)
+	pruneOps(dir, keep, days)
 }
 
 func must(p string) []byte {
