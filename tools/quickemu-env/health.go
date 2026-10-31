@@ -43,6 +43,9 @@ func resolveTarget(h *Health, conf string, rt vmRuntime) (string, error) {
 	if p, err := strconv.Atoi(t); err == nil {
 		return "127.0.0.1:" + strconv.Itoa(p), nil
 	}
+	if strings.ContainsAny(t, " \t\n\r") {
+		return "", fmt.Errorf("invalid target %q (want host:port or port)", h.Target)
+	}
 	if _, _, err := net.SplitHostPort(t); err != nil {
 		return "", fmt.Errorf("invalid target %q (want host:port or port)", h.Target)
 	}
