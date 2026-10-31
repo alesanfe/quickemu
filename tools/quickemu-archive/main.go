@@ -88,11 +88,11 @@ func parseArgs(a []string, bools ...string) args {
 func run() int {
 	os.Args = qelib.NormArgs(os.Args)
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: quickemu-archive <verify|inspect|extract|import|recover> --archive <tgz> [--dest <dir>] [--force]")
+		fmt.Fprintln(os.Stderr, "usage: quickemu-archive <verify|inspect|extract|import|recover|oci-push|oci-pull|oci-inspect> --archive <tgz> [--dest <dir>] [--force]")
 		return 2
 	}
 	sub := os.Args[1]
-	a := parseArgs(os.Args[2:], "force")
+	a := parseArgs(os.Args[2:], "force", "import")
 	arch := a.kv["archive"]
 	if arch == "" && len(a.pos) > 0 {
 		arch = a.pos[0]
@@ -104,6 +104,34 @@ func run() int {
 	force := a.kv["force"] == "true"
 
 	switch sub {
+	case "oci-push":
+		// QE-092: pack the export as an OCI image layout (skopeo/
+		// podman can copy oci:… to a real registry from there).
+		if arch == "" {
+			fmt.Fprintln(os.Stderr, "usage: quickemu-archive oci-push --archive <tgz> --dest <dir> [--ref name:tag]")
+			return 2
+		}
+		return ociPush(arch, dest, a.kv["ref"])
+	case "oci-pull":
+		layout := a.kv["oci"]
+		if layout == "" && len(a.pos) > 0 {
+			layout = a.pos[0]
+		}
+		if layout == "" {
+			fmt.Fprintln(os.Stderr, "usage: quickemu-archive oci-pull --oci <layout-dir> --dest <dir> [--ref name:tag] [--import] [--force]")
+			return 2
+		}
+		return ociPull(layout, dest, a.kv["ref"], a.kv["import"] == "true", force)
+	case "oci-inspect":
+		layout := a.kv["oci"]
+		if layout == "" && len(a.pos) > 0 {
+			layout = a.pos[0]
+		}
+		if layout == "" {
+			fmt.Fprintln(os.Stderr, "usage: quickemu-archive oci-inspect --oci <layout-dir>")
+			return 2
+		}
+		return ociInspect(layout)
 	case "verify":
 		if arch == "" {
 			fmt.Fprintln(os.Stderr, "usage: quickemu-archive verify --archive <tgz>")
