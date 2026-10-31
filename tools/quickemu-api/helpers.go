@@ -442,29 +442,17 @@ func toolT(name string, d time.Duration, env []string, args ...string) (string, 
 	if err != nil {
 		return "", err
 	}
-	cmd := execCommand(bin, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), d)
+	defer cancel()
+	cmd := execCommandCtx(ctx, bin, args...)
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
 	}
-	type res struct {
-		out []byte
-		err error
-	}
-	ch := make(chan res, 1)
-	go func() {
-		o, e := cmd.CombinedOutput()
-		ch <- res{o, e}
-	}()
-	select {
-	case r := <-ch:
-		return string(r.out), r.err
-	case <-time.After(d):
-		if cmd.Process != nil {
-			cmd.Process.Kill()
-		}
-		<-ch
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
 		return "", fmt.Errorf("%s timed out after %s", name, d)
 	}
+	return string(out), err
 }
 
 // cliTool resolves the unified CLI entry — the packaged bin/quickemu
@@ -544,19 +532,7 @@ func exclusiveOpType(t string) bool {
 	return false
 }
 
-// apiOpTypes: the op types POST /v1/ops accepts — everything the ops
-// tool knows plus the async jobs the API itself enqueues.
-var apiOpTypes = map[string]bool{
-	"start": true, "stop": true, "kill": true, "delete": true,
-	"clone": true, "linked-clone": true, "rename": true, "move": true,
-	"import": true, "export": true, "download": true, "install": true,
-	"snapshot": true, "snapshot-create": true, "snapshot-apply": true,
-	"snapshot-delete": true, "backup": true, "backup-restore": true,
-	"backup-verify": true, "compact": true, "resize": true,
-	"trash-restore": true, "trash-empty": true,
-}
-
-// opsDirs lists every journal dir the API watches — one per known VM
+// opsDirs lists every journal dir the API watches — one per known VM// opsDirs lists every journal dir the API watches — one per known VM
 // (the on-disk vms/ layout plus inventory-recorded dirs).
 func opsDirs() map[string]string {
 	out := map[string]string{}

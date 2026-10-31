@@ -706,7 +706,7 @@ func TestGenOpID(t *testing.T) {
 	if badOpID(id) {
 		t.Fatalf("genOpID must pass badOpID: %q", id)
 	}
-	if genOpID() == genOpID() {
+	if a, b := genOpID(), genOpID(); a == b {
 		t.Fatal("genOpID must be unique")
 	}
 }

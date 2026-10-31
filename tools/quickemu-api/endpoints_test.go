@@ -94,12 +94,12 @@ func TestVMEventsEndpoint(t *testing.T) {
 	}
 
 	// since=N resumes — only newer seqs come back.
-	code, m = apiGet(t, "/v1/vm/ev/events?since=1")
+	_, m = apiGet(t, "/v1/vm/ev/events?since=1")
 	d = m["data"].(map[string]any)
 	if len(d["events"].([]any)) != 2 || d["latest"].(float64) != 3 {
 		t.Fatalf("resume: %v", d)
 	}
-	code, m = apiGet(t, "/v1/vm/ev/events?since=3")
+	_, m = apiGet(t, "/v1/vm/ev/events?since=3")
 	d = m["data"].(map[string]any)
 	if len(d["events"].([]any)) != 0 || d["latest"].(float64) != 3 {
 		t.Fatalf("at-end: %v", d)

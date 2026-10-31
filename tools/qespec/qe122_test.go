@@ -111,57 +111,6 @@ func TestFakeQMPWire(t *testing.T) {
 	}
 }
 
-// specFakeQGA: guest-sync-delimited handshake (0xFF sentinel + token
-// echo), then per-command replies.
-func specFakeQGA(t *testing.T, replies map[string]any) string {
-	t.Helper()
-	sock := filepath.Join(t.TempDir(), "t-agent.sock")
-	ln, err := net.Listen("unix", sock)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { ln.Close() })
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				return
-			}
-			go func(c net.Conn) {
-				defer c.Close()
-				r := bufio.NewReader(c)
-				for {
-					line, err := r.ReadBytes('\n')
-					if err != nil {
-						return
-					}
-					var req map[string]any
-					if json.Unmarshal(bytes2(line), &req) != nil {
-						continue
-					}
-					ex, _ := req["execute"].(string)
-					if ex == "guest-sync-delimited" {
-						var id any
-						if a, ok := req["arguments"].(map[string]any); ok {
-							id = a["id"]
-						}
-						resp, _ := json.Marshal(map[string]any{"return": id})
-						c.Write(append([]byte{0xFF}, append(resp, '\n')...))
-						continue
-					}
-					ret, ok := replies[ex]
-					if !ok {
-						ret = map[string]any{}
-					}
-					resp, _ := json.Marshal(map[string]any{"return": ret, "id": req["id"]})
-					c.Write(append(resp, '\n'))
-				}
-			}(c)
-		}
-	}()
-	return sock
-}
-
 func bytes2(b []byte) []byte {
 	// Strip stray 0xFF sync sentinels an agent may emit mid-stream.
 	out := make([]byte, 0, len(b))
