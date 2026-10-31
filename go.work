@@ -7,11 +7,13 @@ use (
 	./tools/quickemu-api
 	./tools/quickemu-archive
 	./tools/quickemu-cli
+	./tools/quickemu-env
 	./tools/quickemu-launch
 	./tools/quickemu-ops
 	./tools/quickemu-plugin-market
 	./tools/quickemu-ports
 	./tools/quickemu-proc
+	./tools/quickemu-qga
 	./tools/quickemu-qmp
 	./tools/quickemu-toml
 	./tools/quickemu-vm
