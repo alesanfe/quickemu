@@ -2,6 +2,7 @@
 package qelib
 
 import (
+	"crypto/rand"
 	"io"
 	"os"
 	"path/filepath"
@@ -113,6 +114,21 @@ func QuickgetArch(ra string) string {
 		return "arm64"
 	}
 	return "amd64"
+}
+
+// CryptSalt: random SHA512-crypt salt chars — shared by
+// quickget-vm's unattend generators and quicktest's profile pwHash.
+func CryptSalt(n int) string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./"
+	b := make([]byte, n)
+	rb := make([]byte, n)
+	if _, err := rand.Read(rb); err != nil {
+		copy(rb, "quickemu")
+	}
+	for i := range b {
+		b[i] = chars[int(rb[i])%len(chars)]
+	}
+	return string(b)
 }
 
 // CopyFile: byte copy src -> dst (create/truncate).

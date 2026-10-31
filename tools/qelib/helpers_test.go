@@ -178,6 +178,28 @@ func TestAppendEvent(t *testing.T) {
 	}
 }
 
+// CryptSalt is the deduplicated salt source for the two former
+// copies in quickget-vm and quicktest — same SHA512-crypt charset.
+func TestCryptSalt(t *testing.T) {
+	s := CryptSalt(8)
+	if len(s) != 8 {
+		t.Fatalf("len %d", len(s))
+	}
+	for _, c := range s {
+		if !strings.ContainsRune(
+			"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./", c) {
+			t.Fatalf("non-crypt char %c in %q", c, s)
+		}
+	}
+	a, b := CryptSalt(24), CryptSalt(24)
+	if a == b {
+		t.Fatal("salts must be random")
+	}
+	if CryptSalt(0) != "" {
+		t.Fatal("empty salt")
+	}
+}
+
 func TestMacGenID(t *testing.T) {
 	s := MacGenID(16)
 	if len(s) != 16 {

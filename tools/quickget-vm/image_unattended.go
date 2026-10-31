@@ -2,7 +2,6 @@
 package main
 
 import (
-	"crypto/rand"
 	"fmt"
 	"io/fs"
 	"os"
@@ -111,18 +110,7 @@ func customConf(vmPath, input, flag string) int {
 // seed, and append kernel/initrd/boot_args to the conf.
 // cryptSalt: random SHA512-crypt salt chars — simia-tech/crypt expects
 // "$6$<salt>" as the setting string.
-func cryptSalt(n int) string {
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./"
-	b := make([]byte, n)
-	rb := make([]byte, n)
-	if _, err := rand.Read(rb); err != nil {
-		copy(rb, "quickemu")
-	}
-	for i := range b {
-		b[i] = chars[int(rb[i])%len(chars)]
-	}
-	return string(b)
-}
+func cryptSalt(n int) string { return qelib.CryptSalt(n) }
 
 func genUbuntuAutoinstall(vmPath, iso, confFile string) int {
 	if !isoExtractBootfiles(iso, vmPath, "casper") {
