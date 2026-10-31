@@ -294,7 +294,9 @@ create|convert)
 esac
 exit 0
 `), 0o755)
-	env2 := append(env, "PATH="+stub+string(os.PathListSeparator)+os.Getenv("PATH"),
+	// Fresh backing array — append(env, ...) would alias env's spare
+	// capacity and let later appends trample env2's tail.
+	env2 := append(append([]string{}, env...), "PATH="+stub+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"FAKEIMG_STATE="+state, "FAKEIMG_BACKS="+backs)
 	src := filepath.Join(t.TempDir(), "a.qcow2")
 	os.WriteFile(src, []byte("img"), 0o600)

@@ -106,6 +106,9 @@ func populateCache() []OSEntry {
 	data, err := zr.DecodeAll(raw, nil)
 	if err != nil {
 		fmt.Printf("ERROR! Failed to decompress %s. Try running quickgetc again.\n", p)
+		// Close before Remove — os.Exit skips the defer, and an open
+		// handle would keep the corrupt file alive on Windows.
+		zr.Close()
 		os.Remove(p)
 		os.Exit(1)
 	}
@@ -309,73 +312,36 @@ func extractArchive(format, file, vmPath, imageType string) string {
 			return m[0]
 		}
 		return file
-	case format == "xz":
+	case format == "xz" || format == "gz" || format == "bz2":
+		// Single-stream decompressors share one path: the reader factory
+		// and suffix are the only differences. A truncated stream or a
+		// decompression bomb removes the partial artifact and falls back
+		// to the untouched download, like the open-fail path.
+		newReader := func(r io.Reader) (io.Reader, error) {
+			switch format {
+			case "xz":
+				return xz.NewReader(r)
+			case "gz":
+				return gzip.NewReader(r)
+			default:
+				return bzip2.NewReader(r), nil
+			}
+		}
 		rc, err := open()
 		if err != nil {
 			return file
 		}
 		defer rc.Close()
-		xr, err := xz.NewReader(rc)
+		dr, err := newReader(rc)
 		if err != nil {
 			return file
 		}
-		out := strings.TrimSuffix(file, ".xz")
+		out := strings.TrimSuffix(file, "."+format)
 		w, err := os.Create(out)
 		if err != nil {
 			return file
 		}
-		// A truncated stream yields a partial artifact — remove it and
-		// fall back to the untouched download, like the open-fail path.
-		// The limit guards against a decompression bomb filling the disk.
-		n, err := io.Copy(w, io.LimitReader(xr, extractMaxSize+1))
-		if err != nil || n > extractMaxSize {
-			w.Close()
-			os.Remove(out)
-			return file
-		}
-		if err := w.Close(); err != nil {
-			os.Remove(out)
-			return file
-		}
-		return out
-	case format == "gz":
-		rc, err := open()
-		if err != nil {
-			return file
-		}
-		defer rc.Close()
-		gr, err := gzip.NewReader(rc)
-		if err != nil {
-			return file
-		}
-		out := strings.TrimSuffix(file, ".gz")
-		w, err := os.Create(out)
-		if err != nil {
-			return file
-		}
-		n, err := io.Copy(w, io.LimitReader(gr, extractMaxSize+1))
-		if err != nil || n > extractMaxSize {
-			w.Close()
-			os.Remove(out)
-			return file
-		}
-		if err := w.Close(); err != nil {
-			os.Remove(out)
-			return file
-		}
-		return out
-	case format == "bz2":
-		rc, err := open()
-		if err != nil {
-			return file
-		}
-		defer rc.Close()
-		out := strings.TrimSuffix(file, ".bz2")
-		w, err := os.Create(out)
-		if err != nil {
-			return file
-		}
-		n, err := io.Copy(w, io.LimitReader(bzip2.NewReader(rc), extractMaxSize+1))
+		n, err := io.Copy(w, io.LimitReader(dr, extractMaxSize+1))
 		if err != nil || n > extractMaxSize {
 			w.Close()
 			os.Remove(out)

@@ -131,6 +131,38 @@ func CryptSalt(n int) string {
 	return string(b)
 }
 
+// ProfileDefaults: vm_profile_defaults parity — preset conf values.
+// Shared by quickemu-vm (create) and quickemu-launch (boot) so a new
+// profile exists in both paths from a single definition.
+var profileDefaults = map[string]map[string]string{
+	"windows-gaming": {"guest_os": "windows", "ram": "8G", "cpu_cores": "6", "video": "virtio-vga-gl"},
+	"linux-desktop":  {"guest_os": "linux", "ram": "4G", "cpu_cores": "4"},
+	"server":         {"guest_os": "linux", "ram": "4G", "display": "none", "network": "user"},
+	"minimal":        {"guest_os": "linux", "ram": "512M", "cpu_cores": "1"},
+	"ci":             {"guest_os": "linux", "ram": "2G", "display": "none", "network": "none"},
+}
+
+// ProfileDefaults returns the preset conf overrides for name.
+func ProfileDefaults(name string) (map[string]string, bool) {
+	p, ok := profileDefaults[name]
+	return p, ok
+}
+
+// ArchSupported: is_arch_supported parity — an empty catalog arch
+// list means the Bash default (amd64 only). Shared by quickget-cli
+// (validate) and quickget-catalog.
+func ArchSupported(list []string, arch string) bool {
+	if len(list) == 0 {
+		list = []string{"amd64"}
+	}
+	for _, a := range list {
+		if a == arch {
+			return true
+		}
+	}
+	return false
+}
+
 // CopyFile: byte copy src -> dst (create/truncate).
 func CopyFile(src, dst string) error {
 	in, err := os.Open(src)

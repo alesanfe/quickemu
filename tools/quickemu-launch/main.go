@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
@@ -381,34 +380,15 @@ func main() {
 		args = append(args, "-monitor", "none")
 		fmt.Printf(" - Monitor:  (off)\n")
 	case "telnet":
-		host := conf.get("monitor_telnet_host", "localhost")
-		warnTelnetExposure("monitor", host)
-		portStr := conf.get("monitor_telnet_port", "4440")
-		start, _ := strconv.Atoi(portStr)
-		if start <= 0 {
-			start = 4440
-		}
-		port := getPort(start, 9, os.Getpid(), vmname)
-		if port <= 0 {
-			fmt.Printf(" - Monitor:  All Monitor-Telnet ports have been exhausted.\n")
-		} else {
-			args = append(args, "-monitor",
-				fmt.Sprintf("telnet:%s:%d,server,nowait", qemuOptEsc(host), port))
-			fmt.Printf(" - Monitor:  On host:  telnet %s %d\n", host, port)
-			portsRecord(vmdir, vmname,
-				fmt.Sprintf("monitor-telnet,%d,%s", port, host), runMode)
-		}
+		args = telnetChan(args, conf, vmdir, vmname, runMode,
+			"monitor", " - Monitor:  ", "Monitor-Telnet", 4440)
 	case "socket":
 		args = append(args, "-monitor",
 			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-monitor.socket")+",server,nowait")
 		// Machine control channel (QMP) next to the HMP socket.
 		args = append(args, "-qmp",
 			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-qmp.socket")+",server,nowait")
-		if _, err := exec.LookPath("socat"); err == nil {
-			fmt.Printf(" - Monitor:  On host:  socat -,echo=0,icanon=0 unix-connect:%s\n", dotdir(vmdir)+vmname+"-monitor.socket")
-		} else if _, err := exec.LookPath("nc"); err == nil {
-			fmt.Printf(" - Monitor:  On host:  nc -U \"%s\"\n", dotdir(vmdir)+vmname+"-monitor.socket")
-		}
+		sockHint(" - Monitor:  ", dotdir(vmdir)+vmname+"-monitor.socket")
 	default:
 		fmt.Printf("ERROR! \"%s\" is an unknown monitor option.\n", mon)
 		os.Exit(1)
@@ -427,31 +407,12 @@ func main() {
 	case "none":
 		args = append(args, "-serial", "none")
 	case "telnet":
-		host := conf.get("serial_telnet_host", "localhost")
-		warnTelnetExposure("serial", host)
-		portStr := conf.get("serial_telnet_port", "6660")
-		start, _ := strconv.Atoi(portStr)
-		if start <= 0 {
-			start = 6660
-		}
-		port := getPort(start, 9, os.Getpid(), vmname)
-		if port <= 0 {
-			fmt.Printf(" - Serial:   All Serial Telnet ports have been exhausted.\n")
-		} else {
-			args = append(args, "-serial",
-				fmt.Sprintf("telnet:%s:%d,server,nowait", qemuOptEsc(host), port))
-			fmt.Printf(" - Serial:   On host:  telnet %s %d\n", host, port)
-			portsRecord(vmdir, vmname,
-				fmt.Sprintf("serial-telnet,%d,%s", port, host), runMode)
-		}
+		args = telnetChan(args, conf, vmdir, vmname, runMode,
+			"serial", " - Serial:   ", "Serial Telnet", 6660)
 	case "socket":
 		args = append(args, "-serial",
 			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-serial.socket")+",server,nowait")
-		if _, err := exec.LookPath("socat"); err == nil {
-			fmt.Printf(" - Serial:   On host:  socat -,echo=0,icanon=0 unix-connect:%s\n", dotdir(vmdir)+vmname+"-serial.socket")
-		} else if _, err := exec.LookPath("nc"); err == nil {
-			fmt.Printf(" - Serial:   On host:  nc -U \"%s\"\n", dotdir(vmdir)+vmname+"-serial.socket")
-		}
+		sockHint(" - Serial:   ", dotdir(vmdir)+vmname+"-serial.socket")
 	default:
 		fmt.Printf("ERROR! \"%s\" is an unknown serial option.\n", ser)
 		os.Exit(1)

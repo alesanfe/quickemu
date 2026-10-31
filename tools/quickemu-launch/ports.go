@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -179,5 +180,38 @@ func spiceRecord(dir, vmname, val string, runMode bool) {
 	}
 	if err := os.WriteFile(filepath.Join(dir, vmname+".spice"), []byte(val+"\n"), 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "WARNING: could not write spice record: %v\n", err)
+	}
+}
+
+// telnetChan renders the shared telnet channel setup for monitor and
+// serial — the conf-key prefix, default port, flag name and aligned
+// label are the only differences (Bash kept both blocks open-coded).
+func telnetChan(args []string, conf Conf, vmdir, vmname string, runMode bool,
+	kind, label, exhaust string, defPort int) []string {
+	host := conf.get(kind+"_telnet_host", "localhost")
+	warnTelnetExposure(kind, host)
+	portStr := conf.get(kind+"_telnet_port", strconv.Itoa(defPort))
+	start, _ := strconv.Atoi(portStr)
+	if start <= 0 {
+		start = defPort
+	}
+	port := getPort(start, 9, os.Getpid(), vmname)
+	if port <= 0 {
+		fmt.Printf("%sAll %s ports have been exhausted.\n", label, exhaust)
+		return args
+	}
+	args = append(args, "-"+kind,
+		fmt.Sprintf("telnet:%s:%d,server,nowait", qemuOptEsc(host), port))
+	fmt.Printf("%sOn host:  telnet %s %d\n", label, host, port)
+	portsRecord(vmdir, vmname, fmt.Sprintf("%s-telnet,%d,%s", kind, port, host), runMode)
+	return args
+}
+
+// sockHint prints the socat/nc connect hint for a unix channel socket.
+func sockHint(label, sockPath string) {
+	if _, err := exec.LookPath("socat"); err == nil {
+		fmt.Printf("%sOn host:  socat -,echo=0,icanon=0 unix-connect:%s\n", label, sockPath)
+	} else if _, err := exec.LookPath("nc"); err == nil {
+		fmt.Printf("%sOn host:  nc -U \"%s\"\n", label, sockPath)
 	}
 }

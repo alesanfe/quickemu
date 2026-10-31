@@ -31,16 +31,7 @@ func loadInfo(path string) (map[string]InfoEntry, error) {
 }
 
 func archSupported(e *Entry, arch string) bool {
-	list := e.Arch
-	if len(list) == 0 {
-		list = []string{"amd64"}
-	}
-	for _, a := range list {
-		if a == arch {
-			return true
-		}
-	}
-	return false
+	return qelib.ArchSupported(e.Arch, arch)
 }
 
 // webCheck mirrors web_check(): HEAD with redirects first, then a

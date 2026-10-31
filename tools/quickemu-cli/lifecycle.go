@@ -99,26 +99,17 @@ func actResume() int {
 // actShutdown: shutdown_vm — graceful ACPI system_powerdown over the
 // monitor; errors when the VM has no monitor channel (--kill forces).
 func actShutdown() int {
-	if !requireRunning() {
-		return 1
-	}
-	conf := confKV()
-	if conf["monitor"] == "none" || !monitorSockReady() {
-		fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
-		return 1
-	}
-	// Bash: monitor_send_cmd "system_powerdown" && { event + echo } —
-	// a failed send surfaces only the monitor warning, no success line.
-	if monitorSendCmd("system_powerdown") != 0 {
-		return 1
-	}
-	qeEvent("vm.shutdown-requested", "")
-	fmt.Printf(" - %s (%d) shutdown requested.\n", vmname(), readPID())
-	return 0
+	return monitorAction("system_powerdown", "vm.shutdown-requested", "shutdown")
 }
 
 // actReset: reset_vm — immediate system_reset over the monitor.
 func actReset() int {
+	return monitorAction("system_reset", "vm.reset-requested", "reset")
+}
+
+// monitorAction: Bash monitor_send_cmd && { event + echo } — a failed
+// send surfaces only the monitor warning, no success line.
+func monitorAction(cmd, event, verb string) int {
 	if !requireRunning() {
 		return 1
 	}
@@ -127,11 +118,11 @@ func actReset() int {
 		fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
 		return 1
 	}
-	if monitorSendCmd("system_reset") != 0 {
+	if monitorSendCmd(cmd) != 0 {
 		return 1
 	}
-	qeEvent("vm.reset-requested", "")
-	fmt.Printf(" - %s (%d) reset requested.\n", vmname(), readPID())
+	qeEvent(event, "")
+	fmt.Printf(" - %s (%d) %s requested.\n", vmname(), readPID(), verb)
 	return 0
 }
 

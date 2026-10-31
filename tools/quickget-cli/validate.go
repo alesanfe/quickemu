@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // combinations returns release—edition pairs to iterate for --url/--check
@@ -169,16 +171,7 @@ func trustLevel(osName, release, edition, arch string) string {
 // archSupport: is_arch_supported parity — Entry.Arch empty means the
 // Bash default (amd64 only).
 func archSupport(e *Entry, arch string) bool {
-	list := e.Arch
-	if len(list) == 0 {
-		list = []string{"amd64"}
-	}
-	for _, a := range list {
-		if a == arch {
-			return true
-		}
-	}
-	return false
+	return qelib.ArchSupported(e.Arch, arch)
 }
 
 func prettyName(osName string) string {

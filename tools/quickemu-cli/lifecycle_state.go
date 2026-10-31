@@ -62,13 +62,16 @@ func vmLockAcquire() bool {
 		// Reclaim a dead writer (crash-safe, like Bash's kill -0 check)
 		// then retry the mkdir immediately — a reclaimed lock is
 		// ours to take, not a reason to fail this attempt.
+		reclaim := func() bool {
+			os.RemoveAll(lockDir)
+			return os.Mkdir(lockDir, 0755) == nil && writeOwner()
+		}
 		if b, err := os.ReadFile(filepath.Join(lockDir, "pid")); err == nil {
 			owner, _ := strconv.Atoi(strings.TrimSpace(string(b)))
 			switch {
 			case owner > 0 && !alive(owner):
 				// Dead owner — safe to reclaim.
-				os.RemoveAll(lockDir)
-				if err := os.Mkdir(lockDir, 0755); err == nil && writeOwner() {
+				if reclaim() {
 					return true
 				}
 			case owner <= 0:
@@ -76,21 +79,15 @@ func vmLockAcquire() bool {
 				// lock is old enough that the writer cannot be
 				// mid-creation (same 2s window as a missing file).
 				if st, serr := os.Stat(lockDir); serr == nil &&
-					time.Since(st.ModTime()) > 2*time.Second {
-					os.RemoveAll(lockDir)
-					if err := os.Mkdir(lockDir, 0755); err == nil && writeOwner() {
-						return true
-					}
+					time.Since(st.ModTime()) > 2*time.Second && reclaim() {
+					return true
 				}
 			}
 		} else if st, err := os.Stat(lockDir); err == nil &&
-			time.Since(st.ModTime()) > 2*time.Second {
+			time.Since(st.ModTime()) > 2*time.Second && reclaim() {
 			// Pid-less lock older than ~2s: crash remnant between
 			// mkdir and the pid write.
-			os.RemoveAll(lockDir)
-			if err := os.Mkdir(lockDir, 0755); err == nil && writeOwner() {
-				return true
-			}
+			return true
 		}
 		if i+1 < tries {
 			time.Sleep(200 * time.Millisecond)

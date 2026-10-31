@@ -106,14 +106,7 @@ var execCommand = exec.Command
 
 // ProfileDefaults mirrors vm_profile_defaults — conf overrides per preset.
 func ProfileDefaults(name string) (map[string]string, error) {
-	profiles := map[string]map[string]string{
-		"windows-gaming": {"guest_os": "windows", "ram": "8G", "cpu_cores": "6", "video": "virtio-vga-gl"},
-		"linux-desktop":  {"guest_os": "linux", "ram": "4G", "cpu_cores": "4"},
-		"server":         {"guest_os": "linux", "ram": "4G", "display": "none", "network": "user"},
-		"minimal":        {"guest_os": "linux", "ram": "512M", "cpu_cores": "1"},
-		"ci":             {"guest_os": "linux", "ram": "2G", "display": "none", "network": "none"},
-	}
-	p, ok := profiles[name]
+	p, ok := qelib.ProfileDefaults(name)
 	if !ok {
 		return nil, fmt.Errorf("unknown profile %q", name)
 	}

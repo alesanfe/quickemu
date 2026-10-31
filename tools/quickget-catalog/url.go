@@ -15,7 +15,7 @@ import (
 var fetchString = func(u string) (string, error) { return qelib.FetchString(u, 4<<20) }
 
 // finalURL resolves the last redirect target (web_redirect parity).
-var finalURL = func(u string) (string, error) { return qelib.FinalURL(u) }
+var finalURL = qelib.FinalURL
 
 // findLine greps the body for lines matching re and returns the first,
 // extracting group `field` (1-indexed) or the whole match when field==0.

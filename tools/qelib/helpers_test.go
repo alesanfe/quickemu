@@ -346,3 +346,35 @@ func TestFailExit(t *testing.T) {
 		t.Fatalf("errors %v", errs)
 	}
 }
+
+func TestProfileDefaultsShared(t *testing.T) {
+	for _, name := range []string{"windows-gaming", "linux-desktop", "server", "minimal", "ci"} {
+		p, ok := ProfileDefaults(name)
+		if !ok || len(p) == 0 {
+			t.Fatalf("profile %q missing", name)
+		}
+	}
+	if _, ok := ProfileDefaults("nonexistent"); ok {
+		t.Fatal("unknown profile must not resolve")
+	}
+	p, _ := ProfileDefaults("windows-gaming")
+	if p["guest_os"] != "windows" || p["ram"] != "8G" {
+		t.Fatalf("windows-gaming preset drifted: %v", p)
+	}
+}
+
+func TestArchSupportedDefault(t *testing.T) {
+	// Empty list = Bash amd64-only default.
+	if !ArchSupported(nil, "amd64") {
+		t.Fatal("nil arch list must default to amd64")
+	}
+	if ArchSupported(nil, "arm64") {
+		t.Fatal("nil arch list must exclude non-amd64")
+	}
+	if !ArchSupported([]string{"amd64", "arm64"}, "arm64") {
+		t.Fatal("explicit arch list must match")
+	}
+	if ArchSupported([]string{"amd64"}, "riscv64") {
+		t.Fatal("unlisted arch must not match")
+	}
+}

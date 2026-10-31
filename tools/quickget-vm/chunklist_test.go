@@ -33,7 +33,9 @@ func TestCheckChunklist(t *testing.T) {
 		h.Write(rec[:])
 		pos += int(s)
 	}
-	cl := append(hdr, []byte{}...)
+	// Fresh backing array — appending onto hdr's spare capacity would
+	// alias it (appendAssign).
+	cl := append([]byte{}, hdr...)
 	pos = 0
 	for _, s := range sizes {
 		var rec [36]byte
