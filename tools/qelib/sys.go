@@ -142,9 +142,13 @@ func CopyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	// Close can surface delayed-alloc write failures (ENOSPC/NFS) —
+	// a short copy must not read as success.
+	return out.Close()
 }
 
 // MoveFile: rename, falling back to copy for cross-device moves

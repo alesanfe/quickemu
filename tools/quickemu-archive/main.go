@@ -45,6 +45,11 @@ type manifest struct {
 }
 
 func safeMember(name string) bool {
+	// Empty names slip past every lexical check below but are not
+	// local paths — reject before anything else.
+	if !filepath.IsLocal(name) {
+		return false
+	}
 	if strings.HasPrefix(name, "/") || strings.HasPrefix(name, "\\") || strings.Contains(name, ":") {
 		return false
 	}

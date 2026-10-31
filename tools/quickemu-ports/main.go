@@ -48,7 +48,13 @@ func lock(reg string) func() {
 	lk := reg + ".lock"
 	for i := 0; i < 50; i++ {
 		if os.Mkdir(lk, 0o700) == nil {
-			os.WriteFile(filepath.Join(lk, "pid"), []byte(strconv.Itoa(os.Getpid())), 0o600)
+			// A lock without its pid file looks ownerless to the next
+			// contender — release and retry rather than hold a lock
+			// that reads as stale.
+			if err := os.WriteFile(filepath.Join(lk, "pid"), []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+				os.RemoveAll(lk)
+				continue
+			}
 			return func() { os.RemoveAll(lk) }
 		}
 		if b, err := os.ReadFile(filepath.Join(lk, "pid")); err == nil && stale(string(b)) {

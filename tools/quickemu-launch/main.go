@@ -242,8 +242,10 @@ func main() {
 			if runMode {
 				if f, err := os.OpenFile(filepath.Join(vmdir, vmname+".log"),
 					os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-					fmt.Fprintf(f, "TSC_WARNING: clocksource=%s macos_release=%s cpu_vendor=%s\n",
-						clock, conf.get("macos_release", ""), hostCPUVendor())
+					if _, werr := fmt.Fprintf(f, "TSC_WARNING: clocksource=%s macos_release=%s cpu_vendor=%s\n",
+						clock, conf.get("macos_release", ""), hostCPUVendor()); werr != nil {
+						fmt.Fprintf(os.Stderr, "WARNING: could not log TSC warning: %v\n", werr)
+					}
 					f.Close()
 				}
 				if st, err := os.Stdin.Stat(); err == nil && st.Mode()&os.ModeCharDevice != 0 {

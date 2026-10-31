@@ -154,10 +154,17 @@ func portsRecord(dir, vmname, rec string, runMode bool) {
 	f, err := os.OpenFile(filepath.Join(dir, vmname+".ports"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could not record port assignment: %v\n", err)
 		return
 	}
-	defer f.Close()
-	fmt.Fprintln(f, rec)
+	// A dropped record means the next VM can be handed the same port —
+	// the write failing is worth a warning, like mv's stderr in Bash.
+	if _, err := fmt.Fprintln(f, rec); err != nil {
+		f.Close()
+		fmt.Fprintf(os.Stderr, "WARNING: could not record port assignment: %v\n", err)
+		return
+	}
+	f.Close()
 }
 
 // spiceRecord: write the SPICE connect target (unix path or TCP port)

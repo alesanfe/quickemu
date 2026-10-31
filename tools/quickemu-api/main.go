@@ -223,7 +223,12 @@ func main() {
 
 var serveAPI = func(ln net.Listener, listen string) bool {
 	fmt.Println("quickemu-api listening on", listen)
-	http.Serve(ln, newMux())
+	// Serve never returns nil: ErrServerClosed is a graceful stop,
+	// anything else is a dead accept loop and must be reported.
+	if err := http.Serve(ln, newMux()); err != nil && err != http.ErrServerClosed {
+		fmt.Fprintf(os.Stderr, "serve: %v\n", err)
+		return false
+	}
 	return true
 }
 
@@ -256,7 +261,12 @@ func newMux() *http.ServeMux {
 			return
 		}
 		var v any
-		json.Unmarshal(b, &v)
+		// A corrupt vms.json must degrade like a missing one — null
+		// would serialise as data:null and read as a protocol value.
+		if err := json.Unmarshal(b, &v); err != nil {
+			write(w, 200, map[string]any{"data": map[string]any{}})
+			return
+		}
 		write(w, 200, map[string]any{"data": v})
 	}))
 	mux.HandleFunc("/v1/vm/", auth(func(w http.ResponseWriter, r *http.Request) {
