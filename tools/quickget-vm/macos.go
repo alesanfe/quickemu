@@ -146,10 +146,19 @@ func getMacos(release, dir, arch string) int {
 	// master on 26 Jan 2026 (same pin as the Bash get_macos).
 	const commit = "da4b23b5e92c5b939568700034367e8b7649fe90"
 	base := "https://github.com/kholia/OSX-KVM/raw/" + commit + "/"
-	fetch(base+"OpenCore/OpenCore.qcow2", filepath.Join(dir, "OpenCore.qcow2"), "")
-	fetch(base+"OVMF_CODE.fd", filepath.Join(dir, "OVMF_CODE.fd"), "")
+	// OpenCore + OVMF are required by the generated conf — failed
+	// downloads must abort, not produce a conf referencing missing
+	// firmware.
+	if fetch(base+"OpenCore/OpenCore.qcow2", filepath.Join(dir, "OpenCore.qcow2"), "") != 0 {
+		return 1
+	}
+	if fetch(base+"OVMF_CODE.fd", filepath.Join(dir, "OVMF_CODE.fd"), "") != 0 {
+		return 1
+	}
 	if _, err := os.Stat(filepath.Join(dir, "OVMF_VARS-1920x1080.fd")); err != nil {
-		fetch(base+"OVMF_VARS-1920x1080.fd", filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), "")
+		if fetch(base+"OVMF_VARS-1920x1080.fd", filepath.Join(dir, "OVMF_VARS-1920x1080.fd"), "") != 0 {
+			return 1
+		}
 	}
 	if noConf {
 		return 0

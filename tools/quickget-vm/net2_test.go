@@ -232,3 +232,40 @@ func TestImageNormalizeMatrix(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "k.7z"), []byte("not-7z"), 0o644)
 	imageNormalize("kolibrios", "k.7z", dir)
 }
+
+// Regression: customConf ignored the virtio-win fetch result — a
+// failed driver download left a conf whose fixed_iso pointed at a
+// missing ISO. It must abort like the sibling URL fetch does.
+func TestCustomConfVirtioFetchFailure(t *testing.T) {
+	dir := t.TempDir()
+	old := fetch
+	fetch = func(url, dest, sha string) int { return 1 }
+	t.Cleanup(func() { fetch = old })
+	src := filepath.Join(dir, "windows11.iso")
+	if err := os.WriteFile(src, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	vm := filepath.Join(dir, "vmw")
+	if rc := customConf(vm, src, "--unattended"); rc == 0 {
+		t.Fatal("failed virtio-win download must abort customConf")
+	}
+	if _, err := os.Stat(vm + ".conf"); err == nil {
+		t.Fatal("no conf must be written over a failed driver download")
+	}
+}
+
+// Regression: unattendedWindows ignored the SPICE MSI fetch results —
+// autounattend.xml runs msiexec on both files, so a failed download
+// shipped an ISO missing promised drivers.
+func TestUnattendedDriverFetchFailure(t *testing.T) {
+	dir := t.TempDir()
+	old := fetch
+	fetch = func(url, dest, sha string) int { return 1 }
+	t.Cleanup(func() { fetch = old })
+	if rc := unattendedWindows(dir, "w10", ""); rc == 0 {
+		t.Fatal("failed SPICE driver download must abort")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "unattended.iso")); err == nil {
+		t.Fatal("unattended.iso must not be built over failed drivers")
+	}
+}

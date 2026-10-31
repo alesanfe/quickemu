@@ -89,8 +89,13 @@ func customConf(vmPath, input, flag string) int {
 			fmt.Println("Creating unattended Windows installation files. To disable, pass --disable-unattended")
 			fmt.Println()
 			fmt.Println("Downloading VirtIO drivers...")
-			fetch("https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso",
-				filepath.Join(vmPath, "virtio-win.iso"), "")
+			// fixed_iso references virtio-win.iso in the generated
+			// conf — a failed download must abort, not leave a conf
+			// pointing at a missing ISO.
+			if fetch("https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso",
+				filepath.Join(vmPath, "virtio-win.iso"), "") != 0 {
+				return 1
+			}
 			fixedISO = "virtio-win.iso"
 			os.Remove(filepath.Join(vmPath, "unattended.iso"))
 			drv := "w11"
@@ -284,10 +289,16 @@ func unattendedWindows(vmPath, driverDir, i18n string) int {
 		return 1
 	}
 	fmt.Println("Downloading Spice drivers...")
-	fetch("https://www.spice-space.org/download/windows/spice-webdavd/spice-webdavd-x64-latest.msi",
-		filepath.Join(dir, "spice-webdavd-x64-latest.msi"), "")
-	fetch("https://www.spice-space.org/download/windows/vdagent/vdagent-win-0.10.0/spice-vdagent-x64-0.10.0.msi",
-		filepath.Join(dir, "spice-vdagent-x64-0.10.0.msi"), "")
+	// autounattend.xml runs msiexec on these files — a failed fetch
+	// must abort rather than ship an ISO missing promised drivers.
+	if fetch("https://www.spice-space.org/download/windows/spice-webdavd/spice-webdavd-x64-latest.msi",
+		filepath.Join(dir, "spice-webdavd-x64-latest.msi"), "") != 0 {
+		return 1
+	}
+	if fetch("https://www.spice-space.org/download/windows/vdagent/vdagent-win-0.10.0/spice-vdagent-x64-0.10.0.msi",
+		filepath.Join(dir, "spice-vdagent-x64-0.10.0.msi"), "") != 0 {
+		return 1
+	}
 	fmt.Println("Making unattended.iso")
 	iso := filepath.Join(vmPath, "unattended.iso")
 	files := map[string]string{}

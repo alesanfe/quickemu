@@ -282,7 +282,13 @@ func extractArchive(format, file, vmPath, imageType string) string {
 			if err != nil {
 				continue
 			}
-			io.Copy(w, tr)
+			// A truncated member must not survive — the glob below
+			// would pick a partial file as the image.
+			if _, err := io.Copy(w, tr); err != nil {
+				w.Close()
+				os.Remove(dest)
+				continue
+			}
 			w.Close()
 		}
 		if m, _ := filepath.Glob(filepath.Join(vmPath, "*."+imageType)); len(m) > 0 {
@@ -304,8 +310,17 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		if err != nil {
 			return file
 		}
-		io.Copy(w, xr)
-		w.Close()
+		// A truncated stream yields a partial artifact — remove it and
+		// fall back to the untouched download, like the open-fail path.
+		if _, err := io.Copy(w, xr); err != nil {
+			w.Close()
+			os.Remove(out)
+			return file
+		}
+		if err := w.Close(); err != nil {
+			os.Remove(out)
+			return file
+		}
 		return out
 	case format == "gz":
 		rc, err := open()
@@ -322,8 +337,15 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		if err != nil {
 			return file
 		}
-		io.Copy(w, gr)
-		w.Close()
+		if _, err := io.Copy(w, gr); err != nil {
+			w.Close()
+			os.Remove(out)
+			return file
+		}
+		if err := w.Close(); err != nil {
+			os.Remove(out)
+			return file
+		}
 		return out
 	case format == "bz2":
 		rc, err := open()
@@ -336,8 +358,15 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		if err != nil {
 			return file
 		}
-		io.Copy(w, bzip2.NewReader(rc))
-		w.Close()
+		if _, err := io.Copy(w, bzip2.NewReader(rc)); err != nil {
+			w.Close()
+			os.Remove(out)
+			return file
+		}
+		if err := w.Close(); err != nil {
+			os.Remove(out)
+			return file
+		}
 		return out
 	case format == "zip":
 		zr, err := zip.OpenReader(file)
@@ -362,8 +391,12 @@ func extractArchive(format, file, vmPath, imageType string) string {
 			os.MkdirAll(filepath.Dir(dest), 0755)
 			w, err := os.Create(dest)
 			if err == nil {
-				io.Copy(w, rc)
-				w.Close()
+				if _, cerr := io.Copy(w, rc); cerr != nil {
+					w.Close()
+					os.Remove(dest)
+				} else {
+					w.Close()
+				}
 			}
 			rc.Close()
 		}
