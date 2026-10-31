@@ -163,6 +163,27 @@
    "boot_mode": "both",
    "support_level": "stable"
   },
+ {
+  "os": "alma-cloud",
+  "releases": [
+   "10",
+   "9",
+   "8"
+  ],
+  "editions": [],
+  "arch": [
+   "amd64",
+   "arm64"
+  ],
+  "url": "https://repo.almalinux.org/almalinux",
+  "scrape": true,
+  "status": "active",
+  "image_type": "qcow2",
+  "download_mode": "direct",
+  "license": "redistributable",
+  "boot_mode": "both",
+  "support_level": "stable"
+ },
   {
    "os": "alpine",
    "releases": [
@@ -535,6 +556,24 @@
    "boot_mode": "both",
    "support_level": "stable"
   },
+ {
+  "os": "arch-cloud",
+  "releases": [
+   "latest"
+  ],
+  "editions": [],
+  "arch": [
+   "amd64"
+  ],
+  "url": "https://geo.mirror.pkgbuild.com/images/latest",
+  "scrape": true,
+  "status": "active",
+  "image_type": "qcow2",
+  "download_mode": "direct",
+  "license": "redistributable",
+  "boot_mode": "both",
+  "support_level": "stable"
+ },
   {
    "os": "archman",
    "arch": [
@@ -1288,6 +1327,26 @@
    "boot_mode": "both",
    "support_level": "stable"
   },
+ {
+  "os": "centos-stream-cloud",
+  "releases": [
+   "10",
+   "9"
+  ],
+  "editions": [],
+  "arch": [
+   "amd64",
+   "arm64"
+  ],
+  "url": "https://cloud.centos.org/centos",
+  "scrape": true,
+  "status": "active",
+  "image_type": "qcow2",
+  "download_mode": "direct",
+  "license": "redistributable",
+  "boot_mode": "both",
+  "support_level": "stable"
+ },
   {
    "os": "cervus",
    "releases": [
@@ -1664,7 +1723,10 @@
     "12",
     "11"
    ],
-   "editions": [],
+   "editions": [
+    "genericcloud",
+    "nocloud"
+   ],
    "arch": [
     "amd64",
     "arm64"
@@ -5196,6 +5258,27 @@
    "boot_mode": "both",
    "support_level": "stable"
   },
+ {
+  "os": "opensuse-cloud",
+  "releases": [
+   "16.0",
+   "15.6",
+   "tumbleweed"
+  ],
+  "editions": [],
+  "arch": [
+   "amd64",
+   "arm64"
+  ],
+  "url": "https://download.opensuse.org",
+  "scrape": true,
+  "status": "active",
+  "image_type": "qcow2",
+  "download_mode": "direct",
+  "license": "redistributable",
+  "boot_mode": "both",
+  "support_level": "stable"
+ },
   {
    "os": "opensuse-microos",
    "releases": [
@@ -6430,6 +6513,27 @@
    "boot_mode": "both",
    "support_level": "stable"
   },
+ {
+  "os": "rocky-cloud",
+  "releases": [
+   "10",
+   "9",
+   "8"
+  ],
+  "editions": [],
+  "arch": [
+   "amd64",
+   "arm64"
+  ],
+  "url": "https://dl.rockylinux.org/pub/rocky",
+  "scrape": true,
+  "status": "active",
+  "image_type": "qcow2",
+  "download_mode": "direct",
+  "license": "redistributable",
+  "boot_mode": "both",
+  "support_level": "stable"
+ },
   {
    "os": "rosa",
    "releases": [
@@ -7601,6 +7705,29 @@
    "boot_mode": "both",
    "support_level": "stable"
   },
+ {
+  "os": "ubuntu-cloud",
+  "releases": [
+   "26.04",
+   "25.10",
+   "24.04",
+   "22.04",
+   "20.04"
+  ],
+  "editions": [],
+  "arch": [
+   "amd64",
+   "arm64"
+  ],
+  "url": "https://cloud-images.ubuntu.com/releases",
+  "scrape": true,
+  "status": "active",
+  "image_type": "qcow2",
+  "download_mode": "direct",
+  "license": "redistributable",
+  "boot_mode": "both",
+  "support_level": "stable"
+ },
   {
    "os": "ubuntu-budgie",
    "releases": [

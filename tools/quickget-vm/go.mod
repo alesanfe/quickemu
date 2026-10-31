@@ -41,6 +41,7 @@ require (
 require (
 	github.com/alesanfe/quickemu/tools/qelib v0.0.0
 	golang.org/x/crypto v0.46.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 replace github.com/alesanfe/quickemu/tools/qelib => ../qelib

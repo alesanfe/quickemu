@@ -1,13 +1,15 @@
 # Fedora Cloud Base image (qcow2, cloud-init preinstalled). dnf
 # provisioning + systemd services — third package-manager family in
-# the provider matrix (apt/apk/dnf).
+# the provider matrix (apt/apk/dnf). Release 43's kernel hangs under
+# pure-TCG hosts (systemd PID1 crashes mid-boot — QEMU 8.2/MTTCG vs
+# 6.17); use 42 for software emulation, 43+ on KVM.
 [profile]
 name = "fedora-cloud-dev"
-description = "Fedora 43 cloud image provisioned into a dev VM"
+description = "Fedora 42 cloud image provisioned into a dev VM"
 
 [system]
 os = "fedora-cloud"
-release = "43"
+release = "42"
 arch = "amd64"
 
 [machine]

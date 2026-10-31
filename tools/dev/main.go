@@ -32,6 +32,7 @@ import (
 // entries maps cli modules to their public bin/ name.
 var entries = map[string]string{
 	"quickemu-cli": "quickemu",
+	"quickemu-env": "quickemu-env",
 	"quickget-cli": "quickget",
 	"quickgetc":    "quickgetc",
 	"quickreport":  "quickreport",

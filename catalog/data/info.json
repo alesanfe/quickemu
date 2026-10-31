@@ -48,6 +48,12 @@
    "info": "Community owned and governed, forever-free enterprise Linux distribution, focused on long-term stability, providing a robust production-grade platform. AlmaLinux OS is binary compatible with RHEL®.",
    "name": "AlmaLinux"
   },
+  "alma-cloud": {
+   "credentials": "almalinux",
+   "homepage": "https://almalinux.org/",
+   "info": "Official AlmaLinux GenericCloud image with cloud-init (default user: almalinux).",
+   "name": "AlmaLinux (cloud image)"
+  },
   "alpine": {
    "credentials": "-",
    "homepage": "https://alpinelinux.org/",
@@ -55,7 +61,7 @@
    "name": "Alpine Linux"
   },
   "alpine-cloud": {
-   "credentials": "-",
+   "credentials": "alpine",
    "homepage": "https://alpinelinux.org/cloud/",
    "info": "Official Alpine cloud image with cloud-init (NoCloud seed).",
    "name": "Alpine Linux (cloud image)"
@@ -143,6 +149,12 @@
    "homepage": "https://archlinux.org/",
    "info": "Lightweight and flexible Linux® distribution that tries to Keep It Simple.",
    "name": "Arch Linux"
+  },
+  "arch-cloud": {
+   "credentials": "arch",
+   "homepage": "https://archlinux.org/",
+   "info": "Official Arch Linux cloud image (qcow2) with cloud-init support (default user: arch).",
+   "name": "Arch Linux (cloud image)"
   },
   "archman": {
    "credentials": "-",
@@ -354,6 +366,12 @@
    "info": "Continuously delivered distro that tracks just ahead of Red Hat Enterprise Linux (RHEL) development, positioned as a midstream between Fedora Linux and RHEL.",
    "name": "CentOS Stream"
   },
+  "centos-stream-cloud": {
+   "credentials": "cloud-user",
+   "homepage": "https://www.centos.org/centos-stream/",
+   "info": "Official CentOS Stream GenericCloud image with cloud-init (default user: cloud-user; ec2-user on AWS).",
+   "name": "CentOS Stream (cloud image)"
+  },
   "cervus": {
    "credentials": "-",
    "homepage": "https://github.com/VeoQeoOrg/Cervus",
@@ -463,7 +481,7 @@
    "name": "Debian"
   },
   "debian-cloud": {
-   "credentials": "-",
+   "credentials": "debian",
    "homepage": "https://cloud.debian.org/",
    "info": "Official Debian genericcloud image with cloud-init preinstalled.",
    "name": "Debian (cloud image)"
@@ -637,7 +655,7 @@
    "name": "Fedora"
   },
   "fedora-cloud": {
-   "credentials": "-",
+   "credentials": "fedora",
    "homepage": "https://fedoraproject.org/cloud/",
    "info": "Official Fedora Cloud Base image with cloud-init preinstalled.",
    "name": "Fedora Cloud"
@@ -1440,6 +1458,12 @@
    "info": "The makers choice for sysadmins, developers and desktop users.",
    "name": "openSUSE"
   },
+  "opensuse-cloud": {
+   "credentials": "opensuse",
+   "homepage": "https://www.opensuse.org/",
+   "info": "Official openSUSE Minimal-VM cloud image for Leap and Tumbleweed with cloud-init (default user: opensuse; ec2-user on AWS).",
+   "name": "openSUSE (cloud image)"
+  },
   "opensuse-microos": {
    "credentials": "-",
    "homepage": "https://microos.opensuse.org/",
@@ -1776,6 +1800,12 @@
    "info": "Open-source enterprise operating system designed to be 100% bug-for-bug compatible with Red Hat Enterprise Linux®.",
    "name": "Rocky Linux"
   },
+  "rocky-cloud": {
+   "credentials": "rocky",
+   "homepage": "https://rockylinux.org/",
+   "info": "Official Rocky Linux GenericCloud-Base image with cloud-init (default user: rocky).",
+   "name": "Rocky Linux (cloud image)"
+  },
   "rosa": {
    "credentials": "-",
    "homepage": "https://www.rosalinux.ru/",
@@ -2057,6 +2087,12 @@
    "homepage": "https://ubuntu.com/",
    "info": "Complete desktop Linux operating system, freely available with both community and professional support.",
    "name": "Ubuntu"
+  },
+  "ubuntu-cloud": {
+   "credentials": "ubuntu",
+   "homepage": "https://cloud-images.ubuntu.com/",
+   "info": "Official Ubuntu server cloudimg with cloud-init (default user: ubuntu).",
+   "name": "Ubuntu (cloud image)"
   },
   "ubuntu-budgie": {
    "credentials": "-",

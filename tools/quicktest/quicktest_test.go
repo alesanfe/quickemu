@@ -930,7 +930,11 @@ func TestNoCloudPrepare(t *testing.T) {
 		}
 	}
 	ud, _ := os.ReadFile(filepath.Join(dir, "user-data"))
-	for _, want := range []string{"#cloud-config", "hostname: h1", "name: u1", "ssh_authorized_keys", "passwd:"} {
+	for _, want := range []string{"#cloud-config", "hostname: h1", "name: u1",
+		"ssh_authorized_keys", "passwd:",
+		// portability: no /bin/bash (Alpine lacks it), sudo installed
+		// via cloud-init so provision never races its absence.
+		"shell: /bin/sh", "packages: [sudo]"} {
 		if !strings.Contains(string(ud), want) {
 			t.Fatalf("user-data missing %s:\n%s", want, ud)
 		}
@@ -1093,6 +1097,25 @@ func TestDispatchFailPaths(t *testing.T) {
 		}
 		if env["success"] != false {
 			t.Fatalf("%s envelope %s", c, out)
+		}
+	}
+}
+
+// The shipped cloud-dev profiles must parse and resolve the nocloud
+// provider — they are the E2E entry points for alpine/debian/fedora.
+func TestLoadProfileCloudProfiles(t *testing.T) {
+	for _, f := range []string{
+		"alpine-cloud-dev.toml", "debian-cloud-dev.toml",
+		"fedora-cloud-dev.toml", "ubuntu-cloud-dev.toml"} {
+		p, err := loadProfile(filepath.Join("testdata", f))
+		if err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if p.Automation.Provider != "nocloud-image" {
+			t.Fatalf("%s provider=%q", f, p.Automation.Provider)
+		}
+		if len(p.Provision.Packages) == 0 || len(p.Verify) == 0 {
+			t.Fatalf("%s provision/verify empty", f)
 		}
 	}
 }

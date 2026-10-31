@@ -305,6 +305,10 @@ func (r *runCtx) awaitInstall(ctx context.Context) error {
 		time.Duration(r.p.Automation.InstallTimeoutMin)*time.Minute)
 }
 
+// sudoPollInterval paces the privilege-tool wait below; tests shrink
+// it so the absent-sudo path doesn't take five minutes.
+var sudoPollInterval = 10 * time.Second
+
 // provision applies packages/services/files/commands over SSH. The
 // package manager is detected on the guest — a guest without one
 // gets a warning, not a failure (CirrOS has no apt).
@@ -326,7 +330,7 @@ func (r *runCtx) provision(ctx context.Context) error {
 		if i == 29 {
 			r.e.progress("provision", "sudo still absent after cloud-init — installs may fail")
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(sudoPollInterval)
 	}
 	if pkgs := r.p.Provision.Packages; len(pkgs) > 0 {
 		pm := detectPkgMgr(c)

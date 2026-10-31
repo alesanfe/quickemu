@@ -481,6 +481,72 @@ func TestProvisionVerifyShutdown(t *testing.T) {
 	}
 }
 
+// Alpine guests carry OpenRC, not systemd — services must go through
+// rc-update/rc-service, detected via `command -v rc-service`.
+func TestProvisionOpenRC(t *testing.T) {
+	var ran []string
+	srv := startSSHServer(t, func(cmd string) (string, int) {
+		ran = append(ran, cmd)
+		switch {
+		case strings.Contains(cmd, "command -v rc-service"):
+			return "", 0 // OpenRC guest
+		case strings.Contains(cmd, "command -v sudo"):
+			return "", 0
+		case strings.Contains(cmd, "command -v apk"):
+			return "", 0 // apk = the detected package manager
+		}
+		return "", 1
+	})
+	r, dir := testRunCtx(t)
+	r.artDir = filepath.Join(dir, "art")
+	os.MkdirAll(r.artDir, 0o755)
+	r.e = newEmitter(r.runID, r.vmName, r.vmDir, r.artDir, true)
+	defer r.e.close()
+	r.sshPort = srv.port()
+	r.p.Provision.Services = []string{"qemu-guest-agent"}
+	if err := r.provision(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	joined := strings.Join(ran, "|")
+	for _, want := range []string{"rc-update add 'qemu-guest-agent' default",
+		"rc-service 'qemu-guest-agent' start"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("guest never saw %q in %s", want, joined)
+		}
+	}
+	if strings.Contains(joined, "systemctl") {
+		t.Fatalf("OpenRC guest must not see systemctl: %s", joined)
+	}
+}
+
+// A guest where sudo never lands (cloud-init skipped the package
+// stage) still proceeds — the wait warns instead of hanging forever.
+func TestProvisionSudoAbsent(t *testing.T) {
+	old := sudoPollInterval
+	sudoPollInterval = time.Millisecond
+	t.Cleanup(func() { sudoPollInterval = old })
+	srv := startSSHServer(t, func(cmd string) (string, int) {
+		if strings.Contains(cmd, "command -v") {
+			return "", 1 // nothing installed — no sudo, no PM, no rc-service
+		}
+		return "", 0
+	})
+	r, dir := testRunCtx(t)
+	r.artDir = filepath.Join(dir, "art")
+	os.MkdirAll(r.artDir, 0o755)
+	r.e = newEmitter(r.runID, r.vmName, r.vmDir, r.artDir, true)
+	defer r.e.close()
+	r.sshPort = srv.port()
+	r.p.Provision.Packages = []string{"htop"}
+	start := time.Now()
+	if err := r.provision(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if time.Since(start) > 5*time.Second {
+		t.Fatal("sudo wait did not honour the shrunken interval")
+	}
+}
+
 // --- run() end-to-end ----------------------------------------------------
 
 // stagedWorkdir returns a workdir holding a reusable VM conf so

@@ -28,8 +28,22 @@ var (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("usage: quickget-vm <mkconf|fetch> ...")
+		fmt.Println("usage: quickget-vm <mkconf|fetch|get|customconf|chunkcheck|seed|overlay|checkbase|rebase|flatten|cache> ...")
 		os.Exit(2)
+	}
+	switch os.Args[1] {
+	case "seed":
+		os.Exit(seedSubcommand(os.Args[2:]))
+	case "overlay":
+		os.Exit(cmdOverlay(os.Args[2:]))
+	case "checkbase":
+		os.Exit(cmdCheckBase(os.Args[2:]))
+	case "rebase":
+		os.Exit(cmdRebase(os.Args[2:]))
+	case "flatten":
+		os.Exit(cmdFlatten(os.Args[2:]))
+	case "cache":
+		os.Exit(cmdCache(os.Args[2:]))
 	}
 	if os.Args[1] == "fetch" {
 		var url, dest, sha string
@@ -58,25 +72,43 @@ func main() {
 		var osName, release, edition, dir, arch string
 		pos := []string{}
 		for i := 2; i < len(os.Args); i++ {
-			if strings.HasPrefix(os.Args[i], "--") && i+1 < len(os.Args) {
-				switch os.Args[i] {
-				case "--dir":
-					dir = os.Args[i+1]
-				case "--arch":
-					arch = os.Args[i+1]
-				case "--cloud-init":
-					cloudInitFlag = true
-					i--
-				case "--no-conf":
-					noConf = true
-					i--
-				case "--unattended":
-					unattendedFlag = true
-					i--
+			a := os.Args[i]
+			if !strings.HasPrefix(a, "--") {
+				pos = append(pos, a)
+				continue
+			}
+			switch a {
+			case "--dir", "--arch":
+				if i+1 < len(os.Args) {
+					i++
+					if a == "--dir" {
+						dir = os.Args[i]
+					} else {
+						arch = os.Args[i]
+					}
 				}
-				i++
-			} else {
-				pos = append(pos, os.Args[i])
+			case "--cloud-init":
+				cloudInitFlag = true
+			case "--no-conf":
+				noConf = true
+			case "--unattended":
+				unattendedFlag = true
+			case "--cache":
+				cacheFlag = true
+			case "--offline":
+				offlineFlag, cacheFlag = true, true
+			case "--overlay":
+				overlayFlag = true
+			default:
+				ok, err := seedOpts.parseSeedFlag(os.Args, &i)
+				if err != nil {
+					fmt.Println("get: " + err.Error())
+					os.Exit(2)
+				}
+				if !ok {
+					fmt.Println("get: unsupported argument " + a)
+					os.Exit(2)
+				}
 			}
 		}
 		if len(pos) > 0 {
@@ -139,7 +171,7 @@ func main() {
 		os.Exit(0)
 	}
 	if os.Args[1] != "mkconf" {
-		fmt.Println("usage: quickget-vm <get|mkconf|fetch|customconf|chunkcheck> ...")
+		fmt.Println("usage: quickget-vm <get|mkconf|fetch|customconf|chunkcheck|seed|overlay|checkbase|rebase|flatten|cache> ...")
 		os.Exit(2)
 	}
 	var osName, release, edition, image, iso, dir, arch string
@@ -167,7 +199,18 @@ func main() {
 		case "--cloud-init":
 			cloudInit = true
 			i--
+		case "--overlay":
+			overlayFlag = true
+			i--
 		default:
+			ok, err := seedOpts.parseSeedFlag(os.Args, &i)
+			if err != nil {
+				fmt.Println("mkconf: " + err.Error())
+				os.Exit(2)
+			}
+			if !ok {
+				continue
+			}
 			continue
 		}
 		i++
@@ -185,6 +228,32 @@ func main() {
 // quickget-catalog is our own Go binary; zsync delegates to the
 // external zsync binary only for .zsync sources (Bash zsync_get).
 var cloudInitFlag, noConf, unattendedFlag bool
+
+// overlayFlag routes downloaded qcow2s through the shared base cache
+// (QE-042); cacheFlag routes downloads through the secure dl cache and
+// offlineFlag forbids network fetches entirely (QE-043).
+var overlayFlag, cacheFlag, offlineFlag bool
+
+// fetchImage downloads url to dest honouring the --cache/--offline
+// flags: cached hits are copied out of the read-mostly store, offline
+// misses fail rather than touching the network.
+func fetchImage(url, dest, sha string) int {
+	if !cacheFlag && !offlineFlag {
+		return fetch(url, dest, sha)
+	}
+	p, err := cachedFetch(url, sha, offlineFlag)
+	if err != nil {
+		fmt.Println(err)
+		return 1
+	}
+	if p != dest {
+		if err := copyFile(p, dest); err != nil {
+			fmt.Println(err)
+			return 1
+		}
+	}
+	return 0
+}
 
 func getOS(osName, release, edition, dir, arch string) int {
 	// Custom pipelines that bypass create_vm in Bash (cli/main.sh):
@@ -255,7 +324,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 	}
 	if hashURL != "" {
 		hf := filepath.Join(dir, ".hashsums")
-		if fetch(hashURL, hf, "") == 0 {
+		if fetchImage(hashURL, hf, "") == 0 {
 			if b, err := os.ReadFile(hf); err == nil {
 				base := filepath.Base(url)
 				for _, l := range strings.Split(string(b), "\n") {
@@ -281,7 +350,7 @@ func getOS(osName, release, edition, dir, arch string) int {
 	// zsync sources prefer the external zsync binary (delta download);
 	// the fallback fetches the underlying image URL (.zsync stripped),
 	// never the control file itself.
-	if strings.HasSuffix(url, ".zsync") {
+	if strings.HasSuffix(url, ".zsync") && !offlineFlag {
 		if z, err := exec.LookPath("zsync"); err == nil {
 			cmd := execCommand(z, "-o", image, url)
 			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
@@ -291,11 +360,11 @@ func getOS(osName, release, edition, dir, arch string) int {
 		} else {
 			base := strings.TrimSuffix(url, ".zsync")
 			image = filepath.Join(dir, filepath.Base(base))
-			if fetch(base, image, sha) != 0 {
+			if fetchImage(base, image, sha) != 0 {
 				return 1
 			}
 		}
-	} else if fetch(url, image, sha) != 0 {
+	} else if fetchImage(url, image, sha) != 0 {
 		return 1
 	}
 	if noConf {
@@ -304,6 +373,21 @@ func getOS(osName, release, edition, dir, arch string) int {
 	// image_normalize: decompress/convert the artifact per-OS and pick
 	// up the final image name inside the VM dir.
 	imageName := imageNormalize(osName, filepath.Base(image), dir)
+	// --overlay: a downloaded qcow2 becomes a shared read-only base;
+	// the VM's disk is a thin overlay on top of it (QE-042).
+	if overlayFlag && qcowMagic(filepath.Join(dir, imageName)) {
+		dst := filepath.Join(dir, "disk.qcow2")
+		base, err := makeOverlay(filepath.Join(dir, imageName), dst,
+			baseImageName(osName, release, arch))
+		if err != nil {
+			fmt.Println("overlay: " + err.Error())
+			return 1
+		}
+		fmt.Println(" - Base image cached read-only at " + base)
+		imageName = "disk.qcow2"
+	} else if overlayFlag {
+		fmt.Println("WARNING! --overlay requires a qcow2 download; using the image directly.")
+	}
 	// windows/windows-server: fetch virtio-win.iso + build the
 	// unattended install media for retail releases 10/11 (get.sh flow).
 	fixedISO := ""

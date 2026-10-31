@@ -92,6 +92,15 @@ func osTweaks(osName, release, edition string) []string {
 		if strings.Contains(release, "22.04") {
 			t = append(t, `tpm="on"`)
 		}
+	case "fedora-cloud", "fedora":
+		// Fedora's systemd wedges mid-boot under TCG (qemu64 is
+		// x86-64-v1-only and MTTCG hits guest SMP races): pin the
+		// TCG model to `max` and force the single-thread loop.
+		// Both keys are TCG-scoped; KVM runs ignore them. Seen on
+		// 42 and 43.
+		if release != "" && release >= "42" {
+			t = append(t, `tcg_cpu_model="max"`, `tcg_thread="single"`)
+		}
 	case "vanillaos":
 		t = append(t, `disk_size="64G"`)
 	case "zorin":
@@ -262,9 +271,14 @@ func mkconf(osName, release, edition, imageFile, isoFile, dir, arch string, clou
 	}
 	fmt.Println(" - Setting " + confFile + " executable")
 	// gen_seed_iso parity: --cloud-init appends seed="..." to the conf
-	// and builds user-data/meta-data/seed.iso inside the VM dir.
-	if len(cloudInit) > 0 && cloudInit[0] {
-		if rc := genSeedISO(dir, confFile); rc != 0 {
+	// and builds user-data/meta-data/seed.iso inside the VM dir. The
+	// seedOpts package flags (--user-data, --packages, --user …) shape
+	// the generated seed (QE-040). *-cloud catalog entries are
+	// pre-imaged disks with no installer — cloud-init is mandatory for
+	// them, so the seed is generated even without the flag (QE-041).
+	wantSeed := (len(cloudInit) > 0 && cloudInit[0]) || strings.HasSuffix(osName, "-cloud")
+	if wantSeed {
+		if rc := genSeedISOOpts(dir, confFile, &seedOpts); rc != 0 {
 			return rc
 		}
 	}
