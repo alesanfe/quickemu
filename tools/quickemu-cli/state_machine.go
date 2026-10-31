@@ -44,13 +44,17 @@ const (
 // target from every state (canTransition); "" (no record yet) may
 // adopt any observed state.
 var machineTransitions = map[string][]string{
-	stDefined:    {stPreparing, stImporting, stDeleting, stStopped},
-	stPreparing:  {stStarting, stStopped},
-	stStarting:   {stRunning, stStopped, stCrashed},
-	stRunning:    {stPaused, stSaving, stSuspended, stStopping, stStopped, stCrashed},
-	stPaused:     {stRunning, stStopping, stSuspended, stSaving, stStopped, stCrashed},
-	stSaving:     {stRunning, stPaused, stStopped, stCrashed},
-	stSuspended:  {stRunning, stStopped},
+	stDefined:   {stPreparing, stImporting, stDeleting, stStopped},
+	stPreparing: {stStarting, stStopped},
+	stStarting:  {stRunning, stStopped, stCrashed},
+	stRunning:   {stPaused, stSaving, stSuspended, stStopping, stStopped, stCrashed},
+	stPaused:    {stRunning, stStopping, stSuspended, stSaving, stStopped, stCrashed},
+	// QE-020: a completed suspend lands in suspended; an interrupted
+	// one detours through recovering (then error via the universal arc).
+	stSaving: {stSuspended, stRecovering, stRunning, stPaused, stStopped, stCrashed},
+	// QE-020: resume enters the boot path directly (starting); a cold
+	// boot after suspend takes the normal preparing arc.
+	stSuspended:  {stStarting, stPreparing, stRunning, stStopped},
 	stStopping:   {stStopped, stRunning, stCrashed},
 	stStopped:    {stPreparing, stDefined, stImporting, stExporting, stDeleting},
 	stCrashed:    {stRecovering, stStopped, stPreparing, stDeleting},
@@ -197,6 +201,14 @@ func machineReconcile() string {
 		// monitor-quit or the guest's own powerdown); a live-state
 		// record means QEMU died under us (SIGKILL/OOM/host reboot).
 		switch recorded {
+		case stSuspended:
+			// A suspended VM's pidfile remnant is the expected end of
+			// a suspend (QEMU quit after the migrate) — keep the
+			// suspended record while the state image survives; fall
+			// to stopped when it doesn't (deleted or partial image).
+			if !suspendImageExists() {
+				machineTransitionF(stStopped, "suspend-image-missing", "reconcile", true)
+			}
 		case stStopping, stStopped, stDeleting, stCrashed:
 			cause := "stop-completed"
 			if rec != nil && rec.Cause != "" {

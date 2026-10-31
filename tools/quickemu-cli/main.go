@@ -114,6 +114,7 @@ func runActions() int {
 			"kill_vm": true, "pause_vm": true, "resume_vm": true,
 			"shutdown_vm": true, "reset_vm": true, "stop_vm": true,
 			"send_keys": true, "type_text": true, "screenshot_vm": true,
+			"vm_suspend": true, // migrate mutates machine state
 			"monitor_cmd": true, // HMP socket is single-client like QMP
 		}
 		// QE-002: read-only actions take the shared lock — status,

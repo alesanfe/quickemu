@@ -51,7 +51,8 @@ func TestCanTransitionTable(t *testing.T) {
 		{stDefined, stDeleting}, {stStopped, stDeleting},
 		{stDefined, stImporting}, {stStopped, stExporting},
 		{stError, stRecovering}, {stRecovering, stStopped},
-		{stPaused, stSuspended},
+		{stPaused, stSuspended}, {stSaving, stSuspended},
+		{stSuspended, stStarting}, {stRunning, stSuspended},
 	}
 	for _, p := range ok {
 		if !canTransition(p[0], p[1]) {
@@ -61,7 +62,7 @@ func TestCanTransitionTable(t *testing.T) {
 	bad := [][2]string{
 		{stDefined, stRunning}, {stStopped, stRunning},
 		{stStopped, stPaused}, {stDefined, stPaused},
-		{stStopped, stStarting}, {stSaving, stSuspended},
+		{stStopped, stStarting}, {stStopped, stSaving},
 		{"bogus", stRunning}, {stRunning, "bogus"},
 		{stRunning, stImporting}, {stExporting, stRunning},
 	}

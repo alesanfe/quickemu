@@ -361,13 +361,22 @@ func qmpVMStatus() string {
 	if err != nil {
 		return ""
 	}
+	// The tool answers the v1 envelope — the QMP return object sits
+	// in .data; accept a raw {"return":{}} shape too so both call
+	// styles decode.
 	var rep struct {
+		Data struct {
+			Status string `json:"status"`
+		} `json:"data"`
 		Return struct {
 			Status string `json:"status"`
 		} `json:"return"`
 	}
 	if json.Unmarshal([]byte(out), &rep) != nil {
 		return ""
+	}
+	if rep.Data.Status != "" {
+		return rep.Data.Status
 	}
 	return rep.Return.Status
 }

@@ -9,6 +9,8 @@ func dispatch(act string) func() int {
 	for _, sub := range []func(string) func() int{
 		dispatchLifecycle,
 		dispatchMonitor,
+		dispatchGuest,
+		dispatchSSH,
 		dispatchAdmin,
 		dispatchBackup,
 		dispatchSnapshotDisk,
@@ -34,6 +36,8 @@ func dispatchLifecycle(act string) func() int {
 		return actPause
 	case "resume_vm":
 		return actResume
+	case "vm_suspend":
+		return actSuspend
 	case "shutdown_vm":
 		return actShutdown
 	case "reset_vm":

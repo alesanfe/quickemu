@@ -68,3 +68,4 @@ tools/*/vm
 
 # Go coverage artifacts (CI uploads them, never commit)
 tools/*/coverage.out
+libexec/

@@ -47,7 +47,7 @@ func setConfOpt(flag, val string) {
 // words fall through to the normal unknown-parameter error.
 var subcommandAliases = map[string]bool{
 	"status": true, "vfio-scan": true, "disk-compact": true, "move": true,
-	"pause": true, "resume": true, "reset": true, "shutdown": true,
+	"pause": true, "resume": true, "suspend": true, "reset": true, "shutdown": true,
 	"kill": true, "restart": true, "delete-vm": true, "delete-plan": true,
 	"list-vms": true, "capabilities": true, "host-info": true,
 	"migrate-conf": true, "inspect-conf": true, "backup": true,
@@ -87,7 +87,7 @@ var knownFlags = func() map[string]bool {
 --serial --serial-console --serial-telnet-host --serial-telnet-port
 --shortcut --shutdown --snapshot --snapshot-apply --snapshot-create
 --snapshot-delete --snapshot-list --snapshot-tree --snapshot-verify
---sound-card --sound-duplex --spice-console --spice-port --ssh-access
+--sound-card --sound-duplex --spice-console --spice-port --ssh-access --suspend
 --ssh-port --start --stats --status --status-quo --stop --trash
 --trash-empty --trash-list --trash-restore --type --usb-controller
 --usb-passthrough --version --vfio-scan --viewer --vm --vnc --width`) {

@@ -40,6 +40,22 @@ func (p *argParser) scOptVal() {
 // actions list, confOpts overrides, extra action args and the flag
 // globals. Unknown "-" tokens error to stdout with usage, exit 1.
 func parseArgs(args []string) {
+	// `quickemu guest <verb> ...` / `quickemu ip ...` — the QGA
+	// subcommand parses in guest_parse.go before the flag scan.
+	if guestIntercept(args) {
+		return
+	}
+	// `quickemu ssh|scp|sftp|ssh-config|ssh-forget ...` — QE-030–033;
+	// ssh_parse.go owns the verb table.
+	if sshIntercept(args) {
+		return
+	}
+	// `quickemu config <verb> ...` — QE-111/112: config-file
+	// operations (migrate/set/get/validate) delegate to the
+	// quickemu-toml sibling; see config_migrate.go.
+	if args[0] == "config" {
+		os.Exit(actConfig(args[1:]))
+	}
 	// Subcommand alias: `quickemu <action> ...` -> `quickemu --<action>`.
 	if !strings.HasPrefix(args[0], "-") && subcommandAliases[args[0]] {
 		args[0] = "--" + args[0]
@@ -320,6 +336,8 @@ func parseLifecycleFlags(p *argParser, a string) bool {
 		actions = append(actions, "pause_vm")
 	case "--resume":
 		actions = append(actions, "resume_vm")
+	case "--suspend":
+		actions = append(actions, "vm_suspend")
 	case "--shutdown":
 		actions = append(actions, "shutdown_vm")
 	case "--reset":

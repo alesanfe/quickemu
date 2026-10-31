@@ -92,6 +92,11 @@ func actPause() int {
 }
 
 func actResume() int {
+	// QE-020: a suspended VM resumes by cold-booting from the saved
+	// state image — the same verb, the state machine picks the path.
+	if suspendedState() {
+		return actResumeSuspended()
+	}
 	if !requireRunning() {
 		return 1
 	}

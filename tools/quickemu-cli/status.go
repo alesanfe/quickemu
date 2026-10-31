@@ -35,8 +35,15 @@ func actStatus() int {
 		if pid > 0 {
 			p = pid
 		}
-		emitOK("vm.status", map[string]any{"name": vmname(), "state": st,
-			"pid": p, "allowedOps": allowedOps(st)})
+		d := map[string]any{"name": vmname(), "state": st,
+			"pid": p, "allowedOps": allowedOps(st)}
+		// QE-016: guest-agent addresses ride along in the JSON
+		// status when the agent is reachable (best-effort, never
+		// stalls a stopped/agentless VM).
+		if g := guestStatusInfo(); g != nil {
+			d["guest"] = g
+		}
+		emitOK("vm.status", d)
 		return 0
 	}
 	if pid > 0 {
