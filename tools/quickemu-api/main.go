@@ -370,6 +370,9 @@ func newMux() *http.ServeMux {
 	mux.HandleFunc("/v1/health", func(w http.ResponseWriter, _ *http.Request) {
 		write(w, 200, map[string]any{"data": map[string]any{"ok": true}})
 	})
+	// QE-101: Prometheus scrape — same auth posture as the rest of
+	// the read surface (VM names are low-grade metadata).
+	mux.HandleFunc("/metrics", auth(handleMetrics))
 	// QE-080–083: read-only telemetry/journal/capability surface.
 	mux.HandleFunc("/v1/stats", auth(handleStats))
 	mux.HandleFunc("/v1/capabilities", auth(handleCapabilities))

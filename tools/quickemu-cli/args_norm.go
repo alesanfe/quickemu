@@ -59,7 +59,8 @@ var subcommandAliases = map[string]bool{
 	"rename": true, "snapshot-apply": true, "snapshot-create": true,
 	"snapshot-delete": true, "snapshot-info": true, "snapshot-list": true,
 	"snapshot-policy": true,
-	"monitor-cmd":     true, "send-keys": true, "type": true, "screenshot": true,
+	"backup-incr":     true, "backup-incr-list": true,
+	"monitor-cmd": true, "send-keys": true, "type": true, "screenshot": true,
 	"viewer": true, "fullscreen": true, "status-quo": true, "vnc": true,
 	"spice-console": true, "publicdir": true, "serial-console": true,
 	"monitor-console": true, "ignore-msrs": true,
@@ -74,7 +75,8 @@ var subcommandAliases = map[string]bool{
 // -x -> --x normalisation so flag-shaped VALUES pass through raw.
 var knownFlags = func() map[string]bool {
 	m := map[string]bool{}
-	for _, f := range strings.Fields(`--access --autostart --backup --backup-list
+	for _, f := range strings.Fields(`--access --autostart --backup --backup-incr
+--backup-incr-list --backup-list
 --backup-prune --backup-restore --backup-verify --braille --capabilities
 --check --clone --cpu-pinning --delete --delete-disk --delete-plan
 --delete-shortcut --delete-vm --disk-compact --disk-resize --display

@@ -491,6 +491,9 @@ func (p *launchPlan) emit() []string {
 	if conf.get("resume_from", "") == "" {
 		args = append(args, loadvmArgs(conf)...)
 	}
+	// QE-100: seccomp sandbox — before the escape hatch so
+	// extra_args="-sandbox off" can still disable it last-wins.
+	args = append(args, sandboxArgs(conf)...)
 	// extra_args verbatim append (vm.sh): word-split like the unquoted
 	// Bash expansion — the escape hatch for any QEMU flag quickemu
 	// does not model (e.g. extra_args="-accel tcg" to force TCG).

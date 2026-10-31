@@ -72,11 +72,12 @@ var declarativeKeys = map[string]keySpec{
 	"serial":              {kindStr, nil},
 	"sound_card":          {kindEnum, []string{"ac97", "es1370", "ich9-intel-hda", "intel-hda", "sb16", "usb-audio", "virtio-sound-pci", "none"}},
 	"sound_duplex":        {kindEnum, []string{"hda-duplex", "hda-micro", "hda-output"}},
-	"public_dir":          {kindStr, nil}, // "none" is a legal value
-	"share_dirs":          {kindStr, nil}, // QE-060: space-separated extra shares
-	"share_tags":          {kindStr, nil}, // mount tags matching share_dirs
-	"share_in_dirs":       {kindStr, nil}, // QE-061: guest→host inboxes
-	"share":               {kindAny, nil}, // QE-060: [[share]] tables
+	"public_dir":          {kindStr, nil},                                                 // "none" is a legal value
+	"share_dirs":          {kindStr, nil},                                                 // QE-060: space-separated extra shares
+	"share_tags":          {kindStr, nil},                                                 // mount tags matching share_dirs
+	"share_in_dirs":       {kindStr, nil},                                                 // QE-061: guest→host inboxes
+	"share":               {kindAny, nil},                                                 // QE-060: [[share]] tables
+	"sandbox":             {kindEnum, []string{"off", "on", "strict", "relaxed", "true"}}, // QE-100
 	"seed":                {kindPath, nil},
 	"kernel":              {kindPath, nil},
 	"initrd":              {kindPath, nil},

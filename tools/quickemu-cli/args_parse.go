@@ -272,6 +272,10 @@ func parseSnapshotFlags(p *argParser, a string) bool {
 			policyVerb = "run"
 		}
 		actions = append(actions, "snapshot_policy")
+	case "--backup-incr":
+		actions = append(actions, "backup_incr")
+	case "--backup-incr-list":
+		actions = append(actions, "backup_incr_list")
 	default:
 		return false
 	}

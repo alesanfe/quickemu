@@ -190,6 +190,10 @@ func dispatchSnapshotDisk(act string) func() int {
 		return actSnapshotCmd
 	case "snapshot_policy":
 		return actSnapshotPolicy
+	case "backup_incr":
+		return actBackupIncr
+	case "backup_incr_list":
+		return actBackupIncrList
 	}
 	return nil
 }

@@ -295,3 +295,29 @@ func loadvmArgs(c Conf) []string {
 	}
 	return []string{"-loadvm", tag}
 }
+
+// sandboxArgs — QE-100: sandbox=on|strict|relaxed turns on QEMU's
+// seccomp sandbox. strict denies spawn too — incompatible with
+// -incoming exec: (suspend resume pipes through gzip -dc), so the
+// resume path relaxes spawn with a warning rather than failing.
+func sandboxArgs(c Conf) []string {
+	mode := c.get("sandbox", "off")
+	if mode == "off" || mode == "" {
+		return nil
+	}
+	opts := "on,obsolete=deny,elevateprivileges=deny,resourcecontrol=deny"
+	switch mode {
+	case "strict":
+		if c.get("resume_from", "") != "" {
+			fmt.Println(" - WARNING! sandbox=strict cannot deny spawn with -incoming exec: — relaxing spawn.")
+		} else {
+			opts += ",spawn=deny"
+		}
+	case "on", "true", "relaxed":
+		// 'on' keeps spawn allowed (migration/exec transports need it).
+	default:
+		fmt.Fprintf(os.Stderr, " - WARNING! unknown sandbox=%q — ignoring.\n", mode)
+		return nil
+	}
+	return []string{"-sandbox", opts}
+}
