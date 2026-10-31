@@ -1,14 +1,6 @@
 package main
 
-// profileDefaults: vm_profile_defaults parity — preset conf values
-// applied BEFORE the conf's own keys (conf wins on conflicts).
-var profileDefaults = map[string]map[string]string{
-	"windows-gaming": {"guest_os": "windows", "ram": "8G", "cpu_cores": "6", "video": "virtio-vga-gl"},
-	"linux-desktop":  {"guest_os": "linux", "ram": "4G", "cpu_cores": "4"},
-	"server":         {"guest_os": "linux", "ram": "4G", "display": "none", "network": "user"},
-	"minimal":        {"guest_os": "linux", "ram": "512M", "cpu_cores": "1"},
-	"ci":             {"guest_os": "linux", "ram": "2G", "display": "none", "network": "none"},
-}
+import "github.com/alesanfe/quickemu/tools/qelib"
 
 // networkPreset: vm_network_preset parity — nat/bridge/hostonly/
 // isolated mapped to the network mode the launch path understands.
@@ -23,7 +15,7 @@ var networkPreset = map[string]string{
 // only for keys the conf does not already set (conf overrides profile,
 // matching Bash loader.sh ordering).
 func applyPresets(c Conf) Conf {
-	if p, ok := profileDefaults[c.get("profile", "")]; ok {
+	if p, ok := qelib.ProfileDefaults(c.get("profile", "")); ok {
 		for k, v := range p {
 			if c[k] == "" {
 				c[k] = v
