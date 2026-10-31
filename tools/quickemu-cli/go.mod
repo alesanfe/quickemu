@@ -18,7 +18,10 @@ require (
 
 require (
 	github.com/alesanfe/quickemu/tools/qelib v0.0.0
+	github.com/alesanfe/quickemu/tools/quickemu-qga v0.0.0
 	github.com/jaypipes/pcidb v1.0.1
 )
 
 replace github.com/alesanfe/quickemu/tools/qelib => ../qelib
+
+replace github.com/alesanfe/quickemu/tools/quickemu-qga => ../quickemu-qga

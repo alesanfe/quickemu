@@ -164,6 +164,14 @@ func quirkMacosDevices(c Conf, t *OsTuning) {
 // windows x86_64 gets Hyper-V enlightenments; kolibrios/reactos run
 // qemu32; macos hides the hypervisor.
 func quirkCPU(c Conf, osName, arch string, t *OsTuning) {
+	// tcg_cpu_model="..." pins the emulated model — TCG-only, so a
+	// conf shipped for hosts without KVM never displaces `host`
+	// under KVM (Fedora 43's MTTCG boot hang set cpu_model=max +
+	// tcg_thread=single in conf_gen).
+	if m := c.get("tcg_cpu_model", ""); m != "" && c["_accel"] == "tcg" {
+		t.CPUFlags = "@" + m
+		return
+	}
 	switch osName {
 	case "windows", "windows-server":
 		quirkWindowsCPU(c, arch, t)

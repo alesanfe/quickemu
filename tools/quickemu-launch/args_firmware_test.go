@@ -318,6 +318,28 @@ func TestAarch64MachineEmit(t *testing.T) {
 	}
 }
 
+// tcg_cpu_model/tcg_thread are TCG-scoped overrides (Fedora 43's
+// MTTCG boot hang): they must steer the emulated CPU and thread
+// mode under tcg and be ignored once accel=kvm is real.
+func TestTcgOverrides(t *testing.T) {
+	tu := osQuirks(Conf{"tcg_cpu_model": "max", "_accel": "tcg"}, "linux", "x86_64")
+	if tu.CPUFlags != "@max" {
+		t.Fatalf("tcg_cpu_model under tcg: %q", tu.CPUFlags)
+	}
+	tu = osQuirks(Conf{"tcg_cpu_model": "max", "_accel": "kvm"}, "linux", "x86_64")
+	if tu.CPUFlags == "@max" {
+		t.Fatalf("tcg_cpu_model must not override host under kvm")
+	}
+	c := richConf(t, "qemu_accel=\"tcg\"\ntcg_cpu_model=\"max\"\ntcg_thread=\"single\"\nnetwork=\"none\"\ndisplay=\"none\"\nspice_port=\"5932\"\n")
+	out, rc := launch(t, nil, c, "--dry-run")
+	if rc != 0 {
+		t.Fatalf("rc=%d %s", rc, out)
+	}
+	if !strings.Contains(out, "thread=single") || !strings.Contains(out, "-cpu max") {
+		t.Fatalf("tcg overrides missing: %s", out)
+	}
+}
+
 // virtio-balloon: default for all guests; only dropped for pre-virtio
 // macOS releases (os_quirks BALLOON="").
 func TestBalloonPerGuest(t *testing.T) {

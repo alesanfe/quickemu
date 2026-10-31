@@ -91,4 +91,5 @@ func passthruArgs(c Conf) []string {
 // channelArgs removed: Bash has no agent/guest_agent conf keys — the
 // qemu-vdagent chardev was orphaned (no device referenced qga0) and
 // the virtserialport duplicated com.redhat.spice.0 from the SPICE
-// block. The guest-agent channel already emits inside -spice.
+// block. The guest-agent channel now emits for every display mode
+// (qga.go, qga="off" to disable).

@@ -169,6 +169,7 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		if t.MacDiskDev != "" {
 			dev = t.MacDiskDev
 		}
+		ioth := iothreadCount(c)
 		// -drive and its spec must be separate argv elements: Bash's
 		// SHELL_ARGS relied on shell word-splitting, exec.Command does not.
 		sys := "id=SystemDisk,if=none,format=" + dfmt + ",file=" +
@@ -184,7 +185,7 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		}
 		switch {
 		case mac:
-			sysDevice(dev + ",drive=SystemDisk")
+			sysDevice(iothreadAttach(dev+",drive=SystemDisk", 0, ioth))
 		case osn == "kolibrios":
 			a = append(a, "-device", "ahci,id=ahci",
 				"-device", "ide-hd,bus=ahci.0,drive=SystemDisk", "-drive", sys)
@@ -193,10 +194,10 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 			}
 		case osn == "batocera":
 			if img := c.get("img", ""); img != "" {
-				a = append(a, "-device", "virtio-blk-pci,drive=BootDisk",
+				a = append(a, "-device", iothreadAttach("virtio-blk-pci,drive=BootDisk", 0, ioth),
 					"-drive", "id=BootDisk,if=none,format=raw,file="+qemuOptEsc(joinConf(dir, img)))
 			}
-			sysDevice("virtio-blk-pci,drive=SystemDisk")
+			sysDevice(iothreadAttach("virtio-blk-pci,drive=SystemDisk", 0, ioth))
 		case osn == "reactos" || osn == "templeos":
 			// ATA/IDE only — no -device, a plain if=ide disk.
 			a = append(a, "-drive", "if=ide,index=0,media=disk,file="+qemuOptEsc(joinConf(dir, d)))
@@ -206,9 +207,9 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 		case osn == "windows-server":
 			sysDevice("ide-hd,drive=SystemDisk")
 		case c.get("arch", "x86_64") == "aarch64":
-			sysDevice("virtio-blk-pci,drive=SystemDisk,bootindex=2")
+			sysDevice(iothreadAttach("virtio-blk-pci,drive=SystemDisk,bootindex=2", 0, ioth))
 		default:
-			sysDevice(dev + ",drive=SystemDisk")
+			sysDevice(iothreadAttach(dev+",drive=SystemDisk", 0, ioth))
 		}
 	}
 	// extra_disks: optional :format suffix (default qcow2); missing
@@ -227,7 +228,7 @@ func storageArgs(c Conf, dir string, t OsTuning) []string {
 			continue
 		}
 		id := fmt.Sprintf("ExtraDisk%d", i)
-		a = append(a, "-device", "virtio-blk-pci,drive="+id,
+		a = append(a, "-device", iothreadAttach("virtio-blk-pci,drive="+id, i, iothreadCount(c)),
 			"-drive", "id="+id+",if=none,format="+ef+",file="+qemuOptEsc(ep)+
 				",discard=unmap,detect-zeroes=unmap,cache=writeback,aio=threads")
 		if sq != "" {

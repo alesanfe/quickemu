@@ -100,6 +100,65 @@ func validateConf(c Conf, confPath string) []string {
 			errs = append(errs, "bridge interface "+net+" does not exist")
 		}
 	}
+	// Feature keys (extras.go): each validates its own value shape —
+	// these are pure conf knobs with no Bash counterpart to mirror.
+	for _, k := range []string{"qga", "nested", "pxe"} {
+		switch c.get(k, "") {
+		case "", "on", "off", "true", "false", "yes", "no":
+		default:
+			errs = append(errs, k+" must be on/off")
+		}
+	}
+	// nested=on: refuse when the host provably has nested virt off —
+	// "unknown" (no sysfs access) stays permissive like other probes.
+	if confOn(c, "nested") && nestedHostState() == "disabled" {
+		errs = append(errs, "nested=on but host nested virtualization is disabled (/sys/module/kvm_*/parameters/nested)")
+	}
+	if v := c.get("iothreads", ""); v != "" {
+		n, _ := strconv.Atoi(v)
+		if !digitsOnly(v) || n < 1 || n > 64 {
+			errs = append(errs, "iothreads must be a number in 1-64")
+		}
+	}
+	switch mq := c.get("mq", ""); mq {
+	case "", "off", "auto":
+	default:
+		if !digitsOnly(mq) {
+			errs = append(errs, "mq must be 'auto' or a number")
+		} else if q, _ := strconv.Atoi(mq); q < 1 || q > 64 {
+			errs = append(errs, "mq must be in 1-64 or 'auto'")
+		} else if cc := c.get("cpu_cores", ""); cc != "" && digitsOnly(cc) {
+			if n, _ := strconv.Atoi(cc); q > n {
+				errs = append(errs, "mq exceeds cpu_cores (queues must be <= vCPUs)")
+			}
+		}
+	}
+	switch w := c.get("watchdog", ""); w {
+	case "", "off", "ib700", "virtio", "i6300esb":
+	default:
+		errs = append(errs, "watchdog must be ib700|virtio")
+	}
+	switch a := c.get("watchdog_action", ""); a {
+	case "", "none", "reset", "shutdown", "poweroff", "pause", "debug", "inject-nmi":
+	default:
+		errs = append(errs, "watchdog_action must be none|reset|shutdown|poweroff|pause|debug|inject-nmi")
+	}
+	switch v := c.get("vsock", ""); v {
+	case "", "off", "auto":
+	default:
+		if !digitsOnly(v) {
+			errs = append(errs, "vsock must be 'auto' or a numeric guest CID")
+		} else if n, _ := strconv.ParseInt(v, 10, 64); n < 3 || n > 4294967294 {
+			errs = append(errs, "vsock guest CID must be in 3-4294967294 (0-2 are reserved)")
+		}
+	}
+	if v := c.get("tpm_dev", ""); v != "" {
+		if !strings.HasPrefix(v, "passthrough:") || len(v) <= len("passthrough:") {
+			errs = append(errs, "tpm_dev must be 'passthrough:<device>'")
+		} else if strings.ContainsAny(v, ",\n\r") || !filepath.IsAbs(strings.TrimPrefix(v, "passthrough:")) {
+			errs = append(errs, "tpm_dev device must be an absolute path without commas")
+		}
+	}
 	// commands.sh resolution/access/network param-checks applied to the
 	// conf on disk — width/height pairing, access/ssh_access tokens and
 	// macaddr shape. CLI-side overrides run through the same check.

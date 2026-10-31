@@ -88,11 +88,12 @@ func TestBootChannelPassthruArgs(t *testing.T) {
 	if len(a) != 4 || !has(a, "host=0000:01:00.1") {
 		t.Fatalf("passthru %v", a)
 	}
-	// The guest-agent channel lives inside the SPICE block (vm_boot);
-	// conf agent=/guest_agent= keys are inert (no Bash counterpart).
+	// The guest-agent channel moved out of the SPICE block (QE-010):
+	// qgaArgs emits it for every display mode, and the SPICE block
+	// keeps only the spicevmc/webdav ports.
 	a = spiceArgs(Conf{"display": "spice"}, dir, "vm", "linux")
-	if !has(a, "org.qemu.guest_agent.0") || !has(a, "spicevmc") {
-		t.Fatalf("agent channel inside spice block %v", a)
+	if has(a, "org.qemu.guest_agent.0") || !has(a, "spicevmc") {
+		t.Fatalf("spice block should not carry the agent channel %v", a)
 	}
 }
 

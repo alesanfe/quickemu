@@ -97,9 +97,12 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 				vmname, host, port, share, fs)
 		}
 		a = append(a, "-spice", spice)
-		a = append(a, "-device", "virtio-serial-pci")
-		a = append(a, "-chardev", fmt.Sprintf("socket,id=agent0,path=%s,server=on,wait=off", qemuOptEsc(dotdir(dir)+vmname+"-agent.sock")))
-		a = append(a, "-device", "virtserialport,chardev=agent0,name=org.qemu.guest_agent.0")
+		// The virtio-serial bus is emitted by qgaArgs whenever the
+		// agent channel is on (it is display-independent); when qga=off
+		// the vdagent/webdav ports below still need a bus of their own.
+		if !qgaEnabled(c) {
+			a = append(a, "-device", "virtio-serial-pci")
+		}
 		a = append(a, "-chardev", "spicevmc,id=vdagent0,name=vdagent")
 		a = append(a, "-device", "virtserialport,chardev=vdagent0,name=com.redhat.spice.0")
 		a = append(a, "-chardev", "spiceport,id=webdav0,name=org.spice-space.webdav.0")

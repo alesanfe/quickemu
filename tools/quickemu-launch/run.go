@@ -157,6 +157,14 @@ func runQEMU(confPath string, vmdir string, args []string, conf ...Conf) error {
 	} else {
 		fmt.Fprintf(os.Stderr, "WARNING: runtime.json write failed: %v — API/CLI state will show stopped\n", err)
 	}
+	// The agent channel socket QEMU just bound is world-accessible by
+	// umask — QGA is a privileged channel (exec/file I/O/freeze), so
+	// tighten it to 0600 as soon as it appears (QE-010). Synchronous:
+	// QEMU binds the chardev during machine init, so the first stat
+	// almost always succeeds already — the poll is the rare-case tail.
+	if len(conf) > 0 && qgaEnabled(conf[0]) {
+		chmodAgentSock(dir, name)
+	}
 	// Detached reaper: quickemu exits right after spawning QEMU, so a
 	// separate session performs the cleanup when the guest dies —
 	// Bash's disowned `while kill -0 $VM_PID` watcher. Re-exec self.

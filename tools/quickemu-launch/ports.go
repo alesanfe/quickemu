@@ -27,10 +27,10 @@ func portRegistry() string {
 		fmt.Sprintf("quickemu-%d", os.Getuid()), "ports")
 }
 
-// portRegistryLock: mkdir spin-lock with dead-owner reclaim — 25
-// tries — 200ms like _port_registry_lock.
-func portRegistryLock() bool {
-	reg := portRegistry()
+// registryLock: the _port_registry_lock mkdir spin-lock generalized
+// over the registry directory — the vsock CID registry uses the same
+// protocol (25 tries — 200ms, dead-owner reclaim) against its own dir.
+func registryLock(reg string) bool {
 	lock := reg + ".lock"
 	os.MkdirAll(reg, 0755)
 	for tries := 0; tries < 25; tries++ {
@@ -56,12 +56,15 @@ func portRegistryLock() bool {
 	return false
 }
 
-func portRegistryUnlock() { os.RemoveAll(portRegistry() + ".lock") }
+func registryUnlock(reg string) { os.RemoveAll(reg + ".lock") }
 
-// portRegistryTaken: reservation file exists AND owner alive; stale
+func portRegistryLock() bool { return registryLock(portRegistry()) }
+func portRegistryUnlock()    { registryUnlock(portRegistry()) }
+
+// registryTaken: reservation file exists AND owner alive; stale
 // reservations are removed, matching _port_registry_taken.
-func portRegistryTaken(port int) bool {
-	f := filepath.Join(portRegistry(), fmt.Sprint(port))
+func registryTaken(reg string, key int) bool {
+	f := filepath.Join(reg, fmt.Sprint(key))
 	b, err := os.ReadFile(f)
 	if err != nil {
 		return false
@@ -75,24 +78,29 @@ func portRegistryTaken(port int) bool {
 	return false
 }
 
-func portRegistryReserve(port, vmPid int, instance, vmname string) {
-	reg := portRegistry()
+func portRegistryTaken(port int) bool { return registryTaken(portRegistry(), port) }
+
+// registryReserve records key -> "pid ts instance vm" in reg.
+func registryReserve(reg string, key, vmPid int, instance, vmname string) {
 	if err := os.MkdirAll(reg, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, "port registry:", err)
+		fmt.Fprintln(os.Stderr, "registry:", err)
 		return
 	}
 	// An unrecorded reservation is a double-allocation waiting to
 	// happen — never report success silently.
-	if err := os.WriteFile(filepath.Join(reg, fmt.Sprint(port)),
+	if err := os.WriteFile(filepath.Join(reg, fmt.Sprint(key)),
 		[]byte(fmt.Sprintf("%d %d %s %s\n", vmPid, time.Now().Unix(), instance, vmname)), 0644); err != nil {
-		fmt.Fprintln(os.Stderr, "port registry: cannot record port "+fmt.Sprint(port)+":", err)
+		fmt.Fprintln(os.Stderr, "registry: cannot record "+fmt.Sprint(key)+":", err)
 	}
 }
 
-// portRegistryRelease: drop every reservation owned by pid —
+func portRegistryReserve(port, vmPid int, instance, vmname string) {
+	registryReserve(portRegistry(), port, vmPid, instance, vmname)
+}
+
+// registryRelease: drop every reservation owned by pid —
 // _port_registry_release parity (dead VMs hold no ports hostage).
-func portRegistryRelease(owner int) {
-	reg := portRegistry()
+func registryRelease(reg string, owner int) {
 	entries, err := os.ReadDir(reg)
 	if err != nil {
 		return
@@ -110,6 +118,8 @@ func portRegistryRelease(owner int) {
 		}
 	}
 }
+
+func portRegistryRelease(owner int) { registryRelease(portRegistry(), owner) }
 
 // getPort: get_port(start,range) parity — lock, skip taken, probe a
 // TCP connect to 127.0.0.1 (refused = free), reserve, unlock.

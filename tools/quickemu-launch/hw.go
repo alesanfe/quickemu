@@ -17,32 +17,38 @@ import (
 	"strings"
 )
 
-func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
+// guestCoresAdj resolves the vCPU count — conf cpu_cores or the
+// host-tier default, then the per-OS adjustments cpuArgs applies.
+// The second return is the pre-adjustment count when the Windows 11
+// floor fired (0 otherwise) so cpuArgs can keep its Bash echo.
+func guestCoresAdj(c Conf, osName string) (n, adjFrom int) {
 	cores := c.get("cpu_cores", "")
-	if cores == "" {
-		n := hostNCores()
-		switch {
-		case n >= 32:
-			cores = "16"
-		case n >= 16:
-			cores = "8"
-		case n >= 8:
-			cores = "4"
-		case n >= 4:
-			cores = "2"
+	if cores != "" {
+		// Bash parity: Sscanf reads a numeric prefix and a
+		// non-numeric value degrades to the historical fallback.
+		if fmt.Sscanf(cores, "%d", &n); n <= 0 {
+			n = 2
+		}
+	} else {
+		switch h := hostNCores(); {
+		case h >= 32:
+			n = 16
+		case h >= 16:
+			n = 8
+		case h >= 8:
+			n = 4
+		case h >= 4:
+			n = 2
 		default:
-			cores = "1"
+			n = 1
 		}
 	}
-	n := 2
-	fmt.Sscanf(cores, "%d", &n)
 	// Windows 11 minimum: 2 cores (issue #1423) — keyed off the VM
 	// name, same as Bash.
 	if osName == "windows" && n < 2 {
 		vm := c["_vmname"]
 		if strings.Contains(vm, "windows-11") || strings.Contains(vm, "win11") {
-			fmt.Printf(" - CPU:      Adjusting CPU cores from %d to 2 (Windows 11 minimum requirement)\n", n)
-			n = 2
+			adjFrom, n = n, 2
 		}
 	}
 	// macOS only boots with power-of-2 core counts — nearest lower one.
@@ -54,6 +60,21 @@ func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
 			}
 		}
 	}
+	return n, adjFrom
+}
+
+// guestCores is guestCoresAdj for callers that only need the number
+// (mq clamp, validation) — no echoes.
+func guestCores(c Conf, osName string) int {
+	n, _ := guestCoresAdj(c, osName)
+	return n
+}
+
+func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
+	n, adj := guestCoresAdj(c, osName)
+	if adj > 0 {
+		fmt.Printf(" - CPU:      Adjusting CPU cores from %d to 2 (Windows 11 minimum requirement)\n", adj)
+	}
 	cpu := "host"
 	if m := os.Getenv("CPU_MODEL"); m != "" {
 		cpu = m
@@ -62,6 +83,18 @@ func cpuArgs(c Conf, osName, arch string, t OsTuning) []string {
 		cpu = strings.TrimPrefix(t.CPUFlags, "@") // qemu32 etc: model replaces
 	} else {
 		cpu += t.CPUFlags
+	}
+	// nested=on: explicit vmx/svm exposure on -cpu host (KVM passes
+	// host flags through, the explicit bit is belt-and-braces), plus
+	// the host-readiness warnings. Under TCG there is no nested virt
+	// — warn and keep the fallback model.
+	if confOn(c, "nested") {
+		nestedCheck(c)
+		if f := nestedCPUFlag(cpu); f != "" && c["_accel"] == "kvm" {
+			cpu += f
+		} else if c["_accel"] != "kvm" {
+			fmt.Println(" - CPU:      WARNING! nested=on needs KVM (-cpu host); the TCG fallback cannot provide nested virt.")
+		}
 	}
 	// AMD hosts get topoext for every non-macOS x86_64 guest.
 	if arch == "x86_64" && osName != "macos" && hostCPUVendor() == "AuthenticAMD" {
@@ -235,7 +268,24 @@ func biosArgs(c Conf, osName, arch string) []string {
 // tpmArgs: the swtpm chardev emit — vm_boot_passthru emits it after the
 // vfio block. swtpm_socket_ready: emit only when the control socket
 // will exist — always on --dry-run, only after startSwtpm on --run.
+// tpm_dev="passthrough:<dev>" is the explicit hardware-TPM alternative:
+// the guest gets raw access to the host device (emulated swtpm via
+// tpm=on stays the safer default, and wins nothing when both are set —
+// the explicit device does).
 func tpmArgs(c Conf, arch string) []string {
+	if d := c.get("tpm_dev", ""); d != "" {
+		dev := strings.TrimPrefix(d, "passthrough:")
+		if confOn(c, "tpm") {
+			fmt.Fprintln(os.Stderr, " - WARNING!  tpm=on and tpm_dev both set — tpm_dev passthrough wins.")
+		}
+		fmt.Fprintf(os.Stderr, " - TPM:      WARNING! passthrough %s gives the guest RAW access to the host TPM (tpm=on emulated swtpm is safer).\n", dev)
+		dev_ := "tpm-tis,tpmdev=tpm0"
+		if arch == "aarch64" {
+			dev_ = "tpm-tis-device,tpmdev=tpm0"
+		}
+		return []string{"-tpmdev", "passthrough,id=tpm0,path=" + qemuOptEsc(dev),
+			"-device", dev_}
+	}
 	if !confOn(c, "tpm") || (c["_run"] != "" && c["_swtpm"] != "1") {
 		return nil
 	}
@@ -274,7 +324,17 @@ func planPorts(c Conf, t OsTuning) {
 			addr, sshHost = sa, sa
 		}
 		fwd = ",hostfwd=tcp:" + addr + ":" + qemuOptEsc(p) + "-:22"
-		portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p, c["_run"] == "1")
+		// The third .ports field records the bind address so `quickemu
+		// ssh` can pick the connect host (empty bind = wildcard →
+		// loopback); readers treat a missing field as loopback too.
+		bind := addr
+		switch {
+		case bind == "":
+			bind = "0.0.0.0"
+		case strings.Contains(bind, ","):
+			bind = "0.0.0.0" // a comma would corrupt the CSV record
+		}
+		portsRecord(c["_vmdir"], c["_vmname"], "ssh,"+p+","+bind, c["_run"] == "1")
 		fmt.Printf(" - ssh:      On host:  ssh user@%s -p %s\n", sshHost, p)
 	} else {
 		// qe_die "vm.port" PORT_BUSY — auto-allocation found no
@@ -386,6 +446,9 @@ func networkArgs(c Conf, t OsTuning) []string {
 			fmt.Printf(" - WARNING! extra_nics[%d] '%s' unknown (user|restrict|bridge:<iface>); skipping.\n", i, en)
 		}
 	}
+	// virtio-net multiqueue: mq=N|auto appends mq=on,vectors=2N+2 to
+	// every virtio-net -device (clamped to vCPUs inside mqQueues).
+	a = mqApply(a, mqQueues(c, c.get("guest_os", "")), c.get("mq", ""))
 	return a
 }
 

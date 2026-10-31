@@ -306,6 +306,7 @@ func (p *launchPlan) configure() {
 	p.displayA = displayArgs(conf, p.dir, osName, arch)
 	p.audioA = audioArgs(conf, osName, p.t)
 	planPorts(conf, p.t) // -ssh:/-PORTS: echoes + resolve _fwd
+	planVsock(conf)      // vsock CID reservation (registry sibling of ports)
 	p.spiceA = spiceArgs(conf, p.vmdir, p.vmname, osName)
 	p.shareA = fileshareArgs(conf, p.dir)
 	// configure_usb + configure_tpm close the Bash configure sequence.
@@ -394,6 +395,10 @@ func (p *launchPlan) planVirtiofs() {
 // exists when the chardev lands (swtpm_socket_ready).
 func (p *launchPlan) planSwtpm() {
 	conf := p.conf
+	// tpm_dev passthrough needs no daemon — skip the swtpm spawn.
+	if conf.get("tpm_dev", "") != "" {
+		return
+	}
 	if !confOn(conf, "tpm") {
 		return
 	}
@@ -416,11 +421,14 @@ func (p *launchPlan) emit() []string {
 	}
 	if accel == "tcg" {
 		// tb-size tiers by host RAM: 512M on 16GB+ hosts (vm_boot).
+		// tcg_thread="single" opts a guest out of MTTCG — some kernels
+		// hang mid-boot on TCG's multi-threaded SMP emulation.
 		tb := 256
 		if (hostTotalMemMB()+512)/1024 >= 16 {
 			tb = 512
 		}
-		args = append(args, "-accel", fmt.Sprintf("tcg,tb-size=%d,thread=multi", tb))
+		thr := conf.get("tcg_thread", "multi")
+		args = append(args, "-accel", fmt.Sprintf("tcg,tb-size=%d,thread=%s", tb, thr))
 	}
 	switch {
 	case arch == "aarch64" && accel == "tcg":
@@ -449,6 +457,9 @@ func (p *launchPlan) emit() []string {
 	args = append(args, rtcArgs(osName)...)
 	args = append(args, p.displayA...)
 	args = append(args, p.spiceA...)
+	// The guest-agent channel is display-independent (QE-010): bus +
+	// chardev + org.qemu.guest_agent.0 port for every launch.
+	args = append(args, qgaArgs(conf, p.vmdir, p.vmname)...)
 	// rng: device first, then the object it references (vm.sh order).
 	args = append(args, "-device", "virtio-rng-pci,rng=rng0", "-object", "rng-random,id=rng0,filename=/dev/urandom")
 	args = append(args, spiceUSBArgs(arch, p.t)...)
@@ -458,13 +469,23 @@ func (p *launchPlan) emit() []string {
 	args = append(args, networkArgs(conf, p.t)...)
 	args = append(args, p.biosA...)
 	args = append(args, bootMediaArgs(conf, p.dir)...)
+	// pxe=on nets boots before the disk — emitted last so -boot is
+	// last-wins over the per-guest order tweaks.
+	args = append(args, pxeArgs(conf)...)
+	// -object iothread before the virtio-blk devices that use it.
+	args = append(args, iothreadArgs(conf)...)
 	args = append(args, storageArgs(conf, p.dir, p.t)...)
 	args = append(args, p.shareA...)
 	args = append(args, usbArgs(conf, p.t)...)
 	args = append(args, passthruArgs(conf)...)
 	args = append(args, tpmArgs(conf, arch)...)
+	args = append(args, watchdogArgs(conf)...)
+	args = append(args, vsockArgs(conf)...)
 	args = p.monitorChan(args)
 	args = p.serialChan(args)
+	// QE-020: -incoming for resume-from-suspend — emitted before the
+	// extra_args escape hatch so a user override can still win.
+	args = append(args, resumeArgs(conf)...)
 	// extra_args verbatim append (vm.sh): word-split like the unquoted
 	// Bash expansion — the escape hatch for any QEMU flag quickemu
 	// does not model (e.g. extra_args="-accel tcg" to force TCG).
