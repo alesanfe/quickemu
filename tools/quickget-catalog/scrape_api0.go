@@ -11,9 +11,10 @@ import (
 	"time"
 )
 
-func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
-	switch osName {
-	case "alpine":
+// api0Resolvers maps OS name → JSON/YAML API resolver; the bodies are
+// the original scrapeAPI0 switch cases, verbatim.
+var api0Resolvers = map[string]func(release, edition, arch string) (string, string, error){
+	"alpine": func(release, edition, arch string) (string, string, error) {
 		// get_alpine: fetch latest-releases.yaml, extract the
 		// alpine-virt flavor's version + sha256 (real YAML parse —
 		// replaces the fragile regex over the document).
@@ -41,7 +42,8 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return "", "", fmt.Errorf("alpine-virt flavor not found in latest-releases.yaml")
-	case "archlinux":
+	},
+	"archlinux": func(release, edition, arch string) (string, string, error) {
 		// get_archlinux: fetch releng/releases/json, take releases[0]
 		body, err := fetchString("https://archlinux.org/releng/releases/json/")
 		if err != nil {
@@ -57,7 +59,8 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 			return "", "", fmt.Errorf("arch json parse")
 		}
 		return "https://geo.mirror.pkgbuild.com/" + j.Releases[0].IsoURL, j.Releases[0].Sha256, nil
-	case "manjaro":
+	},
+	"manjaro": func(release, edition, arch string) (string, string, error) {
 		// get_manjaro: file-info.json manifest; sway uses its own feed;
 		// cinnamon|i3 are community. minimal edition is a .-suffix.
 		typ := "official"
@@ -110,7 +113,8 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return url, sha, nil
-	case "elementary":
+	},
+	"elementary": func(release, edition, arch string) (string, string, error) {
 		// get_elementary: per-release stamp; URL embeds base64(unix ts).
 		stamp := map[string]string{
 			"7.0": ".20230129rc", "7.1": ".20230926rc",
@@ -119,7 +123,8 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 		iso := fmt.Sprintf("elementaryos-%s-stable%s.iso", release, stamp)
 		ts := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%d", time.Now().Unix())))
 		return "https://dl.elementaryos.org/" + ts + "/" + iso, "", nil
-	case "fedora":
+	},
+	"fedora": func(release, edition, arch string) (string, string, error) {
 		// get_fedora: releases.json select by variant/subvariant/arch/version.
 		farch := "x86_64"
 		if arch == "arm64" {
@@ -153,7 +158,8 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return "", "", fmt.Errorf("fedora: no iso for %s %s %s", release, edition, arch)
-	case "popos":
+	},
+	"popos": func(release, edition, arch string) (string, string, error) {
 		// get_popos: api.pop-os.org JSON {url, sha_sum}.
 		body, err := fetchString("https://api.pop-os.org/builds/" + release + "/" + edition)
 		if err != nil {
@@ -167,7 +173,8 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 			return "", "", fmt.Errorf("popos: no build for %s %s", release, edition)
 		}
 		return v.URL, v.ShaSum, nil
-	case "rebornos":
+	},
+	"rebornos": func(release, edition, arch string) (string, string, error) {
 		// get_rebornos: meta.cdn JSON {url, md5}.
 		body, err := fetchString("https://meta.cdn.soulharsh007.dev/RebornOS-ISO?format=json")
 		if err != nil {
@@ -180,7 +187,8 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 			return "", "", fmt.Errorf("rebornos: no iso metadata")
 		}
 		return v.URL, v.Md5, nil
-	case "tails":
+	},
+	"tails": func(release, edition, arch string) (string, string, error) {
 		// get_tails: latest.json installations[0] iso target-files[0].
 		body, err := fetchString("https://tails.boum.org/install/v2/Tails/amd64/" + release + "/latest.json")
 		if err != nil {
@@ -207,6 +215,12 @@ func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return "", "", fmt.Errorf("tails: no iso in latest.json for %s", release)
+	},
+}
+
+func scrapeAPI0(osName, release, edition, arch string) (string, string, error) {
+	if fn := api0Resolvers[osName]; fn != nil {
+		return fn(release, edition, arch)
 	}
 	return "", "", errScrapeSkip
 }

@@ -106,6 +106,39 @@ func infoPath() string {
 
 func main() { os.Exit(run()) }
 
+// catCmd handles one subcommand; args is the full argv after argv[0].
+type catCmd func(cat *Catalog, args []string) int
+
+var catCmds = map[string]catCmd{
+	"list": cmdList, "releases": cmdReleases, "editions": cmdEditions,
+	"arch": cmdArch, "url": cmdURL, "check": cmdCheck,
+	"info": cmdInfo, "info-json": cmdInfoJSON, "trust": cmdTrust,
+	"meta": cmdMeta,
+}
+
+// Every subcommand except list indexes args[1] — missing operand
+// is a usage error, not a panic.
+var needsOS = map[string]bool{
+	"releases": true, "editions": true, "arch": true, "url": true,
+	"check": true, "info": true, "info-json": true, "trust": true,
+}
+
+// relArgs unpacks the optional [release] [edition] [arch] tail shared
+// by url/check/trust.
+func relArgs(args []string) (release, edition, arch string) {
+	arch = "amd64"
+	if len(args) > 2 {
+		release = args[2]
+	}
+	if len(args) > 3 {
+		edition = args[3]
+	}
+	if len(args) > 4 {
+		arch = args[4]
+	}
+	return
+}
+
 func run() int {
 	args := os.Args[1:]
 	if len(args) < 1 {
@@ -117,22 +150,26 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "catalog: %v\n", err)
 		return 1
 	}
-	// Every subcommand except list indexes args[1] — missing operand
-	// is a usage error, not a panic.
-	needsOS := map[string]bool{
-		"releases": true, "editions": true, "arch": true, "url": true,
-		"check": true, "info": true, "info-json": true, "trust": true,
-	}
 	if needsOS[args[0]] && len(args) < 2 {
 		fmt.Fprintf(os.Stderr, "usage: quickget-catalog %s <os> [release] [edition] [arch]\n", args[0])
 		return 2
 	}
-	switch args[0] {
-	case "list":
-		for _, e := range cat.Entries {
-			fmt.Println(e.OS)
-		}
-	case "releases":
+	if fn := catCmds[args[0]]; fn != nil {
+		return fn(cat, args)
+	}
+	fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", args[0])
+	return 2
+}
+
+func cmdList(cat *Catalog, _ []string) int {
+	for _, e := range cat.Entries {
+		fmt.Println(e.OS)
+	}
+	return 0
+}
+
+func cmdReleases(cat *Catalog, args []string) int {
+	{
 		// releases <os> — static list, or live scrape for OSes whose
 		// releases_<os>() resolved dynamically (pureos/rockylinux/slitaz).
 		e := find(cat, args[1])
@@ -144,7 +181,12 @@ func run() int {
 			rels = scrapeReleases(e.OS)
 		}
 		fmt.Println(strings.Join(rels, " "))
-	case "editions":
+	}
+	return 0
+}
+
+func cmdEditions(cat *Catalog, args []string) int {
+	{
 		// editions <os> [release] — static list, or live scrape for
 		// OSes whose editions_<os>() depends on the release (blackarch).
 		e := find(cat, args[1])
@@ -162,7 +204,12 @@ func run() int {
 		if eds := scrapeEditions(e.OS, release); len(eds) > 0 {
 			fmt.Println(strings.Join(eds, " "))
 		}
-	case "arch":
+	}
+	return 0
+}
+
+func cmdArch(cat *Catalog, args []string) int {
+	{
 		e := find(cat, args[1])
 		if e == nil {
 			return 1
@@ -172,21 +219,17 @@ func run() int {
 		} else {
 			fmt.Println(strings.Join(e.Arch, " "))
 		}
-	case "url":
+	}
+	return 0
+}
+
+func cmdURL(cat *Catalog, args []string) int {
+	{
 		e := find(cat, args[1])
 		if e == nil {
 			return 1
 		}
-		release, edition, arch := "", "", "amd64"
-		if len(args) > 2 {
-			release = args[2]
-		}
-		if len(args) > 3 {
-			edition = args[3]
-		}
-		if len(args) > 4 {
-			arch = args[4]
-		}
+		release, edition, arch := relArgs(args)
 		if e.OS == "macos" {
 			// get_macos show op: prints the raw recovery dmg link;
 			// the caller pads it into the test_result label column.
@@ -217,7 +260,12 @@ func run() int {
 			out = full + " " + hash
 		}
 		fmt.Println(out)
-	case "check":
+	}
+	return 0
+}
+
+func cmdCheck(cat *Catalog, args []string) int {
+	{
 		// check <os> <release> [edition] [arch] — resolve the URL then
 		// validate reachability like web_check: HEAD first, ranged GET
 		// fallback (presigned URLs reject HEAD).
@@ -225,16 +273,7 @@ func run() int {
 		if e == nil {
 			return 1
 		}
-		release, edition, arch := "", "", "amd64"
-		if len(args) > 2 {
-			release = args[2]
-		}
-		if len(args) > 3 {
-			edition = args[3]
-		}
-		if len(args) > 4 {
-			arch = args[4]
-		}
+		release, edition, arch := relArgs(args)
 		label := e.OS + "-" + release
 		if edition != "" {
 			label += "-" + edition
@@ -284,7 +323,12 @@ func run() int {
 			res = "PASS"
 		}
 		fmt.Printf("%s: %-35s %s\n", res, label, full)
-	case "info":
+	}
+	return 0
+}
+
+func cmdInfo(_ *Catalog, args []string) int {
+	{
 		// info <os> — PrettyName|Credentials|Homepage|Info (os_info parity)
 		info, err := loadInfo(infoPath())
 		if err != nil {
@@ -296,7 +340,12 @@ func run() int {
 			return 1
 		}
 		fmt.Printf("%s|%s|%s|%s\n", inf.Name, inf.Credentials, inf.Homepage, inf.Info)
-	case "meta":
+	}
+	return 0
+}
+
+func cmdMeta(cat *Catalog, args []string) int {
+	{
 		// meta [os] — classification metadata (status, image_type,
 		// download_mode, license, boot_mode, support_level, arch).
 		// No os → every entry, keyed by name.
@@ -315,7 +364,12 @@ func run() int {
 		}
 		b, _ := json.Marshal(all)
 		fmt.Println(string(b))
-	case "info-json":
+	}
+	return 0
+}
+
+func cmdInfoJSON(_ *Catalog, args []string) int {
+	{
 		info, err := loadInfo(infoPath())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "info: %v\n", err)
@@ -323,7 +377,12 @@ func run() int {
 		}
 		b, _ := json.Marshal(info[args[1]])
 		fmt.Println(string(b))
-	case "trust":
+	}
+	return 0
+}
+
+func cmdTrust(cat *Catalog, args []string) int {
+	{
 		// trust_os parity: resolve like get_<os> and report C when a
 		// hash field comes back, D otherwise. No trust_<os> overrides
 		// existed in Bash, so levels are only C/D (+E for misses).
@@ -332,20 +391,8 @@ func run() int {
 			fmt.Println("E")
 			return 0
 		}
-		release, edition, arch := "", "", "amd64"
-		if len(args) > 2 {
-			release = args[2]
-		}
-		if len(args) > 3 {
-			edition = args[3]
-		}
-		if len(args) > 4 {
-			arch = args[4]
-		}
+		release, edition, arch := relArgs(args)
 		fmt.Println(trustOf(e, release, edition, arch))
-	default:
-		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", args[0])
-		return 2
 	}
 	return 0
 }

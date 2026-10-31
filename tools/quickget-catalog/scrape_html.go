@@ -11,9 +11,10 @@ import (
 	"strings"
 )
 
-func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error) {
-	switch osName {
-	case "artixlinux":
+// htmlAMResolvers maps OS name → HTML/regex page-scrape resolver; the
+// bodies are the original scrapeHTMLAM switch cases, verbatim.
+var htmlAMResolvers = map[string]func(release, edition, arch string) (string, string, error){
+	"artixlinux": func(release, edition, arch string) (string, string, error) {
 		// get_artixlinux: sha256sums file, grep for the ISO name
 		u := "https://iso.artixlinux.org/iso"
 		iso := fmt.Sprintf("artix-%s-%s-x86_64.iso", edition, release)
@@ -29,7 +30,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "cachyos":
+	},
+	"cachyos": func(release, edition, arch string) (string, string, error) {
 		// get_cachyos: download page, token after & containing
 		// ISO/<edition>, cut ; field2; hash from <url>.sha256
 		body, err := fetchString("https://cachyos.org/download/")
@@ -55,7 +57,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return url, sha, nil
-	case "9front":
+	},
+	"9front": func(release, edition, arch string) (string, string, error) {
 		// get_9front: index page, latest 9front-*.amd64.iso.gz
 		// (upstream ships the ISO gzip-compressed; imageNormalize unpacks).
 		body, err := fetchString("https://9front.org/iso/")
@@ -67,14 +70,16 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			return "", "", fmt.Errorf("9front: no iso in index")
 		}
 		return "https://9front.org/iso/" + iso, "", nil
-	case "archcraft":
+	},
+	"archcraft": func(release, edition, arch string) (string, string, error) {
 		// get_archcraft: sourceforge /download redirect, strip ?query.
 		u, err := finalURL("https://sourceforge.net/projects/archcraft/files/" + release + "/download")
 		if err != nil {
 			return "", "", err
 		}
 		return strings.SplitN(u, "?", 2)[0], "", nil
-	case "azurelinux":
+	},
+	"azurelinux": func(release, edition, arch string) (string, string, error) {
 		// get_azurelinux: aka.ms redirect → final URL is the ISO.
 		qarch := "x86_64"
 		if arch == "arm64" {
@@ -85,7 +90,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			return "", "", err
 		}
 		return u, "", nil
-	case "backbox":
+	},
+	"backbox": func(release, edition, arch string) (string, string, error) {
 		// get_backbox: download page first .iso href; mirror fallback.
 		body, err := fetchString("https://linux.backbox.org/download/")
 		if err != nil {
@@ -96,7 +102,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			iso = fmt.Sprintf("https://backbox.mirror.garr.it/backbox-%s-desktop-amd64.iso", release)
 		}
 		return iso, "", nil
-	case "batocera":
+	},
+	"batocera": func(release, edition, arch string) (string, string, error) {
 		// get_batocera: stable/<rel> dir, batocera*.img.gz name.
 		u := "https://mirrors.o2switch.fr/batocera/x86_64/stable/" + release
 		body, err := fetchString(u + "/")
@@ -108,7 +115,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			iso = findLine(body, `(batocera[^\s"]*\.img\.gz)`, 1)
 		}
 		return u + "/" + iso, "", nil
-	case "endeavouros":
+	},
+	"endeavouros": func(release, edition, arch string) (string, string, error) {
 		// get_endeavouros: mirror ISO list, name matching release
 		// (case-insensitive), excluding x86_64 entries; .sha512sum.
 		u := "https://mirror.alpix.eu/endeavouros/iso"
@@ -142,7 +150,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "kicksecure":
+	},
+	"kicksecure": func(release, edition, arch string) (string, string, error) {
 		// get_kicksecure: newest version dir → Kicksecure-CLI-*.qcow2.libvirt.xz
 		base := "https://download.kicksecure.com/libvirt"
 		body, err := fetchString(base + "/")
@@ -159,7 +168,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 		}
 		iso := findLine(body, `(Kicksecure-CLI-[^" ]*Intel_AMD64\.qcow2\.libvirt\.xz)`, 1)
 		return fmt.Sprintf("%s/%s/%s", base, ver, iso), "", nil
-	case "chimeralinux":
+	},
+	"chimeralinux": func(release, edition, arch string) (string, string, error) {
 		// get_chimeralinux: DATE from sha256sums.txt line1 field5; hash
 		// is the x86_64-LIVE <edition> line field1.
 		u := "https://repo.chimera-linux.org/live/" + release
@@ -183,7 +193,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "antix":
+	},
+	"antix": func(release, edition, arch string) (string, string, error) {
 		// get_antix: edition→iso suffix + runit url/readme variants.
 		u := fmt.Sprintf("https://sourceforge.net/projects/antix-linux/files/Final/antiX-%s", release)
 		readme := "README"
@@ -219,7 +230,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "crunchbang++":
+	},
+	"crunchbang++": func(release, edition, arch string) (string, string, error) {
 		// get_crunchbang++: GH releases API (CBPP/cbpp), first amd64
 		// browser_download_url matching the release; no hash upstream.
 		body, err := fetchString("https://api.github.com/repos/CBPP/cbpp/releases")
@@ -235,7 +247,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return "", "", fmt.Errorf("crunchbang++: no amd64 iso for %s", release)
-	case "debian":
+	},
+	"debian": func(release, edition, arch string) (string, string, error) {
 		// get_debian: archive base; current release → debian-cd; netinst
 		// rewrites -live/hybrid→cd; arm64 is netinst-only.
 		darch := arch
@@ -265,7 +278,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "deepin":
+	},
+	"deepin": func(release, edition, arch string) (string, string, error) {
 		// get_deepin: 20.9 lacks the /amd64 dir; newer releases have it.
 		u := "https://cdimage.deepin.com/releases/" + release
 		if release != "20.9" {
@@ -284,7 +298,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "easyos":
+	},
+	"easyos": func(release, edition, arch string) (string, string, error) {
 		// get_easyos: probe the two newest year dirs for the release.
 		body, err := fetchString("https://distro.ibiblio.org/easyos/amd64/releases/kirkstone/")
 		if err != nil {
@@ -311,7 +326,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return "", "", fmt.Errorf("easyos: no year dir for %s", release)
-	case "endless":
+	},
+	"endless": func(release, edition, arch string) (string, string, error) {
 		// get_endless: per-edition FILE_TS constants.
 		ts := map[string]string{
 			"base": "241023-183516", "en": "241023-200926",
@@ -324,7 +340,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 		}
 		iso := fmt.Sprintf("eos-eos%s-amd64-amd64.%s.%s.iso", rel3, ts, edition)
 		return u + "/" + iso, "", nil
-	case "hamonikr":
+	},
+	"hamonikr": func(release, edition, arch string) (string, string, error) {
 		// get_hamonikr: edition→iso naming + static hash table.
 		hashes := map[string]string{
 			"lts":  "580687cc7274f6a2f2bdf81d0e4b11512ad5c37cee019df748b43e7c61d950e1",
@@ -334,7 +351,8 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 		names := map[string]string{"lts": "LTS", "hwe": "HWE", "lite": "Lite"}
 		iso := fmt.Sprintf("hamonikr-kumkang-%s-%s-amd64.iso", release, names[edition])
 		return "https://mirror.hamonikr.org/hamonikr/" + iso, hashes[edition], nil
-	case "altlinux":
+	},
+	"altlinux": func(release, edition, arch string) (string, string, error) {
 		// get_altlinux: official FTP mirror, per-edition naming.
 		base := "https://ftp.altlinux.org/pub/distributions/ALTLinux/images/p" + release + "/" + edition + "/x86_64"
 		iso := map[string]string{
@@ -351,17 +369,21 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			return "", "", fmt.Errorf("altlinux: no iso for edition %s", edition)
 		}
 		return base + "/" + iso, "", nil
-	case "blankon":
+	},
+	"blankon": func(release, edition, arch string) (string, string, error) {
 		return "https://jahitan.blankonlinux.id/releases/current/blankon-sinambung-26.09-verbeek-amd64.iso", "", nil
-	case "bosslinux":
+	},
+	"bosslinux": func(release, edition, arch string) (string, string, error) {
 		return "https://sourceforge.net/projects/archiveos/files/b/boss/boss-8.0-amd64-DVD-301019.iso/download", "", nil
-	case "canaima":
+	},
+	"canaima": func(release, edition, arch string) (string, string, error) {
 		// get_canaima: CNTI download host; 8.4 carries a pinned md5.
 		if release == "9.0" {
 			return "https://descargas.softwarelibre.gob.ve/canaima/iso/wakupe/canaima-9.0-" + edition + "-beta_amd64.iso", "", nil
 		}
 		return "https://descargas.softwarelibre.gob.ve/canaima/iso/kavanayen/canaima-8.4-1-ISO-FULL_amd64.iso", "99c1820f7412d9b20cf81843f898ec1c", nil
-	case "educaandos":
+	},
+	"educaandos": func(release, edition, arch string) (string, string, error) {
 		// get_educaandos: cica.es mirror, per-release filename.
 		iso := map[string]string{
 			"v2":               "EducaAndosV2-offline.iso",
@@ -375,21 +397,25 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			iso = "educaandos-20.04-instalador-centros.iso"
 		}
 		return "http://guadalinex-edu.cica.es/centros/" + iso, "", nil
-	case "esfera":
+	},
+	"esfera": func(release, edition, arch string) (string, string, error) {
 		return "https://archive.org/download/guadalinex-v9-32B/esfera-live-" + release + ".iso", "", nil
-	case "fedoracore":
+	},
+	"fedoracore": func(release, edition, arch string) (string, string, error) {
 		iso := "FC" + release + "-i386-disc1.iso"
 		if release == "1" {
 			iso = "yarrow-i386-disc1.iso"
 		}
 		return "https://archives.fedoraproject.org/pub/archive/fedora/linux/core/" + release + "/i386/iso/" + iso, "", nil
-	case "gecos":
+	},
+	"gecos": func(release, edition, arch string) (string, string, error) {
 		iso := "GECOS-v2-32B-latest.iso"
 		if edition == "lite" {
 			iso = "GECOS-v2-lite-32B-20141017.iso"
 		}
 		return "https://archive.org/download/guadalinex-v9-32B/" + iso, "", nil
-	case "kurumin":
+	},
+	"kurumin": func(release, edition, arch string) (string, string, error) {
 		iso := "kurumin-ng_" + release + ".iso"
 		if release == "7.0" {
 			iso = "kurumin-7.0.iso"
@@ -398,19 +424,22 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			}
 		}
 		return "https://sourceforge.net/projects/archiveos/files/k/kurumin/" + iso + "/download", "", nil
-	case "lernstick":
+	},
+	"lernstick": func(release, edition, arch string) (string, string, error) {
 		iso := "lernstick_debian" + release + "_" + edition + "_latest.iso"
 		if edition == "exam" {
 			iso = "lernstick_pruefungsumgebung_debian" + release + "_latest.iso"
 		}
 		return "https://releases.lernstick.ch/" + iso, "", nil
-	case "life":
+	},
+	"life": func(release, edition, arch string) (string, string, error) {
 		iso := "Life-" + release + ".amd64.iso"
 		if release == "22.04" {
 			iso = "Li-f-e-22.04.3.amd64.iso"
 		}
 		return "https://sourceforge.net/projects/cyberorg-home/files/Li-f-e/" + iso + "/download", "", nil
-	case "lliurex":
+	},
+	"lliurex": func(release, edition, arch string) (string, string, error) {
 		base := "http://lliurex.net/isos/" + release
 		iso := "LliureX-home-desktop_" + release + "_latest.iso"
 		switch release {
@@ -443,6 +472,12 @@ func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error)
 			base = "http://lliurex.net/isos/16.06_64bits"
 		}
 		return base + "/" + iso, "", nil
+	},
+}
+
+func scrapeHTMLAM(osName, release, edition, arch string) (string, string, error) {
+	if fn := htmlAMResolvers[osName]; fn != nil {
+		return fn(release, edition, arch)
 	}
 	return "", "", errScrapeSkip
 }

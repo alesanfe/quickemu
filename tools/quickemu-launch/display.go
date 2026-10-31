@@ -21,59 +21,7 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 	var a []string
 	display := c.get("display", "none")
 	gl := c.get("gl", "on")
-	// DISPLAY_RENDER by mode (display.sh) — also settles the effective
-	// gl used by the device swap and the - Display: echo.
-	var render string
-	switch display {
-	case "sdl", "spice-app":
-		if display == "sdl" {
-			// commands.sh: grab-on-hover fix — QEMU #541.
-			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
-		}
-		render = display + ",gl=" + gl
-	case "cocoa":
-		// gl=on + check_cocoa_gl_es_support → gl=es; otherwise bare
-		// "cocoa" (gl param omitted entirely, gl forced off).
-		if gl == "on" && cocoaGLES() {
-			gl = "es"
-			render = display + ",gl=es"
-		} else {
-			gl = "off"
-			render = display
-		}
-	case "gtk":
-		// GTK needs a reachable display server AND the QEMU gtk
-		// backend — headless hosts fall back to SDL.
-		if !gtkAvailable() {
-			fmt.Println(" - NOTE: GTK display not available, falling back to SDL")
-			display = "sdl"
-			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
-			render = "sdl,gl=" + gl
-			break
-		}
-		render = display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + gl
-		if confOn(c, "fullscreen") {
-			render += ",full-screen=on"
-		}
-	case "none":
-		render, gl = "none", "off" // no backend → no GL context
-	case "spice":
-		// Local SPICE + GL: egl-headless provides the VirGL context
-		// (gl stays on); remote/local without gl renders none.
-		access := c.get("access", "local")
-		switch {
-		case (access == "" || access == "local") && gl == "on":
-			render = "egl-headless,rendernode=/dev/dri/renderD128"
-		case access == "" || access == "local":
-			render = "none"
-		default:
-			render, gl = "none", "off"
-		}
-	case "vnc":
-		render, gl = "none", "off"
-	default:
-		render = display
-	}
+	render, gl, display := displayRender(c, display, gl)
 	// DISPLAY_DEVICE + GL swap (probe-gated) + VirGL echo.
 	dev := displayDevice(c, osName, arch, display)
 	virgl := "off"
@@ -130,6 +78,64 @@ func displayArgs(c Conf, dir, osName, arch string) []string {
 		a = append(a, "-display", "none")
 	}
 	return a
+}
+
+// displayRender: DISPLAY_RENDER by mode (display.sh) — also settles
+// the effective gl used by the device swap and the - Display: echo.
+// The gtk→sdl fallback rewrites the backend itself, so the display
+// comes back alongside render and gl.
+func displayRender(c Conf, display, gl string) (render, glOut, disp string) {
+	switch display {
+	case "sdl", "spice-app":
+		if display == "sdl" {
+			// commands.sh: grab-on-hover fix — QEMU #541.
+			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
+		}
+		render = display + ",gl=" + gl
+	case "cocoa":
+		// gl=on + check_cocoa_gl_es_support → gl=es; otherwise bare
+		// "cocoa" (gl param omitted entirely, gl forced off).
+		if gl == "on" && cocoaGLES() {
+			gl = "es"
+			render = display + ",gl=es"
+		} else {
+			gl = "off"
+			render = display
+		}
+	case "gtk":
+		// GTK needs a reachable display server AND the QEMU gtk
+		// backend — headless hosts fall back to SDL.
+		if !gtkAvailable() {
+			fmt.Println(" - NOTE: GTK display not available, falling back to SDL")
+			display = "sdl"
+			os.Setenv("SDL_MOUSE_FOCUS_CLICKTHROUGH", "1")
+			render = "sdl,gl=" + gl
+			break
+		}
+		render = display + ",grab-on-hover=on,zoom-to-fit=off,gl=" + gl
+		if confOn(c, "fullscreen") {
+			render += ",full-screen=on"
+		}
+	case "none":
+		render, gl = "none", "off" // no backend → no GL context
+	case "spice":
+		// Local SPICE + GL: egl-headless provides the VirGL context
+		// (gl stays on); remote/local without gl renders none.
+		access := c.get("access", "local")
+		switch {
+		case (access == "" || access == "local") && gl == "on":
+			render = "egl-headless,rendernode=/dev/dri/renderD128"
+		case access == "" || access == "local":
+			render = "none"
+		default:
+			render, gl = "none", "off"
+		}
+	case "vnc":
+		render, gl = "none", "off"
+	default:
+		render = display
+	}
+	return render, gl, display
 }
 
 // vncArgs: the -vnc emit — vm_boot appends it in the emit tail, after

@@ -10,9 +10,10 @@ import (
 	"strings"
 )
 
-func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
-	switch osName {
-	case "bazzite":
+// miscResolvers maps OS name → one-off resolver; the bodies are the
+// original scrapeMisc switch cases, verbatim.
+var miscResolvers = map[string]func(release, edition, arch string) (string, string, error){
+	"bazzite": func(release, edition, arch string) (string, string, error) {
 		// get_bazzite: edition→iso map (names aren't prefix-consistent:
 		// plasma loses its suffix, deck-* keeps only -deck).
 		iso := map[string]string{
@@ -32,7 +33,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u, sha, nil
-	case "bodhi":
+	},
+	"bodhi": func(release, edition, arch string) (string, string, error) {
 		// get_bodhi: standard has no edition suffix; every other edition
 		// appends -<edition> before .iso.
 		iso := fmt.Sprintf("bodhi-%s-64.iso", release)
@@ -47,7 +49,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u, sha, nil
-	case "gnomeos":
+	},
+	"gnomeos": func(release, edition, arch string) (string, string, error) {
 		// get_gnomeos: nightly/3x live under a different host+name and
 		// 46.0 drops the minor; the final URL comes from web_redirect.
 		iso := fmt.Sprintf("gnome_os_installer_%s.iso", release)
@@ -65,7 +68,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			return "", "", err
 		}
 		return fin, "", nil
-	case "mxlinux":
+	},
+	"mxlinux": func(release, edition, arch string) (string, string, error) {
 		// get_mxlinux: edition→iso map with mixed case (Fluxbox is
 		// lowercase in the filename).
 		iso := map[string]string{
@@ -84,7 +88,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u, sha, nil
-	case "peppermint":
+	},
+	"peppermint": func(release, edition, arch string) (string, string, error) {
 		// get_peppermint: edition picks both the iso name AND the
 		// SourceForge subdirectory (XFCE vs Gnome_FlashBack).
 		var iso, dir string
@@ -106,7 +111,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			sha = sumForISO(b, iso)
 		}
 		return u, sha, nil
-	case "freedos":
+	},
+	"freedos": func(release, edition, arch string) (string, string, error) {
 		// get_freedos: per-release url/iso table; 1.3/1.4 hashes live in
 		// verify.txt's sha256sum section (grep -A8 sha256sum | grep ISO).
 		base := "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/distributions/" + release
@@ -147,7 +153,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "tinycore":
+	},
+	"tinycore": func(release, edition, _ string) (string, string, error) {
 		// get_tinycore: arch derives from the EDITION (*Pure* → x86_64,
 		// else x86) — not the guest arch; ISO is <ed>-<rel>.0.iso.
 		arch := "x86"
@@ -163,7 +170,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u + "/" + iso, sha, nil
-	case "garuda":
+	},
+	"garuda": func(release, edition, arch string) (string, string, error) {
 		// get_garuda: <edition>/latest.iso + sidecar .sha256 (hash-first).
 		base := "https://iso.builds.garudalinux.org/iso/latest/garuda"
 		iso := edition + "/latest.iso"
@@ -174,7 +182,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return base + "/" + iso, sha, nil
-	case "kdeneon":
+	},
+	"kdeneon": func(release, edition, arch string) (string, string, error) {
 		// get_kdeneon: neon-<rel>-<ed>-current.sha256sum is a single
 		// "hash iso" line (IFS read: first field hash, second iso).
 		base := fmt.Sprintf("https://files.kde.org/neon/images/%s/%s/current", edition, release)
@@ -189,7 +198,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return base + "/" + iso, sha, nil
-	case "pclinuxos":
+	},
+	"pclinuxos": func(release, edition, arch string) (string, string, error) {
 		// get_pclinuxos: newest pclinuxos64-<ed>-<ver>.iso in the index;
 		// hash is the first 32 chars of <iso>.md5sum.
 		base := "https://ftp.fau.de/pclinuxos/pclinuxos/iso"
@@ -202,7 +212,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			sha = b[:32]
 		}
 		return u, sha, nil
-	case "redoxos":
+	},
+	"redoxos": func(release, edition, arch string) (string, string, error) {
 		// get_redoxos: SHA256SUM grep livedisk tail -1 → f1 hash,
 		// redox_*_livedisk.iso.zst token is the ISO name.
 		base := "https://static.redox-os.org/releases/" + release + "/x86_64"
@@ -225,7 +236,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return base + "/" + iso, sha, nil
-	case "slax":
+	},
+	"slax": func(release, edition, arch string) (string, string, error) {
 		// get_slax: edition picks the Slax-1x.x dir; md5.txt 64bit-
 		// rows give iso (f3) + md5 (f1), tail -1 each.
 		dir := map[string]string{
@@ -247,7 +259,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return dir + "/" + iso, sha, nil
-	case "kdelinux":
+	},
+	"kdelinux": func(release, edition, arch string) (string, string, error) {
 		// get_kdelinux: newest kde-linux_<12digit>.iso + SHA256SUMS f1.
 		base := "https://files.kde.org/kde-linux"
 		u, _, err := indexISO(base+"/?C=M;O=D", `kde-linux_[0-9]{12}\.iso`)
@@ -260,7 +273,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			sha = sumForISO(b, iso)
 		}
 		return u, sha, nil
-	case "kali":
+	},
+	"kali": func(release, edition, arch string) (string, string, error) {
 		// get_kali: edition picks the installer suffix; newest
 		// kali-linux-*-installer-<suffix> in the M-sorted index;
 		// SHA256SUMS minus torrents, hash-first field.
@@ -289,7 +303,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return u, sha, nil
-	case "blissos":
+	},
+	"blissos": func(release, edition, arch string) (string, string, error) {
 		// get_blissos: newest Bliss-v<rel>-*.iso under the Official
 		// Gapps/Generic path in the fosshub RSS feed; no checksum.
 		body, err := fetchString("https://sourceforge.net/projects/blissos-x86/rss?path=/")
@@ -304,7 +319,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return "https://downloads.sourceforge.net/project/blissos-x86/" + best, "", nil
-	case "nobara":
+	},
+	"nobara": func(release, edition, arch string) (string, string, error) {
 		// get_nobara: newest Nobara-<rel>-<ed>-<date>.iso on the
 		// download page; images live on the nobara-images host.
 		body, err := fetchString("https://nobaraproject.org/download-nobara/")
@@ -319,7 +335,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return "https://nobara-images.nobaraproject.org/" + best, "", nil
-	case "q4os":
+	},
+	"q4os": func(release, edition, arch string) (string, string, error) {
 		// get_q4os: edition picks the suffix; rss grep newest
 		// files/stable/q4os-<rel>-<sfx><n>.iso; URL drops "files/".
 		sfx := map[string]string{"kde": `x64\.r`, "trinity": `x64-tde\.r`}[edition]
@@ -338,7 +355,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return "https://downloads.sourceforge.net/project/q4os/" + strings.TrimPrefix(best, "files/"), "", nil
-	case "android":
+	},
+	"android": func(release, edition, arch string) (string, string, error) {
 		// get_android: fosshub var settings JSON picks the iso+sha256
 		// by name prefix android-<ed>-<rel>; the file itself is located
 		// by walking OSDN 5-digit dirs newest-first.
@@ -386,7 +404,8 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return base + "/" + iso, sha, nil
-	case "gentoo":
+	},
+	"gentoo": func(release, edition, arch string) (string, string, error) {
 		// get_gentoo: the <release>-iso.txt manifest names the ISO,
 		// then <ISO>.DIGESTS carries the sha512 (line after the SHA512
 		// header, iso-named, skipping the CONTENTS entry).
@@ -426,6 +445,12 @@ func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
 			}
 		}
 		return base + "/" + iso, sha, nil
+	},
+}
+
+func scrapeMisc(osName, release, edition, arch string) (string, string, error) {
+	if fn := miscResolvers[osName]; fn != nil {
+		return fn(release, edition, arch)
 	}
 	return "", "", errScrapeSkip
 }

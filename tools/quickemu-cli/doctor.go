@@ -82,7 +82,30 @@ func qeDoctor(fix bool) {
 	findings := []string{}
 	dir, name := vmdir(), vmname()
 
-	rt := filepath.Join(dir, name+".runtime.json")
+	findings = append(findings, doctorRuntime(filepath.Join(dir, name+".runtime.json"), fix)...)
+	live, pidFindings := doctorPidfile(filepath.Join(dir, name+".pid"), dir, name, fix)
+	findings = append(findings, pidFindings...)
+	findings = append(findings, doctorLocks(dir, name, fix)...)
+	findings = append(findings, doctorSockets(dir, name, live, fix)...)
+	findings = append(findings, doctorEventLog(filepath.Join(dir, name+".events.jsonl"), fix)...)
+	findings = append(findings, doctorOrphanOps(dir, fix)...)
+
+	if outFmt == "json" {
+		emitOK("vm.doctor", map[string]any{"vm": name, "fix": fix, "findings": findings})
+	} else {
+		if len(findings) == 0 {
+			fmt.Println(" - " + name + ": healthy.")
+		}
+		for _, f := range findings {
+			fmt.Println(" - " + f)
+		}
+	}
+}
+
+// doctorRuntime: a runtime.json without schemaVersion is corrupt
+// (interrupted write); fix removes it so state() re-derives.
+func doctorRuntime(rt string, fix bool) []string {
+	var findings []string
 	if b, err := os.ReadFile(rt); err == nil && !strings.Contains(string(b), `"schemaVersion"`) {
 		findings = append(findings, "runtime-corrupt:"+rt)
 		if fix {
@@ -90,8 +113,14 @@ func qeDoctor(fix bool) {
 			findings = append(findings, "fixed:removed-corrupt-runtime")
 		}
 	}
+	return findings
+}
 
-	pf := filepath.Join(dir, name+".pid")
+// doctorPidfile: reports whether the pidfile names a live process;
+// a stale pid is a finding and fix also drops the .paused marker the
+// dead VM can no longer honour.
+func doctorPidfile(pf, dir, name string, fix bool) (bool, []string) {
+	var findings []string
 	live := false
 	if b, err := os.ReadFile(pf); err == nil {
 		p := strings.TrimSpace(string(b))
@@ -106,7 +135,12 @@ func qeDoctor(fix bool) {
 			}
 		}
 	}
+	return live, findings
+}
 
+// doctorLocks: lock dirs owned by dead processes are reclaimed by fix.
+func doctorLocks(dir, name string, fix bool) []string {
+	var findings []string
 	lockPaths := []string{filepath.Join(dir, name+".lock")}
 	// Literal path, not a glob: a vm name may legitimately contain
 	// glob metacharacters — treating it as a pattern would sweep a
@@ -135,7 +169,13 @@ func qeDoctor(fix bool) {
 			}
 		}
 	}
+	return findings
+}
 
+// doctorSockets: monitor/qmp/*.socket files are stale when no live
+// pidfile exists; fix removes them so reconnects re-create cleanly.
+func doctorSockets(dir, name string, live, fix bool) []string {
+	var findings []string
 	var socks []string
 	if ents, _ := os.ReadDir(dir); len(ents) > 0 {
 		for _, e := range ents {
@@ -159,8 +199,13 @@ func qeDoctor(fix bool) {
 			}
 		}
 	}
+	return findings
+}
 
-	ev := filepath.Join(dir, name+".events.jsonl")
+// doctorEventLog: a final line without '}' means the writer died
+// mid-append; fix drops only the truncated tail line.
+func doctorEventLog(ev string, fix bool) []string {
+	var findings []string
 	if b, err := os.ReadFile(ev); err == nil && len(b) > 0 {
 		lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
 		if !strings.Contains(lines[len(lines)-1], "}") {
@@ -176,7 +221,13 @@ func qeDoctor(fix bool) {
 			}
 		}
 	}
+	return findings
+}
 
+// doctorOrphanOps: queued/running ops whose worker died are orphans;
+// fix marks them interrupted (never deletes the journal entry).
+func doctorOrphanOps(dir string, fix bool) []string {
+	var findings []string
 	for _, op := range func() []string {
 		m, _ := filepath.Glob(filepath.Join(dir, "ops", "*.json"))
 		return m
@@ -202,17 +253,7 @@ func qeDoctor(fix bool) {
 			}
 		}
 	}
-
-	if outFmt == "json" {
-		emitOK("vm.doctor", map[string]any{"vm": name, "fix": fix, "findings": findings})
-	} else {
-		if len(findings) == 0 {
-			fmt.Println(" - " + name + ": healthy.")
-		}
-		for _, f := range findings {
-			fmt.Println(" - " + f)
-		}
-	}
+	return findings
 }
 
 // actDoctor: doctor_vm parity — config vs host capabilities report.

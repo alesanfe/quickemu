@@ -43,6 +43,33 @@ func warnTelnetExposure(kind, host string) {
 	fmt.Fprintf(os.Stderr, "WARNING! %s telnet endpoint bound to %q — QEMU monitor is unauthenticated; prefer loopback or %s=socket.\n", kind, host, kind)
 }
 
+// launchPlan carries the per-invocation state through the phases —
+// conf load → host resolve → configure → emit → launch. Fields fill in
+// the same order vm_boot resolves them; the arg slices are configure_*
+// outputs the emit phase appends in vm_boot order.
+type launchPlan struct {
+	confPath   string
+	conf       Conf
+	dir        string
+	vmdir      string
+	vmname     string
+	osName     string
+	arch       string
+	runMode    bool
+	accel      string
+	hypervisor string
+	baseModel  string
+	machine    string
+	t          OsTuning
+	cpuA       []string
+	ramA       []string
+	biosA      []string
+	displayA   []string
+	audioA     []string
+	spiceA     []string
+	shareA     []string
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: quickemu-launch <conf> [--dry-run]")
@@ -59,9 +86,23 @@ func main() {
 		reapVM(pid, os.Args[3], os.Args[4])
 		return
 	}
-	conf := applyPresets(parseConf(os.Args[1]))
-	conf["_vmdir"] = vmDir(conf, os.Args[1])
-	conf["_vmname"] = strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
+	p := loadPlan()
+	if p == nil {
+		return // --validate already reported
+	}
+	p.resolveHost()
+	p.configure()
+	p.launch(p.emit())
+}
+
+// loadPlan: the conf-load phase — parse + presets, early param checks,
+// --validate mode, VM-dir creation and PUBLIC resolution. Returns nil
+// when the invocation was fully handled (validate printed its verdict).
+func loadPlan() *launchPlan {
+	confPath := os.Args[1]
+	conf := applyPresets(parseConf(confPath))
+	conf["_vmdir"] = vmDir(conf, confPath)
+	conf["_vmname"] = strings.TrimSuffix(filepath.Base(confPath), filepath.Ext(confPath))
 	// display_param_check (commands.sh): braille->sdl+xhci, platform
 	// display whitelist, glxinfo gl default — before any arg assembly.
 	if err := paramCheckDisplay(conf); err != nil {
@@ -76,19 +117,20 @@ func main() {
 		os.Exit(1)
 	}
 	if len(os.Args) > 2 && os.Args[2] == "--validate" {
-		if errs := validateConf(conf, os.Args[1]); len(errs) > 0 {
+		if errs := validateConf(conf, confPath); len(errs) > 0 {
 			for _, e := range errs {
 				fmt.Fprintln(os.Stderr, "invalid:", e)
 			}
 			os.Exit(1)
 		}
 		fmt.Println("valid")
-		return
+		return nil
 	}
-	dir := filepath.Dir(os.Args[1])
-	vmdir := conf["_vmdir"]
-	if err := os.MkdirAll(vmdir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! Cannot create VM dir %s: %v\n", vmdir, err)
+	p := &launchPlan{confPath: confPath, conf: conf}
+	p.dir = filepath.Dir(confPath)
+	p.vmdir = conf["_vmdir"]
+	if err := os.MkdirAll(p.vmdir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Cannot create VM dir %s: %v\n", p.vmdir, err)
 		os.Exit(1)
 	}
 	resolvePublic(conf)
@@ -96,16 +138,26 @@ func main() {
 	// The virtiofsd spawn itself happens at the start_virtiofsd
 	// position in the configure sequence (after storageEcho) — linux
 	// guest + resolved PUBLIC + no ISO + daemon available.
-	runMode := len(os.Args) > 2 && os.Args[2] == "--run"
+	p.runMode = len(os.Args) > 2 && os.Args[2] == "--run"
 	// swtpm decision mirrors virtiofsd (configure_tpm): spawn the daemon
 	// before arg assembly on --run so the socket exists when the chardev
 	// is emitted (swtpm_socket_ready). Plan mode always emits.
 	conf["_run"] = ""
-	if runMode {
+	if p.runMode {
 		conf["_run"] = "1"
 	}
-	vmname := strings.TrimSuffix(filepath.Base(os.Args[1]), filepath.Ext(os.Args[1]))
-	osName := strings.ToLower(conf.get("guest_os", "linux"))
+	p.vmname = strings.TrimSuffix(filepath.Base(confPath), filepath.Ext(confPath))
+	p.osName = strings.ToLower(conf.get("guest_os", "linux"))
+	p.arch = conf.get("arch", "x86_64")
+	return p
+}
+
+// resolveHost: the vm_boot resolution steps between conf load and the
+// configure phase — guest_os recognition warning, run-mode port-state
+// reset, accelerator/CPU-model resolution, os_quirks, storage prep and
+// the -machine base string.
+func (p *launchPlan) resolveHost() {
+	conf, osName, arch := p.conf, p.osName, p.arch
 	// vm_boot warns on unrecognised guest_os values — 'custom' configs
 	// may use arbitrary values, so warn only (generic defaults apply).
 	switch osName {
@@ -116,14 +168,43 @@ func main() {
 			fmt.Printf(" - WARNING!  '%s' is not a recognised guest_os value; using generic defaults.\n", osName)
 		}
 	}
-	arch := conf.get("arch", "x86_64")
 	// configure_ports resets the per-boot state files before any port
 	// record is written (run mode only — plan mode must not touch them).
-	if runMode {
-		os.WriteFile(filepath.Join(vmdir, vmname+".ports"), nil, 0o644)
-		os.Remove(filepath.Join(vmdir, vmname+".spice"))
-		os.Remove(dotdir(vmdir) + vmname + ".sock")
+	if p.runMode {
+		os.WriteFile(filepath.Join(p.vmdir, p.vmname+".ports"), nil, 0o644)
+		os.Remove(filepath.Join(p.vmdir, p.vmname+".spice"))
+		os.Remove(dotdir(p.vmdir) + p.vmname + ".sock")
 	}
+	p.accel, p.hypervisor, p.baseModel = resolveAccel(conf, arch)
+	conf["_accel"] = p.accel
+	conf["_hypervisor"] = p.hypervisor
+	p.t = osQuirks(conf, osName, arch)
+	// configure_storage sits between os_quirks and display in Bash:
+	// create missing disks, probe write locks, and drop iso/img when
+	// the disk is already used (installed guests boot from disk).
+	if err := prepareStorage(conf, p.dir); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	p.machine = p.t.MachineType
+	if arch == "aarch64" {
+		// highmem=on lets virt guests address RAM above 4GB (configure_cpu).
+		p.machine = "virt,highmem=on"
+		// ARM64 pflash firmware exposes code/vars as named blockdev
+		// nodes on the virt machine (vm_boot MACHINE_TYPE suffix) —
+		// only when EFI_MODE stayed pflash, i.e. not the -bios path.
+		if strings.Contains(resolvedBoot(conf, osName), "efi") &&
+			a64MonolithicEDK2(conf, osName) == "" {
+			p.machine += ",pflash0=rom,pflash1=efivars"
+		}
+	}
+}
+
+// resolveAccel: the configure_cpu accelerator decision — user QEMU_ACCEL
+// override, cross-arch/hypervisor TCG forcing and the /dev/kvm
+// reality-check. Returns the accel mode, detected hypervisor and the
+// fallback CPU base model ("" when the guest keeps its default).
+func resolveAccel(conf Conf, arch string) (accel, hypervisor, baseModel string) {
 	// accel resolves in configure_cpu — before os_quirks, whose KVM-only
 	// hv_* windows flags need it. TCG is a separate -accel arg; kvm goes
 	// inside -machine (the two args+= paths in vm.sh). User QEMU_ACCEL
@@ -131,14 +212,13 @@ func main() {
 	// hypervisors force tcg.
 	// USER_QEMU_ACCEL is honoured on the non-Darwin branch only —
 	// configure_cpu forces hvf on macOS hosts regardless.
-	accel := "kvm"
+	accel = "kvm"
 	if runtime.GOOS == "darwin" {
 		accel = "hvf"
 	} else if u := conf.get("qemu_accel", os.Getenv("QEMU_ACCEL")); u != "" {
 		accel = u
 	}
-	hypervisor := hostHypervisor()
-	baseModel := ""
+	hypervisor = hostHypervisor()
 	switch {
 	case arch == "aarch64":
 		baseModel = "max"
@@ -170,38 +250,20 @@ func main() {
 	if accel == "tcg" && baseModel == "" && arch == "x86_64" {
 		baseModel = "qemu64"
 	}
-	conf["_accel"] = accel
-	conf["_hypervisor"] = hypervisor
-	t := osQuirks(conf, osName, arch)
-	// configure_storage sits between os_quirks and display in Bash:
-	// create missing disks, probe write locks, and drop iso/img when
-	// the disk is already used (installed guests boot from disk).
-	if err := prepareStorage(conf, dir); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	machine := t.MachineType
-	if arch == "aarch64" {
-		// highmem=on lets virt guests address RAM above 4GB (configure_cpu).
-		machine = "virt,highmem=on"
-		// ARM64 pflash firmware exposes code/vars as named blockdev
-		// nodes on the virt machine (vm_boot MACHINE_TYPE suffix) —
-		// only when EFI_MODE stayed pflash, i.e. not the -bios path.
-		if strings.Contains(resolvedBoot(conf, osName), "efi") &&
-			a64MonolithicEDK2(conf, osName) == "" {
-			machine += ",pflash0=rom,pflash1=efivars"
-		}
-	}
+	return accel, hypervisor, baseModel
+}
 
-	// ============ configure phase ============
-	// Bash runs every configure_* first (CPU→RAM→TSC→BIOS→quirks→
-	// storage→display→audio→ports→fileshare→usb→tpm); each builder
-	// prints its echoes here so they precede the emit phase, then the
-	// returned arg slices are appended below in vm_boot order.
-	if baseModel != "" && !strings.HasPrefix(t.CPUFlags, "@") && t.CPUFlags == "" {
-		t.CPUFlags = "@" + baseModel
+// ============ configure phase ============
+// Bash runs every configure_* first (CPU→RAM→TSC→BIOS→quirks→
+// storage→display→audio→ports→fileshare→usb→tpm); each builder
+// prints its echoes here so they precede the emit phase, then the
+// returned arg slices are appended below in vm_boot order.
+func (p *launchPlan) configure() {
+	conf, osName, arch := p.conf, p.osName, p.arch
+	if p.baseModel != "" && !strings.HasPrefix(p.t.CPUFlags, "@") && p.t.CPUFlags == "" {
+		p.t.CPUFlags = "@" + p.baseModel
 	}
-	cpuA := cpuArgs(conf, osName, arch, t)
+	p.cpuA = cpuArgs(conf, osName, arch, p.t)
 	// MSR alert (ignore_msrs_alert inside configure_cpu): macOS/
 	// Windows guests only, Linux hosts only — echoed even on --dry-run.
 	if runtime.GOOS != "darwin" &&
@@ -222,49 +284,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	ramA := ramArgs(conf, osName, os.Args[1])
-	// plan_check_tsc: macOS Ventura+ on AMD hosts with an unstable
-	// clocksource can freeze — warns in every mode; dry-run only
-	// reports, run mode prompts on a TTY or aborts non-interactively.
-	if tsc, clock := hostMacosTSCUnstable(conf); tsc {
-		fmt.Printf(" - TSC:      WARNING! Unstable TSC detected (clocksource: %s)\n", clock)
-		if conf.get("ignore_tsc_warning", "") != "" {
-			fmt.Println("             Proceeding anyway due to --ignore-tsc-warning flag.")
-		} else {
-			fmt.Printf("             macOS %s may freeze on AMD Ryzen mobile CPUs.\n",
-				title(conf.get("macos_release", "")))
-			fmt.Println("")
-			fmt.Println("             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot.")
-			fmt.Println("             Or:  Use macOS Big Sur (11) or Monterey (12) instead.")
-			fmt.Println("             See: https://github.com/quickemu-project/quickemu/wiki/03-Create-macOS-virtual-machines#tsc-instability-on-amd-ryzen-mobile-cpus")
-			fmt.Println("")
-			if runMode {
-				if f, err := os.OpenFile(filepath.Join(vmdir, vmname+".log"),
-					os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
-					if _, werr := fmt.Fprintf(f, "TSC_WARNING: clocksource=%s macos_release=%s cpu_vendor=%s\n",
-						clock, conf.get("macos_release", ""), hostCPUVendor()); werr != nil {
-						fmt.Fprintf(os.Stderr, "WARNING: could not log TSC warning: %v\n", werr)
-					}
-					f.Close()
-				}
-				if st, err := os.Stdin.Stat(); err == nil && st.Mode()&os.ModeCharDevice != 0 {
-					fmt.Print("Do you want to continue anyway? [y/N] ")
-					var resp string
-					fmt.Scanln(&resp)
-					switch strings.ToLower(resp) {
-					case "y", "yes":
-						fmt.Println(" - TSC:      Proceeding despite unstable TSC warning.")
-					default:
-						fmt.Println(" - TSC:      Aborting. Please apply one of the solutions above.")
-						os.Exit(1)
-					}
-				} else {
-					fmt.Println("ERROR! Non-interactive mode detected. Use --ignore-tsc-warning to bypass this check.")
-					os.Exit(1)
-				}
-			}
-		}
-	}
+	p.ramA = ramArgs(conf, osName, p.confPath)
+	p.checkTSC()
 	// configure_bios fatal checks: macOS firmware/bootloader presence +
 	// sizes, missing EFI firmware, EFI vars writability. Bash position —
 	// after the CPU/RAM/TSC echoes, before the BOOT echo. echo → stdout.
@@ -272,57 +293,126 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	biosA := biosArgs(conf, osName, arch)
+	p.biosA = biosArgs(conf, osName, arch)
 	// configure_os_quirks SSE/AVX2 fatals fire after the BOOT echo —
 	// osQuirks resolved them earlier but Bash ordering puts the check
 	// here (echo → stdout).
-	if t.FatalErr != "" {
-		fmt.Println(t.FatalErr)
+	if p.t.FatalErr != "" {
+		fmt.Println(p.t.FatalErr)
 		os.Exit(1)
 	}
-	storageEcho(conf, dir)
-	// start_virtiofsd runs between configure_storage and
-	// configure_display in vm_boot: run mode spawns the daemon now so
-	// the socket exists when QEMU starts; plan mode prints the planned
-	// socket. Failure falls back to 9p with a warning.
-	if conf.get("guest_os", "") == "linux" && conf["_public"] != "" && conf.get("iso", "") == "" {
-		if bin, err := exec.LookPath("virtiofsd"); err == nil {
-			if runMode {
-				if startVirtiofsd(bin, conf) {
-					conf["_virtiofsd"] = "1"
-					conf["_virtiofsd_bin"] = bin
-				}
-			} else {
-				fmt.Printf(" - virtiofsd: %s (planned)\n",
-					dotdir(vmdir)+vmname+".virtiofsd-sock")
-				conf["_virtiofsd"] = "1"
-			}
-		}
-	}
-	displayA := displayArgs(conf, dir, osName, arch)
-	audioA := audioArgs(conf, osName, t)
-	planPorts(conf, t) // -ssh:/-PORTS: echoes + resolve _fwd
-	spiceA := spiceArgs(conf, vmdir, vmname, osName)
-	shareA := fileshareArgs(conf, dir)
+	storageEcho(conf, p.dir)
+	p.planVirtiofs()
+	p.displayA = displayArgs(conf, p.dir, osName, arch)
+	p.audioA = audioArgs(conf, osName, p.t)
+	planPorts(conf, p.t) // -ssh:/-PORTS: echoes + resolve _fwd
+	p.spiceA = spiceArgs(conf, p.vmdir, p.vmname, osName)
+	p.shareA = fileshareArgs(conf, p.dir)
 	// configure_usb + configure_tpm close the Bash configure sequence.
 	// swtpm mirrors virtiofsd: spawn before emit on --run so the socket
 	// exists when the chardev lands (swtpm_socket_ready); plan always.
 	checkUSBPassthrough(conf)
-	if confOn(conf, "tpm") {
-		// plan mode prints the (planned) line without spawning.
-		if !runMode {
-			fmt.Printf(" - TPM:      %s (planned)\n", filepath.Join(vmdir, vmname+".swtpm-sock"))
-			conf["_swtpm"] = "1"
-		} else if startSwtpm(conf) {
-			conf["_swtpm"] = "1"
-		}
-	}
+	p.planSwtpm()
+}
 
-	// ============ emit phase (vm_boot args+= order) ============
+// checkTSC — plan_check_tsc: macOS Ventura+ on AMD hosts with an unstable
+// clocksource can freeze — warns in every mode; dry-run only
+// reports, run mode prompts on a TTY or aborts non-interactively.
+func (p *launchPlan) checkTSC() {
+	conf := p.conf
+	tsc, clock := hostMacosTSCUnstable(conf)
+	if !tsc {
+		return
+	}
+	fmt.Printf(" - TSC:      WARNING! Unstable TSC detected (clocksource: %s)\n", clock)
+	if conf.get("ignore_tsc_warning", "") != "" {
+		fmt.Println("             Proceeding anyway due to --ignore-tsc-warning flag.")
+		return
+	}
+	fmt.Printf("             macOS %s may freeze on AMD Ryzen mobile CPUs.\n",
+		title(conf.get("macos_release", "")))
+	fmt.Println("")
+	fmt.Println("             Fix: Add 'tsc=reliable' to kernel boot parameters and reboot.")
+	fmt.Println("             Or:  Use macOS Big Sur (11) or Monterey (12) instead.")
+	fmt.Println("             See: https://github.com/quickemu-project/quickemu/wiki/03-Create-macOS-virtual-machines#tsc-instability-on-amd-ryzen-mobile-cpus")
+	fmt.Println("")
+	if !p.runMode {
+		return
+	}
+	if f, err := os.OpenFile(filepath.Join(p.vmdir, p.vmname+".log"),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); err == nil {
+		if _, werr := fmt.Fprintf(f, "TSC_WARNING: clocksource=%s macos_release=%s cpu_vendor=%s\n",
+			clock, conf.get("macos_release", ""), hostCPUVendor()); werr != nil {
+			fmt.Fprintf(os.Stderr, "WARNING: could not log TSC warning: %v\n", werr)
+		}
+		f.Close()
+	}
+	if st, err := os.Stdin.Stat(); err == nil && st.Mode()&os.ModeCharDevice != 0 {
+		fmt.Print("Do you want to continue anyway? [y/N] ")
+		var resp string
+		fmt.Scanln(&resp)
+		switch strings.ToLower(resp) {
+		case "y", "yes":
+			fmt.Println(" - TSC:      Proceeding despite unstable TSC warning.")
+		default:
+			fmt.Println(" - TSC:      Aborting. Please apply one of the solutions above.")
+			os.Exit(1)
+		}
+	} else {
+		fmt.Println("ERROR! Non-interactive mode detected. Use --ignore-tsc-warning to bypass this check.")
+		os.Exit(1)
+	}
+}
+
+// planVirtiofs — start_virtiofsd runs between configure_storage and
+// configure_display in vm_boot: run mode spawns the daemon now so
+// the socket exists when QEMU starts; plan mode prints the planned
+// socket. Failure falls back to 9p with a warning.
+func (p *launchPlan) planVirtiofs() {
+	conf := p.conf
+	if conf.get("guest_os", "") != "linux" || conf["_public"] == "" || conf.get("iso", "") != "" {
+		return
+	}
+	bin, err := exec.LookPath("virtiofsd")
+	if err != nil {
+		return
+	}
+	if p.runMode {
+		if startVirtiofsd(bin, conf) {
+			conf["_virtiofsd"] = "1"
+			conf["_virtiofsd_bin"] = bin
+		}
+	} else {
+		fmt.Printf(" - virtiofsd: %s (planned)\n",
+			dotdir(p.vmdir)+p.vmname+".virtiofsd-sock")
+		conf["_virtiofsd"] = "1"
+	}
+}
+
+// planSwtpm — configure_tpm: plan mode prints the (planned) line
+// without spawning; run mode spawns the daemon now so the socket
+// exists when the chardev lands (swtpm_socket_ready).
+func (p *launchPlan) planSwtpm() {
+	conf := p.conf
+	if !confOn(conf, "tpm") {
+		return
+	}
+	// plan mode prints the (planned) line without spawning.
+	if !p.runMode {
+		fmt.Printf(" - TPM:      %s (planned)\n", filepath.Join(p.vmdir, p.vmname+".swtpm-sock"))
+		conf["_swtpm"] = "1"
+	} else if startSwtpm(conf) {
+		conf["_swtpm"] = "1"
+	}
+}
+
+// ============ emit phase (vm_boot args+= order) ============
+func (p *launchPlan) emit() []string {
+	conf, osName, arch, accel := p.conf, p.osName, p.arch, p.accel
 	args := []string{"qemu-system-" + arch}
 	// -name first, Linux only (process renaming is a Linux QEMU feature).
 	if runtime.GOOS == "linux" {
-		args = append(args, "-name", vmname+",process="+vmname+",debug-threads=on")
+		args = append(args, "-name", p.vmname+",process="+p.vmname+",debug-threads=on")
 	}
 	if accel == "tcg" {
 		// tb-size tiers by host RAM: 512M on 16GB+ hosts (vm_boot).
@@ -335,52 +425,67 @@ func main() {
 	switch {
 	case arch == "aarch64" && accel == "tcg":
 		// SMM/vmport are x86-only; ARM64 emits neither.
-		args = append(args, "-machine", machine+t.Machine)
+		args = append(args, "-machine", p.machine+p.t.Machine)
 	case arch == "aarch64":
-		args = append(args, "-machine", machine+t.Machine+",accel="+accel)
+		args = append(args, "-machine", p.machine+p.t.Machine+",accel="+accel)
 	case accel == "tcg":
-		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off")
+		args = append(args, "-machine", p.machine+p.t.Machine+",smm="+p.t.SMM+",vmport=off")
 	default:
-		args = append(args, "-machine", machine+t.Machine+",smm="+t.SMM+",vmport=off,accel="+accel)
+		args = append(args, "-machine", p.machine+p.t.Machine+",smm="+p.t.SMM+",vmport=off,accel="+accel)
 	}
 	// GUEST_TWEAKS goes right after -machine, before CPU (vm_boot):
 	// the kvm-pit global on non-Darwin hosts plus the OS-quirk extras.
 	if runtime.GOOS != "darwin" {
 		args = append(args, "-global", "kvm-pit.lost_tick_policy=discard")
 	}
-	args = append(args, t.ExtraArgs...)
-	args = append(args, cpuA...)
-	args = append(args, ramA...)
-	if t.Balloon != "" {
-		args = append(args, strings.Fields(t.Balloon)...)
+	args = append(args, p.t.ExtraArgs...)
+	args = append(args, p.cpuA...)
+	args = append(args, p.ramA...)
+	if p.t.Balloon != "" {
+		args = append(args, strings.Fields(p.t.Balloon)...)
 	}
 	// -pidfile closes the machine args+=() group in vm_boot.
-	args = append(args, "-pidfile", dotdir(vmdir)+vmname+".pid")
+	args = append(args, "-pidfile", dotdir(p.vmdir)+p.vmname+".pid")
 	args = append(args, rtcArgs(osName)...)
-	args = append(args, displayA...)
-	args = append(args, spiceA...)
+	args = append(args, p.displayA...)
+	args = append(args, p.spiceA...)
 	// rng: device first, then the object it references (vm.sh order).
 	args = append(args, "-device", "virtio-rng-pci,rng=rng0", "-object", "rng-random,id=rng0,filename=/dev/urandom")
-	args = append(args, spiceUSBArgs(arch, t)...)
-	args = append(args, inputArgs(conf, t)...)
+	args = append(args, spiceUSBArgs(arch, p.t)...)
+	args = append(args, inputArgs(conf, p.t)...)
 	args = append(args, brailleArgs(conf, arch)...)
-	args = append(args, audioA...)
-	args = append(args, networkArgs(conf, t)...)
-	args = append(args, biosA...)
-	args = append(args, bootMediaArgs(conf, dir)...)
-	args = append(args, storageArgs(conf, dir, t)...)
-	args = append(args, shareA...)
-	args = append(args, usbArgs(conf, t)...)
+	args = append(args, p.audioA...)
+	args = append(args, networkArgs(conf, p.t)...)
+	args = append(args, p.biosA...)
+	args = append(args, bootMediaArgs(conf, p.dir)...)
+	args = append(args, storageArgs(conf, p.dir, p.t)...)
+	args = append(args, p.shareA...)
+	args = append(args, usbArgs(conf, p.t)...)
 	args = append(args, passthruArgs(conf)...)
 	args = append(args, tpmArgs(conf, arch)...)
-	// monitor + serial channels — vm_boot_channels parity. monitor=socket
-	// also gives the QMP socket; telnet/none have no structured channel.
+	args = p.monitorChan(args)
+	args = p.serialChan(args)
+	// extra_args verbatim append (vm.sh): word-split like the unquoted
+	// Bash expansion — the escape hatch for any QEMU flag quickemu
+	// does not model (e.g. extra_args="-accel tcg" to force TCG).
+	if ea := conf.get("extra_args", ""); ea != "" {
+		args = append(args, strings.Fields(ea)...)
+	}
+	args = append(args, vncArgs(conf, p.vmdir)...)
+	return p.directBootArgs(args)
+}
+
+// monitorChan: the monitor channel emit — vm_boot_channels parity.
+// monitor=socket also gives the QMP socket; telnet/none have no
+// structured channel.
+func (p *launchPlan) monitorChan(args []string) []string {
+	conf, vmdir, vmname := p.conf, p.vmdir, p.vmname
 	switch mon := conf.get("monitor", "socket"); mon {
 	case "none":
 		args = append(args, "-monitor", "none")
 		fmt.Printf(" - Monitor:  (off)\n")
 	case "telnet":
-		args = telnetChan(args, conf, vmdir, vmname, runMode,
+		args = telnetChan(args, conf, vmdir, vmname, p.runMode,
 			"monitor", " - Monitor:  ", "Monitor-Telnet", 4440)
 	case "socket":
 		args = append(args, "-monitor",
@@ -393,10 +498,16 @@ func main() {
 		fmt.Printf("ERROR! \"%s\" is an unknown monitor option.\n", mon)
 		os.Exit(1)
 	}
-	// serial: none for macos/windows default; socket otherwise.
+	return args
+}
+
+// serialChan: the serial channel emit — none for macos/windows
+// default; socket otherwise.
+func (p *launchPlan) serialChan(args []string) []string {
+	conf, vmdir, vmname := p.conf, p.vmdir, p.vmname
 	ser := conf.get("serial", "")
 	if ser == "" {
-		switch osName {
+		switch p.osName {
 		case "macos", "windows", "windows-server":
 			ser = "none"
 		default:
@@ -407,7 +518,7 @@ func main() {
 	case "none":
 		args = append(args, "-serial", "none")
 	case "telnet":
-		args = telnetChan(args, conf, vmdir, vmname, runMode,
+		args = telnetChan(args, conf, vmdir, vmname, p.runMode,
 			"serial", " - Serial:   ", "Serial Telnet", 6660)
 	case "socket":
 		args = append(args, "-serial",
@@ -417,15 +528,14 @@ func main() {
 		fmt.Printf("ERROR! \"%s\" is an unknown serial option.\n", ser)
 		os.Exit(1)
 	}
-	// extra_args verbatim append (vm.sh): word-split like the unquoted
-	// Bash expansion — the escape hatch for any QEMU flag quickemu
-	// does not model (e.g. extra_args="-accel tcg" to force TCG).
-	if ea := conf.get("extra_args", ""); ea != "" {
-		args = append(args, strings.Fields(ea)...)
-	}
-	args = append(args, vncArgs(conf, vmdir)...)
-	// kernel/initrd/boot_args override (vm.sh): direct kernel boot —
-	// the unattended ubuntu-server flow writes these into the conf.
+	return args
+}
+
+// directBootArgs: kernel/initrd/boot_args override (vm.sh) — direct
+// kernel boot, the unattended ubuntu-server flow writes these into the
+// conf — plus the NoCloud/cloud-init seed image attached as a cdrom.
+func (p *launchPlan) directBootArgs(args []string) []string {
+	conf, dir := p.conf, p.dir
 	if k := conf.get("kernel", ""); k != "" {
 		args = append(args, "-kernel", joinConf(dir, k))
 		if i := conf.get("initrd", ""); i != "" {
@@ -444,38 +554,44 @@ func main() {
 			fmt.Printf(" - WARNING! seed '%s' not found, skipping.\n", s)
 		}
 	}
+	return args
+}
 
-	if len(os.Args) > 2 && os.Args[2] == "--run" {
-		// Hardware-virtualisation gate (configure_cpu): only enforced on
-		// a real launch — argv printing is the --dry-run equivalent and
-		// must not hard-fail on hosts without VT-x/SVM.
-		if hypervisor == "" && accel != "tcg" && arch == hostArch() &&
-			(runtime.GOOS == "linux" || runtime.GOOS == "darwin") {
-			switch hostCPUVendor() {
-			case "GenuineIntel":
-				if !hostHasFlag("vmx") {
-					fmt.Println("ERROR! Intel VT-x support is required.")
-					os.Exit(1)
-				}
-			case "AuthenticAMD", "HygonGenuine":
-				if !hostHasFlag("svm") {
-					fmt.Println("ERROR! AMD SVM support is required.")
-					os.Exit(1)
-				}
-			default:
-				// ARM hosts have no x86 virt flags (handled by the
-				// hypervisor); anything else gets the Bash warning.
-				if hostArch() != "aarch64" {
-					fmt.Printf("WARNING! Unknown CPU vendor '%s' - cannot verify virtualisation support.\n", hostCPUVendor())
-					fmt.Println("         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
-				}
-			}
-		}
-		if err := runQEMU(os.Args[1], vmdir, args, conf); err != nil {
-			fmt.Fprintln(os.Stderr, "launch failed:", err)
-			os.Exit(1)
-		}
+// launch: --run spawns QEMU through runQEMU after the hardware-
+// virtualisation gate; every other mode prints the assembled argv
+// (the --dry-run/plan equivalent of vm_boot).
+func (p *launchPlan) launch(args []string) {
+	if !p.runMode {
+		fmt.Println(strings.Join(args, " "))
 		return
 	}
-	fmt.Println(strings.Join(args, " "))
+	// Hardware-virtualisation gate (configure_cpu): only enforced on
+	// a real launch — argv printing is the --dry-run equivalent and
+	// must not hard-fail on hosts without VT-x/SVM.
+	if p.hypervisor == "" && p.accel != "tcg" && p.arch == hostArch() &&
+		(runtime.GOOS == "linux" || runtime.GOOS == "darwin") {
+		switch hostCPUVendor() {
+		case "GenuineIntel":
+			if !hostHasFlag("vmx") {
+				fmt.Println("ERROR! Intel VT-x support is required.")
+				os.Exit(1)
+			}
+		case "AuthenticAMD", "HygonGenuine":
+			if !hostHasFlag("svm") {
+				fmt.Println("ERROR! AMD SVM support is required.")
+				os.Exit(1)
+			}
+		default:
+			// ARM hosts have no x86 virt flags (handled by the
+			// hypervisor); anything else gets the Bash warning.
+			if hostArch() != "aarch64" {
+				fmt.Printf("WARNING! Unknown CPU vendor '%s' - cannot verify virtualisation support.\n", hostCPUVendor())
+				fmt.Println("         If virtualisation fails, check your CPU supports hardware virtualisation and it's enabled in firmware.")
+			}
+		}
+	}
+	if err := runQEMU(p.confPath, p.vmdir, args, p.conf); err != nil {
+		fmt.Fprintln(os.Stderr, "launch failed:", err)
+		os.Exit(1)
+	}
 }
