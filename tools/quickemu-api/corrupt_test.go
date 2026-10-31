@@ -39,3 +39,18 @@ func TestVmsEndpointCorruptJSON(t *testing.T) {
 		t.Fatalf("data is %v, want empty object for corrupt vms.json", env["data"])
 	}
 }
+
+// Regression: http.Serve ran with no timeouts — a stalled request on
+// a TCP bind (--insecure-allow-exposed) would hold the conn forever.
+func TestAPIServerTimeouts(t *testing.T) {
+	srv := apiServer()
+	if srv.ReadHeaderTimeout <= 0 {
+		t.Fatalf("ReadHeaderTimeout unset — slowloris on TCP binds")
+	}
+	if srv.ReadTimeout <= 0 {
+		t.Fatalf("ReadTimeout unset")
+	}
+	if srv.Handler == nil {
+		t.Fatalf("handler unset")
+	}
+}

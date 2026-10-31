@@ -103,7 +103,9 @@ func customConf(vmPath, input, flag string) int {
 			if i := strings.Index(low, "win"); i >= 0 && strings.Contains(low[i+3:], "10") {
 				drv = "w10"
 			}
-			unattendedWindows(vmPath, drv, "")
+			if unattendedWindows(vmPath, drv, "") != 0 {
+				return 1
+			}
 		}
 	}
 	fmt.Printf("Selecting OS: %s. If this is incorrect, please modify the config file to include the correct OS.\n\n", customOS)

@@ -139,6 +139,9 @@ func extract7z(arc, dir string) bool {
 	defer r.Close()
 	ok := false
 	for _, f := range r.File {
+		if f.UncompressedSize > extractMaxMember {
+			continue
+		}
 		rc, err := f.Open()
 		if err != nil {
 			continue
@@ -271,6 +274,11 @@ func decompressZstd(p string) bool {
 	return true
 }
 
+// extractMaxMember bounds one archive member's claimed size — a
+// remote bomb must not fill the disk (mirrors quickemu-archive).
+// Var so tests can lower the bound.
+var extractMaxMember = uint64(512 << 30)
+
 func extractZip(zipPath, dest string) bool {
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -281,6 +289,9 @@ func extractZip(zipPath, dest string) bool {
 		// Member names come from a remote server — a "../" or absolute
 		// member would write outside the VM dir (zip-slip).
 		if !filepath.IsLocal(zf.Name) {
+			continue
+		}
+		if zf.UncompressedSize64 > extractMaxMember {
 			continue
 		}
 		d := filepath.Join(dest, zf.Name)

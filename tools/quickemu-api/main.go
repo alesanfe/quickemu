@@ -225,11 +225,23 @@ var serveAPI = func(ln net.Listener, listen string) bool {
 	fmt.Println("quickemu-api listening on", listen)
 	// Serve never returns nil: ErrServerClosed is a graceful stop,
 	// anything else is a dead accept loop and must be reported.
-	if err := http.Serve(ln, newMux()); err != nil && err != http.ErrServerClosed {
+	if err := apiServer().Serve(ln); err != nil && err != http.ErrServerClosed {
 		fmt.Fprintf(os.Stderr, "serve: %v\n", err)
 		return false
 	}
 	return true
+}
+
+// apiServer applies bounded header/read timeouts — a TCP bind (the
+// --insecure-allow-exposed path) would otherwise hold conns open
+// forever on a stalled request line.
+func apiServer() *http.Server {
+	return &http.Server{
+		Handler:           newMux(),
+		ReadHeaderTimeout: 30 * time.Second,
+		ReadTimeout:       2 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
+	}
 }
 
 // openListener binds a unix socket (paths starting with /) or TCP

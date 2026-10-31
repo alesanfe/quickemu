@@ -256,3 +256,33 @@ func TestWebHelpers(t *testing.T) {
 		}
 	}
 }
+
+// Regression: extractArchive had no expansion bound — a remote archive
+// could decompress-bomb the disk. Caps now mirror quickemu-archive.
+func TestExtractArchiveOversize(t *testing.T) {
+	old := extractMaxSize
+	extractMaxSize = 16
+	defer func() { extractMaxSize = old }()
+
+	vmPath := t.TempDir()
+	// tar member larger than the lowered cap -> fallback to file.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	body := []byte("payload-bigger-than-sixteen-bytes")
+	if err := tw.WriteHeader(&tar.Header{Name: "big.img", Mode: 0o644, Size: int64(len(body))}); err != nil {
+		t.Fatalf("tar header: %v", err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatalf("tar write: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar close: %v", err)
+	}
+	tf := filepath.Join(vmPath, "dl.tar")
+	if err := os.WriteFile(tf, buf.Bytes(), 0o644); err != nil {
+		t.Fatalf("write tar: %v", err)
+	}
+	if got := extractArchive("tar", tf, vmPath, "img"); got != tf {
+		t.Fatalf("oversize tar extracted to %q, want fallback %q", got, tf)
+	}
+}

@@ -250,6 +250,12 @@ func checkHash(path, want string) bool {
 
 // extractArchive: decompress a downloaded source by archive_format
 // (tar*/xz/gz/bz2/zip). Returns the final file path.
+// extractMaxSize bounds what a remote archive may expand to — a
+// malicious mirror serving a decompression bomb must not fill the
+// disk. Mirrors quickemu-archive's maxSize (512GiB); real images
+// top out around tens of GiB. Var so tests can lower the bound.
+var extractMaxSize = int64(512 << 30)
+
 func extractArchive(format, file, vmPath, imageType string) string {
 	open := func() (io.ReadCloser, error) {
 		return os.Open(file)
@@ -262,6 +268,7 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		}
 		defer rc.Close()
 		tr := tar.NewReader(rc)
+		var total int64
 		for {
 			hdr, err := tr.Next()
 			if err != nil {
@@ -271,6 +278,10 @@ func extractArchive(format, file, vmPath, imageType string) string {
 			// absolute members write outside the VM dir (tar-slip).
 			if !filepath.IsLocal(hdr.Name) {
 				continue
+			}
+			total += hdr.Size
+			if total > extractMaxSize {
+				return file
 			}
 			dest := filepath.Join(vmPath, hdr.Name)
 			if hdr.FileInfo().IsDir() {
@@ -315,7 +326,9 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		}
 		// A truncated stream yields a partial artifact — remove it and
 		// fall back to the untouched download, like the open-fail path.
-		if _, err := io.Copy(w, xr); err != nil {
+		// The limit guards against a decompression bomb filling the disk.
+		n, err := io.Copy(w, io.LimitReader(xr, extractMaxSize+1))
+		if err != nil || n > extractMaxSize {
 			w.Close()
 			os.Remove(out)
 			return file
@@ -340,7 +353,8 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		if err != nil {
 			return file
 		}
-		if _, err := io.Copy(w, gr); err != nil {
+		n, err := io.Copy(w, io.LimitReader(gr, extractMaxSize+1))
+		if err != nil || n > extractMaxSize {
 			w.Close()
 			os.Remove(out)
 			return file
@@ -361,7 +375,8 @@ func extractArchive(format, file, vmPath, imageType string) string {
 		if err != nil {
 			return file
 		}
-		if _, err := io.Copy(w, bzip2.NewReader(rc)); err != nil {
+		n, err := io.Copy(w, io.LimitReader(bzip2.NewReader(rc), extractMaxSize+1))
+		if err != nil || n > extractMaxSize {
 			w.Close()
 			os.Remove(out)
 			return file
@@ -377,10 +392,15 @@ func extractArchive(format, file, vmPath, imageType string) string {
 			return file
 		}
 		defer zr.Close()
+		var total int64
 		for _, zf := range zr.File {
 			// Same tar-slip reasoning: member names are remote content.
 			if !filepath.IsLocal(zf.Name) {
 				continue
+			}
+			total += int64(zf.UncompressedSize64)
+			if total > extractMaxSize {
+				return file
 			}
 			if zf.FileInfo().IsDir() {
 				os.MkdirAll(filepath.Join(vmPath, zf.Name), 0755)

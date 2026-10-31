@@ -311,12 +311,16 @@ func getOS(osName, release, edition, dir, arch string) int {
 		virtio := filepath.Join(dir, "virtio-win.iso")
 		if _, err := os.Stat(virtio); err != nil {
 			fmt.Println("Downloading VirtIO drivers...")
-			fetch("https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso", virtio, "")
+			if fetch("https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso", virtio, "") != 0 {
+				return 1
+			}
 		}
 		fixedISO = "virtio-win.iso"
 		if release == "10" || release == "11" {
 			os.Remove(filepath.Join(dir, "unattended.iso"))
-			unattendedWindows(dir, "w"+release, "")
+			if unattendedWindows(dir, "w"+release, "") != 0 {
+				return 1
+			}
 		}
 	}
 	rc := mkconf(osName, release, edition, imageName, fixedISO, dir, arch, cloudInitFlag)

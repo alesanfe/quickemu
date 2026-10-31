@@ -342,11 +342,15 @@ func getWindows(osName, release, i18n, dir, arch string) int {
 	fmt.Println("Downloading VirtIO drivers...")
 	virtio := filepath.Join(dir, "virtio-win.iso")
 	if _, serr := os.Stat(virtio); serr != nil {
-		fetch("https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso", virtio, "")
+		if fetch("https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/stable-virtio/virtio-win.iso", virtio, "") != 0 {
+			return 1
+		}
 	}
 	os.Remove(filepath.Join(dir, "unattended.iso"))
 	if release == "10" || release == "11" {
-		unattendedWindows(dir, "w"+release, i18n)
+		if unattendedWindows(dir, "w"+release, i18n) != 0 {
+			return 1
+		}
 	}
 	if fileName == "" {
 		fileName = "windows-" + release + ".iso"

@@ -66,3 +66,37 @@ func TestExtractZipCorruptMember(t *testing.T) {
 		t.Fatalf("partial member left behind: %v", err)
 	}
 }
+
+// Regression: extractZip had no bound on a member's claimed size —
+// a remote bomb could fill the disk before any truncation check ran.
+func TestExtractZipOversizeMember(t *testing.T) {
+	old := extractMaxMember
+	extractMaxMember = 8
+	defer func() { extractMaxMember = old }()
+
+	payload := []byte("bigger-than-cap-member-payload")
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, err := zw.CreateHeader(&zip.FileHeader{
+		Name:   "big.img",
+		Method: zip.Store,
+	})
+	if err != nil {
+		t.Fatalf("zip create: %v", err)
+	}
+	if _, err := w.Write(payload); err != nil {
+		t.Fatalf("zip write: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("zip close: %v", err)
+	}
+	zf := filepath.Join(t.TempDir(), "big.zip")
+	if err := os.WriteFile(zf, buf.Bytes(), 0o644); err != nil {
+		t.Fatalf("write zip: %v", err)
+	}
+	dest := t.TempDir()
+	extractZip(zf, dest)
+	if _, err := os.Stat(filepath.Join(dest, "big.img")); !os.IsNotExist(err) {
+		t.Fatalf("oversize member was extracted: %v", err)
+	}
+}
