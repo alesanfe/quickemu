@@ -203,13 +203,9 @@ func main() {
 			overlayFlag = true
 			i--
 		default:
-			ok, err := seedOpts.parseSeedFlag(os.Args, &i)
-			if err != nil {
+			if _, err := seedOpts.parseSeedFlag(os.Args, &i); err != nil {
 				fmt.Println("mkconf: " + err.Error())
 				os.Exit(2)
-			}
-			if !ok {
-				continue
 			}
 			continue
 		}

@@ -107,6 +107,8 @@ github.com/jaypipes/pcidb
 github.com/kdomanski/iso9660
 # github.com/klauspost/compress v1.17.11
 ## explicit; go 1.24
+# github.com/klauspost/compress v1.18.5
+## explicit; go 1.24
 # github.com/klauspost/compress v1.19.0
 ## explicit; go 1.24
 github.com/klauspost/compress
@@ -124,6 +126,8 @@ github.com/lufia/plan9stats
 # github.com/mitchellh/go-homedir v1.0.0
 ## explicit
 github.com/mitchellh/go-homedir
+# github.com/pierrec/lz4/v4 v4.1.26
+## explicit; go 1.17
 # github.com/pierrec/lz4/v4 v4.1.27
 ## explicit; go 1.17
 github.com/pierrec/lz4/v4
