@@ -152,3 +152,21 @@ func TestStorageEchoBranches(t *testing.T) {
 	// empty conf → silent
 	storageEcho(Conf{}, dir)
 }
+
+// Regression: a prefix-matching line without ":" panicked on the old
+// SplitN(l,":",2)[1] index — a crafted cpuinfo line like "vendor_idless"
+// matched the prefix but carried no separator.
+func TestColonValue(t *testing.T) {
+	if got := colonValue("vendor_idless", "vendor_id"); got != "" {
+		t.Fatalf("no-colon line must yield \"\", got %q", got)
+	}
+	if got := colonValue("model name : GenuineIntel x", "model name"); got != "GenuineIntel x" {
+		t.Fatalf("value parse: %q", got)
+	}
+	if got := colonValue("other: x", "model name"); got != "" {
+		t.Fatalf("non-matching prefix: %q", got)
+	}
+	if got := colonValue("Socket(s):  2", "Socket(s):"); got != "2" {
+		t.Fatalf("sockets parse: %q", got)
+	}
+}

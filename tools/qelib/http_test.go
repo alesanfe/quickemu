@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 // HEAD-blocked servers (presigned URLs, some CDNs) must fall back to
@@ -120,6 +121,56 @@ func TestFinalURL(t *testing.T) {
 	u, err := FinalURL(srv.URL + "/start")
 	if err != nil || u != srv.URL+"/end" {
 		t.Fatalf("FinalURL=%q %v", u, err)
+	}
+}
+
+// Regression: FinalURL ran on DLClient (no Timeout — correct for
+// multi-GB payloads) so a hung redirect target stalled quickget
+// forever. It must ride a bounded client.
+func TestFinalURLBoundedClient(t *testing.T) {
+	if RedirClient.Timeout <= 0 {
+		t.Fatal("RedirClient must be bounded")
+	}
+	if RedirClient.CheckRedirect == nil {
+		t.Fatal("RedirClient must keep the scheme/hop guard")
+	}
+	// Swap in a short-timeout client and hit a server that never
+	// answers. The handler must still return once the client gives
+	// up — a bare select{} would deadlock httptest.Server.Close.
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	defer func() { close(release); srv.Close() }()
+	old := RedirClient
+	RedirClient = &http.Client{Timeout: 150 * time.Millisecond,
+		Transport: HTTPTransport, CheckRedirect: redirectGuard}
+	defer func() { RedirClient = old }()
+	done := make(chan error, 1)
+	go func() { _, err := FinalURL(srv.URL); done <- err }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("hung server must error")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("FinalURL unbounded — hung server blocks forever")
+	}
+}
+
+// The scheme guard must apply on the metadata path too — a redirect
+// to file:// must not resolve.
+func TestFinalURLRejectsSchemeRedirect(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Location", "file:///etc/passwd")
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer srv.Close()
+	if u, err := FinalURL(srv.URL); err == nil {
+		t.Fatalf("file:// redirect must be refused, got %q", u)
 	}
 }
 

@@ -57,13 +57,28 @@ func hostSockets() int {
 		return 1
 	}
 	for _, l := range strings.Split(string(out), "\n") {
-		if strings.HasPrefix(l, "Socket(s):") {
+		if v := colonValue(l, "Socket(s):"); v != "" {
 			n := 1
-			fmt.Sscanf(strings.TrimSpace(strings.SplitN(l, ":", 2)[1]), "%d", &n)
+			fmt.Sscanf(v, "%d", &n)
 			return n
 		}
 	}
 	return 1
+}
+
+// colonValue: trimmed value after the first ':' for a line carrying
+// prefix — "" when absent. A prefix match alone does not guarantee a
+// separator: a crafted "vendor_idless"/"model nameless" line would
+// panic the old SplitN[1] index.
+func colonValue(l, prefix string) string {
+	if !strings.HasPrefix(l, prefix) {
+		return ""
+	}
+	_, v, ok := strings.Cut(l, ":")
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(v)
 }
 
 // hostCPUModel: HOST_CPU_MODEL parity — first "model name" from
@@ -72,8 +87,8 @@ func hostCPUModel() string {
 	b, err := os.ReadFile("/proc/cpuinfo")
 	if err == nil {
 		for _, l := range strings.Split(string(b), "\n") {
-			if strings.HasPrefix(l, "model name") {
-				return strings.TrimSpace(strings.SplitN(l, ":", 2)[1])
+			if v := colonValue(l, "model name"); v != "" {
+				return v
 			}
 		}
 	}
@@ -136,8 +151,8 @@ func hostCPUVendor() string {
 		return ""
 	}
 	for _, l := range strings.Split(string(b), "\n") {
-		if strings.HasPrefix(l, "vendor_id") {
-			return strings.TrimSpace(strings.SplitN(l, ":", 2)[1])
+		if v := colonValue(l, "vendor_id"); v != "" {
+			return v
 		}
 	}
 	return ""

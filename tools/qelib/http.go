@@ -39,19 +39,29 @@ func init() {
 // ProbeClient for bounded reachability/metadata probes.
 var ProbeClient = &http.Client{Timeout: 30 * time.Second, Transport: HTTPTransport}
 
-// DLClient for payload downloads. proto-redir =http,https parity:
-// redirects may never leave the http(s) schemes (blocks redirect ->
-// file:// etc.) and are bounded like curl --max-redirs.
-var DLClient = &http.Client{Transport: HTTPTransport,
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= 10 {
-			return fmt.Errorf("too many redirects")
-		}
-		if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
-			return fmt.Errorf("redirect to disallowed scheme %q", req.URL.Scheme)
-		}
-		return nil
-	}}
+// redirectGuard enforces proto-redir =http,https parity: redirects
+// may never leave the http(s) schemes (blocks redirect -> file://
+// etc.) and are bounded like curl --max-redirs.
+func redirectGuard(req *http.Request, via []*http.Request) error {
+	if len(via) >= 10 {
+		return fmt.Errorf("too many redirects")
+	}
+	if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
+		return fmt.Errorf("redirect to disallowed scheme %q", req.URL.Scheme)
+	}
+	return nil
+}
+
+// DLClient for payload downloads — no Timeout: multi-GB transfers
+// must not be killed by a blanket deadline (the stall watchdog in
+// fetch.go drops hung connections instead).
+var DLClient = &http.Client{Transport: HTTPTransport, CheckRedirect: redirectGuard}
+
+// RedirClient resolves redirect chains for metadata probes —
+// bounded like ProbeClient so a hung server cannot stall quickget
+// forever, with the same scheme/hop guard as downloads.
+var RedirClient = &http.Client{Timeout: 30 * time.Second, Transport: HTTPTransport,
+	CheckRedirect: redirectGuard}
 
 // WebCheck: HEAD reachability probe with a GET Range:bytes=0-0
 // fallback — web_check parity (presigned/CDN URLs that 403 HEAD).
@@ -110,7 +120,7 @@ func FetchString(u string, limit int64) (string, error) {
 
 // FinalURL resolves the last redirect target (web_redirect parity).
 func FinalURL(u string) (string, error) {
-	r, err := DLClient.Get(u)
+	r, err := RedirClient.Get(u)
 	if err != nil {
 		return "", err
 	}
