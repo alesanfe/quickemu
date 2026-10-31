@@ -112,6 +112,9 @@ func sshShared(tail []string) []string {
 			sshVerbState.agent = true
 		case a == "-v" || a == "--verbose":
 			sshVerbState.verbose = true
+		case a == "-h" || a == "--help":
+			sshUsage()
+			os.Exit(0)
 		default:
 			rest = append(rest, a)
 		}

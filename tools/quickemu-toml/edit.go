@@ -304,12 +304,11 @@ func TomlSet(path, key, val string, o *SetOptions) error {
 func patchTOML(src []byte, sec, key, newLine string) []byte {
 	keyRe := regexp.MustCompile(`^\s*` + regexp.QuoteMeta(key) + `\s*=\s*`)
 	lines := strings.Split(string(src), "\n")
-	inSec := sec == ""
 	secStart, secEnd := -1, len(lines)
 	// Locate the target section's line range first. Root (sec=="")
 	// ends at the first table header.
 	if sec != "" {
-		inSec = false
+		inSec := false
 		for i, raw := range lines {
 			l := strings.TrimSpace(raw)
 			if strings.HasPrefix(l, "[") {

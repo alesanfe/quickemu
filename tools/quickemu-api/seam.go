@@ -6,3 +6,4 @@ import "os/exec"
 // observe or fake subprocesses without forking. Restore the original
 // via t.Cleanup; never use t.Parallel while a stub is installed.
 var execCommand = exec.Command
+var execCommandCtx = exec.CommandContext

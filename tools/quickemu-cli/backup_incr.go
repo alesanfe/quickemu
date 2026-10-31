@@ -117,7 +117,7 @@ func actBackupIncr() int {
 		fmt.Printf(" - backup: bitmap add failed: %v\n", err)
 		return 1
 	}
-	if raw != nil && len(raw) > 2 && string(raw) != "{}" {
+	if len(raw) > 2 && string(raw) != "{}" {
 		// QEMU returns {"error":...} inside return for bad commands.
 		var e struct {
 			Error struct {

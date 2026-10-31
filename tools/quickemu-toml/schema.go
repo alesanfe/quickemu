@@ -133,7 +133,6 @@ var (
 	sizeRe = regexp.MustCompile(`^[0-9]+(\.[0-9]+)?\s*[KMGTPE]i?B?$`)
 	fwdRe  = regexp.MustCompile(`^([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:)?[0-9]+:[0-9]+$`)
 	ifRe   = regexp.MustCompile(`^[a-zA-Z0-9._/-]+$`)
-	keyRe  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 func digitsOnly(s string) bool {

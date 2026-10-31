@@ -8,6 +8,7 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -478,31 +479,21 @@ func cliTool() (string, error) {
 }
 
 // toolTCLI runs quickemu <args...> through the resolved entrypoint.
+// The ctx-owned kill avoids racing on cmd.Process: Start() publishes
+// it inside the goroutine that ran CombinedOutput, so a parallel
+// timeout branch could never read it safely.
 func toolTCLI(d time.Duration, args ...string) (string, error) {
 	bin, err := cliTool()
 	if err != nil {
 		return "", err
 	}
-	cmd := execCommand(bin, args...)
-	type res struct {
-		out []byte
-		err error
-	}
-	ch := make(chan res, 1)
-	go func() {
-		o, e := cmd.CombinedOutput()
-		ch <- res{o, e}
-	}()
-	select {
-	case r := <-ch:
-		return string(r.out), r.err
-	case <-time.After(d):
-		if cmd.Process != nil {
-			cmd.Process.Kill()
-		}
-		<-ch
+	ctx, cancel := context.WithTimeout(context.Background(), d)
+	defer cancel()
+	out, err := execCommandCtx(ctx, bin, args...).CombinedOutput()
+	if ctx.Err() == context.DeadlineExceeded {
 		return "", fmt.Errorf("quickemu timed out after %s", d)
 	}
+	return string(out), err
 }
 
 // xdgEnv makes sibling tools that resolve XDG paths (trash root,

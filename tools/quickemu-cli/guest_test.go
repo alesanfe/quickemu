@@ -316,8 +316,7 @@ func TestGuestExec(t *testing.T) {
 	guestVM(t)
 	// Scripted exec: pid 42, one status poll reports exited with
 	// base64 stdout/stderr.
-	var srv *qgatest.Server
-	srv = agentSock(t, func(req map[string]any) qgatest.Reply {
+	srv := agentSock(t, func(req map[string]any) qgatest.Reply {
 		switch req["execute"] {
 		case "guest-exec":
 			args := req["arguments"].(map[string]any)
