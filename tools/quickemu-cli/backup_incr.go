@@ -48,7 +48,9 @@ func incrRegistryAppend(r incrRec) {
 	b, _ := json.MarshalIndent(arr, "", "  ")
 	tmp := incrRegistry() + ".tmp"
 	if os.WriteFile(tmp, b, 0o644) == nil {
-		os.Rename(tmp, incrRegistry())
+		if err := os.Rename(tmp, incrRegistry()); err != nil {
+			fmt.Fprintf(os.Stderr, " - WARNING! backup registry update failed: %v\n", err)
+		}
 	}
 }
 

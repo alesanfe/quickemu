@@ -158,7 +158,9 @@ saved:
 		Version: qeVersion,
 	}
 	if b, err := json.Marshal(rec); err == nil {
-		os.WriteFile(meta, b, 0600)
+		if err := os.WriteFile(meta, b, 0600); err != nil {
+			fmt.Fprintf(os.Stderr, " - WARNING! suspend metadata not written: %v\n", err)
+		}
 	}
 	// The record lands BEFORE cleanup: reconcile reads stale+suspended
 	// + image as the expected end of a suspend, never a crash.
