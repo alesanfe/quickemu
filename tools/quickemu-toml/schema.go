@@ -34,6 +34,7 @@ const (
 	kindNet                    // network mode or host interface name
 	kindFwdList                // port_forwards: HOST:GUEST entries
 	kindStrList                // usb_devices/extra_disks: string list
+	kindAny                    // QE-060: [[share]] tables — shape-checked by launch
 )
 
 // keySpec pairs a declarative key with its value kind and, for
@@ -72,6 +73,10 @@ var declarativeKeys = map[string]keySpec{
 	"sound_card":          {kindEnum, []string{"ac97", "es1370", "ich9-intel-hda", "intel-hda", "sb16", "usb-audio", "virtio-sound-pci", "none"}},
 	"sound_duplex":        {kindEnum, []string{"hda-duplex", "hda-micro", "hda-output"}},
 	"public_dir":          {kindStr, nil}, // "none" is a legal value
+	"share_dirs":          {kindStr, nil}, // QE-060: space-separated extra shares
+	"share_tags":          {kindStr, nil}, // mount tags matching share_dirs
+	"share_in_dirs":       {kindStr, nil}, // QE-061: guest→host inboxes
+	"share":               {kindAny, nil}, // QE-060: [[share]] tables
 	"seed":                {kindPath, nil},
 	"kernel":              {kindPath, nil},
 	"initrd":              {kindPath, nil},
@@ -168,6 +173,9 @@ func strVal(v any) (string, bool) {
 // `ssh_port = "22"` are equivalent.
 func checkValue(key string, spec keySpec, v any) string {
 	// List kinds accept a single string or an array of strings.
+	if spec.kind == kindAny {
+		return "" // non-scalar containers validate in the launch layer
+	}
 	if spec.kind == kindFwdList || spec.kind == kindStrList {
 		var items []string
 		switch t := v.(type) {

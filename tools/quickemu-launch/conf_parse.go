@@ -60,6 +60,13 @@ func parseTomlConf(path string) Conf {
 		return c
 	}
 	for k, v := range doc {
+		// QE-060/061: [[share]] tables decode as []map[string]any —
+		// flatten into share_dirs/share_tags/share_in_dirs before the
+		// generic nested-key warning fires.
+		if k == "share" {
+			flattenShares(c, v)
+			continue
+		}
 		switch x := v.(type) {
 		case string:
 			c[k] = x
@@ -81,6 +88,45 @@ func parseTomlConf(path string) Conf {
 		}
 	}
 	return c
+}
+
+// flattenShares: [[share]] path="..." tag="..." direction="in|out"
+// accumulates into space-separated flat keys (matching what a plain
+// .conf writes by hand). direction="in" is the QE-061 guest→host
+// inbox; anything else is a host→guest share. Accepts either decode
+// shape ([]map[string]any from BurntSushi, []any in tests).
+func flattenShares(c Conf, v any) {
+	var arr []any
+	switch t := v.(type) {
+	case []map[string]any:
+		for _, m := range t {
+			arr = append(arr, m)
+		}
+	case []any:
+		arr = t
+	default:
+		fmt.Fprintf(os.Stderr, "WARNING! Ignoring malformed share key (flat config model).\n")
+		return
+	}
+	for _, e := range arr {
+		m, ok := e.(map[string]any)
+		if !ok {
+			continue
+		}
+		path, _ := m["path"].(string)
+		if path == "" {
+			fmt.Fprintf(os.Stderr, "WARNING! [[share]] without path — ignored.\n")
+			continue
+		}
+		if dir, _ := m["direction"].(string); dir == "in" {
+			c["share_in_dirs"] = strings.TrimSpace(c["share_in_dirs"] + " " + path)
+			continue
+		}
+		c["share_dirs"] = strings.TrimSpace(c["share_dirs"] + " " + path)
+		if tag, _ := m["tag"].(string); tag != "" {
+			c["share_tags"] = strings.TrimSpace(c["share_tags"] + " " + tag)
+		}
+	}
 }
 
 // dotdir: Bash launches with cwd=vmdir so artifacts render as ./name —

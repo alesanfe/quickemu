@@ -329,6 +329,9 @@ func fileshareArgs(c Conf, dir string) []string {
 			}
 		}
 	}
+	// QE-060/061: extra [[share]] entries + guest→host inboxes emit
+	// their own 9p pairs (fsdev1+), independent of the primary share.
+	a = append(a, extraShareArgs(c)...)
 	// configure_file_sharing's smbd echo runs last for every guest —
 	// the ,smb= option itself is already on the user netdev.
 	if smbdPresent() {
