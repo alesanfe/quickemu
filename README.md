@@ -14,6 +14,9 @@
   &nbsp;<a href="https://twitter.com/m_wimpress" target="_blank"><img alt="Twitter" src="https://img.shields.io/badge/Twitter-303030?style=for-the-badge&logo=x&logoColor=%23ffffff"></a>&nbsp;
   &nbsp;<a href="https://linkedin.com/in/martinwimpress" target="_blank"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-1667be?style=for-the-badge&logo=linkedin&logoColor=%23ffffff"></a>&nbsp;
 </p>
+<p align="center">
+  <a href="https://scorecard.dev/viewer/?uri=github.com/alesanfe/quickemu"><img alt="OpenSSF Scorecard" src="https://api.securityscorecards.dev/projects/github.com/alesanfe/quickemu/badge"></a>
+</p>
 
 ## Contents
 

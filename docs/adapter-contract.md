@@ -25,7 +25,11 @@ resolver case in `tools/quickget-catalog/scrape*.go` instead of static
 | **D** | HTTPS only, no checksum available | `warning: integrity not verifiable` |
 | **E** | community mirror or unverifiable host | `warning: unverifiable source` |
 
-The user may require a minimum with `quickget --minimum-trust <level>`.
+The user may require a minimum with `quickget --minimum-trust <level>`
+(or `MINIMUM_TRUST` env). The gate fails closed at **D** by default:
+level E — a source the trust probe could not even grade — is refused
+unless the user explicitly passes `--minimum-trust E`. D proceeds with
+the warning shown above.
 Level D/E sources are documented per-OS in the catalog entry's comment.
 
 ## URL rules

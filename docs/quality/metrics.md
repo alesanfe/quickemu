@@ -21,8 +21,12 @@
 - Issues closed / opened ratio
 - Mean time to fix critical bug
 
-## Baselines (to be recorded)
+## Baselines
 
 | Release | coverage | tests | catalog-ok | boot-ms | shutdown-ms |
 |---|---|---|---|---|---|
-| 5.0.0 | go per-module | 46 | ~98% | TBD | TBD |
+| 5.0.0 | 80% (go) | 65 qespec | ~98% | 853 (TCG) / 851 (KVM) | 147 (TCG) / 126 (KVM) |
+
+Measured 2026-11-01, Linux x86_64, QEMU 10.2.1, stub-iso fixture:
+boot = launch → `--status` "running"; shutdown = `--stop` → not
+running. Well under the ≤60s / ≤10s budgets.
