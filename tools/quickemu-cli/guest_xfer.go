@@ -31,10 +31,16 @@ func actGuestXfer(push bool) int {
 	if !push {
 		guestPath = x.src
 	}
-	if x.restricted && !qga.SafeGuestPath(guestPath) {
-		fmt.Printf(" - %s: %q is a restricted guest path (system/traversal/device); rerun with --unsafe if intended.\n",
-			verb, guestPath)
+	fail := func(code, msg string) int {
+		if outFmt == "json" {
+			emitFail("vm."+cmd, code, msg)
+		} else {
+			fmt.Printf(" - %s: %s\n", verb, msg)
+		}
 		return 1
+	}
+	if x.restricted && !qga.SafeGuestPath(guestPath) {
+		return fail("restricted_path", fmt.Sprintf("%q is a restricted guest path (system/traversal/device); rerun with --unsafe if intended.", guestPath))
 	}
 	local := x.src
 	if !push {
@@ -42,21 +48,17 @@ func actGuestXfer(push bool) int {
 	}
 	if push {
 		if st, err := os.Stat(local); err != nil {
-			fmt.Printf(" - %s: local file %s not found.\n", verb, local)
-			return 1
+			return fail("not_found", "local file "+local+" not found.")
 		} else if st.IsDir() {
-			fmt.Printf(" - %s: %s is a directory — single-file transfers only.\n", verb, local)
-			return 1
+			return fail("is_directory", local+" is a directory — single-file transfers only.")
 		} else if st.Size() > x.maxSize {
-			fmt.Printf(" - %s: %s exceeds --max-size (%d > %d bytes).\n",
-				verb, local, st.Size(), x.maxSize)
-			return 1
+			return fail("too_large", fmt.Sprintf("%s exceeds --max-size (%d > %d bytes).",
+				local, st.Size(), x.maxSize))
 		}
 	} else {
 		// Pull refuses to overwrite a real file without --force.
 		if _, err := os.Stat(local); err == nil && !x.force {
-			fmt.Printf(" - %s: %s exists — use --force to overwrite.\n", verb, local)
-			return 1
+			return fail("exists", local+" exists — use --force to overwrite.")
 		}
 	}
 	cl, err := guestDial(8 * time.Second)
@@ -177,7 +179,12 @@ func actGuestPower(mode qga.ShutdownMode) int {
 	// --no-wait reports the request; a reboot stays running by
 	// definition, so waiting would only burn the timeout.
 	if pw.noWait || mode == qga.ShutdownReboot {
-		fmt.Printf(" - %s (%d) %s requested.\n", vmname(), readPID(), name)
+		if outFmt == "json" {
+			emitOK(cmd, map[string]any{"vm": vmname(), "state": "requested",
+				"via": map[bool]string{true: "qga", false: "monitor"}[graceful]})
+		} else {
+			fmt.Printf(" - %s (%d) %s requested.\n", vmname(), readPID(), name)
+		}
 		return 0
 	}
 	// Wait for the state to actually leave "running" — the request
@@ -200,8 +207,14 @@ func actGuestPower(mode qga.ShutdownMode) int {
 	if pw.force {
 		return guestForceStop(name, pw.timeout)
 	}
-	fmt.Printf(" - %s: %s requested but guest still running after %s (use --force to hard-stop).\n",
-		vmname(), name, pw.timeout)
+	if outFmt == "json" {
+		emitFail(cmd, "timeout", fmt.Sprintf(
+			"%s requested but guest still running after %s (use --force to hard-stop).",
+			name, pw.timeout))
+	} else {
+		fmt.Printf(" - %s: %s requested but guest still running after %s (use --force to hard-stop).\n",
+			vmname(), name, pw.timeout)
+	}
 	return 1
 }
 
@@ -211,7 +224,7 @@ func actGuestPower(mode qga.ShutdownMode) int {
 func guestForceStop(name string, timeout time.Duration) int {
 	pid := readPID()
 	machineTransition(stStopping, "quickemu-guest-force-"+name, "quickemu-cli")
-	if monitorSendCmd("quit") != 0 {
+	if monitorSendCmdQuiet("quit") != 0 {
 		hmp("quit")
 	}
 	deadline := time.Now().Add(timeout)
@@ -227,11 +240,20 @@ func guestForceStop(name string, timeout time.Duration) int {
 		}
 	}
 	if alive(pid) {
-		fmt.Printf(" - %s (%d) did not stop.\n", vmname(), pid)
+		if outFmt == "json" {
+			emitFail("guest."+name, "stop_failed",
+				fmt.Sprintf("%s (%d) did not stop.", vmname(), pid))
+		} else {
+			fmt.Printf(" - %s (%d) did not stop.\n", vmname(), pid)
+		}
 		return 1
 	}
 	machineTransition(stStopped, "force-"+name, "quickemu-cli")
 	runtimeCleanup()
-	fmt.Printf(" - %s (%d) stopped (forced).\n", vmname(), pid)
+	if outFmt == "json" {
+		emitOK("guest."+name, map[string]any{"vm": vmname(), "state": "stopped", "forced": true})
+	} else {
+		fmt.Printf(" - %s (%d) stopped (forced).\n", vmname(), pid)
+	}
 	return 0
 }

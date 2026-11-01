@@ -179,3 +179,66 @@ func TestEmitStartAlreadyRunningJSON(t *testing.T) {
 		t.Fatalf("want alreadyRunning flag: %v", env)
 	}
 }
+
+func TestEmitTrashBareJSON(t *testing.T) {
+	stubTools(t)
+	withConf(t, `guest_os="linux"`)
+	withJSON(t)
+	old := trashFlag
+	trashFlag = true
+	t.Cleanup(func() { trashFlag = old })
+	var rc int
+	env := envOut(t, func() { rc = actTrashVm() })
+	if rc != 0 || env["command"] != "vm.trash" || env["success"] != true {
+		t.Fatalf("rc=%d env=%v", rc, env)
+	}
+	if env["data"].(map[string]any)["trashed"] != true {
+		t.Fatalf("want trashed flag: %v", env)
+	}
+}
+
+func TestAllowedOpsCanonicalNames(t *testing.T) {
+	have := map[string]bool{}
+	for _, o := range allowedOps("running") {
+		have[o] = true
+	}
+	for _, want := range []string{"stop", "pause", "reset", "screenshot",
+		"send-keys", "monitor-cmd", "suspend", "shutdown", "kill"} {
+		if !have[want] {
+			t.Fatalf("running allowedOps missing %q", want)
+		}
+	}
+	stopped := map[string]bool{}
+	for _, o := range allowedOps("stopped") {
+		stopped[o] = true
+	}
+	for _, want := range []string{"start", "trash", "delete-vm",
+		"snapshot-create", "snapshot-apply", "disk-resize", "backup"} {
+		if !stopped[want] {
+			t.Fatalf("stopped allowedOps missing %q", want)
+		}
+	}
+	// No stale bare aliases may leak — the GUI gates on canonical names.
+	for _, o := range append(allowedOps("running"), allowedOps("stopped")...) {
+		switch o {
+		case "create", "apply", "delete", "info", "list", "snapshot",
+			"snapshot-clone", "resize":
+			t.Fatalf("stale bare op name %q", o)
+		}
+	}
+}
+
+func TestDiskResizeCommitFlag(t *testing.T) {
+	for _, f := range []string{"--resize-commit", "--disk-resize-commit"} {
+		old := actions
+		actions = nil
+		p := &argParser{args: []string{f}}
+		if !parseVMOpFlags(p, f) {
+			t.Fatalf("%s not parsed", f)
+		}
+		if len(actions) != 1 || actions[0] != "disk_resize_commit" {
+			t.Fatalf("%s -> %v", f, actions)
+		}
+		actions = old
+	}
+}

@@ -309,6 +309,8 @@ func parseVMOpFlags(p *argParser, a string) bool {
 	case "--disk-resize":
 		extra["disk-resize"] = p.val()
 		actions = append(actions, "disk_resize")
+	case "--resize-commit", "--disk-resize-commit":
+		actions = append(actions, "disk_resize_commit")
 	default:
 		return false
 	}

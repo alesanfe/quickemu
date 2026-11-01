@@ -23,6 +23,10 @@ func main() {
 	// commands.sh param-checks: resolution/access/network validation on
 	// the merged CLI overrides — errors before any action runs.
 	if errs := qelib.ParamCheckConf(confOpts); len(errs) > 0 {
+		if jsonRequested() {
+			emitFail(reqCmd(), "param_check", strings.Join(errs, "; "))
+			os.Exit(1)
+		}
 		for _, e := range errs {
 			fmt.Println("ERROR! " + e)
 		}
@@ -40,6 +44,11 @@ func main() {
 	fixupVMConf()
 	// default action: boot the VM (dry-run prints the argv)
 	if len(actions) == 0 {
+		if trashFlag {
+			// `--trash` alone means "move the VM to trash" (the GUI's
+			// Move-to-trash menu sends it bare) — never boot.
+			os.Exit(actTrashVm())
+		}
 		if dryRunFlag {
 			os.Exit(actDryRun())
 		}
@@ -63,6 +72,11 @@ func fixupVMConf() {
 	// configuration not found.") before any action runs — the
 	// message goes to stdout like every Bash echo.
 	if _, err := os.Stat(vmConf); err != nil {
+		if jsonRequested() {
+			emitFail(reqCmd(), "config_not_found",
+				"virtual machine configuration not found")
+			os.Exit(1)
+		}
 		fmt.Println("ERROR! Virtual machine configuration not found.")
 		os.Exit(1)
 	}

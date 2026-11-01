@@ -47,7 +47,7 @@ func run() int {
 		"snapshot-list-json": "vm.snapshot.list", "resize": "vm.disk-resize",
 		"snapshot-tree": "vm.snapshot.tree", "vfio-scan": "vm.vfio.scan",
 		"stats": "vm.stats", "doctor": "vm.doctor", "plan": "vm.plan",
-		"compact": "vm.disk-compact",
+		"compact": "vm.disk-compact", "resize-commit": "vm.disk-resize-commit",
 	}[op]
 	if opCmd == "" {
 		opCmd = "vm." + op
@@ -210,6 +210,28 @@ func run() int {
 		info(" - Resized " + disk + " to " + args[2] + ".")
 		info("             Remember to grow the partition and filesystem inside the guest.")
 		okMap(map[string]any{"resized": disk, "size": args[2]})
+	case "resize-commit":
+		// qemu-img commit — merge the disk's changes back into its
+		// backing file (external-snapshot commit). VM must be stopped.
+		vmStoppedOrDie(dir, "committing its disk")
+		disk := confDisk(dir)
+		if _, err := os.Stat(disk); err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", disk)
+			return 1
+		}
+		if out, err := execCommand("qemu-img", "info", "--output=json", disk).Output(); err == nil {
+			var qi struct {
+				BackingFilename string `json:"backing-filename"`
+			}
+			if json.Unmarshal(out, &qi) == nil && qi.BackingFilename == "" {
+				die("NO_BACKING", disk+" has no backing file to commit.")
+			}
+		}
+		if err := execCommand("qemu-img", "commit", disk).Run(); err != nil {
+			die("COMMIT_FAILED", "qemu-img commit failed for "+disk+".")
+		}
+		info(" - Committed " + disk + " into its backing file.")
+		okMap(map[string]any{"committed": disk})
 	case "compact":
 		// disk_compact: qemu-img convert to .compact then atomic swap.
 		vmStoppedOrDie(dir, "compacting its disk")

@@ -104,20 +104,26 @@ func incrWaitJob(deadline time.Duration) error {
 
 // actBackupIncr: --backup-incr — baseline full or dirty-incremental.
 func actBackupIncr() int {
-	if !requireRunning() {
+	fail := func(code, msg string) int {
+		if outFmt == "json" {
+			emitFail("vm.backup", code, msg)
+		} else {
+			fmt.Printf(" - backup: %s\n", msg)
+		}
+		return 1
+	}
+	if !requireRunningEmit("vm.backup") {
 		return 1
 	}
 	if err := os.MkdirAll(incrDir(), 0o755); err != nil {
-		fmt.Printf(" - backup: %v\n", err)
-		return 1
+		return fail("backup_dir_failed", err.Error())
 	}
 	// Ensure the tracking bitmap exists BEFORE the backup starts —
 	// it must record dirties from the baseline epoch onward.
 	raw, err := qmpBlock("block-dirty-bitmap-add", map[string]any{
 		"node": "SystemDisk", "name": incrBitmapName})
 	if err != nil {
-		fmt.Printf(" - backup: bitmap add failed: %v\n", err)
-		return 1
+		return fail("bitmap_failed", err.Error())
 	}
 	if len(raw) > 2 && string(raw) != "{}" {
 		// QEMU returns {"error":...} inside return for bad commands.
@@ -127,8 +133,7 @@ func actBackupIncr() int {
 			} `json:"error"`
 		}
 		if json.Unmarshal(raw, &e) == nil && e.Error.Desc != "" {
-			fmt.Printf(" - backup: bitmap add refused: %s\n", e.Error.Desc)
-			return 1
+			return fail("bitmap_refused", e.Error.Desc)
 		}
 	}
 	mode := "incremental"
@@ -145,12 +150,10 @@ func actBackupIncr() int {
 		args["bitmap"] = incrBitmapName
 	}
 	if _, err := qmpBlock("drive-backup", args); err != nil {
-		fmt.Printf(" - backup: drive-backup failed: %v\n", err)
-		return 1
+		return fail("backup_failed", err.Error())
 	}
 	if err := incrWaitJob(5 * time.Minute); err != nil {
-		fmt.Printf(" - backup: %v\n", err)
-		return 1
+		return fail("job_failed", err.Error())
 	}
 	// Backup landed — clear the bitmap so the next epoch starts
 	// clean. A clear failure keeps tracking (safe: next backup just
@@ -165,10 +168,11 @@ func actBackupIncr() int {
 		At:   time.Now().UTC().Format("2006-01-02T15:04:05Z"),
 		File: target, Mode: mode, Size: sz})
 	qeEvent("vm.backup", fmt.Sprintf(`{"file":%q,"mode":%q}`, target, mode))
-	fmt.Printf(" - %s backup written to %s\n", mode, target)
 	if outFmt == "json" {
 		emitOK("vm.backup", map[string]any{
 			"file": target, "mode": mode, "size": sz})
+	} else {
+		fmt.Printf(" - %s backup written to %s\n", mode, target)
 	}
 	return 0
 }

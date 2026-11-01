@@ -46,7 +46,11 @@ func confKV() map[string]string {
 func actInspectConf() int {
 	b, err := os.ReadFile(vmConf)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", vmConf)
+		if outFmt == "json" {
+			emitFail("vm.config", "not_found", vmConf+" not found.")
+		} else {
+			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", vmConf)
+		}
 		return 1
 	}
 	keys := map[string]bool{}
@@ -57,6 +61,7 @@ func actInspectConf() int {
 		"gpu_passthrough", "vnc_listen"} {
 		keys[k] = true
 	}
+	entries := map[string]string{}
 	for _, l := range strings.Split(string(b), "\n") {
 		l = strings.TrimSpace(l)
 		if l == "" || strings.HasPrefix(l, "#") {
@@ -64,8 +69,15 @@ func actInspectConf() int {
 		}
 		kv := strings.SplitN(l, "=", 2)
 		if len(kv) == 2 && keys[strings.TrimSpace(kv[0])] {
-			fmt.Printf("%s=%s\n", strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1]))
+			k, v := strings.TrimSpace(kv[0]), strings.TrimSpace(kv[1])
+			entries[k] = v
+			if outFmt != "json" {
+				fmt.Printf("%s=%s\n", k, v)
+			}
 		}
+	}
+	if outFmt == "json" {
+		emitOK("vm.config", map[string]any{"conf": vmConf, "entries": entries})
 	}
 	return 0
 }

@@ -78,21 +78,23 @@ func migrateStatus() (status string, pct float64) {
 // gzipped image, then quit. A failed/cancelled migrate returns the
 // VM to its prior state; the partial image is removed.
 func actSuspend() int {
-	if !requireRunning() {
+	fail := func(code, msg string) int {
+		machineTransition(stRunning, "suspend-failed", "quickemu-cli")
+		if outFmt == "json" {
+			emitFail("vm.suspend", code, msg)
+		} else {
+			fmt.Printf(" - suspend: %s\n", msg)
+		}
+		return 1
+	}
+	if !requireRunningEmit("vm.suspend") {
 		return 1
 	}
 	if _, err := os.Stat(qmpSock()); err != nil {
-		fmt.Println(" - suspend: no QMP channel — the VM must run with monitor=socket.")
-		return 1
+		return fail("no_qmp", "no QMP channel — the VM must run with monitor=socket.")
 	}
 	if !machineTransition(stSaving, "suspend", "quickemu-cli") {
-		fmt.Printf(" - suspend: cannot suspend from the current state.\n")
-		return 1
-	}
-	fail := func(msg string) int {
-		machineTransition(stRunning, "suspend-failed", "quickemu-cli")
-		fmt.Printf(" - suspend: %s\n", msg)
-		return 1
+		return fail("bad_state", "cannot suspend from the current state.")
 	}
 	// Freeze vcpus before migrating so the state image is consistent —
 	// QEMU accepts migrate on a running VM but the saved stream is
@@ -106,9 +108,11 @@ func actSuspend() int {
 	uri := "exec:gzip -c > " + shellQ(img)
 	if out, err := qmpRaw(qmpCmd("migrate", map[string]any{"uri": uri})); err != nil ||
 		strings.Contains(out, `"error"`) {
-		return fail("migrate request refused — " + strings.TrimSpace(out))
+		return fail("migrate_refused", "migrate request refused — "+strings.TrimSpace(out))
 	}
-	fmt.Printf(" - suspend: saving state to %s ...\n", img)
+	if outFmt != "json" {
+		fmt.Printf(" - suspend: saving state to %s ...\n", img)
+	}
 	deadline := time.Now().Add(suspendTimeout())
 	lastPct := -1
 	for {
@@ -121,11 +125,11 @@ func actSuspend() int {
 			if !wasPaused {
 				vmControl("cont", qmpCmd("cont", nil))
 			}
-			return fail("migration " + st)
+			return fail("migration_"+st, "migration "+st)
 		case "":
 			// channel hiccup — keep polling until the deadline
 		}
-		if int(pct) > lastPct && pct > 0 {
+		if int(pct) > lastPct && pct > 0 && outFmt != "json" {
 			fmt.Printf("\r - suspend: %d%%", int(pct))
 			lastPct = int(pct)
 		}
@@ -134,7 +138,7 @@ func actSuspend() int {
 			if !wasPaused {
 				vmControl("cont", qmpCmd("cont", nil))
 			}
-			return fail("timed out — migrate_cancel sent")
+			return fail("timeout", "timed out — migrate_cancel sent")
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -149,7 +153,7 @@ saved:
 	}
 	if alive(pid) {
 		os.Remove(img)
-		return fail(fmt.Sprintf("qemu pid %d did not exit after migrate", pid))
+		return fail("quit_failed", fmt.Sprintf("qemu pid %d did not exit after migrate", pid))
 	}
 	rec := suspendMetaRec{
 		GuestOS: confKV()["guest_os"], Arch: confKV()["arch"],
@@ -167,9 +171,10 @@ saved:
 	machineTransition(stSuspended, "suspend-complete", "quickemu-cli")
 	runtimeCleanup()
 	qeEvent("vm.suspended", fmt.Sprintf(`{"image":%q}`, img))
-	fmt.Printf("\n - %s suspended (state saved to %s).\n", vmname(), img)
 	if outFmt == "json" {
 		emitOK("vm.suspend", map[string]any{"vm": vmname(), "image": img})
+	} else {
+		fmt.Printf("\n - %s suspended (state saved to %s).\n", vmname(), img)
 	}
 	return 0
 }
@@ -206,21 +211,29 @@ func resumeCompatible() error {
 // with -incoming reading the saved image. confOpts["resume_from"]
 // rides the normal applyOverrides channel into the launch conf.
 func actResumeSuspended() int {
-	if err := resumeCompatible(); err != nil {
-		fmt.Printf(" - resume: %v — fix the conf or delete %s.\n", err, suspendImage())
+	fail := func(code, msg string) int {
+		if outFmt == "json" {
+			emitFail("vm.resume", code, msg)
+		} else {
+			fmt.Println(" - resume: " + msg)
+		}
 		return 1
+	}
+	if err := resumeCompatible(); err != nil {
+		return fail("incompatible", fmt.Sprintf("%v — fix the conf or delete %s.", err, suspendImage()))
 	}
 	img := suspendImage()
 	if !machineTransition(stStarting, "resume-suspend", "quickemu-cli") {
-		fmt.Println(" - resume: cannot resume from the current state.")
-		return 1
+		return fail("bad_state", "cannot resume from the current state.")
 	}
 	confOpts["resume_from"] = img
 	out, err := tool("quickemu-launch", applyOverrides(), "--run")
-	fmt.Print(out)
+	if outFmt != "json" {
+		fmt.Print(out)
+	}
 	if err != nil {
 		machineTransition(stSuspended, "resume-failed", "quickemu-cli")
-		return 1
+		return fail("launch_failed", strings.TrimSpace(out))
 	}
 	machineTransition(stRunning, "resumed", "quickemu-cli")
 	qeEvent("vm.resumed", `{"from":"suspend"}`)

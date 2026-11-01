@@ -74,10 +74,8 @@ func vmVerifyInvariants() bool {
 
 // qeDoctor: doctor.sh parity — diagnoses stale/corrupt runtime state;
 // fix==true repairs what's safe (never touches disks or the conf).
-// Text mode prints " - <finding>" lines; --format json emits a
-// vm.doctor envelope. Runs before the capability report, like
-// doctor_vm does.
-func qeDoctor(fix bool) {
+// Returns the findings; the caller decides text lines vs envelope.
+func qeDoctor(fix bool) []string {
 	vmVerifyInvariants()
 	findings := []string{}
 	dir, name := vmdir(), vmname()
@@ -89,17 +87,7 @@ func qeDoctor(fix bool) {
 	findings = append(findings, doctorSockets(dir, name, live, fix)...)
 	findings = append(findings, doctorEventLog(filepath.Join(dir, name+".events.jsonl"), fix)...)
 	findings = append(findings, doctorOrphanOps(dir, fix)...)
-
-	if outFmt == "json" {
-		emitOK("vm.doctor", map[string]any{"vm": name, "fix": fix, "findings": findings})
-	} else {
-		if len(findings) == 0 {
-			fmt.Println(" - " + name + ": healthy.")
-		}
-		for _, f := range findings {
-			fmt.Println(" - " + f)
-		}
-	}
+	return findings
 }
 
 // doctorRuntime: a runtime.json without schemaVersion is corrupt
@@ -256,9 +244,28 @@ func doctorOrphanOps(dir string, fix bool) []string {
 	return findings
 }
 
-// actDoctor: doctor_vm parity — config vs host capabilities report.
+// actDoctor: doctor_vm parity — findings first, then the config vs
+// host capabilities report. JSON mode emits a single vm.doctor
+// envelope carrying both (findings structured, report as text).
 func actDoctor() int {
-	qeDoctor(doctorFix)
+	findings := qeDoctor(doctorFix)
+	if outFmt == "json" {
+		report, _ := captureStdout(func() int { return doctorReport() })
+		emitOK("vm.doctor", map[string]any{"vm": vmname(), "fix": doctorFix,
+			"findings": findings, "report": strings.TrimSpace(report)})
+		return 0
+	}
+	if len(findings) == 0 {
+		fmt.Println(" - " + vmname() + ": healthy.")
+	}
+	for _, f := range findings {
+		fmt.Println(" - " + f)
+	}
+	return doctorReport()
+}
+
+// doctorReport: the capability half of doctor — prints "o/x" lines.
+func doctorReport() int {
 	conf := confKV()
 	issues := 0
 	fmt.Println("Checking " + vmname() + " against host capabilities:")

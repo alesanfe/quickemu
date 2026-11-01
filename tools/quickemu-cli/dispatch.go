@@ -3,6 +3,11 @@
 // lives in exactly one family, so probe order is irrelevant.
 package main
 
+import (
+	"encoding/json"
+	"strings"
+)
+
 // dispatch resolves an action name to its runnable; nil when the
 // action is unknown (e.g. "start" — handled by the runActions loop).
 func dispatch(act string) func() int {
@@ -180,6 +185,8 @@ func dispatchSnapshotDisk(act string) func() int {
 		return vmOp("compact", vmdir())
 	case "disk_resize":
 		return vmOp("resize", vmdir(), extra["disk-resize"])
+	case "disk_resize_commit":
+		return vmOp("resize-commit", vmdir())
 	case "delete_disk":
 		return vmOp("delete-disk", vmdir(), pidPath())
 	case "snapshot_tree":
@@ -259,4 +266,46 @@ func dispatchViewers(act string) func() int {
 		return func() int { return actTelnet("monitor") }
 	}
 	return nil
+}
+
+// actTrashVm: `--trash` with no other action — "move the VM to trash".
+// Reuses the delete path but emits `vm.trash` (the GUI's command name)
+// instead of `vm.delete`.
+func actTrashVm() int {
+	machineTransition(stDeleting, "delete", "quickemu-cli")
+	a := []string{"delete", vmdir(), "--trash"}
+	if extra["plan-id"] != "" {
+		a = append(a, "--plan-id="+extra["plan-id"])
+	}
+	if outFmt != "json" {
+		r := vmOp(a[0], a[1:]...)()
+		if r != 0 {
+			machineTransition(stError, "delete-failed", "quickemu-cli")
+		} else {
+			machineTransitionF(stStopped, "deleted", "quickemu-cli", true)
+		}
+		return r
+	}
+	out, r := captureStdout(vmOp(a[0], a[1:]...))
+	if r != 0 {
+		machineTransition(stError, "delete-failed", "quickemu-cli")
+		msg := strings.TrimSpace(out)
+		if msg == "" {
+			msg = "delete failed"
+		}
+		emitFail("vm.trash", "delete_failed", msg)
+		return r
+	}
+	machineTransitionF(stStopped, "deleted", "quickemu-cli", true)
+	data := map[string]any{"vm": vmname(), "trashed": true}
+	var env map[string]any
+	if json.Unmarshal([]byte(out), &env) == nil {
+		if d, ok := env["data"].(map[string]any); ok {
+			for k, v := range d {
+				data[k] = v
+			}
+		}
+	}
+	emitOK("vm.trash", data)
+	return 0
 }

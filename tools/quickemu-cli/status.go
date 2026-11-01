@@ -13,13 +13,38 @@ func allowedOps(state string) []string {
 	var ops string
 	switch state {
 	case "running":
-		ops = "pause resume shutdown reset kill status monitor-cmd screenshot send-keys type snapshot-clone export"
+		ops = "pause resume shutdown stop kill reset suspend restart " +
+			"monitor-cmd send-keys type screenshot " +
+			"viewer vnc spice-console serial-console monitor-console fullscreen " +
+			"ssh sftp scp ssh-config " +
+			"guest-ping guest-info guest-exec guest-push guest-pull guest-ip " +
+			"guest-shutdown guest-reboot guest-halt guest-fsfreeze " +
+			"hotplug-usb hotplug-disk hotunplug " +
+			"snapshot-create snapshot-apply snapshot-delete snapshot-list " +
+			"snapshot-tree snapshot-verify snapshot-info snapshot-policy snapshot-consolidate " +
+			"backup backup-incr backup-incr-list backup-restore backup-verify backup-prune " +
+			"status status-quo publicdir stats events " +
+			"op-list op-status op-cancel op-watch " +
+			"ignore-msrs-always migrate-conf"
 	case "paused":
-		ops = "resume shutdown kill status monitor-cmd screenshot"
+		ops = "resume shutdown stop kill reset monitor-cmd screenshot " +
+			"status publicdir stats events op-list op-status op-cancel op-watch"
+	case "suspended":
+		ops = "resume status inspect-conf delete-vm trash"
 	case "stopped", "stale":
-		ops = "start delete clone rename export import snapshot apply create delete info list inspect-conf delete-plan"
+		ops = "start clone linked-clone rename move export import " +
+			"delete-vm delete-disk trash trash-list trash-restore trash-empty delete-plan " +
+			"autostart shortcut delete-shortcut create-disk disk-resize disk-resize-commit disk-compact " +
+			"snapshot-create snapshot-apply snapshot-delete snapshot-list " +
+			"snapshot-tree snapshot-verify snapshot-info snapshot-policy snapshot-consolidate " +
+			"backup backup-incr-list backup-restore backup-verify backup-prune " +
+			"inspect-conf migrate-conf doctor profile status status-quo publicdir " +
+			"ssh-config ignore-msrs ignore-msrs-always stats events " +
+			"op-list op-status op-cancel op-watch"
+	case "crashed", "error":
+		ops = "stop kill start status inspect-conf delete-vm trash"
 	case "archived":
-		ops = "restore trash-list status inspect-conf delete"
+		ops = "restore trash-list status inspect-conf delete-vm"
 	case "unknown":
 		ops = "status inspect-conf"
 	default:

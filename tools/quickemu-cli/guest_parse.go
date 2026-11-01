@@ -66,6 +66,11 @@ func guestIntercept(args []string) bool {
 		if guestValueFlags[args[i-1]] {
 			continue // a value token, not the subcommand
 		}
+		if jsonRequested() {
+			emitFail("guest.usage", "usage",
+				fmt.Sprintf("%q must be the first argument", args[i]))
+			os.Exit(1)
+		}
 		fmt.Printf("ERROR! '%s' must be the first argument — try 'quickemu %s ... --vm <conf>'.\n",
 			args[i], args[i])
 		os.Exit(1)
@@ -76,6 +81,10 @@ func guestIntercept(args []string) bool {
 // guestUsage: the guest-verb help — printed on `guest` with no verb
 // or an unrecognised one (stdout, like the main usage()).
 func guestUsage() {
+	if jsonRequested() {
+		emitFail("guest.usage", "usage", "guest verb required")
+		return
+	}
 	fmt.Println("quickemu guest commands (QEMU Guest Agent):")
 	fmt.Println("  guest ping                                agent liveness check")
 	fmt.Println("  guest info                                agent/os/hostname/time summary")
@@ -134,6 +143,11 @@ func guestParseVerb(args []string) {
 		guestParseIP(tail)
 		actions = append(actions, "guest_ip")
 	default:
+		if jsonRequested() {
+			emitFail("guest.usage", "usage",
+				fmt.Sprintf("%q is not a guest command", verb))
+			os.Exit(1)
+		}
 		fmt.Printf("ERROR! \"%s\" is not a guest command.\n", verb)
 		guestUsage()
 		os.Exit(1)
@@ -142,6 +156,10 @@ func guestParseVerb(args []string) {
 
 // guestFlagErr: shared flag-error line (stdout contract).
 func guestFlagErr(format string, a ...any) {
+	if jsonRequested() {
+		emitFail("guest.usage", "usage", fmt.Sprintf(format, a...))
+		os.Exit(1)
+	}
 	fmt.Printf("ERROR! "+format+"\n", a...)
 	os.Exit(1)
 }
