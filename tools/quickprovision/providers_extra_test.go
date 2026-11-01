@@ -606,7 +606,7 @@ func TestRenderKickstart(t *testing.T) {
 		"sshkey --username=dev",
 		"ssh-ed25519 AAAA",
 		"ssh-ed25519 BBBB",
-		"services --enabled=\"sshd qemu-guest-agent\"",
+		"services --enabled=sshd,qemu-guest-agent",
 		"openssh-server",
 		"Europe/Madrid --utc",
 		"NOPASSWD:ALL",

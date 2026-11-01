@@ -586,7 +586,11 @@ func renderKickstart(p *Profile, hash string, keys []string) string {
 	}
 	sb.WriteString("selinux --permissive\n") // qemu-guest-agent + NOPASSWD sudo stay simple
 	sb.WriteString("firewall --service=ssh\n")
-	sb.WriteString("services --enabled=\"sshd qemu-guest-agent\"\n")
+	// --enabled takes a comma-separated list; a space-joined string is
+	// parsed as ONE service name and anaconda aborts with
+	// "Error enabling service sshd qemu-guest-agent" (seen on the
+	// Everything netinst).
+	sb.WriteString("services --enabled=sshd,qemu-guest-agent\n")
 	sb.WriteString("poweroff\n")
 	sb.WriteString("%packages\n@core\nopenssh-server\nsudo\nqemu-guest-agent\ncurl\n%end\n")
 	fmt.Fprintf(&sb, "%%post --nochroot\nmkdir -p /mnt/sysimage/etc/sudoers.d\n"+
