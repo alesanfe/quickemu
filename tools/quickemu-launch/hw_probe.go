@@ -33,8 +33,12 @@ func hostHasKVM() bool {
 		return false
 	}
 	defer f.Close()
-	v, err := unix.IoctlGetInt(int(f.Fd()), 0xAE00)
-	return err == nil && v > 0
+	// KVM_GET_API_VERSION takes no argument — the kernel returns
+	// EINVAL when arg is non-NULL, so IoctlGetInt (which always
+	// passes a pointer) can never succeed. QEMU calls
+	// ioctl(fd, KVM_GET_API_VERSION, 0): do the same.
+	v, _, errno := unix.Syscall(unix.SYS_IOCTL, f.Fd(), 0xAE00, 0)
+	return errno == 0 && v > 0
 }
 
 // hasKVM is the accel-gate seam (ADR-0009): tests stub it to cover
