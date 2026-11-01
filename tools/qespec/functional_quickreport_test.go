@@ -19,7 +19,8 @@ func TestQuickreportComposition(t *testing.T) {
 
 func TestQuickreportMissingQuickemu(t *testing.T) {
 	// Copy the real binary into an isolated dir: sibling lookups then
-	// miss and PATH (fake qemu + coreutils only) has no quickemu.
+	// miss, and PATH holds only the qemu stub — no system quickemu can
+	// leak in from hosts that actually ship one (e.g. /usr/bin/quickemu).
 	iso := t.TempDir()
 	nb := t.TempDir()
 	src, err := os.ReadFile(Bin(t, "quickreport"))
@@ -34,7 +35,7 @@ func TestQuickreportMissingQuickemu(t *testing.T) {
 		[]byte("#!/bin/sh\necho 'QEMU emulator version 8.2.2'\n"), 0o755)
 
 	r := RunArgv(t, isoBin,
-		[]RunOpt{Env("PATH=" + nb + string(os.PathListSeparator) + "/usr/bin:/bin")})
+		[]RunOpt{Env("PATH=" + nb)})
 	if r.OK() {
 		t.Error("quickreport succeeded without quickemu")
 	}

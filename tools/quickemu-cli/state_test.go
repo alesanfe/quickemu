@@ -75,19 +75,7 @@ func TestPidAliveAcceptsVMNamedProcess(t *testing.T) {
 	dir := setupStateVM(t)
 	// Spawn a binary whose comm matches the VM name — same trick the
 	// Bash spec used (QEMU renames itself via -name ...,process=<vm>).
-	fake := filepath.Join(dir, "vm1")
-	src, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Skip("no sleep binary")
-	}
-	b, _ := os.ReadFile(src)
-	os.WriteFile(fake, b, 0755)
-	cmd := exec.Command(fake, "60")
-	if err := cmd.Start(); err != nil {
-		t.Skipf("cannot spawn: %v", err)
-	}
-	defer cmd.Process.Kill()
-	time.Sleep(50 * time.Millisecond)
+	cmd := fakeVMProc(t, dir, "vm1")
 	os.WriteFile(filepath.Join(dir, "vm1.pid"),
 		[]byte(strconv.Itoa(cmd.Process.Pid)), 0644)
 	if !vmPidAlive() {
@@ -111,27 +99,51 @@ func TestPidlessAgedLockReclaimed(t *testing.T) {
 	defer vmLockRelease()
 }
 
+// TestHelperProcess is not a test — a copy of this binary run with
+// GO_QE_FAKE_PROC=1 blocks forever, standing in for a QEMU process.
+// Copying /bin/sleep to a VM name dies on coreutils-multicall hosts,
+// which dispatch on argv[0]; a copy of this binary does not.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_QE_FAKE_PROC") != "1" {
+		return
+	}
+	// A pending timer keeps the runtime's deadlock detector quiet —
+	// a bare select{} could be reported "all goroutines are asleep".
+	time.Sleep(3 * time.Minute)
+}
+
+// spawnFakeProc plants a runnable copy of this test binary at path
+// and starts it as a fake process: /proc comm and cmdline both carry
+// the planted name — the same signals a real QEMU shows.
+func spawnFakeProc(t *testing.T, path string) *exec.Cmd {
+	t.Helper()
+	self, err := os.Executable()
+	if err != nil {
+		t.Skip("cannot resolve test binary")
+	}
+	b, err := os.ReadFile(self)
+	if err != nil {
+		t.Skip("cannot read test binary")
+	}
+	if err := os.WriteFile(path, b, 0o755); err != nil {
+		t.Skip("cannot plant fake binary")
+	}
+	cmd := exec.Command(path, "-test.run=^TestHelperProcess$")
+	cmd.Env = append(os.Environ(), "GO_QE_FAKE_PROC=1")
+	if err := cmd.Start(); err != nil {
+		t.Skipf("cannot spawn: %v", err)
+	}
+	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait() })
+	time.Sleep(50 * time.Millisecond)
+	return cmd
+}
+
 // fakeVMProc spawns a comm-named process that also carries the vmdir
 // token in its cmdline — the same dual proof vmProcOwned uses for a
 // real quickemu qemu (-name ...,process=<vm> + drive paths).
 func fakeVMProc(t *testing.T, dir, name string) *exec.Cmd {
 	t.Helper()
-	fake := filepath.Join(dir, name)
-	src, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Skip("no sleep binary")
-	}
-	b, _ := os.ReadFile(src)
-	if err := os.WriteFile(fake, b, 0755); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(fake, "60")
-	if err := cmd.Start(); err != nil {
-		t.Skipf("cannot spawn: %v", err)
-	}
-	t.Cleanup(func() { cmd.Process.Kill() })
-	time.Sleep(50 * time.Millisecond)
-	return cmd
+	return spawnFakeProc(t, filepath.Join(dir, name))
 }
 
 func writeRuntime(t *testing.T, dir, name string, pid int, st string, uid int) {

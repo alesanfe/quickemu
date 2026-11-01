@@ -789,7 +789,9 @@ func TestCLITool(t *testing.T) {
 	bin2 := t.TempDir()
 	os.WriteFile(filepath.Join(bin2, "quickemu-cli"),
 		[]byte("#!/bin/sh\necho only-cli\n"), 0o755)
-	t.Setenv("PATH", bin2+string(os.PathListSeparator)+"/usr/bin:/bin")
+	// PATH is just bin2: hosts with a system-installed quickemu
+	// (/usr/bin/quickemu) would resolve it over the stub otherwise.
+	t.Setenv("PATH", bin2)
 	if b, err := cliTool(); err != nil || filepath.Base(b) != "quickemu-cli" {
 		t.Fatalf("cliTool fallback %q %v", b, err)
 	}

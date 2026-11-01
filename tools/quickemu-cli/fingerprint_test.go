@@ -11,12 +11,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 )
 
 // writeRuntimeFull plants a runtime.json with the strong-fingerprint
@@ -136,20 +134,8 @@ func TestFingerprintExeMismatch(t *testing.T) {
 // can never be corroborated on disk, so the process is unverifiable.
 func TestFingerprintExeDeleted(t *testing.T) {
 	dir := setupStateVM(t)
-	src, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Skip("no sleep binary")
-	}
 	fake := filepath.Join(dir, "vm1")
-	if b, _ := os.ReadFile(src); os.WriteFile(fake, b, 0755) != nil {
-		t.Skip("cannot plant fake binary")
-	}
-	cmd := exec.Command(fake, "60")
-	if err := cmd.Start(); err != nil {
-		t.Skip("spawn failed")
-	}
-	t.Cleanup(func() { cmd.Process.Kill() })
-	time.Sleep(50 * time.Millisecond)
+	cmd := spawnFakeProc(t, fake)
 	if err := os.Remove(fake); err != nil {
 		t.Skip("cannot unlink binary")
 	}

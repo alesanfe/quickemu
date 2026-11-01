@@ -187,19 +187,24 @@ func cmdBuild() int {
 		if !isMainFn(d) {
 			continue
 		}
-		out := name // in-place dev-tree binary
-		if pub, ok := entries[name]; ok && !noBin[name] {
-			out = filepath.Join(r, "bin", pub)
-		}
 		if noBin[name] {
 			continue // dev/test helpers stay out of bin/ and tools in-place
 		}
-		if err := runFn(d, goTool(), nil, "build", "-o", out, "."); err != nil {
-			fmt.Fprintf(os.Stderr, "FAIL %s\n", name)
-			rc = 1
-			continue
+		// Entry modules build twice: the public bin/<entry> plus the
+		// in-place tools/<name>/<name> binary that qelib.FindTool's
+		// dev-tree resolution (and qespec's Bin) expects.
+		outs := []string{name}
+		if pub, ok := entries[name]; ok {
+			outs = append([]string{filepath.Join(r, "bin", pub)}, outs...)
 		}
-		fmt.Printf("built %s -> %s\n", name, out)
+		for _, out := range outs {
+			if err := runFn(d, goTool(), nil, "build", "-o", out, "."); err != nil {
+				fmt.Fprintf(os.Stderr, "FAIL %s\n", name)
+				rc = 1
+				continue
+			}
+			fmt.Printf("built %s -> %s\n", name, out)
+		}
 	}
 	return rc
 }

@@ -7,7 +7,6 @@ package main
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,21 +38,8 @@ func TestStateMatrix(t *testing.T) {
 	if st, _ := state(); st != "stale" {
 		t.Fatalf("stale: %q", st)
 	}
-	// running: a process whose comm matches the VM name. /bin/sleep
-	// copied under the vm name gives exactly that identity.
-	b, err := os.ReadFile("/bin/sleep")
-	if err != nil {
-		t.Skip("no /bin/sleep")
-	}
-	sp := filepath.Join(dir, "s1")
-	if err := os.WriteFile(sp, b, 0o755); err != nil {
-		t.Skip("sleep copy failed")
-	}
-	cmd := exec.Command(sp, "60")
-	if err := cmd.Start(); err != nil {
-		t.Skip("sleep spawn failed")
-	}
-	defer cmd.Process.Kill()
+	// running: a process whose comm matches the VM name.
+	cmd := spawnFakeProc(t, filepath.Join(dir, "s1"))
 	pid := cmd.Process.Pid
 	os.WriteFile(filepath.Join(dir, "s1.pid"), []byte(itoa(pid)), 0o600)
 	if st, got := state(); st != "running" || got != pid {

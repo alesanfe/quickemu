@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -57,18 +56,7 @@ func TestQMPWrappers(t *testing.T) {
 // returns its pid; the caller must Kill+Wait it.
 func livePID(t *testing.T, vd string) int {
 	t.Helper()
-	bin := filepath.Join(vd, vmname())
-	if b, err := os.ReadFile("/bin/sleep"); err == nil {
-		os.WriteFile(bin, b, 0o755)
-	}
-	cmd := exec.Command(bin, "60")
-	if err := cmd.Start(); err != nil {
-		t.Skip("cannot spawn renamed sleep: " + err.Error())
-	}
-	t.Cleanup(func() {
-		cmd.Process.Kill()
-		cmd.Wait()
-	})
+	cmd := spawnFakeProc(t, filepath.Join(vd, vmname()))
 	os.WriteFile(pidPath(), []byte(itoa(cmd.Process.Pid)), 0o644)
 	return cmd.Process.Pid
 }

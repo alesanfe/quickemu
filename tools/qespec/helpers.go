@@ -330,23 +330,28 @@ func procByToken(t *testing.T, token string) int {
 func VMState(t *testing.T, conf string) string {
 	t.Helper()
 	r := Run(t, "quickemu", nil, "--vm", conf, "--status")
-	return strings.Fields(r.Stdout + " ")[0]
+	if f := strings.Fields(r.Stdout); len(f) > 0 {
+		return f[0]
+	}
+	return ""
 }
 
-// SpawnFakeVM starts a fake QEMU process whose /proc comm matches the
-// VM name (sleep copied under the name), writes dir/<name>.pid.
+// SpawnFakeVM starts a fake QEMU process whose /proc cmdline points
+// into the VM dir (argv[0]=<dir>/<name>), writes dir/<name>.pid.
 func SpawnFakeVM(t *testing.T, dir, name string) int {
 	t.Helper()
 	bin := filepath.Join(dir, name)
-	src, err := os.ReadFile("/bin/sleep")
+	sleep, err := exec.LookPath("sleep")
 	if err != nil {
-		t.Skip("no /bin/sleep for fake VM")
-	}
-	if err := os.WriteFile(bin, src, 0o755); err != nil {
-		t.Fatal(err)
+		t.Skip("no sleep for fake VM")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	cmd := exec.CommandContext(ctx, bin, "60")
+	// argv[0] = <dir>/<name> so the /proc cmdline carries the VM dir
+	// and vmProcOwned treats the process as ours. Copying /bin/sleep
+	// to the VM name broke on coreutils-multicall hosts, where the
+	// binary dispatches on argv[0] and dies instantly.
+	cmd := exec.CommandContext(ctx, sleep, "60")
+	cmd.Args[0] = bin
 	if err := cmd.Start(); err != nil {
 		cancel()
 		t.Fatal(err)
@@ -445,6 +450,18 @@ func QemuAvailable() bool {
 func QemuImgAvailable() bool {
 	_, err := exec.LookPath("qemu-img")
 	return err == nil
+}
+
+// KVMUsable probes /dev/kvm the way QEMU does — open O_RDWR. The node
+// can exist but be restricted (GH runners before the udev rule, WSL2),
+// so existence alone is not enough.
+func KVMUsable() bool {
+	f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0)
+	if err != nil {
+		return false
+	}
+	f.Close()
+	return true
 }
 
 // UnixDial opens a unix socket (replaces socat in QMP tests).

@@ -172,23 +172,15 @@ func TestVMProcOwnedBranches(t *testing.T) {
 	vd := withConf(t, "")
 	// Cmdline token: a process spawned from inside the vmdir carries
 	// <vmdir>/ in its argv[0].
-	src, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Skip("no sleep")
-	}
-	b, _ := os.ReadFile(src)
-	inner := filepath.Join(vd, "inner-proc")
-	os.WriteFile(inner, b, 0o755)
-	cmd := exec.Command(inner, "60")
-	if err := cmd.Start(); err != nil {
-		t.Skip("spawn failed")
-	}
-	defer func() { cmd.Process.Kill(); cmd.Wait() }()
-	time.Sleep(50 * time.Millisecond)
+	cmd := spawnFakeProc(t, filepath.Join(vd, "inner-proc"))
 	if !vmProcOwned(cmd.Process.Pid) {
 		t.Error("proc with vmdir in cmdline must be owned")
 	}
 	// Foreign: sleep with default argv — comm!=vmname, no vmdir token.
+	src, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("no sleep")
+	}
 	fk := exec.Command(src, "60")
 	if err := fk.Start(); err != nil {
 		t.Skip("spawn failed")

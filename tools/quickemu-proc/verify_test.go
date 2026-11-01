@@ -10,25 +10,42 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
-// spawnSleep copies /bin/sleep under a chosen comm so verify can match
-// on process name.
-func spawnSleep(t *testing.T, name string) (pid int, kill func()) {
+// TestHelperProcess is not a test — a copy of this binary run with
+// GO_QE_FAKE_PROC=1 sleeps, standing in for a real process. Copying
+// /bin/sleep to a chosen name dies on coreutils-multicall hosts,
+// which dispatch on argv[0]; a copy of this binary does not.
+func TestHelperProcess(t *testing.T) {
+	if os.Getenv("GO_QE_FAKE_PROC") != "1" {
+		return
+	}
+	time.Sleep(3 * time.Minute)
+}
+
+// spawnSleep plants a copy of this test binary under a chosen name
+// so verify can match on comm and exe basename.
+func spawnSleep(t *testing.T, name string) (pid int, path string, kill func()) {
 	t.Helper()
-	b, err := os.ReadFile("/bin/sleep")
+	self, err := os.Executable()
 	if err != nil {
-		t.Skip("no /bin/sleep")
+		t.Skip("cannot resolve test binary")
+	}
+	b, err := os.ReadFile(self)
+	if err != nil {
+		t.Skip("read test binary failed")
 	}
 	p := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(p, b, 0o755); err != nil {
 		t.Skip("copy failed")
 	}
-	c := exec.Command(p, "60")
+	c := exec.Command(p, "-test.run=^TestHelperProcess$")
+	c.Env = append(os.Environ(), "GO_QE_FAKE_PROC=1")
 	if err := c.Start(); err != nil {
 		t.Skip("spawn failed")
 	}
-	return c.Process.Pid, func() { c.Process.Kill(); c.Wait() }
+	return c.Process.Pid, p, func() { c.Process.Kill(); c.Wait() }
 }
 
 func verifyArgs(t *testing.T, args ...string) (string, int) {
@@ -37,7 +54,7 @@ func verifyArgs(t *testing.T, args ...string) (string, int) {
 }
 
 func TestVerifyFlagBranches(t *testing.T) {
-	pid, kill := spawnSleep(t, "myvmproc")
+	pid, _, kill := spawnSleep(t, "myvmproc")
 	defer kill()
 	sp := strconv.Itoa(pid)
 

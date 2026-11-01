@@ -4,7 +4,6 @@ package main
 import (
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -426,23 +425,8 @@ func TestVMIdentityRejectsRecycledQemuPid(t *testing.T) {
 	os.WriteFile(vmConf, []byte("disk_img=\""+filepath.Join(vd, "d.qcow2")+"\"\n"), 0o644)
 	t.Cleanup(func() { vmConf = old })
 
-	sleep, err := exec.LookPath("sleep")
-	if err != nil {
-		t.Skip("no sleep binary")
-	}
 	fake := filepath.Join(parent, "qemu-system-x86_64")
-	b, err := os.ReadFile(sleep)
-	if err != nil {
-		t.Skip("read sleep: " + err.Error())
-	}
-	if err := os.WriteFile(fake, b, 0o755); err != nil {
-		t.Skip("write fake qemu: " + err.Error())
-	}
-	cmd := exec.Command(fake, "30")
-	if err := cmd.Start(); err != nil {
-		t.Skip("spawn fake qemu: " + err.Error())
-	}
-	defer cmd.Process.Kill()
+	cmd := spawnFakeProc(t, fake)
 	deadline := time.Now().Add(2 * time.Second)
 	for procComm(cmd.Process.Pid) == "" && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
