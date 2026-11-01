@@ -144,8 +144,9 @@ func TestActGetAndOpen(t *testing.T) {
 		t.Fatalf("trust gate rc=%d", rc)
 	}
 	minTrust = old
-	// D/E trust warning paths — the gate warns but does not block;
-	// the stub-env flow then fails downstream → deterministic rc 1.
+	// D warns but proceeds (the stub-env flow then fails downstream
+	// → deterministic rc 1); E is refused at the gate by the
+	// fail-closed default (minTrust=D) unless --minimum-trust E.
 	t.Setenv("QC_TRUST", "D")
 	if rc := actGet("alpine", "3.19", "virt", true); rc != 1 {
 		t.Fatalf("trust D rc=%d", rc)

@@ -19,10 +19,11 @@ import (
 
 var (
 	arch = hostArch()
-	// MINIMUM_TRUST env seeds the trust gate (Bash ${MINIMUM_TRUST:-E}
-	// semantics: unset/invalid env is permissive, --minimum-trust wins
-	// and is validated).
-	minTrust          = strings.ToUpper(os.Getenv("MINIMUM_TRUST"))
+	// MINIMUM_TRUST env seeds the trust gate. Fail-closed default:
+	// unset/invalid env → D, so trust E (the source could not even be
+	// graded) needs an explicit --minimum-trust E opt-in. Diverges
+	// from Bash's permissive ${MINIMUM_TRUST:-E} on purpose.
+	minTrust          = trustDefault(os.Getenv("MINIMUM_TRUST"))
 	insecure          = false
 	cloudInit         = false
 	unattended        = false
@@ -271,6 +272,7 @@ Arguments:
 --create-config:
   --disable-unattended                        : Force quickget not to set up an unattended installation
 -------------------------- For testing & development ---------------------------
+   --minimum-trust  <A-E>                     : Require minimum download source trust (default: D)
    --url            [os] [release] [edition]  : Show image URL(s)
    --check          [os] [release] [edition]  : Check image URL(s)
    --check-all-arch [os] [release] [edition]  : Check downloads for all architectures (amd64 and arm64)

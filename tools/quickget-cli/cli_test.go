@@ -82,6 +82,14 @@ func TestTrust(t *testing.T) {
 	if trustLevel("alpine", "", "", "amd64") == "" {
 		t.Fatal("trustLevel empty")
 	}
+	// Fail-closed default: unset/invalid env → D; valid level wins.
+	for env, want := range map[string]string{
+		"": "D", "e": "E", "Z": "D", "a": "A", "c": "C",
+	} {
+		if got := trustDefault(env); got != want {
+			t.Errorf("trustDefault(%q)=%s want %s", env, got, want)
+		}
+	}
 }
 
 func TestCombinationsAndWrap(t *testing.T) {

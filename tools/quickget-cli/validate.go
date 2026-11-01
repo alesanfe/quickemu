@@ -181,6 +181,17 @@ func prettyName(osName string) string {
 	return osName
 }
 
+// trustDefault maps MINIMUM_TRUST env to the gate's default: a valid
+// A-E level wins; anything else (unset included) fails closed at D.
+func trustDefault(env string) string {
+	v := strings.ToUpper(env)
+	switch v {
+	case "A", "B", "C", "D", "E":
+		return v
+	}
+	return "D"
+}
+
 func trustOK(level, min string) bool {
 	if min == "" {
 		return true
