@@ -259,7 +259,10 @@ func getOS(osName, release, edition, dir, arch string) int {
 		return getMacos(release, dir, arch)
 	case osName == "ubuntu-server":
 		return getUbuntu(osName, release, dir, arch)
-	case strings.Contains(osName, "ubuntu"):
+	case strings.Contains(osName, "ubuntu") && osName != "ubuntu-cloud":
+		// Every *buntu desktop flavour lives on cdimage/releases —
+		// ubuntu-cloud is a qcow2 cloud image resolved by the catalog
+		// scraper, not a cdimage ISO.
 		return getUbuntu(osName, release, dir, arch)
 	case osName == "windows" || osName == "windows-server":
 		// For windows, the positional 'edition' is the I18N language.

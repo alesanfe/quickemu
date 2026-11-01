@@ -108,6 +108,10 @@ func TestDownloadEveryOSThenDelete(t *testing.T) {
 	runOne := func(e catEntry, rel, ed, vmDir string) (int, []byte) {
 		var rc int
 		switch {
+		case e.OS == "ubuntu-cloud":
+			// qcow2 pipeline resolves through the catalog subprocess —
+			// the ubuntu branch's execCommand stub would no-op it.
+			rc = getOS(e.OS, rel, ed, vmDir, "amd64")
 		case strings.Contains(e.OS, "ubuntu"):
 			// SUMS resolution stubbed; release URLs hardcode ubuntu.com.
 			// execCommand→true makes the real zsync binary a no-op so
