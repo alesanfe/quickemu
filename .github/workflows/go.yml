@@ -21,8 +21,9 @@ jobs:
 
   # Platform matrix: darwin compile/vet gate (macOS has no /dev/kvm —
   # catches regressions in the hvf/cocoa paths), linux/arm64, and
-  # linux-amd64-without-KVM (GH runners lack the device → exercises the
-  # TCG fallback end to end). Unit tests only where the host allows.
+  # linux-amd64-noKVM (the device node exists but is restricted to the
+  # kvm group — exercises the TCG fallback end to end). Unit tests
+  # only where the host allows.
   platforms:
     strategy:
       matrix:

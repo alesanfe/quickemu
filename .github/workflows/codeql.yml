@@ -1,0 +1,26 @@
+name: CodeQL
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-go@4b73464bb391e405a14327b7d613ca9d90898b08  # v5
+        with:
+          go-version: '1.25'
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4
+        with:
+          languages: go
+      # Multi-module go.work tree: compile every module so the
+      # extractor sees full build semantics (autobuild would only
+      # pick one; `./tools/...` does not span workspace modules).
+      - run: |
+          for d in tools/*/; do
+            [ -f "$d/go.mod" ] || continue
+            (cd "$d" && go build ./...) || exit 1
+          done
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370  # v4
