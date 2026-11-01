@@ -112,7 +112,11 @@ func fetchOnce(url, part, wantSHA string) int {
 			}
 		}
 	}()
-	_, err = io.Copy(f, &stallWatchReader{r: resp.Body, last: &lastRead})
+	prog := &progressPrinter{
+		total: resp.ContentLength + have, have: have,
+	}
+	_, err = io.Copy(f, &stallWatchReader{r: resp.Body, last: &lastRead, prog: prog})
+	prog.finish()
 	close(done)
 	if err != nil {
 		f.Close()
@@ -133,14 +137,43 @@ func fetchOnce(url, part, wantSHA string) int {
 type stallWatchReader struct {
 	r    io.Reader
 	last *atomic.Int64
+	prog *progressPrinter
 }
 
 func (s *stallWatchReader) Read(b []byte) (int, error) {
 	n, err := s.r.Read(b)
 	if n > 0 {
 		s.last.Store(time.Now().UnixNano())
+		s.prog.add(int64(n))
 	}
 	return n, err
+}
+
+// progressPrinter emits curl-style " N.N%" lines on stderr — the
+// meter QuickGUI's downloader parses (RegExp "( [0-9.]+%)") for its
+// progress bar. Rate-limited to ~1 line/sec like curl's TTY meter;
+// a no-op when Content-Length is unknown (GUI shows indeterminate).
+type progressPrinter struct {
+	total int64
+	have  int64 // resume offset — % counts the whole file
+	last  time.Time
+}
+
+func (p *progressPrinter) add(n int64) {
+	p.have += n
+	if p.total <= 0 || time.Since(p.last) < time.Second {
+		return
+	}
+	p.last = time.Now()
+	fmt.Fprintf(os.Stderr, " %.1f%%\n", float64(p.have)*100/float64(p.total))
+}
+
+// finish lands the terminal 100.0% tick so the GUI's bar always
+// completes even when the last increment fell inside the 1s window.
+func (p *progressPrinter) finish() {
+	if p.total > 0 && p.have >= p.total {
+		fmt.Fprintln(os.Stderr, " 100.0%")
+	}
 }
 
 // fetchVerify: check_hash parity — verify the staged .part (streaming;
