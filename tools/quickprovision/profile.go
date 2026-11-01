@@ -145,15 +145,21 @@ func inferProvider(p *Profile) string {
 	switch p.System.OS {
 	case "ubuntu-server":
 		return "ubuntu-autoinstall"
-	case "ubuntu", "ubuntu-unity", "ubuntucinnamon", "ubuntudde",
-		"edubuntu":
-		// Flavours that adopted the shared desktop installer take the
-		// same autoinstall path; calamares flavours (kubuntu & co) do
-		// not and stay visual.
+	case "ubuntu", "ubuntudde", "edubuntu":
+		// Flavours on the shared flutter/subiquity installer take the
+		// same autoinstall path; calamares flavours (kubuntu, lubuntu,
+		// unity) do not and stay visual.
 		return "ubuntu-desktop-autoinstall"
-	case "linuxmint", "zorin", "xubuntu", "ubuntu-mate":
-		// Ubiquity drives mint, zorin and the non-flutter Ubuntu
-		// flavours — automatic-ubiquity + a debconf preseed.
+	case "ubuntu-budgie", "ubuntustudio", "xubuntu", "ubuntu-mate":
+		// These flavours switched installer mid-stream: ubiquity up to
+		// 23.04, the flutter/subiquity installer from 23.10.
+		if releaseAtLeast(p.System.Release, 23, 10) {
+			return "ubuntu-desktop-autoinstall"
+		}
+		return "ubiquity-preseed"
+	case "linuxmint", "zorin", "bodhi", "ubuntucinnamon":
+		// Still on ubiquity — Cinnamon held back from the flutter
+		// migration; mint, zorin and bodhi never shipped the new one.
 		return "ubiquity-preseed"
 	case "debian":
 		// Only the installer ISOs run d-i; the DE editions are
@@ -162,8 +168,12 @@ func inferProvider(p *Profile) string {
 		case "", "netinst", "standard":
 			return "debian-preseed"
 		}
-	case "kali", "devuan", "debian-edu":
+	case "kali", "debian-edu":
 		return "debian-preseed"
+	case "devuan":
+		// The catalog resolves the desktop-live ISO (refractainstaller,
+		// not d-i) — preseed would silently install plain Debian.
+		// Devuan netinst ISOs are d-i but quickget cannot fetch them.
 	case "trisquel":
 		// Only the netinst ISO runs d-i; the DE editions are live.
 		if p.System.Edition == "netinst" {
@@ -179,9 +189,10 @@ func inferProvider(p *Profile) string {
 		}
 	case "alma", "centos", "centos-stream", "rockylinux", "oraclelinux",
 		"tencentos", "anolis", "eurolinux", "opencloudos", "openeuler",
-		"springdale", "nethserver", "ovirt-node", "koozali":
+		"springdale", "nethserver", "ovirt-node", "koozali", "ultramarine":
 		// The whole RHEL-family tree runs anaconda — kickstart is
-		// distro-agnostic, only the ISO layout is shared.
+		// distro-agnostic, only the ISO layout is shared. Ultramarine's
+		// resolver prefers the -anaconda ISO variant over readymade.
 		return "anaconda-kickstart"
 	case "opensuse", "opensuse-slowroll":
 		// MicroOS needs combustion, a different mechanism.
@@ -225,6 +236,15 @@ func inferProvider(p *Profile) string {
 		return "artix-basestrap"
 	case "calculate-linux":
 		return "calculate-clinstall"
+	case "guix":
+		// Same class as NixOS: declarative `guix system init` driven
+		// over the serial root shell — kernel/initrd live under
+		// /gnu/store paths parsed out of the ISO's grub.cfg.
+		return "guix-serial"
+	case "netbsd":
+		// Serial sysinst on the boot-com companion ISO → shell →
+		// manual set extraction (the documented headless path).
+		return "netbsd-sets"
 	}
 	// Pre-imaged disks only get nocloud when they actually boot
 	// cloud-init: the *-cloud entries plus a small whitelist. Other
@@ -252,6 +272,23 @@ func alpineReleaseOK(release string) bool {
 	}
 	minor, err := strconv.Atoi(parts[1])
 	return parts[0] == "3" && err == nil && minor >= 19
+}
+
+// releaseAtLeast parses the leading "N.N[.P]" of a release tag and
+// reports whether it is ≥ major.minor — used to gate flavours that
+// swapped installers mid-history. Unknown tags ("latest", "") count
+// as current, i.e. the newest installer.
+func releaseAtLeast(release string, major, minor int) bool {
+	parts := strings.SplitN(release, ".", 3)
+	if len(parts) < 2 {
+		return true
+	}
+	a, errA := strconv.Atoi(parts[0])
+	b, errB := strconv.Atoi(parts[1])
+	if errA != nil || errB != nil {
+		return true
+	}
+	return a > major || (a == major && b >= minor)
 }
 
 // catalogImageType resolves the entry's declared image_type from the

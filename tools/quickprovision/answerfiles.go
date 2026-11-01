@@ -1328,3 +1328,164 @@ func renderDesktopAutoinstall(p *Profile, hash, keysYAML string) string {
 	sb.WriteString("  source:\n    id: ubuntu-desktop\n")
 	return sb.String()
 }
+
+// --- Guix -------------------------------------------------------------
+//
+// renderGuixInstall runs inside the live image (before cow-store): it
+// partitions, mounts, pulls the rendered config.scm + authorized keys
+// over slirp, then hands the target to guix system init. The efi/bios
+// split picks which rendered config it asks for.
+func renderGuixInstall(port int) string {
+	return `#!/bin/sh
+set -e
+dhclient 2>/dev/null || true
+if [ -d /sys/firmware/efi ]; then
+  parted -s /dev/vda mklabel gpt
+  parted -s /dev/vda mkpart ESP fat32 1MiB 513MiB
+  parted -s /dev/vda set 1 esp on
+  parted -s /dev/vda mkpart root ext4 513MiB 100%
+  mkfs.fat -F32 /dev/vda1
+  mkfs.ext4 -F -L guix-root /dev/vda2
+  mount /dev/vda2 /mnt
+  mkdir -p /mnt/boot/efi
+  mount /dev/vda1 /mnt/boot/efi
+  CFG=config-efi.scm
+else
+  parted -s /dev/vda mklabel msdos
+  parted -s /dev/vda mkpart primary ext4 1MiB 100%
+  parted -s /dev/vda set 1 boot on
+  mkfs.ext4 -F -L guix-root /dev/vda1
+  mount /dev/vda1 /mnt
+  CFG=config-bios.scm
+fi
+mkdir -p /mnt/etc /mnt/root
+curl -sf -o /mnt/etc/config.scm http://10.0.2.2:` + itoa(port) + `/$CFG
+curl -sf -o /mnt/root/keys.pub http://10.0.2.2:` + itoa(port) + `/keys.pub
+herd start cow-store /mnt
+guix system init /mnt/etc/config.scm /mnt
+poweroff
+`
+}
+
+// renderGuixConfig emits the declarative operating-system form the live
+// image installs verbatim — the bootloader variant switches on firmware.
+func renderGuixConfig(p *Profile, hash string, efi bool) string {
+	user := p.Identity.Username
+	host := p.Identity.Hostname
+	tz := p.Locale.Timezone
+	if tz == "" {
+		tz = "UTC"
+	}
+	lang := p.Locale.Lang
+	if lang == "" {
+		lang = "en_US.utf8"
+	}
+	bl := `(bootloader grub-bootloader)
+                (targets '("/dev/vda"))`
+	fses := `(file-system (device (file-system-label "guix-root"))
+                         (mount-point "/") (type "ext4"))`
+	if efi {
+		bl = `(bootloader grub-efi-bootloader)
+                (targets '("/boot/efi"))`
+		fses += `
+                       (file-system (device "/dev/vda1")
+                         (mount-point "/boot/efi") (type "vfat"))`
+	}
+	return `(use-modules (gnu) (gnu system nss))
+(use-service-modules networking ssh)
+(operating-system
+  (host-name "` + host + `")
+  (timezone "` + tz + `")
+  (locale "` + lang + `")
+  (bootloader (bootloader-configuration
+                ` + bl + `))
+  (file-systems (cons* ` + fses + `
+                       %base-file-systems))
+  (users (cons* (user-account (name "` + user + `") (group "users")
+                  (supplementary-groups '("wheel" "netdev"))
+                  (password "` + hash + `"))
+                %base-user-accounts))
+  (services (cons* (service openssh-service-type
+                     (openssh-configuration
+                       (authorized-keys
+                         ` + "`" + `(("` + user + `" ,(local-file "/root/keys.pub"))))))
+                   (service dhcp-client-service-type)
+                   %base-services))))
+`
+}
+
+// --- NetBSD -----------------------------------------------------------
+//
+// renderNetbsdInstall runs in the sysinst utility-menu shell: GPT
+// wedges keep partitioning deterministic, sets untar straight off the
+// mounted install CD (no network needed for payload), bootblocks and
+// rc.conf/fstab/user finish the disk. The NAME=<wedge-label> fstab
+// syntax survives device renumbering.
+func renderNetbsdInstall(p *Profile, hash string, keys []string) string {
+	user := p.Identity.Username
+	host := p.Identity.Hostname
+	return `#!/bin/sh
+set -e
+mkdir -p /cdrom /mnt
+mount_cd9660 /dev/cd0a /cdrom 2>/dev/null || mount_cd9660 /dev/cd0d /cdrom
+SETS=/cdrom/amd64/binary/sets
+[ -d "$SETS" ] || SETS=$(echo /cdrom/*/binary/sets | cut -d' ' -f1)
+gpt destroy wd0 2>/dev/null || true
+gpt create -f wd0
+if [ -d /sys/firmware/efi ]; then
+  gpt add -a 1m -s 128m -t efi -l ESP wd0
+  gpt add -a 1m -t ffs -l ROOT wd0
+else
+  gpt add -a 1m -s 32m -t bios -l BIOSBOOT wd0
+  gpt add -a 1m -t ffs -l ROOT wd0
+fi
+RDK=$(dkctl wd0 listwedges | awk -F: '/ROOT/{print $1}' | head -1)
+EFIDK=$(dkctl wd0 listwedges | awk -F: '/ESP/{print $1}' | head -1)
+newfs -O2 /dev/r$(basename $RDK)
+if [ -n "$EFIDK" ]; then
+  newfs_msdos -F 32 /dev/r$(basename $EFIDK)
+fi
+mount $RDK /mnt
+for f in $SETS/*.tar.xz $SETS/*.tgz; do
+  [ -f "$f" ] || continue
+  xz -dc "$f" 2>/dev/null | tar -xpf - -C /mnt || \
+    unxz -c "$f" 2>/dev/null | tar -xpf - -C /mnt || \
+    tar -xpf "$f" -C /mnt || \
+    gunzip -c "$f" | tar -xpf - -C /mnt
+done
+mkdir -p /mnt/etc
+{
+  echo 'hostname=` + host + `'
+  echo 'dhcpcd=YES'
+  echo 'sshd=YES'
+} >> /mnt/etc/rc.conf
+{
+  echo 'NAME=ROOT / ffs rw 1 1'
+  if [ -n "$EFIDK" ]; then echo 'NAME=ESP /efi msdos rw 1 2'; fi
+  echo 'kernfs /kern kernfs rw'
+  echo 'ptyfs /dev/pts ptyfs rw,noauto'
+  echo 'procfs /proc procfs rw'
+  echo 'tmpfs /var/shm tmpfs rw,-s=1g'
+} > /mnt/etc/fstab
+if [ -n "$EFIDK" ]; then
+  mkdir -p /mnt/efi
+  mount -t msdos $EFIDK /mnt/efi
+  mkdir -p /mnt/efi/EFI/BOOT
+  cp /mnt/usr/mdec/bootx64.efi /mnt/efi/EFI/BOOT/BOOTX64.EFI
+else
+  installboot -o timeout=5 /dev/r$(basename $RDK) /mnt/usr/mdec/bootxx_ffsv2
+  gpt biosboot -A -c /mnt/usr/mdec/gptmbr.bin -L BIOSBOOT wd0 2>/dev/null || \
+    gpt biosboot -c /mnt/usr/mdec/gptmbr.bin -i 1 wd0 || true
+fi
+chroot /mnt sh -c 'useradd -m -G wheel -s /bin/sh ` + user + `; \
+  usermod -p "` + hash + `" ` + user + `'
+mkdir -p /mnt/home/` + user + `/.ssh
+cat > /mnt/home/` + user + `/.ssh/authorized_keys <<'KEYS'
+` + joinKeys(keys) + `KEYS
+chmod 700 /mnt/home/` + user + `/.ssh
+chmod 600 /mnt/home/` + user + `/.ssh/authorized_keys
+chroot /mnt chown -R ` + user + `:users /home/` + user + `/.ssh
+sync
+poweroff 2>/dev/null || reboot 2>/dev/null || halt
+`
+}

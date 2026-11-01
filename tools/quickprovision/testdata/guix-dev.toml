@@ -1,0 +1,50 @@
+# Guix system install via the serial root shell — kernel/initrd are
+# resolved out of the ISO's own grub.cfg (they live under /gnu/store
+# hash dirs), booted with console=ttyS0 plus the ISO's original
+# --root/--system/--load args; the typed script partitions, cow-stores
+# and guix system init's the rendered config.scm.
+[profile]
+name = "guix-dev"
+description = "Guix unattended install provisioned into a dev VM"
+
+[system]
+os = "guix"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "guix-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "guix-serial"
+install_timeout_min = 120
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "guix-dev"
+
+[[verify]]
+name = "guix-present"
+run = "command -v guix"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

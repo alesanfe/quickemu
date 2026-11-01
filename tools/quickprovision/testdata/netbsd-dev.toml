@@ -1,0 +1,49 @@
+# NetBSD via the boot-com serial ISO — the companion serial build is
+# fetched next to the catalog image; sysinst's Utility menu gives a
+# /bin/sh, then the script GPT-partitions, untars sets off the CD,
+# writes bootblocks + rc.conf/fstab and powers off.
+[profile]
+name = "netbsd-dev"
+description = "NetBSD unattended install provisioned into a dev VM"
+
+[system]
+os = "netbsd"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "2G"
+disk_size = "16G"
+
+[identity]
+hostname = "nb-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "netbsd-sets"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "nb-dev"
+
+[[verify]]
+name = "os"
+run = "uname -s"
+expect = "NetBSD"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

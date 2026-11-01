@@ -259,7 +259,14 @@ var indexNZResolvers = map[string]func(release, edition, arch string) (string, s
 		return u, sha, nil
 	},
 	"ultramarine": func(release, edition, arch string) (string, string, error) {
-		return indexISO("https://images.fyralabs.com/isos/ultramarine/"+release+"/", `ultramarine-[^"]*x86_64[^"]*\.iso`)
+		base := "https://images.fyralabs.com/isos/ultramarine/" + release + "/"
+		// 42+ ship readymade live images next to the classic anaconda
+		// variants — prefer the anaconda build so inst.ks automation
+		// works; older releases only ever had anaconda anyway.
+		if u, s, err := indexISO(base, `ultramarine-[^"]*anaconda-x86_64\.iso`); err == nil {
+			return u, s, nil
+		}
+		return indexISO(base, `ultramarine-[^"]*x86_64[^"]*\.iso`)
 	},
 	"umbrelos": func(release, edition, arch string) (string, string, error) {
 		// download.umbrel.com/release/latest 307-redirects to the R2 asset.

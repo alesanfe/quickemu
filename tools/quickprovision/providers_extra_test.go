@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,12 +26,12 @@ func TestInferProviderMainstream(t *testing.T) {
 	cases := map[string]string{
 		"ubuntu-server":              "ubuntu-autoinstall",
 		"ubuntu":                     "ubuntu-desktop-autoinstall",
-		"ubuntu-unity":               "ubuntu-desktop-autoinstall",
-		"ubuntucinnamon":             "ubuntu-desktop-autoinstall",
+		"ubuntu-unity":               "visual",
+		"ubuntucinnamon":             "ubiquity-preseed",
 		"ubuntudde":                  "ubuntu-desktop-autoinstall",
 		"debian":                     "debian-preseed",
 		"kali":                       "debian-preseed",
-		"devuan":                     "debian-preseed",
+		"devuan":                     "visual",
 		"debian-edu":                 "debian-preseed",
 		"windows":                    "windows-autounattend",
 		"windows-server":             "windows-autounattend",
@@ -46,6 +47,7 @@ func TestInferProviderMainstream(t *testing.T) {
 		"opencloudos":                "anaconda-kickstart",
 		"openeuler":                  "anaconda-kickstart",
 		"springdale":                 "anaconda-kickstart",
+		"ultramarine":                "anaconda-kickstart",
 		"opensuse-slowroll":          "opensuse-autoyast",
 		"archlinux":                  "arch-pacstrap",
 		"nethserver":                 "anaconda-kickstart",
@@ -56,8 +58,10 @@ func TestInferProviderMainstream(t *testing.T) {
 		"proxmox-mail-gateway":       "proxmox-autoinstall",
 		"proxmox-datacenter-manager": "proxmox-autoinstall",
 		"nixos":                      "nixos-serial",
+		"guix":                       "guix-serial",
 		"openbsd":                    "openbsd-autoinstall",
 		"freebsd":                    "freebsd-shell",
+		"netbsd":                     "netbsd-sets",
 		"void":                       "void-xbps",
 		"gentoo":                     "gentoo-stage3",
 		"flatcar":                    "flatcar-ignition",
@@ -65,8 +69,11 @@ func TestInferProviderMainstream(t *testing.T) {
 		"parabola":                   "arch-pacstrap",
 		"linuxmint":                  "ubiquity-preseed",
 		"zorin":                      "ubiquity-preseed",
-		"xubuntu":                    "ubiquity-preseed",
-		"ubuntu-mate":                "ubiquity-preseed",
+		"bodhi":                      "ubiquity-preseed",
+		"xubuntu":                    "ubuntu-desktop-autoinstall",
+		"ubuntu-mate":                "ubuntu-desktop-autoinstall",
+		"ubuntu-budgie":              "ubuntu-desktop-autoinstall",
+		"ubuntustudio":               "ubuntu-desktop-autoinstall",
 		"edubuntu":                   "ubuntu-desktop-autoinstall",
 		"slackware":                  "slackware-live",
 		"artixlinux":                 "artix-basestrap",
@@ -129,6 +136,25 @@ func TestInferProviderMainstream(t *testing.T) {
 	if inferProvider(&a18) != "visual" {
 		t.Fatal("alpine v3.18 → visual")
 	}
+	// Flavours that switched installer mid-history are release-gated:
+	// ubiquity ≤23.04, the flutter/subiquity installer ≥23.10.
+	var xuOld, xuNew, maOld, stNew Profile
+	xuOld.System.OS, xuOld.System.Release = "xubuntu", "22.04.5"
+	xuNew.System.OS, xuNew.System.Release = "xubuntu", "24.04"
+	maOld.System.OS, maOld.System.Release = "ubuntu-mate", "18.04"
+	stNew.System.OS, stNew.System.Release = "ubuntustudio", "24.04.5"
+	if inferProvider(&xuOld) != "ubiquity-preseed" {
+		t.Fatal("xubuntu 22.04 → ubiquity")
+	}
+	if inferProvider(&xuNew) != "ubuntu-desktop-autoinstall" {
+		t.Fatal("xubuntu 24.04 → flutter autoinstall")
+	}
+	if inferProvider(&maOld) != "ubiquity-preseed" {
+		t.Fatal("ubuntu-mate 18.04 → ubiquity")
+	}
+	if inferProvider(&stNew) != "ubuntu-desktop-autoinstall" {
+		t.Fatal("ubuntustudio 24.04 → flutter autoinstall")
+	}
 	// non-cloud-init disk images must not silently claim nocloud —
 	// they boot as self-configured appliances under visual.
 	for _, osName := range []string{"dietpi", "mobian", "openwrt"} {
@@ -144,7 +170,8 @@ func TestPickProviderNew(t *testing.T) {
 	for _, name := range []string{
 		"ubuntu-desktop-autoinstall", "debian-preseed",
 		"windows-autounattend", "ubiquity-preseed", "slackware-live",
-		"artix-basestrap", "calculate-clinstall", "visual"} {
+		"artix-basestrap", "calculate-clinstall", "guix-serial",
+		"netbsd-sets", "visual"} {
 		var p Profile
 		p.Automation.Provider = name
 		prov, err := pickProvider(&p)
@@ -273,6 +300,18 @@ func TestProviderMetaNew(t *testing.T) {
 		t.Fatal("calculate meta")
 	}
 	var _ serialDriver = cl
+	gx := &guixSerial{}
+	if !gx.needsSecondBoot() || gx.interactive() ||
+		gx.completionMode() != "poweroff" || len(gx.dropConfKeys()) != 5 {
+		t.Fatal("guix meta")
+	}
+	var _ serialDriver = gx
+	nb := &netbsdSets{}
+	if !nb.needsSecondBoot() || nb.interactive() ||
+		nb.completionMode() != "poweroff" || len(nb.dropConfKeys()) != 2 {
+		t.Fatal("netbsd meta")
+	}
+	var _ serialDriver = nb
 }
 
 func TestPlanStepsVisualTrimmed(t *testing.T) {
@@ -809,5 +848,108 @@ func TestAwaitSerialMarkerTimeout(t *testing.T) {
 		"never-matches", 1500*time.Millisecond)
 	if err == nil || !strings.Contains(err.Error(), "not seen") {
 		t.Fatalf("expected marker timeout, got %v", err)
+	}
+}
+
+// --- guix / netbsd renderers -------------------------------------------
+
+func TestRenderGuixConfig(t *testing.T) {
+	var p Profile
+	p.Identity.Hostname = "guix1"
+	p.Identity.Username = "dev"
+	p.Locale.Timezone = "Europe/Madrid"
+	for _, want := range []string{
+		"(host-name \"guix1\")",
+		"grub-efi-bootloader",
+		"(type \"vfat\")",
+		"openssh-service-type",
+		"dhcp-client-service-type",
+		"local-file \"/root/keys.pub\"",
+		"password \"$6$salt$hash\"",
+		"Europe/Madrid",
+	} {
+		if !strings.Contains(renderGuixConfig(&p, "$6$salt$hash", true), want) {
+			t.Fatalf("guix efi config missing %q:\n%s", want,
+				renderGuixConfig(&p, "$6$salt$hash", true))
+		}
+	}
+	bios := renderGuixConfig(&p, "$6$salt$hash", false)
+	if !strings.Contains(bios, "grub-bootloader") ||
+		strings.Contains(bios, "vfat") {
+		t.Fatalf("guix bios config must use grub mbr, no efi fs:\n%s", bios)
+	}
+}
+
+func TestRenderGuixInstall(t *testing.T) {
+	sh := renderGuixInstall(4444)
+	for _, want := range []string{
+		"herd start cow-store /mnt",
+		"guix system init /mnt/etc/config.scm /mnt",
+		"config-efi.scm", "config-bios.scm",
+		"http://10.0.2.2:4444/",
+		"mkfs.ext4 -F -L guix-root",
+		"poweroff",
+	} {
+		if !strings.Contains(sh, want) {
+			t.Fatalf("guix install missing %q:\n%s", want, sh)
+		}
+	}
+}
+
+func TestRenderNetbsdInstall(t *testing.T) {
+	var p Profile
+	p.Identity.Hostname = "nb1"
+	p.Identity.Username = "dev"
+	sh := renderNetbsdInstall(&p, "$6$salt$hash",
+		[]string{"ssh-ed25519 AAAA", "ssh-ed25519 BBBB"})
+	for _, want := range []string{
+		"gpt add -a 1m -t ffs -l ROOT wd0",
+		"-t efi -l ESP",
+		"-t bios -l BIOSBOOT",
+		"dkctl wd0 listwedges",
+		"/binary/sets",
+		"installboot",
+		"gpt biosboot",
+		"bootx64.efi",
+		"NAME=ROOT / ffs rw 1 1",
+		"sshd=YES", "dhcpcd=YES", "hostname=nb1",
+		"useradd -m -G wheel",
+		"usermod -p \"$6$salt$hash\"",
+		"ssh-ed25519 AAAA",
+		"poweroff",
+	} {
+		if !strings.Contains(sh, want) {
+			t.Fatalf("netbsd install missing %q:\n%s", want, sh)
+		}
+	}
+}
+
+func TestParseGrubCfgGuix(t *testing.T) {
+	// A guix ISO grub.cfg menuentry carries linux/initrd under
+	// /gnu/store/<hash>-… — parse must recover paths AND boot args.
+	cfg := `set timeout=3
+menuentry "GNU Guix installation 1.4.0" {
+  linux /gnu/store/ab12cd-linux-libre-6.1.55/bzImage --root=GUIX_IMAGE --system=/gnu/store/xy-system --load=/gnu/store/xy-system/boot
+  initrd /gnu/store/wz34-initrd/initrd
+}`
+	kPath, kArgs, iPath := "", "", ""
+	if m := grubLinuxRe.FindStringSubmatch(cfg); m != nil {
+		kPath, kArgs = m[1], strings.TrimSpace(m[2])
+	}
+	if m := grubInitrdRe.FindStringSubmatch(cfg); m != nil {
+		iPath = m[1]
+	}
+	if kPath != "/gnu/store/ab12cd-linux-libre-6.1.55/bzImage" {
+		t.Fatalf("kernel path %q", kPath)
+	}
+	if iPath != "/gnu/store/wz34-initrd/initrd" {
+		t.Fatalf("initrd path %q", iPath)
+	}
+	if !strings.Contains(kArgs, "--root=GUIX_IMAGE") ||
+		!strings.Contains(kArgs, "--system=") {
+		t.Fatalf("kernel args %q", kArgs)
+	}
+	if got := path.Base(path.Dir(kPath)); got != "ab12cd-linux-libre-6.1.55" {
+		t.Fatalf("store dir basename %q", got)
 	}
 }

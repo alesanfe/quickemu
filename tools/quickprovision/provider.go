@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -92,6 +94,10 @@ func pickProvider(p *Profile) (provider, error) {
 		return &artixBasestrap{}, nil
 	case "calculate-clinstall":
 		return &calculateClinstall{}, nil
+	case "guix-serial":
+		return &guixSerial{}, nil
+	case "netbsd-sets":
+		return &netbsdSets{}, nil
 	case "visual":
 		return &visualProvider{}, nil
 	case "manual":
@@ -1572,6 +1578,222 @@ func (c *calculateClinstall) driveInstall(ctx context.Context, r *runCtx) error 
 	return driveSerialScript(ctx, r, serialPrompt{
 		loginHint: `login:`, loginReply: "root\n",
 		prompt: `root@.*#|]#`})
+}
+
+// --- Guix serial guix system init -------------------------------------
+//
+// guixSerial mirrors nixos-serial: the install image's shepherd spawns
+// a root getty on the console; a fetched script partitions, cow-stores
+// and guix system init's the rendered config.scm. Kernel and initrd
+// sit under /gnu/store/<hash>-… — the paths are parsed out of the
+// ISO's own grub.cfg so any release layout resolves, then extracted
+// by their store dir.
+type guixSerial struct{}
+
+func (g *guixSerial) id() string                 { return "guix-serial" }
+func (g *guixSerial) needsSecondBoot() bool      { return true }
+func (g *guixSerial) interactive() bool          { return false }
+func (g *guixSerial) completionMode() string     { return "poweroff" }
+func (g *guixSerial) postInstallFiles() []string { return nil }
+func (g *guixSerial) dropConfKeys() []string {
+	return []string{"kernel", "initrd", "boot_args", "iso", "fixed_iso"}
+}
+func (g *guixSerial) sshUser(p *Profile) string { return p.Identity.Username }
+
+// grubLinuxRe/grubInitrdRe match the first menuentry's kernel and
+// initrd lines in an ISO grub.cfg: `linux <store path> <args…>`.
+var (
+	grubLinuxRe  = regexp.MustCompile(`(?m)^\s*linux\s+(\S+)\s*(.*)$`)
+	grubInitrdRe = regexp.MustCompile(`(?m)^\s*initrd\s+(\S+)\s*$`)
+)
+
+func (g *guixSerial) prepare(r *runCtx) error {
+	iso := confGet(r.confPath, "iso")
+	if iso == "" {
+		return fmt.Errorf("conf %s has no iso= — is this a Guix ISO VM?", r.confPath)
+	}
+	iso = resolveConfPath(r.confPath, iso)
+	cfgFile, err := extractBootfiles(iso, "grub", r.vmDir, []string{"grub.cfg"})
+	if err != nil {
+		return fmt.Errorf("guix grub.cfg: %w", err)
+	}
+	cfg, err := os.ReadFile(cfgFile["grub.cfg"])
+	if err != nil {
+		return fmt.Errorf("guix grub.cfg: %w", err)
+	}
+	kPath, kArgs, iPath := "", "", ""
+	if m := grubLinuxRe.FindStringSubmatch(string(cfg)); m != nil {
+		kPath, kArgs = m[1], strings.TrimSpace(m[2])
+	}
+	if m := grubInitrdRe.FindStringSubmatch(string(cfg)); m != nil {
+		iPath = m[1]
+	}
+	if kPath == "" || iPath == "" {
+		return fmt.Errorf("guix grub.cfg: no linux/initrd entries found")
+	}
+	// dirMatch's contains-test finds the store dirs by basename — the
+	// hash prefix is part of the name so the match is precise.
+	kern, err := extractBootfiles(iso, path.Base(path.Dir(kPath)), r.vmDir,
+		[]string{path.Base(kPath)})
+	if err != nil {
+		return fmt.Errorf("guix kernel: %w", err)
+	}
+	init, err := extractBootfiles(iso, path.Base(path.Dir(iPath)), r.vmDir,
+		[]string{path.Base(iPath)})
+	if err != nil {
+		return fmt.Errorf("guix initrd: %w", err)
+	}
+	hash, err := pwHash(r.p)
+	if err != nil {
+		return fmt.Errorf("password hash: %w", err)
+	}
+	keys := append([]string{r.kp.pub}, r.p.Identity.SSHAuthorizedKeys...)
+	keysFile := filepath.Join(r.artDir, "keys.pub")
+	if err := os.WriteFile(keysFile,
+		[]byte(strings.TrimSpace(strings.Join(keys, "\n"))+"\n"), 0o644); err != nil {
+		return err
+	}
+	for _, f := range [][2]string{
+		{"install.sh", renderGuixInstall(r.artPort)},
+		{"config-efi.scm", renderGuixConfig(r.p, hash, true)},
+		{"config-bios.scm", renderGuixConfig(r.p, hash, false)},
+	} {
+		if err := os.WriteFile(filepath.Join(r.artDir, f[0]), []byte(f[1]), 0o644); err != nil {
+			return err
+		}
+	}
+	port, srv, err := startSeedHTTPServer(r.artDir)
+	if err != nil {
+		return err
+	}
+	r.seedSrv = srv
+	r.artPort = port
+	r.e.progress("prepare",
+		fmt.Sprintf("guix artifacts at http://10.0.2.2:%d/", port))
+	edits := commonConfEdits(r)
+	delete(edits, "seed")
+	edits["kernel"] = kern[path.Base(kPath)]
+	edits["initrd"] = init[path.Base(iPath)]
+	// The ISO's own --root/--system/--load args boot the live system;
+	// console=ttyS0 puts shepherd's getty on the serial socket.
+	edits["boot_args"] = kArgs + " console=ttyS0"
+	return confSet(r.confPath, edits)
+}
+
+func (g *guixSerial) driveInstall(ctx context.Context, r *runCtx) error {
+	// The install image runs the guided newt installer on tty1 and a
+	// getty on the serial console — root has no password there. If a
+	// release puts the installer on serial instead, the prompt wait
+	// times out loudly rather than typing into menus.
+	return driveSerialScript(ctx, r, serialPrompt{
+		loginHint: `guix login:|login:`, loginReply: "root\n",
+		prompt: `root@guix|root@.*#|\]#`})
+}
+
+// --- NetBSD serial sysinst → shell → sets ----------------------------
+//
+// netbsdSets follows the documented headless path: the boot-com ISO
+// is NetBSD's serial-console build of the same installer — fetched as
+// a companion from the release's images dir (quickget's catalog ISO
+// is the VGA build). Serial sysinst → Utility menu → /bin/sh gives a
+// shell; the script partitions via GPT wedges, untars the sets off
+// the CD, writes bootblocks/rc.conf and powers off.
+type netbsdSets struct{}
+
+func (n *netbsdSets) id() string                 { return "netbsd-sets" }
+func (n *netbsdSets) needsSecondBoot() bool      { return true }
+func (n *netbsdSets) interactive() bool          { return false }
+func (n *netbsdSets) completionMode() string     { return "poweroff" }
+func (n *netbsdSets) postInstallFiles() []string { return nil }
+func (n *netbsdSets) dropConfKeys() []string {
+	return []string{"iso", "fixed_iso"}
+}
+func (n *netbsdSets) sshUser(p *Profile) string { return p.Identity.Username }
+
+func (n *netbsdSets) prepare(r *runCtx) error {
+	iso := confGet(r.confPath, "iso")
+	if iso == "" {
+		return fmt.Errorf("conf %s has no iso= — is this a NetBSD ISO VM?", r.confPath)
+	}
+	// The serial build of the same release lives next to the catalog
+	// ISO on the CDN — deterministic name per release.
+	rel := r.p.System.Release
+	com := filepath.Join(r.vmDir, "netbsd-boot-com.iso")
+	if _, err := os.Stat(com); err != nil {
+		url := fmt.Sprintf("https://cdn.netbsd.org/pub/NetBSD/NetBSD-%s/"+
+			"images/NetBSD-%s-amd64-boot-com.iso", rel, rel)
+		if err := fetchFile(url, com); err != nil {
+			return fmt.Errorf("netbsd boot-com.iso: %w", err)
+		}
+	}
+	hash, err := pwHash(r.p)
+	if err != nil {
+		return fmt.Errorf("password hash: %w", err)
+	}
+	keys := append([]string{r.kp.pub}, r.p.Identity.SSHAuthorizedKeys...)
+	if err := os.WriteFile(filepath.Join(r.artDir, "install.sh"),
+		[]byte(renderNetbsdInstall(r.p, hash, keys)), 0o644); err != nil {
+		return err
+	}
+	port, srv, err := startSeedHTTPServer(r.artDir)
+	if err != nil {
+		return err
+	}
+	r.seedSrv = srv
+	r.artPort = port
+	r.e.progress("prepare",
+		fmt.Sprintf("install script at http://10.0.2.2:%d/install.sh", port))
+	edits := commonConfEdits(r)
+	delete(edits, "seed")
+	edits["iso"] = com // the serial build replaces the VGA media for this boot
+	return confSet(r.confPath, edits)
+}
+
+func (n *netbsdSets) driveInstall(ctx context.Context, r *runCtx) error {
+	timeout := time.Duration(r.p.Automation.InstallTimeoutMin) * time.Minute
+	log := filepath.Join(r.artDir, "serial.log")
+	if b, err := os.ReadFile(log); err == nil &&
+		strings.Contains(string(b), "install.sh") {
+		r.e.progress("await-install", "install already started — waiting for poweroff")
+		return waitPIDGone(ctx, r.e, r.vmDir, r.vmName, timeout)
+	}
+	// boot-com boots straight into sysinst on com0 — main menu items
+	// take single-letter shortcuts: 'e' = Utility menu, then
+	// 'a' = Run /bin/sh. Letter layouts held steady across 9/10/11;
+	// a menu reshuffle fails loudly at the next pattern wait.
+	if err := r.waitSerialPattern(ctx,
+		`Install NetBSD to hard disk|Utility menu|sysinst`, 15*time.Minute); err != nil {
+		return err
+	}
+	time.Sleep(3 * time.Second)
+	if err := r.ser.write("e"); err != nil {
+		return fmt.Errorf("serial nav: %w", err)
+	}
+	if err := r.waitSerialPattern(ctx,
+		`Utility menu|/bin/sh`, 2*time.Minute); err != nil {
+		return err
+	}
+	time.Sleep(time.Second)
+	if err := r.ser.write("a"); err != nil {
+		return fmt.Errorf("serial nav: %w", err)
+	}
+	if err := r.waitSerialPattern(ctx, `#`, 2*time.Minute); err != nil {
+		return err
+	}
+	time.Sleep(2 * time.Second)
+	// Bring slirp up statically (the installer env has no DHCP client
+	// running yet): virtio-net is vioif0, e1000 would be wm0 — try
+	// both, then ftp(1) pulls the script (NetBSD ftp does HTTP).
+	cmd := fmt.Sprintf(
+		"ifconfig vioif0 inet 10.0.2.15 netmask 255.255.255.0 up "+
+			"|| ifconfig wm0 inet 10.0.2.15 netmask 255.255.255.0 up; "+
+			"route add default 10.0.2.2 2>/dev/null; "+
+			"ftp -o - http://10.0.2.2:%d/install.sh | sh\n", r.artPort)
+	if err := r.ser.write(cmd); err != nil {
+		return fmt.Errorf("serial send: %w", err)
+	}
+	r.e.progress("await-install", "install command sent — netbsd install running")
+	return waitPIDGone(ctx, r.e, r.vmDir, r.vmName, timeout)
 }
 
 // --- visual / manual install ----------------------------------------

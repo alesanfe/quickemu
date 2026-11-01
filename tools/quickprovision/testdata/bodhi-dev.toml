@@ -1,0 +1,49 @@
+# Bodhi Linux via ubiquity preseed — Moksha on an Ubuntu LTS base;
+# casper boots with automatic-ubiquity and the debconf answers end in
+# ubiquity/poweroff like the mint/zorin family.
+[profile]
+name = "bodhi-dev"
+description = "Bodhi unattended install provisioned into a dev VM"
+
+[system]
+os = "bodhi"
+release = "latest"
+edition = "standard"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "20G"
+
+[identity]
+hostname = "bodhi-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "ubiquity-preseed"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "bodhi-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Bodhi' /etc/os-release | head -1"
+expect = "Bodhi"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"
