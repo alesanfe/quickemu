@@ -1,0 +1,59 @@
+# Arch Linux via serial-driven pacstrap — no answer file exists, so
+# the run boots the live ISO on console=ttyS0, waits for the root
+# shell on the serial socket, types `curl | sh` of the install script
+# served over slirp (10.0.2.2), and the script's poweroff signals
+# completion. Bootloader is firmware-aware (bootctl/grub) at runtime.
+[profile]
+name = "arch-dev"
+description = "Arch Linux unattended install provisioned into a dev VM"
+
+[system]
+os = "archlinux"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "arch-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "arch-pacstrap"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["git", "curl"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "arch-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Arch' /etc/os-release | head -1"
+expect = "Arch"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts archlinux.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

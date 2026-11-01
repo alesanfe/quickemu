@@ -1,0 +1,58 @@
+# Proxmox VE via answer.toml on a PROXMOX_ANSWER-labelled second ISO —
+# the installer's own bootloader finds it, no kernel override. The
+# post-installation-webhook POSTs to the embedded server (/done) as
+# the completion signal; first-boot.sh plants the run key for root.
+[profile]
+name = "proxmox-ve-dev"
+description = "Proxmox VE unattended install provisioned into a dev VM"
+
+[system]
+os = "proxmox-ve"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "8G"           # PVE wants ≥4G comfortably
+disk_size = "40G"
+
+[identity]
+hostname = "pve-dev"
+username = "root"    # the answer file has no user section
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "proxmox-autoinstall"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["curl", "qemu-guest-agent"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "pve-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Proxmox' /etc/os-release | head -1"
+expect = "Proxmox"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts proxmox.com"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

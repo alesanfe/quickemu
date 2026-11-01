@@ -48,6 +48,7 @@ quickreport.txt
 # Full-name binaries (dir-name builds, `go run ./tools/dev build`):
 tools/*/quickemu-*
 tools/*/quickget*
+tools/*/quickprovision
 tools/*/quickreport
 tools/*/quickgetc
 tools/*/qespec

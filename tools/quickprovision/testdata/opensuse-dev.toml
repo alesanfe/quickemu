@@ -1,0 +1,59 @@
+# openSUSE Tumbleweed DVD via AutoYaST — loader kernel/initrd extracted
+# from the ISO, autoinst.xml served over slirp HTTP (10.0.2.2),
+# <final_halt> in the profile as the completion signal. Leap releases
+# (15.x/16.x) work the same; MicroOS is excluded (combustion, not
+# autoyast).
+[profile]
+name = "opensuse-dev"
+description = "openSUSE Tumbleweed unattended install provisioned into a dev VM"
+
+[system]
+os = "opensuse"
+release = "tumbleweed"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "4G"
+disk_size = "32G"
+
+[identity]
+hostname = "suse-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "opensuse-autoyast"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["git", "curl"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "suse-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'openSUSE' /etc/os-release | head -1"
+expect = "openSUSE"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts opensuse.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

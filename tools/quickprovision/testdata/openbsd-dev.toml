@@ -1,0 +1,49 @@
+# OpenBSD via its native autoinstall — `extra_args="-machine
+# graphics=off"` removes the VGA so the kernel lands on com0, the
+# serial prompt answers (A)utoinstall + the install.conf URL fetched
+# over slirp. Completion is the installer's reboot message on serial.
+[profile]
+name = "openbsd-dev"
+description = "OpenBSD unattended install provisioned into a dev VM"
+
+[system]
+os = "openbsd"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "2G"
+disk_size = "16G"
+
+[identity]
+hostname = "obsd-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "openbsd-autoinstall"
+install_timeout_min = 60
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "obsd-dev"
+
+[[verify]]
+name = "os-release"
+run = "uname -s"
+expect = "OpenBSD"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

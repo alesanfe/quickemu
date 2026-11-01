@@ -1,0 +1,51 @@
+# Linux Mint via ubiquity's unattended mode — casper boots with
+# `automatic-ubiquity`, reads a debconf preseed over slirp, and
+# `ubiquity/poweroff boolean true` makes the installer end in a
+# shutdown instead of a reboot prompt.
+[profile]
+name = "linuxmint-dev"
+description = "Linux Mint unattended install provisioned into a dev VM"
+
+[system]
+os = "linuxmint"
+release = "latest"
+edition = "cinnamon"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "mint-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "ubiquity-preseed"
+install_timeout_min = 60
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "mint-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Linux Mint' /etc/os-release | head -1"
+expect = "Linux Mint"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

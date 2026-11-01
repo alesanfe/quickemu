@@ -1,0 +1,47 @@
+# Windows Server 2022 via autounattend — same pipeline as Windows 11
+# (driver dir w2k22, Server GVLK key). Snapshot skipped: internal
+# qcow2 snapshots on a large NTFS disk are slow; seal still writes the
+# manifest.
+[profile]
+name = "windows-server-2022-dev"
+description = "Windows Server 2022 unattended install provisioned into a dev VM"
+
+[system]
+os = "windows-server"
+release = "2022"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "8G"
+disk_size = "64G"
+
+[identity]
+hostname = "winsrv-dev"
+username = "dev"
+password = "Quickemu#2026"
+allow_pw_auth = false
+
+[automation]
+provider = "windows-autounattend"
+install_timeout_min = 120
+ssh_timeout_min = 30
+
+[provision]
+packages = ["Git.Git"]
+
+[[verify]]
+name = "ssh-alive"
+run = "$true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "winsrv-dev"
+
+[[verify]]
+name = "network-dns"
+run = "(Resolve-DnsName github.com -ErrorAction SilentlyContinue) -ne $null"
+
+[finalize]
+shutdown = true

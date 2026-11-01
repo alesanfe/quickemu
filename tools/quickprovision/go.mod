@@ -1,4 +1,4 @@
-module github.com/alesanfe/quickemu/tools/quicktest
+module github.com/alesanfe/quickemu/tools/quickprovision
 
 go 1.25.0
 

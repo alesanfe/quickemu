@@ -1,0 +1,51 @@
+# Alpine ISO via the native `unattended` setup — lts kernel/initramfs
+# extracted from the ISO, boot param `unattended` runs setup-alpine on
+# the first disk and powers off; the ssh_key URL param pulls the run
+# key into root's authorized_keys over slirp. Requires ≥ v3.19.
+[profile]
+name = "alpine-iso-dev"
+description = "Alpine Linux unattended ISO install provisioned into a dev VM"
+
+[system]
+os = "alpine"
+release = "v3.22"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "2G"
+disk_size = "12G"
+
+[identity]
+hostname = "alpine-dev"
+username = "root"     # alpine unattended installs the key for root
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "alpine-unattended"
+install_timeout_min = 60
+ssh_timeout_min = 15
+
+[provision]
+packages = ["git", "curl", "sudo"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Alpine' /etc/os-release | head -1"
+expect = "Alpine"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts alpinelinux.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

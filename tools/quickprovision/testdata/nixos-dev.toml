@@ -1,0 +1,59 @@
+# NixOS minimal ISO via serial-driven nixos-install — the ISO drops
+# to a root shell on console=ttyS0; the run types fetch+run of a
+# script that partitions, generates hardware-configuration, pulls a
+# declarative configuration.nix over slirp and nixos-installs.
+[profile]
+name = "nixos-dev"
+description = "NixOS unattended install provisioned into a dev VM"
+
+[system]
+os = "nixos"
+release = "latest"
+edition = "minimal"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "nix-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "nixos-serial"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+commands = []
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "nix-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'NixOS' /etc/os-release | head -1"
+expect = "NixOS"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts nixos.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

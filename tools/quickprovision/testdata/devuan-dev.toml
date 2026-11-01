@@ -1,0 +1,57 @@
+# Devuan netinst via debian-installer preseed — same flow as Debian
+# (kernel/initrd off the ISO, preseed.cfg over slirp HTTP) with the
+# merged devuan mirror keyed on the catalog release (= suite name).
+[profile]
+name = "devuan-dev"
+description = "Devuan daedalus unattended install provisioned into a dev VM"
+
+[system]
+os = "devuan"
+release = "daedalus"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "devuan-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "debian-preseed"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["git", "curl"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "devuan-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Devuan' /etc/os-release | head -1"
+expect = "Devuan"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts devuan.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

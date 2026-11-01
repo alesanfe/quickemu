@@ -117,7 +117,7 @@ func QuickgetArch(ra string) string {
 }
 
 // CryptSalt: random SHA512-crypt salt chars — shared by
-// quickget-vm's unattend generators and quicktest's profile pwHash.
+// quickget-vm's unattend generators and quickprovision's profile pwHash.
 func CryptSalt(n int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./"
 	b := make([]byte, n)

@@ -1,4 +1,4 @@
-// quicktest_test.go — offline coverage of the quicktest engine:
+// quickprovision_test.go — offline coverage of the quickprovision engine:
 // conf helpers, profile loading/defaults, providers (user-data
 // emission + conf edits), seed ISO build, ISO bootfile extraction,
 // keypair/shell quoting, wait loops, the event emitter, and the
@@ -301,18 +301,27 @@ func TestCatalogImageType(t *testing.T) {
 		t.Fatal("absent os must be empty")
 	}
 	// provider inference rides on the same catalog.
-	if inferProvider("ubuntu-server") != "ubuntu-autoinstall" {
+	var p Profile
+	p.System.OS = "ubuntu-server"
+	if inferProvider(&p) != "ubuntu-autoinstall" {
 		t.Fatal("ubuntu-server is always autoinstall")
 	}
-	if inferProvider("fakeos") != "nocloud-image" {
-		t.Fatal("img type → nocloud-image")
+	p.System.OS = "fakeos-cloud"
+	if inferProvider(&p) != "nocloud-image" {
+		t.Fatal("*-cloud name → nocloud-image")
 	}
-	if inferProvider("other") != "manual" {
-		t.Fatal("iso type → manual")
+	p.System.OS = "fakeos"
+	if inferProvider(&p) != "visual" {
+		t.Fatal("img type without cloud-init → visual (not nocloud)")
+	}
+	p.System.OS = "other"
+	if inferProvider(&p) != "visual" {
+		t.Fatal("iso type → visual")
 	}
 	t.Setenv("QUICKEMU_DATA_DIR", filepath.Join(dir, "empty"))
-	if catalogImageType("fakeos") != "" || inferProvider("x") != "manual" {
-		t.Fatal("unreadable catalog → empty/manual")
+	p.System.OS = "x"
+	if catalogImageType("fakeos") != "" || inferProvider(&p) != "visual" {
+		t.Fatal("unreadable catalog → empty/visual")
 	}
 }
 
@@ -659,7 +668,7 @@ func TestTailSerial(t *testing.T) {
 	defer cancel()
 	e := newEmitter("r", "", "", "", true)
 	done := make(chan struct{})
-	go func() { tailSerial(ctx, sock, log, e); close(done) }()
+	go func() { tailSerial(ctx, sock, log, e, &serialTap{}); close(done) }()
 	go func() {
 		c, err := l.Accept()
 		if err == nil {
@@ -767,18 +776,23 @@ func TestPkgInstallCmd(t *testing.T) {
 		"apt":    "install -y",
 		"apk":    "apk add",
 		"dnf":    "dnf install -y",
+		"zypper": "zypper --non-interactive install",
 		"pacman": "pacman -S --noconfirm",
 	} {
-		cmd, err := pkgInstallCmd(pm, "htop")
+		cmd, err := pkgInstallCmd(pm, "htop", "sudo ")
 		if err != nil || !strings.Contains(cmd, want) || !strings.Contains(cmd, "'htop'") {
 			t.Fatalf("%s → %s %v", pm, cmd, err)
 		}
 	}
-	cmd, _ := pkgInstallCmd("apt", "htop")
+	cmd, _ := pkgInstallCmd("apt", "htop", "sudo ")
 	if !strings.Contains(cmd, "DPkg::Lock::Timeout") {
 		t.Fatalf("apt cmd should wait on the dpkg lock: %s", cmd)
 	}
-	if _, err := pkgInstallCmd("zypper", "x"); err == nil {
+	// root login (alpine unattended): no privilege prefix.
+	if cmd, _ = pkgInstallCmd("apk", "htop", ""); strings.HasPrefix(cmd, "sudo") {
+		t.Fatalf("root priv must drop sudo: %s", cmd)
+	}
+	if _, err := pkgInstallCmd("yum", "x", "sudo "); err == nil {
 		t.Fatal("unsupported pm must fail")
 	}
 }
@@ -1031,21 +1045,21 @@ func TestFlagHelpers(t *testing.T) {
 }
 
 func TestDispatchMeta(t *testing.T) {
-	if rc := dispatch([]string{"quicktest"}); rc != 2 {
+	if rc := dispatch([]string{"quickprovision"}); rc != 2 {
 		t.Fatalf("no args rc=%d", rc)
 	}
-	if rc := dispatch([]string{"quicktest", "--version"}); rc != 0 {
+	if rc := dispatch([]string{"quickprovision", "--version"}); rc != 0 {
 		t.Fatalf("version rc=%d", rc)
 	}
-	if rc := dispatch([]string{"quicktest", "version"}); rc != 0 {
+	if rc := dispatch([]string{"quickprovision", "version"}); rc != 0 {
 		t.Fatalf("version rc=%d", rc)
 	}
 	for _, h := range []string{"--help", "help", "-h"} {
-		if rc := dispatch([]string{"quicktest", h}); rc != 0 {
+		if rc := dispatch([]string{"quickprovision", h}); rc != 0 {
 			t.Fatalf("%s rc=%d", h, rc)
 		}
 	}
-	if rc := dispatch([]string{"quicktest", "bogus"}); rc != 2 {
+	if rc := dispatch([]string{"quickprovision", "bogus"}); rc != 2 {
 		t.Fatalf("unknown rc=%d", rc)
 	}
 }
@@ -1067,17 +1081,17 @@ func TestDispatchFailPaths(t *testing.T) {
 	if os.Getenv("QE_QT_HELPER") != "" {
 		switch os.Getenv("QE_QT_HELPER") {
 		case "plan-noprofile":
-			os.Exit(dispatch([]string{"quicktest", "plan"}))
+			os.Exit(dispatch([]string{"quickprovision", "plan"}))
 		case "plan-badprofile":
-			os.Exit(dispatch([]string{"quicktest", "plan", "--profile", "/none/x.toml"}))
+			os.Exit(dispatch([]string{"quickprovision", "plan", "--profile", "/none/x.toml"}))
 		case "run-noprofile":
-			os.Exit(dispatch([]string{"quicktest", "run"}))
+			os.Exit(dispatch([]string{"quickprovision", "run"}))
 		case "run-badprofile":
-			os.Exit(dispatch([]string{"quicktest", "run", "--profile", "/none/x.toml"}))
+			os.Exit(dispatch([]string{"quickprovision", "run", "--profile", "/none/x.toml"}))
 		case "status-noargs":
-			os.Exit(dispatch([]string{"quicktest", "status"}))
+			os.Exit(dispatch([]string{"quickprovision", "status"}))
 		case "cancel-noargs":
-			os.Exit(dispatch([]string{"quicktest", "cancel"}))
+			os.Exit(dispatch([]string{"quickprovision", "cancel"}))
 		}
 		return
 	}

@@ -488,6 +488,8 @@ func TestProvisionOpenRC(t *testing.T) {
 	srv := startSSHServer(t, func(cmd string) (string, int) {
 		ran = append(ran, cmd)
 		switch {
+		case strings.Contains(cmd, "uname -s"):
+			return "Linux\n", 0 // POSIX guest — uname answers
 		case strings.Contains(cmd, "command -v rc-service"):
 			return "", 0 // OpenRC guest
 		case strings.Contains(cmd, "command -v sudo"):

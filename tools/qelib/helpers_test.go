@@ -179,7 +179,7 @@ func TestAppendEvent(t *testing.T) {
 }
 
 // CryptSalt is the deduplicated salt source for the two former
-// copies in quickget-vm and quicktest — same SHA512-crypt charset.
+// copies in quickget-vm and quickprovision — same SHA512-crypt charset.
 func TestCryptSalt(t *testing.T) {
 	s := CryptSalt(8)
 	if len(s) != 8 {

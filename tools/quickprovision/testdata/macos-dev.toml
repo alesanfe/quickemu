@@ -1,0 +1,24 @@
+# macOS — no unattended-install answer file exists, so the run is
+# visual: obtain the recovery image, prepare the VM and launch it
+# with a window for the user to complete the installer. The run ends
+# at launch; SSH provision needs Remote Login enabled by hand first.
+[profile]
+name = "macos-dev"
+description = "macOS VM obtained and launched for a manual install"
+
+[system]
+os = "macos"
+release = "sequoia"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "8G"
+disk_size = "64G"
+
+[identity]
+hostname = "macos-dev"
+username = "dev"
+
+[automation]
+provider = "visual"

@@ -1,0 +1,51 @@
+# FreeBSD via serial Live-CD — bsdinstall's start menu is navigated
+# with escape keys to the Live CD entry, root login, then the
+# fetch-and-run script: gpart + dist tarballs off the ISO + rc.conf +
+# pw. poweroff is the completion signal. UEFI/BIOS split handled at
+# runtime via machdep.bootmethod.
+[profile]
+name = "freebsd-dev"
+description = "FreeBSD unattended install provisioned into a dev VM"
+
+[system]
+os = "freebsd"
+release = "latest"
+edition = "disc1"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "fbsd-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "freebsd-shell"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "fbsd-dev"
+
+[[verify]]
+name = "os-release"
+run = "uname -s"
+expect = "FreeBSD"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

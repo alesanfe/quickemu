@@ -1,0 +1,50 @@
+# Calculate Linux via serial cl-install — the live media ships a
+# scriptable installer; `cl-install -d /dev/vda` does the whole-disk
+# install non-interactively, then chroot for user/sshd/dhcpcd.
+# EXPERIMENTAL: cl-install flag names vary across releases — the
+# script tries -d then --disk.
+[profile]
+name = "calculate-dev"
+description = "Calculate Linux unattended install provisioned into a dev VM"
+
+[system]
+os = "calculate-linux"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "calc-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "calculate-clinstall"
+install_timeout_min = 120
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "calc-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Calculate' /etc/os-release | head -1"
+expect = "Calculate"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

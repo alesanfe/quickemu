@@ -1,0 +1,51 @@
+# Gentoo minimal ISO via serial stage3 install — root shell on
+# console=ttyS0, script does the textbook manual install (stage3
+# tarball, binary kernel via --getbinpkg, grub). Long but
+# deterministic; install_timeout reflects the emerge time.
+[profile]
+name = "gentoo-dev"
+description = "Gentoo unattended install provisioned into a dev VM"
+
+[system]
+os = "gentoo"
+release = "latest"
+edition = "minimal"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "8G"           # emerge wants memory
+disk_size = "40G"
+
+[identity]
+hostname = "gentoo-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "gentoo-stage3"
+install_timeout_min = 180
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "gentoo-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Gentoo' /etc/os-release | head -1"
+expect = "Gentoo"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

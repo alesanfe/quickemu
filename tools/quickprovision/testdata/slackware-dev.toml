@@ -1,0 +1,50 @@
+# Slackware via serial root shell — the install media boots to
+# `slackware login:` (root, no password); the run types fetch+run of a
+# script that partitions, installpkg's every series off the CD
+# (Slackware's recommended full install), writes lilo.conf/elilo.conf,
+# HOSTNAME, rc.inet1.conf DHCP and enables rc.sshd. No dialog tools.
+[profile]
+name = "slackware-dev"
+description = "Slackware unattended install provisioned into a dev VM"
+
+[system]
+os = "slackware"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "32G"   # full install wants room
+
+[identity]
+hostname = "slack-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "slackware-live"
+install_timeout_min = 120
+ssh_timeout_min = 30
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname | cut -d. -f1"
+expect = "slack-dev"
+
+[[verify]]
+name = "os-release"
+run = "cat /etc/slackware-version | grep -o Slackware"
+expect = "Slackware"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

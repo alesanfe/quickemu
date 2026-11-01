@@ -87,7 +87,7 @@ func jsonUnmarshal(b []byte, v any) error { return json.Unmarshal(b, v) }
 func trimLine(s string) string { return strings.TrimSpace(s) }
 
 // pidAlive mirrors qelib.Alive (EPERM counts as alive; zombies don't)
-// without exporting it — the seam keeps quicktest free to run a
+// without exporting it — the seam keeps quickprovision free to run a
 // reaped-child fast path later.
 func pidAlive(pid int) bool {
 	if pid <= 0 {

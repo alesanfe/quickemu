@@ -1,0 +1,58 @@
+# Kali Linux (rolling) via debian-installer preseed — kernel/initrd
+# extracted from the installer ISO, preseed.cfg served over slirp by
+# the embedded HTTP server. Kali gets the rolling mirror keys; the
+# rest is the same d-i contract as Debian (poweroff at the end).
+[profile]
+name = "kali-dev"
+description = "Kali rolling unattended install provisioned into a dev VM"
+
+[system]
+os = "kali"
+release = "current"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "4G"
+disk_size = "48G"
+
+[identity]
+hostname = "kali-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "en_US.UTF-8"
+keyboard = "us"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "debian-preseed"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["git", "curl"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "kali-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Kali' /etc/os-release | head -1"
+expect = "Kali"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts http.kali.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

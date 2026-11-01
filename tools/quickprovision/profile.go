@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -122,7 +123,7 @@ func loadProfile(path string) (*Profile, error) {
 		p.Machine.RAM = "4G"
 	}
 	if p.Automation.Provider == "" || p.Automation.Provider == "auto" {
-		p.Automation.Provider = inferProvider(p.System.OS)
+		p.Automation.Provider = inferProvider(&p)
 	}
 	if p.Automation.InstallTimeoutMin <= 0 {
 		p.Automation.InstallTimeoutMin = 45
@@ -133,18 +134,124 @@ func loadProfile(path string) (*Profile, error) {
 	return &p, nil
 }
 
-// inferProvider picks the install strategy from the catalog entry's
-// image_type when the profile does not pin one. raw/img disk images
-// are bootable as-is → nocloud-image; ubuntu-server is the one ISO
-// with a first-class answer-file path today.
-func inferProvider(osName string) string {
-	if osName == "ubuntu-server" {
+// inferProvider picks the install strategy for the OS when the
+// profile does not pin one: the mainstream unattended-install paths
+// first (edition-aware — only Fedora's Server ISO runs anaconda, the
+// desktop spins are live images), then the catalog image_type —
+// pre-imaged disks boot straight into a seeded system, everything
+// else falls back to the "manual" error telling the user to pick a
+// provider by hand.
+func inferProvider(p *Profile) string {
+	switch p.System.OS {
+	case "ubuntu-server":
 		return "ubuntu-autoinstall"
+	case "ubuntu", "ubuntu-unity", "ubuntucinnamon", "ubuntudde",
+		"edubuntu":
+		// Flavours that adopted the shared desktop installer take the
+		// same autoinstall path; calamares flavours (kubuntu & co) do
+		// not and stay visual.
+		return "ubuntu-desktop-autoinstall"
+	case "linuxmint", "zorin", "xubuntu", "ubuntu-mate":
+		// Ubiquity drives mint, zorin and the non-flutter Ubuntu
+		// flavours — automatic-ubiquity + a debconf preseed.
+		return "ubiquity-preseed"
+	case "debian":
+		// Only the installer ISOs run d-i; the DE editions are
+		// calamares live images.
+		switch p.System.Edition {
+		case "", "netinst", "standard":
+			return "debian-preseed"
+		}
+	case "kali", "devuan", "debian-edu":
+		return "debian-preseed"
+	case "trisquel":
+		// Only the netinst ISO runs d-i; the DE editions are live.
+		if p.System.Edition == "netinst" {
+			return "debian-preseed"
+		}
+	case "windows", "windows-server":
+		return "windows-autounattend"
+	case "macos":
+		return "visual"
+	case "fedora":
+		if p.System.Edition == "Server" {
+			return "anaconda-kickstart"
+		}
+	case "alma", "centos", "centos-stream", "rockylinux", "oraclelinux",
+		"tencentos", "anolis", "eurolinux", "opencloudos", "openeuler",
+		"springdale", "nethserver", "ovirt-node", "koozali":
+		// The whole RHEL-family tree runs anaconda — kickstart is
+		// distro-agnostic, only the ISO layout is shared.
+		return "anaconda-kickstart"
+	case "opensuse", "opensuse-slowroll":
+		// MicroOS needs combustion, a different mechanism.
+		if p.System.Release != "microos" {
+			return "opensuse-autoyast"
+		}
+	case "proxmox-ve", "proxmox-backup-server", "proxmox-mail-gateway",
+		"proxmox-datacenter-manager":
+		return "proxmox-autoinstall"
+	case "openbsd":
+		return "openbsd-autoinstall"
+	case "freebsd":
+		return "freebsd-shell"
+	case "void":
+		return "void-xbps"
+	case "gentoo":
+		return "gentoo-stage3"
+	case "flatcar":
+		return "flatcar-ignition"
+	case "fedora-coreos", "fedoracore":
+		// qcow2 + ignition via -fw_cfg — no install boot at all.
+		return "coreos-ignition"
+	case "nixos":
+		// Live root shell — serial-driven nixos-install.
+		return "nixos-serial"
+	case "alpine":
+		// The unattended ssh_key URL param needs mkinitfs ≥ ~3.19.
+		if alpineReleaseOK(p.System.Release) {
+			return "alpine-unattended"
+		}
+	case "archlinux", "parabola":
+		// No answer file exists — serial-driven pacstrap instead.
+		// Parabola's ISO is an archiso twin whose pacstrap pulls its
+		// own libre repos.
+		return "arch-pacstrap"
+	case "slackware":
+		// Root shell on the install media + installpkg — serial.
+		return "slackware-live"
+	case "artixlinux":
+		// basestrap is pacstrap's artix twin — serial.
+		return "artix-basestrap"
+	case "calculate-linux":
+		return "calculate-clinstall"
 	}
-	if t := catalogImageType(osName); t == "raw" || t == "img" || t == "qcow2" {
+	// Pre-imaged disks only get nocloud when they actually boot
+	// cloud-init: the *-cloud entries plus a small whitelist. Other
+	// raw/qcow2 images (fedora-coreos Ignition, dietpi, openwrt,
+	// appliances…) would silently produce an unreachable VM.
+	os := p.System.OS
+	if strings.HasSuffix(os, "-cloud") || os == "amazonlinux" || os == "cirros" {
 		return "nocloud-image"
 	}
-	return "manual"
+	// Everything else in the catalog is still useful: obtain the
+	// image, build the conf and launch it for a visual install —
+	// honest automation for calamares/live distros and self-booting
+	// appliances alike. "manual" stays selectable for a hard stop.
+	return "visual"
+}
+
+// alpineReleaseOK gates the unattended provider to releases whose
+// mkinitfs supports the ssh_key boot param (≥ v3.19; "v3.XY" or
+// "latest"-style releases pass, anything unparsable is refused).
+func alpineReleaseOK(release string) bool {
+	r := strings.TrimPrefix(release, "v")
+	parts := strings.SplitN(r, ".", 3)
+	if len(parts) < 2 {
+		return release == "" || release == "latest"
+	}
+	minor, err := strconv.Atoi(parts[1])
+	return parts[0] == "3" && err == nil && minor >= 19
 }
 
 // catalogImageType resolves the entry's declared image_type from the

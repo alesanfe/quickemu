@@ -21,6 +21,13 @@ import (
 // in-ISO path ("/user-data" → local file). Deterministic order keeps
 // builds reproducible.
 func writeSeedISO(out string, files map[string]string) error {
+	return writeFilesISO(out, "cidata", files)
+}
+
+// writeFilesISO is writeSeedISO with the volume label parameterised —
+// non-cloud answer media (Windows autounattend, preseed payloads) use
+// the same pure-Go ISO9660 path with their own volid.
+func writeFilesISO(out, volid string, files map[string]string) error {
 	var total int64 = 1 << 20
 	for _, src := range files {
 		if st, err := os.Stat(src); err == nil {
@@ -69,7 +76,7 @@ func writeSeedISO(out string, files map[string]string) error {
 		return fmt.Errorf("unexpected filesystem type %T", fs)
 	}
 	return isofs.Finalize(iso9660fs.FinalizeOptions{
-		RockRidge: true, Joliet: true, VolumeIdentifier: "cidata"})
+		RockRidge: true, Joliet: true, VolumeIdentifier: volid})
 }
 
 // buildSeed writes user-data + meta-data (+ vendor-data when present)

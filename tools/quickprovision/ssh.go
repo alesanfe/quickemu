@@ -8,11 +8,13 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
@@ -119,6 +121,27 @@ func sshWrite(c *ssh.Client, dest, mode string, content []byte) error {
 		"sudo tee %s >/dev/null && sudo chmod %s %s",
 		shellQ(dest), shellQ(mode), shellQ(dest)))
 }
+
+// sshWriteWin drops content at a remote Windows path via a base64
+// PowerShell write — cmd.exe has no tee and SFTP is not guaranteed on
+// a fresh OpenSSH.Server install. Mode/owner don't translate to NTFS
+// ACLs; the caller logs that they're ignored.
+func sshWriteWin(c *ssh.Client, dest string, content []byte) error {
+	b64 := base64.StdEncoding.EncodeToString(content)
+	out, rc, err := sshExec(c,
+		`powershell -NoProfile -Command "[IO.File]::WriteAllBytes('`+psq(dest)+
+			`',[Convert]::FromBase64String('`+b64+`'))"`)
+	if err != nil {
+		return err
+	}
+	if rc != 0 {
+		return fmt.Errorf("rc=%d: %s", rc, tailLines(out, 3))
+	}
+	return nil
+}
+
+// psq escapes a single-quoted PowerShell literal (quotes double).
+func psq(s string) string { return strings.ReplaceAll(s, "'", "''") }
 
 // shellQ single-quotes a string for /bin/sh.
 func shellQ(s string) string {

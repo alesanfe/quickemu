@@ -1,0 +1,58 @@
+# Debian netinst via debian-installer preseed — the ISO path (not the
+# cloud image): useful when a full standard Debian install is wanted
+# rather than the genericcloud minimal one.
+[profile]
+name = "debian-dev"
+description = "Debian 12 netinst unattended install provisioned into a dev VM"
+
+[system]
+os = "debian"
+release = "12.15.0"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "4G"
+disk_size = "32G"
+
+[identity]
+hostname = "debian-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "debian-preseed"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["git", "curl", "qemu-guest-agent"]
+services = ["qemu-guest-agent"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "debian-dev"
+
+[[verify]]
+name = "git"
+run = "git --version"
+expect = "git version"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts deb.debian.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

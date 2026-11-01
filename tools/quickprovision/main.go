@@ -1,11 +1,11 @@
-// quicktest: automated OS install/provision/verify runs inside
+// quickprovision: automated OS install/provision/verify runs inside
 // Quickemu VMs. The engine Quickgui drives — declarative TOML profile
 // in, JSONL event stream out, ops-journal state for watchers.
 //
-//	quicktest plan   --profile <file.toml>
-//	quicktest run    --profile <file.toml> [--dir <workdir>]
-//	quicktest status --vmdir <dir> --id <op-id>
-//	quicktest cancel --vmdir <dir> --id <op-id>
+//	quickprovision plan   --profile <file.toml>
+//	quickprovision run    --profile <file.toml> [--dir <workdir>]
+//	quickprovision status --vmdir <dir> --id <op-id>
+//	quickprovision cancel --vmdir <dir> --id <op-id>
 package main
 
 import (
@@ -40,29 +40,29 @@ func dispatch(args []string) int {
 	case "resume":
 		return cmdResume(args[2:])
 	case "--version", "version":
-		fmt.Println("quicktest " + version)
+		fmt.Println("quickprovision " + version)
 		return 0
 	case "--help", "help", "-h":
 		usage()
 		return 0
 	}
-	fmt.Fprintf(os.Stderr, "quicktest: unknown command %s\n", args[1])
+	fmt.Fprintf(os.Stderr, "quickprovision: unknown command %s\n", args[1])
 	usage()
 	return 2
 }
 
 func usage() {
-	fmt.Println(`quicktest ` + version + ` — automated VM install/provision/verify for Quickemu
+	fmt.Println(`quickprovision ` + version + ` — automated VM install/provision/verify for Quickemu
 
 Usage:
-  quicktest plan   --profile <file.toml>   Resolve a profile into a step plan (v1 envelope)
-  quicktest run    --profile <file.toml>   Execute a run; JSONL events on stdout
+  quickprovision plan   --profile <file.toml>   Resolve a profile into a step plan (v1 envelope)
+  quickprovision run    --profile <file.toml>   Execute a run; JSONL events on stdout
                    [--dir <workdir>]         where quickget places the VM (default: .)
                    [--keep]                  leave the VM running on failure
-  quicktest status --vmdir <dir> --id <op>  Journal entry for a run
-  quicktest cancel --vmdir <dir> --id <op>  Request cancellation (checked per-step)
-  quicktest resume --vmdir <dir>            Resume the newest unfinished run
-  quicktest --version | --help`)
+  quickprovision status --vmdir <dir> --id <op>  Journal entry for a run
+  quickprovision cancel --vmdir <dir> --id <op>  Request cancellation (checked per-step)
+  quickprovision resume --vmdir <dir>            Resume the newest unfinished run
+  quickprovision --version | --help`)
 }
 
 // flag pulls "--name value" (post-NormArgs, --name=value already
@@ -88,7 +88,7 @@ func hasFlag(args []string, name string) bool {
 // emitErr is the pre-run failure path — the v1 envelope, no JSONL
 // stream because no run exists yet.
 func emitErr(code, msg string) {
-	qelib.Fail(qelib.CmdName("quicktest"), "quicktest/"+version, code, msg)
+	qelib.Fail(qelib.CmdName("quickprovision"), "quickprovision/"+version, code, msg)
 }
 
 func cmdPlan(args []string) int {
@@ -129,7 +129,7 @@ func cmdPlan(args []string) int {
 	if len(warnings) > 0 {
 		data["warnings"] = warnings
 	}
-	qelib.EmitOK("quicktest.plan", "quicktest/"+version, data)
+	qelib.EmitOK("quickprovision.plan", "quickprovision/"+version, data)
 	return 0
 }
 
@@ -193,7 +193,7 @@ func cmdCancel(args []string) int {
 	return 0
 }
 
-// cmdResume finds the newest run under <vmdir>/.quicktest whose state
+// cmdResume finds the newest run under <vmdir>/.quickprovision whose state
 // is not "completed" and re-enters the pipeline at the first step that
 // never finished — same run id, key and SSH port, so the event stream
 // continues where the dead run left off.
@@ -221,10 +221,10 @@ func cmdResume(args []string) int {
 		hasFlag(args, "--keep"), st)
 }
 
-// latestUnfinishedRun scans <vmdir>/.quicktest/*/state.json and picks
+// latestUnfinishedRun scans <vmdir>/.quickprovision/*/state.json and picks
 // the most recent run that did not complete.
 func latestUnfinishedRun(vmdir string) (*runState, error) {
-	matches, err := filepath.Glob(filepath.Join(vmdir, ".quicktest", "*", "state.json"))
+	matches, err := filepath.Glob(filepath.Join(vmdir, ".quickprovision", "*", "state.json"))
 	if err != nil || len(matches) == 0 {
 		return nil, fmt.Errorf("no runs under %s", vmdir)
 	}

@@ -22,5 +22,5 @@ use (
 	./tools/quickget-vm
 	./tools/quickgetc
 	./tools/quickreport
-	./tools/quicktest
+	./tools/quickprovision
 )

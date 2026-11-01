@@ -121,7 +121,7 @@ func (e *emitter) progress(id, msg string) {
 // a UI gets list/cancel/watch of automation runs for free.
 func opNew(vmDir, vm string) (string, error) {
 	id, err := toolOut("quickemu-ops", "new", "--vmdir", vmDir,
-		"--type", "quicktest", "--vm", vm)
+		"--type", "quickprovision", "--vm", vm)
 	if err != nil {
 		return "", err
 	}

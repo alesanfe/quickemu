@@ -1,0 +1,59 @@
+# Rocky Linux DVD via anaconda kickstart — same mechanism as Fedora
+# Server (RHEL-family installer). The dvd edition carries local
+# packages for the `cdrom` kickstart source; boot/minimal are
+# netinst and would need a `url` source line instead.
+[profile]
+name = "rockylinux-dev"
+description = "Rocky Linux unattended install provisioned into a dev VM"
+
+[system]
+os = "rockylinux"
+release = "latest"
+edition = "dvd"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "4G"
+disk_size = "32G"
+
+[identity]
+hostname = "rocky-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "anaconda-kickstart"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["git", "curl"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "rocky-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Rocky' /etc/os-release | head -1"
+expect = "Rocky"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts rockylinux.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

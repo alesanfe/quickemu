@@ -1,0 +1,48 @@
+# Fedora CoreOS qcow2 via Ignition over -fw_cfg — no install boot:
+# the ignition.json lands through extra_args
+# `-fw_cfg name=opt/com.coreos/config,file=...`, first boot creates
+# the user/keys/hostname, ssh comes up like a nocloud guest.
+[profile]
+name = "fedora-coreos-dev"
+description = "Fedora CoreOS ignition-provisioned into a dev VM"
+
+[system]
+os = "fedora-coreos"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "4G"
+disk_size = "24G"
+
+[identity]
+hostname = "fcos-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "coreos-ignition"
+ssh_timeout_min = 20
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostnamectl --static"
+expect = "fcos-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'CoreOS' /etc/os-release | head -1"
+expect = "CoreOS"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

@@ -1,0 +1,60 @@
+# Fedora Server DVD via anaconda kickstart — pxeboot kernel/initrd
+# extracted from the ISO, ks.cfg served over slirp HTTP (10.0.2.2),
+# `poweroff` in the kickstart as the completion signal. NOTE: only the
+# Server edition runs anaconda unattended — Workstation/spins are
+# live images (use provider="visual" there).
+[profile]
+name = "fedora-server-dev"
+description = "Fedora Server 42 unattended install provisioned into a dev VM"
+
+[system]
+os = "fedora"
+release = "42"
+edition = "Server"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "4G"
+disk_size = "32G"
+
+[identity]
+hostname = "fedora-srv-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+keyboard = "es"
+timezone = "Europe/Madrid"
+
+[automation]
+provider = "anaconda-kickstart"
+install_timeout_min = 90
+ssh_timeout_min = 30
+
+[provision]
+packages = ["git", "curl"]
+
+[[verify]]
+name = "ssh-alive"
+run = "true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "fedora-srv-dev"
+
+[[verify]]
+name = "os-release"
+run = "grep -o 'Fedora' /etc/os-release | head -1"
+expect = "Fedora"
+
+[[verify]]
+name = "network-dns"
+run = "getent hosts fedoraproject.org"
+
+[finalize]
+shutdown = true
+snapshot = "prepared"

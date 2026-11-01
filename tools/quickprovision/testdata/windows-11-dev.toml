@@ -1,0 +1,61 @@
+# Windows 11 via autounattend: unattended.iso (answer file) +
+# virtio-win.iso (drivers) auto-attached by the launcher. FirstLogon
+# installs OpenSSH.Server + the run key, then powers off — the qemu
+# exit is the install-complete signal. Provision runs over PowerShell;
+# packages are winget IDs, commands are PowerShell syntax.
+[profile]
+name = "windows-11-dev"
+description = "Windows 11 unattended install provisioned into a dev VM"
+
+[system]
+os = "windows"
+release = "11"
+arch = "amd64"
+
+[machine]
+cpus = 4
+ram = "8G"
+disk_size = "64G"
+
+[identity]
+hostname = "win11-dev"
+username = "dev"
+password = "Quickemu#2026"
+allow_pw_auth = false
+
+[automation]
+provider = "windows-autounattend"
+install_timeout_min = 120
+ssh_timeout_min = 30
+
+[provision]
+packages = ["Git.Git"]
+
+  [[provision.commands]]
+  name = "os-info"
+  run = "[System.Environment]::OSVersion.VersionString"
+
+  [[provision.commands]]
+  name = "qga-status"
+  run = "Get-Service QEMU-GA | Select-Object -ExpandProperty Status"
+
+[[verify]]
+name = "ssh-alive"
+run = "$true"
+
+[[verify]]
+name = "hostname"
+run = "hostname"
+expect = "win11-dev"
+
+[[verify]]
+name = "git"
+run = "git --version"
+expect = "git version"
+
+[[verify]]
+name = "network-dns"
+run = "(Resolve-DnsName github.com -ErrorAction SilentlyContinue) -ne $null"
+
+[finalize]
+shutdown = true
