@@ -461,11 +461,23 @@ func (d *debianPreseed) prepare(r *runCtx) error {
 	}
 	var got map[string]string
 	var err error
+	names := []string{"vmlinuz", "initrd.gz"}
 	for _, dir := range dirs {
-		got, err = extractBootfiles(iso, dir, r.vmDir,
-			[]string{"vmlinuz", "initrd.gz"})
+		got, err = extractBootfiles(iso, dir, r.vmDir, names)
 		if err == nil {
 			break
+		}
+	}
+	if err != nil {
+		// isolinux-layout d-i media (devuan netinstall) names the
+		// kernel "linux", not "vmlinuz", under boot/isolinux/.
+		names = []string{"linux", "initrd.gz"}
+		dirs = append([]string{"boot/isolinux", "isolinux"}, dirs...)
+		for _, dir := range dirs {
+			got, err = extractBootfiles(iso, dir, r.vmDir, names)
+			if err == nil {
+				break
+			}
 		}
 	}
 	if err != nil {
@@ -490,8 +502,8 @@ func (d *debianPreseed) prepare(r *runCtx) error {
 		fmt.Sprintf("preseed served at http://10.0.2.2:%d/preseed.cfg", port))
 	edits := commonConfEdits(r)
 	delete(edits, "seed") // preseed travels over HTTP, not a cidata ISO
-	edits["kernel"] = got["vmlinuz"]
-	edits["initrd"] = got["initrd.gz"]
+	edits["kernel"] = got[names[0]]
+	edits["initrd"] = got[names[1]]
 	edits["boot_args"] = fmt.Sprintf(
 		"auto=true priority=critical preseed/url=http://10.0.2.2:%d/preseed.cfg "+
 			"interface=auto console=ttyS0 net.ifnames=0", port)

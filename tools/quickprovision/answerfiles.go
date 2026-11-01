@@ -530,19 +530,22 @@ func renderCombustion(p *Profile, hash string, keys []string) string {
 		host = "microos"
 	}
 	var sb strings.Builder
+	// Every step is guarded — combustion aborts the boot into dracut
+	// emergency when the script exits non-zero, so nothing here may
+	// fail (no set -e, || true everywhere, exit 0 at the end).
 	sb.WriteString("#!/bin/sh\n# combustion: network\n")
-	sb.WriteString("set -ex\n")
-	fmt.Fprintf(&sb, "hostnamectl set-hostname %s 2>/dev/null || echo '%s' > /etc/hostname\n", host, host)
-	fmt.Fprintf(&sb, "useradd -m -G wheel -s /bin/bash %s || true\n", user)
-	fmt.Fprintf(&sb, "echo '%s:%s' | chpasswd -e\n", user, hash)
-	sb.WriteString("echo 'wheel ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/wheel\nchmod 440 /etc/sudoers.d/wheel\n")
-	fmt.Fprintf(&sb, "install -d -m700 -o %s /home/%s/.ssh\n", user, user)
+	fmt.Fprintf(&sb, "hostnamectl set-hostname %s 2>/dev/null || echo '%s' > /etc/hostname || true\n", host, host)
+	fmt.Fprintf(&sb, "useradd -m -G wheel -s /bin/bash %s 2>/dev/null || true\n", user)
+	fmt.Fprintf(&sb, "echo '%s:%s' | chpasswd -e 2>/dev/null || true\n", user, hash)
+	sb.WriteString("mkdir -p /etc/sudoers.d\necho 'wheel ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/wheel 2>/dev/null || true\nchmod 440 /etc/sudoers.d/wheel 2>/dev/null || true\n")
+	fmt.Fprintf(&sb, "mkdir -p -m700 /home/%s/.ssh 2>/dev/null || true\n", user)
 	for _, k := range keys {
 		if k = strings.TrimSpace(k); k != "" {
-			fmt.Fprintf(&sb, "echo '%s' >> /home/%s/.ssh/authorized_keys\n", k, user)
+			fmt.Fprintf(&sb, "echo '%s' >> /home/%s/.ssh/authorized_keys 2>/dev/null || true\n", k, user)
 		}
 	}
-	sb.WriteString("systemctl enable sshd.service\n")
+	fmt.Fprintf(&sb, "chown -R %s /home/%s/.ssh 2>/dev/null || true\nchmod 700 /home/%s/.ssh 2>/dev/null || true\nchmod 600 /home/%s/.ssh/authorized_keys 2>/dev/null || true\n", user, user, user, user)
+	sb.WriteString("systemctl enable sshd.service 2>/dev/null || true\nexit 0\n")
 	return sb.String()
 }
 
