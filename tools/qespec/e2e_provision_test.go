@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -905,6 +906,11 @@ func TestProvisionRunE2E(t *testing.T) {
 			// the case ends, even under QESPEC_PROVISION_KEEP (KEEP
 			// preserves the VM artifacts for post-mortem, not media).
 			t.Cleanup(func() { removeProvisionISOs(work) })
+			// A case must not leave a guest resident nor its work dir
+			// behind: visual runs end at launch with the VM still up,
+			// failed runs can orphan a 4-6 GB guest, and killed runs
+			// leave everything on disk.
+			t.Cleanup(func() { teardownProvisionRun(t, work) })
 			prof := writeProvisionProfile(t, tc)
 
 			// 1. plan — the run must see the same provider the matrix asserts.
@@ -988,6 +994,21 @@ func TestProvisionRunE2E(t *testing.T) {
 			Run(t, "quickemu", nil, "--vm", conf, "--snapshot-list").
 				Contains(t, "prepared")
 		})
+	}
+}
+
+// teardownProvisionRun kills any QEMU still bound to the work dir and
+// drops the dir itself. The graceful `--delete-vm --trash` cleanup runs
+// first (registered later); this is the safety net for visual cases —
+// which end at launch with the VM up — and for dead runners. KEEP still
+// preserves the files, but never a running guest.
+func teardownProvisionRun(t *testing.T, work string) {
+	t.Helper()
+	_ = exec.Command("pkill", "-f", work).Run()
+	time.Sleep(2 * time.Second)
+	_ = exec.Command("pkill", "-9", "-f", work).Run()
+	if os.Getenv("QESPEC_PROVISION_KEEP") != "1" {
+		os.RemoveAll(work)
 	}
 }
 
