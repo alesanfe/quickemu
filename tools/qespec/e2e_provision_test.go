@@ -592,11 +592,19 @@ func writeProvisionProfile(t *testing.T, tc provisionCase) string {
 	if tc.needsFw == "efi" {
 		b.WriteString("boot = \"efi\"\n")
 	}
-	fmt.Fprintf(&b, "[identity]\nhostname = %q\nusername = \"dev\"\n",
-		strings.ReplaceAll(tc.name, "_", "-"))
+	host := strings.ReplaceAll(tc.name, "_", "-")
+	fmt.Fprintf(&b, "[identity]\nhostname = %q\nusername = \"dev\"\n", host)
+	if strings.HasPrefix(tc.os, "windows") {
+		// unattend creates the user with a real password — an empty one
+		// would leave a locked account the provision stage cannot log
+		// into over WinRM/ssh.
+		b.WriteString("password = \"Prov#2026x\"\n")
+	}
 	b.WriteString("[automation]\n")
 	fmt.Fprintf(&b, "install_timeout_min = %d\nssh_timeout_min = %d\n", install, ssh)
 	b.WriteString("[[verify]]\nname = \"ssh-alive\"\nrun = \"true\"\n")
+	fmt.Fprintf(&b, "[[verify]]\nname = \"hostname\"\nrun = \"hostname\"\nexpect = %q\n",
+		host)
 	b.WriteString("[finalize]\nshutdown = true\nsnapshot = \"prepared\"\n")
 	dir := t.TempDir()
 	f := filepath.Join(dir, "profile.toml")
@@ -613,21 +621,38 @@ func provisionE2EEnabled(t *testing.T) {
 	if os.Getenv("QESPEC_PROVISION_E2E") != "1" {
 		t.Skip("provision e2e inert — set QESPEC_PROVISION_E2E=1 on a KVM host")
 	}
-	if _, err := os.Stat("/dev/kvm"); err != nil {
-		t.Skip("/dev/kvm absent — TCG installs are impractically slow")
+	// Writable check — /dev/kvm can exist but be root-only.
+	f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0)
+	if err != nil {
+		t.Skipf("/dev/kvm unusable (%v) — TCG installs are impractically slow", err)
 	}
-	if f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0); err != nil {
-		f.Close()
-		t.Skip("/dev/kvm not writable")
-	} else {
-		f.Close()
-	}
+	f.Close()
 	// WAN probe: downloads are multi-GB; fail fast instead of hanging.
 	c, err := net.DialTimeout("tcp", "deb.debian.org:443", 5*time.Second)
 	if err != nil {
 		t.Skip("no outbound network")
 	}
 	c.Close()
+}
+
+// provisionWorkDir picks a run dir with room for multi-GB ISOs and
+// qcow2s — t.TempDir() can land on tmpfs and OOM the host.
+func provisionWorkDir(t *testing.T) string {
+	t.Helper()
+	if d := os.Getenv("QESPEC_PROVISION_DIR"); d != "" {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatalf("QESPEC_PROVISION_DIR %s: %v", d, err)
+		}
+		work, err := os.MkdirTemp(d, "prov-e2e-*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if os.Getenv("QESPEC_PROVISION_KEEP") != "1" {
+			t.Cleanup(func() { os.RemoveAll(work) })
+		}
+		return work
+	}
+	return t.TempDir()
 }
 
 func provisionOnly() map[string]bool {
@@ -650,7 +675,7 @@ func TestProvisionRunE2E(t *testing.T) {
 			continue
 		}
 		t.Run(tc.name, func(t *testing.T) {
-			work := t.TempDir()
+			work := provisionWorkDir(t)
 			prof := writeProvisionProfile(t, tc)
 
 			// 1. plan — the run must see the same provider the matrix asserts.
@@ -668,7 +693,21 @@ func TestProvisionRunE2E(t *testing.T) {
 			}, "run", "--profile", prof, "--dir", work)
 			evs := parseRunEvents(r.Stdout)
 
-			// 3. the step sequence must contain the ordered contract.
+			// 3. fast-fail on an explicit failure before asserting the
+			// step contract — a crashed/aborted run otherwise reports as
+			// a confusing "missing step" or an index panic on empty evs.
+			if len(evs) == 0 {
+				t.Fatalf("no events (rc=%d) — tail: %s", r.Code, stdoutTail(r.Stdout, 8))
+			}
+			for _, e := range evs {
+				if e["event"] == "run.failed" {
+					d := eventData(e)
+					t.Fatalf("run.failed step=%v code=%v err=%v — tail: %s",
+						d["step"], d["code"], d["error"], stdoutTail(r.Stdout, 8))
+				}
+			}
+
+			// 4. the step sequence must contain the ordered contract.
 			var done []string
 			for _, e := range evs {
 				if e["event"] == "step.completed" {
@@ -678,13 +717,13 @@ func TestProvisionRunE2E(t *testing.T) {
 			assertStepSubset(t, done, tc.wantSteps)
 			if tc.interactive {
 				// visual launches complete the run at launch — no ssh.
-				if evs[len(evs)-1]["event"] != "run.completed" {
-					t.Fatalf("visual run ended on %v", evs[len(evs)-1])
+				if last := evs[len(evs)-1]["event"]; last != "run.completed" {
+					t.Fatalf("visual run ended on %v", last)
 				}
 				return
 			}
 
-			// 4. verify results all passed; run completed.
+			// 5. verify results all passed; run completed.
 			for _, e := range evs {
 				if e["event"] != "verify.result" {
 					continue
@@ -693,26 +732,27 @@ func TestProvisionRunE2E(t *testing.T) {
 					t.Errorf("verify %v failed: %v", eventData(e)["name"], e)
 				}
 			}
-			if last := evs[len(evs)-1]; last["event"] != "run.completed" {
-				lines := strings.Split(strings.TrimRight(r.Stdout, "\n"), "\n")
-				if len(lines) > 8 {
-					lines = lines[len(lines)-8:]
-				}
-				t.Fatalf("run ended on %v — tail: %s", last, strings.Join(lines, "\n"))
+			if last := evs[len(evs)-1]["event"]; last != "run.completed" {
+				t.Fatalf("run ended on %v — tail: %s", last, stdoutTail(r.Stdout, 8))
 			}
 
-			// 5. the sealed snapshot must be visible to quickemu.
+			// 6. the sealed snapshot must be visible to quickemu.
 			confs, _ := filepath.Glob(filepath.Join(work, "*", "*.conf"))
 			if len(confs) == 0 {
 				t.Fatalf("no VM conf under %s", work)
 			}
-			Run(t, "quickemu", nil, "--vm", confs[0], "--snapshot-list").
+			conf := confs[0]
+			// Cleanup runs even when assertions above fail — honoring
+			// QESPEC_PROVISION_KEEP for post-mortem inspection.
+			t.Cleanup(func() {
+				if os.Getenv("QESPEC_PROVISION_KEEP") == "1" {
+					t.Logf("KEEP=1: VM left at %s", conf)
+					return
+				}
+				Run(t, "quickemu", nil, "--vm", conf, "--delete-vm", "--trash")
+			})
+			Run(t, "quickemu", nil, "--vm", conf, "--snapshot-list").
 				Contains(t, "prepared")
-
-			// 6. cleanup unless --keep-debug is wanted post-mortem.
-			if os.Getenv("QESPEC_PROVISION_KEEP") != "1" {
-				Run(t, "quickemu", nil, "--vm", confs[0], "--delete-vm", "--trash")
-			}
 		})
 	}
 }
@@ -744,4 +784,13 @@ func eventData(e map[string]any) map[string]any {
 func eventStep(e map[string]any) string {
 	s, _ := eventData(e)["step"].(string)
 	return s
+}
+
+// stdoutTail returns the last n lines for failure diagnostics.
+func stdoutTail(out string, n int) string {
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) > n {
+		lines = lines[len(lines)-n:]
+	}
+	return strings.Join(lines, "\n")
 }
