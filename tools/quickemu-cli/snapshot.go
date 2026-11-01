@@ -15,7 +15,11 @@ func actSnapshotCmd() int {
 			return actSnapshotMemApply()
 		}
 		r := vmOp("snapshot-apply", vmdir(), snapshotTag)()
-		vmOp("snapshot-info", vmdir())()
+		// The trailing info print is human context only — in json mode
+		// stdout must carry the op's single envelope, nothing else.
+		if outFmt != "json" {
+			vmOp("snapshot-info", vmdir())()
+		}
 		return r
 	case "create":
 		if memFlag {
@@ -26,7 +30,9 @@ func actSnapshotCmd() int {
 			args = append(args, "--external")
 		}
 		r := vmOp(args[0], args[1:]...)()
-		vmOp("snapshot-info", vmdir())()
+		if outFmt != "json" {
+			vmOp("snapshot-info", vmdir())()
+		}
 		return r
 	case "tree":
 		return vmOp("snapshot-tree", vmdir())()
@@ -34,14 +40,18 @@ func actSnapshotCmd() int {
 		return vmOp("snapshot-verify", vmdir())()
 	case "consolidate":
 		r := vmOp("snapshot-consolidate", vmdir(), snapshotTag)()
-		vmOp("snapshot-tree", vmdir())()
+		if outFmt != "json" {
+			vmOp("snapshot-tree", vmdir())()
+		}
 		return r
 	case "delete":
 		if snapshotIsMem(snapshotTag) && vmRunning() {
 			return actSnapshotMemDelete()
 		}
 		r := vmOp("snapshot-delete", vmdir(), snapshotTag)()
-		vmOp("snapshot-info", vmdir())()
+		if outFmt != "json" {
+			vmOp("snapshot-info", vmdir())()
+		}
 		return r
 	case "info", "list":
 		if outFmt == "json" {

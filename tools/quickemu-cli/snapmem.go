@@ -81,16 +81,22 @@ func snapshotDiskFree() int64 {
 // client's watchdog even when savevm fails).
 func actSnapshotMemCreate() int {
 	tag := snapshotTag
-	if !memSnapTagRe.MatchString(tag) {
-		fmt.Println(" - snapshot: tag must match [A-Za-z0-9._-]+")
+	fail := func(code, msg string) int {
+		if outFmt == "json" {
+			emitFail("vm.snapshot.create", code, msg)
+		} else {
+			fmt.Println(" - snapshot: " + msg)
+		}
 		return 1
 	}
-	if !requireRunning() {
+	if !memSnapTagRe.MatchString(tag) {
+		return fail("invalid_tag", "tag must match [A-Za-z0-9._-]+")
+	}
+	if !requireRunningEmit("vm.snapshot.create") {
 		return 1
 	}
 	if fmt_ := confKV()["disk_format"]; fmt_ != "" && fmt_ != "qcow2" {
-		fmt.Printf(" - snapshot: --memory needs qcow2 disks (disk_format=%q)\n", fmt_)
-		return 1
+		return fail("unsupported_disk", fmt.Sprintf("--memory needs qcow2 disks (disk_format=%q)", fmt_))
 	}
 	// Space gate: vmstate is roughly the guest RAM; warn-and-refuse
 	// when the filesystem cannot possibly hold it.
@@ -98,9 +104,9 @@ func actSnapshotMemCreate() int {
 		var ramMB int64
 		fmt.Sscan(confKV()["memory"], &ramMB)
 		if ramMB > 0 && free < ramMB*(1<<20) {
-			fmt.Printf(" - snapshot: %d MiB free, guest RAM is %d MiB — not enough space for vmstate.\n",
-				free/(1<<20), ramMB)
-			return 1
+			return fail("insufficient_space", fmt.Sprintf(
+				"%d MiB free, guest RAM is %d MiB — not enough space for vmstate.",
+				free/(1<<20), ramMB))
 		}
 	}
 	do := func(ctx context.Context) error {
@@ -119,8 +125,7 @@ func actSnapshotMemCreate() int {
 	if quiesceFlag {
 		cl, derr := guestDial(8 * time.Second)
 		if derr != nil {
-			fmt.Printf(" - snapshot: --quiesce needs the guest agent: %v\n", derr)
-			return 1
+			return fail("agent_unavailable", "--quiesce needs the guest agent: "+derr.Error())
 		}
 		err = cl.WithFreeze(ctx, 2*time.Minute, do)
 		cl.Close()
@@ -128,15 +133,16 @@ func actSnapshotMemCreate() int {
 		err = do(ctx)
 	}
 	if err != nil {
-		fmt.Printf(" - snapshot: %v\n", err)
-		return 1
+		return fail("snapshot_failed", err.Error())
 	}
-	// Record in the sidecar registry so tree/policy see the type.
-	vmOp("snapshot-register", vmdir(), tag, "vmstate", snapshotDesc)()
+	// Record in the sidecar registry so tree/policy see the type —
+	// silent: its envelope must not leak into this command's stdout.
+	vmOpSilent("snapshot-register", vmdir(), tag, "vmstate", snapshotDesc)()
 	qeEvent("vm.snapshot.create", fmt.Sprintf(`{"tag":%q,"memory":true}`, tag))
-	fmt.Printf(" - Created memory snapshot '%s' for %s.\n", tag, vmname())
 	if outFmt == "json" {
 		emitOK("vm.snapshot.create", map[string]any{"vm": vmname(), "tag": tag, "memory": true})
+	} else {
+		fmt.Printf(" - Created memory snapshot '%s' for %s.\n", tag, vmname())
 	}
 	return 0
 }
@@ -146,6 +152,14 @@ func actSnapshotMemCreate() int {
 // -loadvm <tag> via the conf override channel.
 func actSnapshotMemApply() int {
 	tag := snapshotTag
+	fail := func(code, msg string) int {
+		if outFmt == "json" {
+			emitFail("vm.snapshot.apply", code, msg)
+		} else {
+			fmt.Println(" - snapshot apply: " + msg)
+		}
+		return 1
+	}
 	if vmRunning() {
 		out, err := hmpOut("loadvm " + tag)
 		if err != nil || strings.Contains(out, "Error") || strings.Contains(out, "error") {
@@ -153,12 +167,12 @@ func actSnapshotMemApply() int {
 			if err != nil {
 				msg = err.Error()
 			}
-			fmt.Printf(" - snapshot apply: %s\n", msg)
-			return 1
+			return fail("apply_failed", msg)
 		}
-		fmt.Printf(" - %s reverted to snapshot '%s'.\n", vmname(), tag)
 		if outFmt == "json" {
 			emitOK("vm.snapshot.apply", map[string]any{"vm": vmname(), "tag": tag})
+		} else {
+			fmt.Printf(" - %s reverted to snapshot '%s'.\n", vmname(), tag)
 		}
 		return 0
 	}
@@ -167,19 +181,24 @@ func actSnapshotMemApply() int {
 	// starting → running) — stStopped→stStarting is not a legal arc.
 	if !machineTransition(stPreparing, "snapshot-apply", "quickemu-cli") ||
 		!machineTransition(stStarting, "snapshot-apply", "quickemu-cli") {
-		fmt.Println(" - snapshot apply: cannot boot from the current state.")
-		return 1
+		return fail("bad_state", "cannot boot from the current state.")
 	}
 	confOpts["loadvm"] = tag
 	out, err := tool("quickemu-launch", applyOverrides(), "--run")
-	fmt.Print(out)
+	if outFmt != "json" {
+		fmt.Print(out)
+	}
 	if err != nil {
 		machineTransition(stStopped, "snapshot-apply-failed", "quickemu-cli")
-		return 1
+		return fail("launch_failed", strings.TrimSpace(out))
 	}
 	machineTransition(stRunning, "snapshot-applied", "quickemu-cli")
 	qeEvent("vm.snapshot.apply", fmt.Sprintf(`{"tag":%q}`, tag))
-	fmt.Printf(" - %s booted into snapshot '%s'.\n", vmname(), tag)
+	if outFmt == "json" {
+		emitOK("vm.snapshot.apply", map[string]any{"vm": vmname(), "tag": tag, "booted": true})
+	} else {
+		fmt.Printf(" - %s booted into snapshot '%s'.\n", vmname(), tag)
+	}
 	return 0
 }
 
@@ -196,13 +215,18 @@ func actSnapshotMemDelete() int {
 		if err != nil {
 			msg = err.Error()
 		}
-		fmt.Printf(" - snapshot delete: %s\n", msg)
+		if outFmt == "json" {
+			emitFail("vm.snapshot.delete", "delete_failed", msg)
+		} else {
+			fmt.Printf(" - snapshot delete: %s\n", msg)
+		}
 		return 1
 	}
-	vmOp("snapshot-unregister", vmdir(), tag)()
-	fmt.Printf(" - Deleted snapshot '%s' from %s.\n", tag, vmname())
+	vmOpSilent("snapshot-unregister", vmdir(), tag)()
 	if outFmt == "json" {
 		emitOK("vm.snapshot.delete", map[string]any{"vm": vmname(), "tag": tag})
+	} else {
+		fmt.Printf(" - Deleted snapshot '%s' from %s.\n", tag, vmname())
 	}
 	return 0
 }

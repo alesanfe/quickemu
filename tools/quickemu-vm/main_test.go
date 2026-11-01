@@ -209,11 +209,34 @@ func TestSnapshotListAndBadArgs(t *testing.T) {
 	if rc != 0 {
 		t.Fatalf("snap-list rc=%d %s", rc, o)
 	}
+	// v1 contract: the GUI normalizer resolves 'vm.snapshot.list' —
+	// the internal op name must not leak as the envelope command.
+	if o, rc := runTool(t, []string{"OUTPUT_FORMAT=json"},
+		"snapshot-list-json", dir); rc != 0 ||
+		!strings.Contains(o, `"command":"vm.snapshot.list"`) {
+		t.Fatalf("snap-list envelope rc=%d %s", rc, o)
+	}
 	if _, rc := runTool(t, nil); rc != 2 {
 		t.Fatalf("usage rc=%d", rc)
 	}
 	if _, rc := runTool(t, nil, "bogus", dir); rc != 2 {
 		t.Fatalf("unknown rc=%d", rc)
+	}
+}
+
+func TestResizeEmitsDiskResizeCommand(t *testing.T) {
+	parent, dir := mkVM(t, "vmrz")
+	// Stub qemu-img so the resize op reaches its emit — the contract
+	// assertion is the envelope's command name, not the resize itself.
+	bin := t.TempDir()
+	os.WriteFile(filepath.Join(bin, "qemu-img"),
+		[]byte("#!/bin/sh\nexit 0\n"), 0o755)
+	env := []string{"OUTPUT_FORMAT=json",
+		"QE_VMCONF=" + filepath.Join(parent, "vmrz.conf"),
+		"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH")}
+	o, rc := runTool(t, env, "resize", dir, "32G")
+	if rc != 0 || !strings.Contains(o, `"command":"vm.disk-resize"`) {
+		t.Fatalf("resize envelope rc=%d %s", rc, o)
 	}
 }
 

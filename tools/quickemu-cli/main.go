@@ -6,8 +6,10 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
@@ -81,7 +83,79 @@ func fixupVMConf() {
 // shutdown, so runtime artefacts are cleaned before any action runs
 // (vm_runtime_cleanup). Each queued action runs in order; the last
 // non-zero rc wins the exit code.
+//
+// v1 contract: in --format json mode stdout carries exactly ONE
+// envelope per invocation. Composite flags (--restart → stop+start,
+// --backup → backup+shutdown) run with stdout captured so each
+// child's own envelope doesn't concatenate; the run reports a single
+// composite envelope afterwards.
 func runActions() int {
+	if outFmt == "json" && len(actions) > 1 {
+		name := compositeEmitName(actions)
+		out, rcv := captureStdout(runAllActions)
+		if rcv == 0 {
+			data := map[string]any{"vm": vmname(), "actions": actions}
+			if t := strings.TrimSpace(out); t != "" {
+				data["log"] = t
+			}
+			emitOK(name, data)
+		} else {
+			msg := "composite action failed"
+			if t := strings.TrimSpace(out); t != "" {
+				if i := strings.LastIndex(t, "\n"); i >= 0 {
+					t = t[i+1:]
+				}
+				if len(t) > 400 {
+					t = t[:400]
+				}
+				msg = t
+			}
+			emitFail(name, "action_failed", msg)
+		}
+		return rcv
+	}
+	return runAllActions()
+}
+
+// compositeEmitName: v1 command name for multi-action runs — the
+// structured contract wants one envelope whose name the caller can
+// predict ('restart' for --restart, 'backup' for --backup).
+func compositeEmitName(actions []string) string {
+	switch strings.Join(actions, "+") {
+	case "stop_vm+start":
+		return "vm.restart"
+	case "backup_vm+shutdown_vm":
+		return "vm.backup"
+	}
+	// Hand-chained flags fall back to the leading action's name.
+	return "vm." + strings.ReplaceAll(actions[0], "_", "-")
+}
+
+// captureStdout diverts os.Stdout for the duration of fn and returns
+// everything written — used to absorb per-action envelopes during a
+// composite structured run (stdout stays a single-envelope channel).
+func captureStdout(fn func() int) (string, int) {
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		out := fn()
+		return "", out
+	}
+	os.Stdout = w
+	done := make(chan string, 1)
+	go func() {
+		b, _ := io.ReadAll(r)
+		done <- string(b)
+	}()
+	rc := fn()
+	w.Close()
+	os.Stdout = old
+	out := <-done
+	r.Close()
+	return out, rc
+}
+
+func runAllActions() int {
 	runtimeCleanup()
 	rcv := 0
 	for _, act := range actions {

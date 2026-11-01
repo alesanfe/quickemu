@@ -7,6 +7,17 @@ import (
 )
 
 func vmOp(sub string, rest ...string) func() int {
+	return vmOpEmit(true, sub, rest...)
+}
+
+// vmOpSilent: vmOp without the stdout passthrough — internal plumbing
+// ops (snapshot-register/unregister) whose envelope must never leak
+// into the caller's single-envelope output contract.
+func vmOpSilent(sub string, rest ...string) func() int {
+	return vmOpEmit(false, sub, rest...)
+}
+
+func vmOpEmit(print bool, sub string, rest ...string) func() int {
 	return func() int {
 		// The vm tool locates the conf by glob; QE_VMCONF tells it which
 		// one the user actually passed (dirs can hold several).
@@ -37,7 +48,9 @@ func vmOp(sub string, rest ...string) func() int {
 		if vmSharedOps[sub] {
 			vmLockReleaseShared()
 		}
-		fmt.Print(out)
+		if print {
+			fmt.Print(out)
+		}
 		return rc(err)
 	}
 }

@@ -36,45 +36,75 @@ func hmp(cmd string) (string, error) {
 }
 
 // actMonitorCmd: --monitor-cmd → monitor_send_cmd "${MONITOR_CMD}".
+// Structured callers get the monitor reply in data.reply.
 func actMonitorCmd() int {
-	return monitorSendCmd(extra["monitor-cmd"])
+	msg := extra["monitor-cmd"]
+	reply, code := monitorSendCmdOut(msg, outFmt != "json")
+	if outFmt == "json" {
+		if code != 0 {
+			emitFail("vm.monitor-cmd", "monitor_send_failed", "monitor command was not accepted")
+		} else {
+			emitOK("vm.monitor-cmd", map[string]any{
+				"vm": vmname(), "request": msg, "reply": strings.TrimSpace(reply)})
+		}
+	}
+	return code
 }
 
-// monitorSendCmd: monitor_send_cmd parity — the human-monitor channel
+// monitorSendCmd: monitor_send_cmd parity — prints the Bash " - Sending:"
+// line and the reply.
+func monitorSendCmd(msg string) int {
+	_, code := monitorSendCmdOut(msg, true)
+	return code
+}
+
+// monitorSendCmdQuiet: the send without human-facing prints — used when
+// the reply feeds a structured envelope or an internal caller already
+// owns the output surface. stderr WARNINGs still pass through.
+func monitorSendCmdQuiet(msg string) int {
+	_, code := monitorSendCmdOut(msg, false)
+	return code
+}
+
+// monitorSendCmdOut: monitor_send_cmd parity — the human-monitor channel
 // (never QMP). monitor=socket requires a live monitor socket; telnet
 // sends over tcp. Like the Bash socat|tr|sed pipeline, a failed send
 // after the " - Sending:" line still returns 0 — the reply surface is
 // best-effort, the gate is channel availability.
-func monitorSendCmd(msg string) int {
+func monitorSendCmdOut(msg string, print bool) (string, int) {
 	if msg == "" {
 		fmt.Fprintln(os.Stderr, "WARNING! Send to QEMU-Monitor: Message empty!")
-		return 1
+		return "", 1
 	}
 	conf := confKV()
 	mon := confOpts["monitor"]
 	if mon == "" {
 		mon = conf["monitor"]
 	}
+	send := func(network, addr, via string) (string, int) {
+		if print {
+			fmt.Println(" - Sending:  via " + via + " " + msg)
+		}
+		out, _ := monitorSend(network, addr, msg)
+		if print {
+			fmt.Print(out)
+		}
+		return out, 0
+	}
 	switch mon {
 	case "", "socket":
 		sock := filepath.Join(vmdir(), vmname()+"-monitor.socket")
 		if st, err := os.Stat(sock); err != nil || st.Mode()&os.ModeSocket == 0 {
 			fmt.Fprintln(os.Stderr, "WARNING! No qemu-monitor socket at "+sock+" - Couldn't send message to monitor!")
-			return 1
+			return "", 1
 		}
-		fmt.Println(" - Sending:  via socket " + msg)
-		out, _ := monitorSend("unix", sock, msg)
-		fmt.Print(out)
-		return 0
+		return send("unix", sock, "socket")
 	case "telnet":
-		fmt.Println(" - Sending:  via telnet " + msg)
 		addr := conf["monitor_telnet_host"] + ":" + conf["monitor_telnet_port"]
-		out, _ := monitorSend("tcp", addr, msg)
-		fmt.Print(out)
-		return 0
+		return send("tcp", addr, "telnet")
 	default:
 		fmt.Fprintln(os.Stderr, "WARNING! No qemu-monitor channel available - Couldn't send message to monitor!")
-		return 1
+		return "", 1
 	}
 }
 
@@ -87,6 +117,9 @@ func vmControl(hmpCmd, qmpJSON string) int {
 		if _, err := qmp(qmpJSON); err == nil {
 			return 0
 		}
+	}
+	if outFmt == "json" {
+		return monitorSendCmdQuiet(hmpCmd)
 	}
 	return monitorSendCmd(hmpCmd)
 }
@@ -164,7 +197,15 @@ var stateRe = regexp.MustCompile(`"state":"[^"]*"`)
 // action's rc.
 func actSendKeys() int {
 	combo := extra["send-keys"]
-	return vmControl("sendkey "+combo, sendKeyQMP(combo))
+	code := vmControl("sendkey "+combo, sendKeyQMP(combo))
+	if outFmt == "json" {
+		if code != 0 {
+			emitFail("vm.send-keys", "send_failed", "key combo was not accepted")
+		} else {
+			emitOK("vm.send-keys", map[string]any{"vm": vmname(), "keys": combo})
+		}
+	}
+	return code
 }
 
 // actType: type_text — map each char to a sendkey name, skip unmapped
@@ -175,11 +216,16 @@ func actType() int {
 	for _, ch := range extra["type"] {
 		k := qelib.SendkeyName(ch)
 		if k == "" {
-			fmt.Printf(" - Skipping unmapped char '%c'\n", ch)
+			if outFmt != "json" {
+				fmt.Printf(" - Skipping unmapped char '%c'\n", ch)
+			}
 			continue
 		}
 		vmControl("sendkey "+k, sendKeyQMP(k))
 		time.Sleep(50 * time.Millisecond)
+	}
+	if outFmt == "json" {
+		emitOK("vm.type", map[string]any{"vm": vmname()})
 	}
 	return 0
 }
@@ -188,19 +234,25 @@ func actType() int {
 // real monitor channel; screendump always lands as PPM and a .png
 // destination converts via convert/pnmtopng when the host has one.
 func actScreenshot() int {
-	if !requireRunning() {
+	fail := func(msg string) int {
+		if outFmt == "json" {
+			emitFail("vm.screenshot", "screenshot_failed", msg)
+		} else {
+			fmt.Println(" - ERROR! " + msg)
+		}
+		return 1
+	}
+	if !requireRunningEmit("vm.screenshot") {
 		return 1
 	}
 	conf := confKV()
 	if conf["monitor"] == "none" {
-		fmt.Println(" - ERROR! No QEMU monitor channel for " + vmname() + " (monitor is disabled).")
-		return 1
+		return fail("No QEMU monitor channel for " + vmname() + " (monitor is disabled).")
 	}
 	if conf["monitor"] == "socket" {
 		sock := filepath.Join(vmdir(), vmname()+"-monitor.socket")
 		if _, err := os.Stat(sock); err != nil {
-			fmt.Println(" - ERROR! No QEMU monitor socket for " + vmname() + ".")
-			return 1
+			return fail("No QEMU monitor socket for " + vmname() + ".")
 		}
 	}
 	out := extra["screenshot"]
@@ -221,8 +273,7 @@ func actScreenshot() int {
 		qmpCmd("screendump", map[string]any{"filename": ppm}))
 	time.Sleep(500 * time.Millisecond)
 	if st, err := os.Stat(ppm); err != nil || st.Size() == 0 {
-		fmt.Println(" - ERROR! Screenshot was not created at " + ppm + ".")
-		return 1
+		return fail("Screenshot was not created at " + ppm + ".")
 	}
 	if png {
 		if bin, err := exec.LookPath("convert"); err == nil {
@@ -241,10 +292,16 @@ func actScreenshot() int {
 			cancel()
 		} else {
 			out = ppm
-			fmt.Println(" - WARNING! 'convert'/'pnmtopng' not found; saved PPM instead.")
+			if outFmt != "json" {
+				fmt.Println(" - WARNING! 'convert'/'pnmtopng' not found; saved PPM instead.")
+			}
 		}
 	}
-	fmt.Println(" - Screenshot saved to " + out)
+	if outFmt == "json" {
+		emitOK("vm.screenshot", map[string]any{"vm": vmname(), "path": out})
+	} else {
+		fmt.Println(" - Screenshot saved to " + out)
+	}
 	return 0
 }
 

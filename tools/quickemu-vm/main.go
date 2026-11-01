@@ -44,6 +44,7 @@ func run() int {
 	opCmd = map[string]string{
 		"delete-plan": "vm.delete-plan", "backup-list": "vm.backup.list",
 		"trash-list": "vm.trash.list", "snapshot-list": "vm.snapshot.list",
+		"snapshot-list-json": "vm.snapshot.list", "resize": "vm.disk-resize",
 		"snapshot-tree": "vm.snapshot.tree", "vfio-scan": "vm.vfio.scan",
 		"stats": "vm.stats", "doctor": "vm.doctor", "plan": "vm.plan",
 		"compact": "vm.disk-compact",

@@ -99,11 +99,20 @@ func actSpiceConsole() int {
 		return conf[k]
 	}
 	if get("display") != "spice" && get("display") != "spice-app" {
-		fmt.Fprintln(os.Stderr, "ERROR! VM display is '"+get("display")+"' — spice-console needs display=spice.")
+		if outFmt == "json" {
+			emitFail("vm.spice-console", "bad_display",
+				"VM display is '"+get("display")+"' — spice-console needs display=spice.")
+		} else {
+			fmt.Fprintln(os.Stderr, "ERROR! VM display is '"+get("display")+"' — spice-console needs display=spice.")
+		}
 		return 1
 	}
 	startViewer(get)
-	fmt.Println(" - Viewer:   attached to " + vmname())
+	if outFmt == "json" {
+		emitOK("vm.spice-console", map[string]any{"vm": vmname()})
+	} else {
+		fmt.Println(" - Viewer:   attached to " + vmname())
+	}
 	return 0
 }
 
@@ -111,14 +120,20 @@ func actSpiceConsole() int {
 // configured with display=vnc. vnc_listen is host:display (display N
 // maps to TCP 5900+N, same arithmetic as QEMU -vnc).
 func actVNC() int {
-	if !vmRunning() {
-		fmt.Fprintf(os.Stderr, "ERROR! %s is not running — no VNC session to attach to.\n", vmname())
+	fail := func(msg string) int {
+		if outFmt == "json" {
+			emitFail("vm.vnc", "vnc_failed", msg)
+		} else {
+			fmt.Fprintln(os.Stderr, "ERROR! "+msg)
+		}
 		return 1
+	}
+	if !vmRunning() {
+		return fail(vmname() + " is not running — no VNC session to attach to.")
 	}
 	conf := confKV()
 	if conf["display"] != "vnc" {
-		fmt.Fprintln(os.Stderr, "ERROR! VM display is '"+conf["display"]+"' — vnc needs display=vnc.")
-		return 1
+		return fail("VM display is '" + conf["display"] + "' — vnc needs display=vnc.")
 	}
 	listen := conf["vnc_listen"]
 	if listen == "" {
@@ -133,8 +148,7 @@ func actVNC() int {
 	}
 	d, err := strconv.Atoi(disp)
 	if err != nil || d < 0 || d > 99 {
-		fmt.Fprintf(os.Stderr, "ERROR! '%s' is not a valid VNC listen address (expected host:display).\n", listen)
-		return 1
+		return fail("'" + listen + "' is not a valid VNC listen address (expected host:display).")
 	}
 	port := strconv.Itoa(5900 + d)
 	// remote-viewer understands vnc:// URIs; plain vncviewer wants host::port.
@@ -146,57 +160,75 @@ func actVNC() int {
 			} else {
 				c = execCommand(bin, host+"::"+port)
 			}
-			fmt.Println(" - VNC:      attaching " + cand + " to " + host + ":" + port)
+			if outFmt == "json" {
+				emitOK("vm.vnc", map[string]any{
+					"vm": vmname(), "viewer": cand, "host": host, "port": port})
+			} else {
+				fmt.Println(" - VNC:      attaching " + cand + " to " + host + ":" + port)
+			}
 			c.Start()
 			return 0
 		}
 	}
-	fmt.Fprintln(os.Stderr, "ERROR! No VNC viewer found (remote-viewer, vncviewer, xtightvncviewer, gvncviewer).")
-	fmt.Fprintln(os.Stderr, " - VNC:      VM listens on "+host+":"+port)
-	return 1
+	return fail("No VNC viewer found (remote-viewer, vncviewer, xtightvncviewer, gvncviewer); " +
+		"VM listens on " + host + ":" + port)
 }
 
 // actPublicDir: open the VM's public_dir in the host file manager,
 // creating it if needed — the 'publicdir' subcommand.
 func actPublicDir() int {
+	fail := func(msg string) int {
+		if outFmt == "json" {
+			emitFail("vm.publicdir", "publicdir_failed", msg)
+		} else {
+			fmt.Fprintln(os.Stderr, "ERROR! "+msg)
+		}
+		return 1
+	}
 	conf := confKV()
 	pub := conf["public_dir"]
 	if pub == "" {
-		fmt.Fprintln(os.Stderr, "ERROR! public_dir is not set in "+vmname()+" config.")
-		return 1
+		return fail("public_dir is not set in " + vmname() + " config.")
 	}
 	if !filepath.IsAbs(pub) {
 		pub = filepath.Join(vmdir(), pub)
 	}
 	if err := os.MkdirAll(pub, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! Cannot create "+pub+": "+err.Error())
-		return 1
+		return fail("Cannot create " + pub + ": " + err.Error())
 	}
 	opener := "xdg-open"
 	if runtime.GOOS == "darwin" {
 		opener = "open"
 	}
-	bin, err := exec.LookPath(opener)
-	if err != nil {
-		fmt.Println(" - Public:   " + pub) // no file manager — still give the path
-		return 0
+	if bin, err := exec.LookPath(opener); err == nil {
+		execCommand(bin, pub).Start()
 	}
-	execCommand(bin, pub).Start()
-	fmt.Println(" - Public:   " + pub)
+	if outFmt == "json" {
+		emitOK("vm.publicdir", map[string]any{"vm": vmname(), "path": pub})
+	} else {
+		fmt.Println(" - Public:   " + pub)
+	}
 	return 0
 }
 
 // actTelnet: interactive attach to a QEMU telnet chardev — used for
 // serial-console (serial=telnet) and monitor-console (monitor=telnet).
 func actTelnet(kind string) int {
-	if !vmRunning() {
-		fmt.Fprintf(os.Stderr, "ERROR! %s is not running.\n", vmname())
+	emit := "vm." + kind + "-console"
+	fail := func(msg string) int {
+		if outFmt == "json" {
+			emitFail(emit, "attach_failed", msg)
+		} else {
+			fmt.Fprintf(os.Stderr, "ERROR! %s\n", msg)
+		}
 		return 1
+	}
+	if !vmRunning() {
+		return fail(vmname() + " is not running.")
 	}
 	conf := confKV()
 	if conf[kind] != "telnet" {
-		fmt.Fprintf(os.Stderr, "ERROR! %s is '%s' — attach needs %s=telnet.\n", kind, conf[kind], kind)
-		return 1
+		return fail(fmt.Sprintf("%s is '%s' — attach needs %s=telnet.", kind, conf[kind], kind))
 	}
 	host := conf[kind+"_telnet_host"]
 	if host == "" {
@@ -210,6 +242,16 @@ func actTelnet(kind string) int {
 			port = "6660"
 		}
 	}
-	fmt.Println(" - " + strings.ToUpper(kind[:1]) + kind[1:] + ":   telnet " + host + " " + port)
-	return telnetAttach(host, port)
+	if outFmt != "json" {
+		fmt.Println(" - " + strings.ToUpper(kind[:1]) + kind[1:] + ":   telnet " + host + " " + port)
+	}
+	rc := telnetAttach(host, port)
+	if outFmt == "json" {
+		if rc != 0 {
+			emitFail(emit, "attach_failed", "telnet attach exited "+strconv.Itoa(rc))
+		} else {
+			emitOK(emit, map[string]any{"vm": vmname(), "host": host, "port": port})
+		}
+	}
+	return rc
 }

@@ -26,6 +26,21 @@ func requireRunning() bool {
 	return true
 }
 
+// requireRunningEmit: requireRunning for structured callers — the
+// v1 contract needs a typed failure envelope, not a bare text line
+// (stdout text would read as EMPTY_RESPONSE → legacy double-run).
+func requireRunningEmit(cmd string) bool {
+	if !vmRunning() {
+		if outFmt == "json" {
+			emitFail(cmd, "not_running", vmname()+" is not running.")
+		} else {
+			fmt.Println(" - " + vmname() + " is not running.")
+		}
+		return false
+	}
+	return true
+}
+
 func runtimeCleanup() {
 	// Boot reconcile (QE-003): sync the persisted machine record
 	// against pidfile/fingerprint/socket/QMP truth BEFORE anything
@@ -71,15 +86,21 @@ func monitorControl(cmd string) bool {
 }
 
 func actPause() int {
-	if !requireRunning() {
+	if !requireRunningEmit("vm.paused") {
 		return 1
 	}
 	conf := confKV()
 	if conf["monitor"] != "none" && monitorReady() {
 		if !monitorControl("stop") {
+			if outFmt == "json" {
+				emitFail("vm.paused", "monitor_send_failed", "pause request was not accepted")
+			}
 			return 1
 		}
 	} else if err := syscall.Kill(readPID(), syscall.SIGSTOP); err != nil {
+		if outFmt == "json" {
+			emitFail("vm.paused", "signal_failed", err.Error())
+		}
 		return 1
 	}
 	if werr := os.WriteFile(filepath.Join(vmdir(), vmname()+".paused"), nil, 0644); werr != nil {
@@ -87,7 +108,11 @@ func actPause() int {
 	}
 	machineTransition(stPaused, "pause", "quickemu-cli")
 	qeEvent("vm.paused", "")
-	fmt.Printf(" - %s (%d) paused.\n", vmname(), readPID())
+	if outFmt == "json" {
+		emitOK("vm.paused", map[string]any{"vm": vmname(), "pid": readPID()})
+	} else {
+		fmt.Printf(" - %s (%d) paused.\n", vmname(), readPID())
+	}
 	return 0
 }
 
@@ -97,21 +122,31 @@ func actResume() int {
 	if suspendedState() {
 		return actResumeSuspended()
 	}
-	if !requireRunning() {
+	if !requireRunningEmit("vm.resumed") {
 		return 1
 	}
 	conf := confKV()
 	if conf["monitor"] != "none" && monitorReady() {
 		if !monitorControl("cont") {
+			if outFmt == "json" {
+				emitFail("vm.resumed", "monitor_send_failed", "resume request was not accepted")
+			}
 			return 1
 		}
 		qeEvent("vm.resumed", "")
 	} else if err := syscall.Kill(readPID(), syscall.SIGCONT); err != nil {
+		if outFmt == "json" {
+			emitFail("vm.resumed", "signal_failed", err.Error())
+		}
 		return 1
 	}
 	machineTransition(stRunning, "resume", "quickemu-cli")
 	os.Remove(filepath.Join(vmdir(), vmname()+".paused"))
-	fmt.Printf(" - %s (%d) resumed.\n", vmname(), readPID())
+	if outFmt == "json" {
+		emitOK("vm.resumed", map[string]any{"vm": vmname(), "pid": readPID()})
+	} else {
+		fmt.Printf(" - %s (%d) resumed.\n", vmname(), readPID())
+	}
 	return 0
 }
 
@@ -120,7 +155,7 @@ func actResume() int {
 // A successful request records running→stopping (guest-shutdown) so a
 // later dead pid reconciles as a completed stop, never a crash.
 func actShutdown() int {
-	rc := monitorAction("system_powerdown", "vm.shutdown-requested", "shutdown")
+	rc := monitorAction("system_powerdown", "vm.shutdown-requested", "shutdown", "vm.shutdown")
 	if rc == 0 {
 		machineTransition(stStopping, "guest-shutdown", "quickemu-cli")
 	}
@@ -129,25 +164,37 @@ func actShutdown() int {
 
 // actReset: reset_vm — immediate system_reset over the monitor.
 func actReset() int {
-	return monitorAction("system_reset", "vm.reset-requested", "reset")
+	return monitorAction("system_reset", "vm.reset-requested", "reset", "vm.reset")
 }
 
 // monitorAction: Bash monitor_send_cmd && { event + echo } — a failed
-// send surfaces only the monitor warning, no success line.
-func monitorAction(cmd, event, verb string) int {
-	if !requireRunning() {
+// send surfaces only the monitor warning, no success line. emit is
+// the v1 command name the envelope reports in --format json mode.
+func monitorAction(cmd, event, verb, emit string) int {
+	if !requireRunningEmit(emit) {
 		return 1
 	}
 	conf := confKV()
 	if conf["monitor"] == "none" || !monitorSockReady() {
-		fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
+		if outFmt == "json" {
+			emitFail(emit, "no_monitor", vmname()+": no monitor channel; use --kill to force stop.")
+		} else {
+			fmt.Printf(" - %s: no monitor channel; use --kill to force stop.\n", vmname())
+		}
 		return 1
 	}
-	if monitorSendCmd(cmd) != 0 {
+	if monitorSendCmdQuiet(cmd) != 0 {
+		if outFmt == "json" {
+			emitFail(emit, "monitor_send_failed", "monitor command was not accepted")
+		}
 		return 1
 	}
 	qeEvent(event, "")
-	fmt.Printf(" - %s (%d) %s requested.\n", vmname(), readPID(), verb)
+	if outFmt == "json" {
+		emitOK(emit, map[string]any{"vm": vmname(), "pid": readPID(), "request": cmd})
+	} else {
+		fmt.Printf(" - %s (%d) %s requested.\n", vmname(), readPID(), verb)
+	}
 	return 0
 }
 
@@ -181,12 +228,16 @@ func actStop(force bool) int {
 	// kill_vm gates on the pidfile alone, but going through the
 	// instance verify keeps a foreign or recycled pid safe from a
 	// blind SIGKILL — same refusal, minus the hazard.
-	if force {
+	if force && outFmt != "json" {
 		fmt.Println("Killing " + vmname())
 	}
 	pid := readPID()
 	if !vmPidAlive() {
-		fmt.Println(" - " + vmname() + " is not running.")
+		if outFmt == "json" {
+			emitOK("vm.stopped", map[string]any{"vm": vmname(), "alreadyStopped": true})
+		} else {
+			fmt.Println(" - " + vmname() + " is not running.")
+		}
 		runtimeCleanup()
 		return 0
 	}
@@ -197,13 +248,21 @@ func actStop(force bool) int {
 			killed = p.Signal(syscall.SIGKILL) == nil
 		}
 		if !killed {
-			fmt.Printf(" - %s (%d) was not killed.\n", vmname(), pid)
+			if outFmt == "json" {
+				emitFail("vm.stopped", "kill_failed", fmt.Sprintf("%s (%d) was not killed.", vmname(), pid))
+			} else {
+				fmt.Printf(" - %s (%d) was not killed.\n", vmname(), pid)
+			}
 			return 0
 		}
 		for i := 0; i < 40 && alive(pid); i++ {
 			time.Sleep(100 * time.Millisecond)
 		}
-		fmt.Printf(" - %s (%d) killed.\n", vmname(), pid)
+		if outFmt == "json" {
+			emitOK("vm.stopped", map[string]any{"vm": vmname(), "pid": pid, "forced": true})
+		} else {
+			fmt.Printf(" - %s (%d) killed.\n", vmname(), pid)
+		}
 		machineTransition(stStopped, "killed", "quickemu-cli")
 		runtimeCleanup()
 		return 0
@@ -213,7 +272,7 @@ func actStop(force bool) int {
 	// human-monitor-command when the VM runs monitor=none with only
 	// the control socket up.
 	machineTransition(stStopping, "quickemu-stop", "quickemu-cli")
-	if monitorSendCmd("quit") != 0 {
+	if monitorSendCmdQuiet("quit") != 0 {
 		hmp("quit")
 	}
 	for i := 0; i < 40 && alive(pid); i++ {
@@ -222,12 +281,20 @@ func actStop(force bool) int {
 	if alive(pid) {
 		// quit never landed (or QEMU ignored it) — reporting
 		// "stopped" and wiping runtime state would orphan a live VM.
-		fmt.Printf(" - %s (%d) did not stop.\n", vmname(), pid)
+		if outFmt == "json" {
+			emitFail("vm.stopped", "stop_failed", fmt.Sprintf("%s (%d) did not stop.", vmname(), pid))
+		} else {
+			fmt.Printf(" - %s (%d) did not stop.\n", vmname(), pid)
+		}
 		return 1
 	}
 	machineTransition(stStopped, "stopped", "quickemu-cli")
 	runtimeCleanup()
-	fmt.Println(" - " + vmname() + " stopped.")
+	if outFmt == "json" {
+		emitOK("vm.stopped", map[string]any{"vm": vmname(), "pid": pid})
+	} else {
+		fmt.Println(" - " + vmname() + " stopped.")
+	}
 	return 0
 }
 
@@ -247,9 +314,14 @@ func actLaunch() int {
 	// instance instead. Without this the two QEMU processes race over
 	// the pidfile/sockets in the VM dir.
 	if vmRunning() {
-		fmt.Println(vmname())
-		fmt.Printf(" - Process:  Already running %s as %s (%d)\n",
-			vmConf, vmname(), readPID())
+		if outFmt == "json" {
+			emitOK("vm.started", map[string]any{
+				"vm": vmname(), "pid": readPID(), "alreadyRunning": true})
+		} else {
+			fmt.Println(vmname())
+			fmt.Printf(" - Process:  Already running %s as %s (%d)\n",
+				vmConf, vmname(), readPID())
+		}
 		startViewer(get)
 		if mc := get("monitor_cmd"); mc != "" {
 			monitorSendCmd(mc)
@@ -285,14 +357,26 @@ func actLaunch() int {
 	// Bash's vm_lock_release post-qemu_spawn).
 	if !vmLockAcquireOp("start") {
 		machineTransition(stStopped, "lock-busy", "quickemu-cli")
+		if outFmt == "json" {
+			emitFail("vm.started", "lock_busy", "another quickemu operation holds the VM lock")
+		}
 		return 1
 	}
 	machineTransition(stStarting, "spawn", "quickemu-cli")
 	out, err := tool("quickemu-launch", applyOverrides(), "--run")
-	fmt.Print(out)
+	if outFmt != "json" {
+		fmt.Print(out)
+	}
 	vmLockRelease()
 	if err != nil {
 		machineTransition(stStopped, "launch-failed", "quickemu-cli")
+		if outFmt == "json" {
+			msg := strings.TrimSpace(out)
+			if msg == "" {
+				msg = err.Error()
+			}
+			emitFail("vm.started", "launch_failed", msg)
+		}
 		return 1
 	}
 	machineTransition(stRunning, "spawned", "quickemu-cli")
@@ -317,18 +401,26 @@ func actLaunch() int {
 	if mc := get("monitor_cmd"); mc != "" && extra["monitor-cmd"] == "" {
 		monitorSendCmd(mc)
 	}
+	if outFmt == "json" {
+		emitOK("vm.started", map[string]any{"vm": vmname(), "pid": readPID()})
+	}
 	return 0
 }
 
 func actDryRun() int {
 	conf := applyOverrides()
 	out, err := tool("quickemu-launch", conf)
-	fmt.Print(out)
-	if outFmt == "json" && err == nil {
-		// execution-plan.schema parity: human plan lines above, then the
-		// vm.plan envelope carrying the assembled QEMU command.
-		emitOK("vm.plan", map[string]any{"vm": vmname(),
-			"command": strings.TrimSpace(out)})
+	if outFmt == "json" {
+		// execution-plan.schema parity: the envelope IS the output —
+		// human plan lines would corrupt the single-envelope contract.
+		if err == nil {
+			emitOK("vm.plan", map[string]any{"vm": vmname(),
+				"command": strings.TrimSpace(out)})
+		} else {
+			emitFail("vm.plan", "plan_failed", strings.TrimSpace(out))
+		}
+	} else {
+		fmt.Print(out)
 	}
 	return rc(err)
 }
