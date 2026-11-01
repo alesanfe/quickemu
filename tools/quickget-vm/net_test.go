@@ -220,23 +220,54 @@ func TestGetMacos(t *testing.T) {
 func TestGetWindows(t *testing.T) {
 	stubFetchers(t)
 	stubProbe(t, map[string]string{
-		"fwlink": "https://dl.img/file.iso",
+		"evalcenter": `<a href="https://go.microsoft.com/fwlink/?linkid=99&clcid=0x409&culture=en-us&country=US">iso</a>`,
+		"fwlink":     "→https://dl.img/file.iso",
 	})
 	dir := t.TempDir()
 	// invalid language → early error.
 	if rc := getWindows("windows", "11", "Klingon", filepath.Join(dir, "w"), "amd64"); rc != 1 {
 		t.Fatal("bad language should fail")
 	}
-	// valid flow — downloadWindowsWorkstation hits stubProbe; even a
-	// parse failure continues to conf generation.
-	// With fetchers+probe stubbed the flow completes → rc 0.
+	// valid flow — downloadWindowsWorkstation hits stubProbe; a
+	// download failure still writes the conf for a manually-placed
+	// ISO but exits 1 (Bash parity; acquire-image must not report
+	// success with a missing ISO).
 	if rc := getWindows("windows", "11", "English International",
-		filepath.Join(dir, "w2"), "amd64"); rc != 0 {
+		filepath.Join(dir, "w2"), "amd64"); rc != 1 {
 		t.Fatalf("getWindows rc=%d", rc)
 	}
 	if rc := getWindows("windows-server", "2022", "",
 		filepath.Join(dir, "w3"), "amd64"); rc != 0 {
 		t.Fatalf("getWindows-server rc=%d", rc)
+	}
+}
+
+func TestGetWindowsEvalFallback(t *testing.T) {
+	// The exact failure observed on hosts where the MVS connector is
+	// Sentinel-IP-blocked: the sku/link API rejects, then the Eval
+	// Center fwlink path must still produce a downloadable ISO.
+	stubFetchers(t)
+	stubProbe(t, map[string]string{
+		"software-download":                  `<option value="123">Windows 11`,
+		"vlscppe":                            "ok",
+		"mdt.js":                             `w=ABC rticks="123`,
+		"ov-df":                              "ok",
+		"getskuinformationbyproductedition":  `{"Skus":[{"Id":"42","LocalizedLanguage":"English International","Language":"English International"}]}`,
+		"GetProductDownloadLinksBySku":       `Sentinel marked this request as rejected.`,
+		"evalcenter":                         `<a href="https://go.microsoft.com/fwlink/?linkid=99&amp;clcid=0x409&amp;culture=en-us&amp;country=us">iso</a>`,
+		"go.microsoft.com/fwlink/?linkid=99": "→https://dl.img/CLIENTENTERPRISEEVAL_x64FRE_en-us.iso",
+	})
+	dir := t.TempDir()
+	if rc := getWindows("windows", "11", "English International",
+		filepath.Join(dir, "w"), "amd64"); rc != 0 {
+		t.Fatalf("eval fallback rc=%d", rc)
+	}
+	conf, err := os.ReadFile(filepath.Join(dir, "w.conf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(conf), "CLIENTENTERPRISEEVAL_x64FRE_en-us.iso") {
+		t.Fatalf("conf does not reference eval ISO:\n%s", conf)
 	}
 }
 
@@ -279,5 +310,32 @@ func TestIsoExtractPure(t *testing.T) {
 	ok := isoExtractPure(iso, out, "boot")
 	if !ok {
 		t.Fatal("isoExtractPure failed")
+	}
+}
+
+func TestFwLinkRegex(t *testing.T) {
+	// Real Eval Center page variants observed in the wild:
+	//   linkid / LinkId / LinkID casings, with and without /p/,
+	//   plain & and HTML-escaped &amp; separators.
+	page := strings.ReplaceAll(`x https://go.microsoft.com/fwlink/?linkid=2234173&clcid=0x409&culture=en-us&country=us y
+		a https://go.microsoft.com/fwlink/p/?LinkID=2194444&clcid=0x409&culture=en-gb&country=GB b
+		c https://go.microsoft.com/fwlink/?LinkId=2382600&clcid=0x409&culture=en-us&country=us d`, "&amp;", "&")
+	links := reFwLink.FindAllString(page, -1)
+	if len(links) != 3 {
+		t.Fatalf("reFwLink found %d links, want 3: %v", len(links), links)
+	}
+	var enUS []string
+	for _, l := range links {
+		if strings.Contains(l, "culture=en-us") {
+			enUS = append(enUS, l)
+		}
+	}
+	if len(enUS) != 2 {
+		t.Fatalf("en-us links=%v", enUS)
+	}
+	// &amp;-escaped form only matches after entity normalisation.
+	esc := `https://go.microsoft.com/fwlink/?linkid=1&amp;clcid=0x409&amp;culture=en-us&amp;country=us`
+	if got := reFwLink.FindAllString(strings.ReplaceAll(esc, "&amp;", "&"), -1); len(got) != 1 {
+		t.Fatalf("normalised &amp; fwlink not matched: %v", got)
 	}
 }

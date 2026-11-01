@@ -90,7 +90,7 @@ var (
 	reProductOpt = regexp.MustCompile(`<option value="([0-9]+)">Windows`)
 	reMdtW       = regexp.MustCompile(`[?&]w=([A-F0-9]+)`)
 	reMdtRticks  = regexp.MustCompile(`rticks="?\+?([0-9]+)`)
-	reFwLink     = regexp.MustCompile(`(?i)https://go\.microsoft\.com/fwlink/(?:p/)?\?linkid=[0-9]+&clcid=0x[0-9a-z]+&culture=[^&"']+&country=[^&"']+`)
+	reFwLink     = regexp.MustCompile(`(?i)https://go\.microsoft\.com/fwlink/(?:p/)?\?linkid=[0-9]+&clcid=0x[0-9a-z]+&culture=[0-9a-z-]+&country=[0-9a-z]+`)
 )
 
 // downloadWindowsWorkstation: consumer Windows 10/11 ISO via the
@@ -243,6 +243,7 @@ func downloadWindowsServer(release, i18n, vmPath, entType string) (string, error
 		cc = c
 	}
 	fmt.Println(" - Getting download link..")
+	page = strings.ReplaceAll(page, "&amp;", "&")
 	var links []string
 	for _, l := range reFwLink.FindAllString(page, -1) {
 		if strings.Contains(l, "culture="+cc[0]+"&country="+cc[1]) {
@@ -307,6 +308,7 @@ func downloadWindowsEval(release, vmPath string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	page = strings.ReplaceAll(page, "&amp;", "&")
 	for _, l := range reFwLink.FindAllString(page, -1) {
 		if !strings.Contains(l, "culture=en-us") {
 			continue
