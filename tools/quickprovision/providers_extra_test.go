@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -109,15 +110,26 @@ func TestInferProviderMainstream(t *testing.T) {
 			t.Fatalf("%s → %q, want %q", osName, got, want)
 		}
 	}
-	// fedora is edition-aware: Server runs anaconda, spins are live.
-	var srv, wk Profile
+	// fedora is edition-aware: Server + Everything netinst run
+	// anaconda, spins are live.
+	var srv, ev, wk Profile
 	srv.System.OS, srv.System.Edition = "fedora", "Server"
+	ev.System.OS, ev.System.Edition = "fedora", "Everything"
 	wk.System.OS, wk.System.Edition = "fedora", "Workstation"
 	if inferProvider(&srv) != "anaconda-kickstart" {
 		t.Fatal("fedora Server → kickstart")
 	}
+	if inferProvider(&ev) != "anaconda-kickstart" {
+		t.Fatal("fedora Everything netinst → kickstart")
+	}
 	if inferProvider(&wk) != "visual" {
 		t.Fatal("fedora Workstation is a live image → visual")
+	}
+	// qubes runs anaconda with documented kickstart support.
+	var q Profile
+	q.System.OS = "qubes"
+	if inferProvider(&q) != "anaconda-kickstart" {
+		t.Fatal("qubes → kickstart")
 	}
 	// debian: only installer editions run d-i; DE editions are live.
 	var dNet, dLive Profile
@@ -128,6 +140,26 @@ func TestInferProviderMainstream(t *testing.T) {
 	}
 	if inferProvider(&dLive) != "visual" {
 		t.Fatal("debian live → visual")
+	}
+	// devuan: the netinst edition runs d-i; desktop-live does not.
+	var dvNet, dvLive Profile
+	dvNet.System.OS, dvNet.System.Edition = "devuan", "netinst"
+	dvLive.System.OS = "devuan"
+	if inferProvider(&dvNet) != "debian-preseed" {
+		t.Fatal("devuan netinst → preseed")
+	}
+	if inferProvider(&dvLive) != "visual" {
+		t.Fatal("devuan desktop-live → visual")
+	}
+	// mageia: only the classic DVD runs drakx auto_inst; Live does not.
+	var mgDVD, mgLive Profile
+	mgDVD.System.OS, mgDVD.System.Edition = "mageia", "DVD"
+	mgLive.System.OS, mgLive.System.Edition = "mageia", "Plasma"
+	if inferProvider(&mgDVD) != "mageia-autoinst" {
+		t.Fatal("mageia DVD → mageia-autoinst")
+	}
+	if inferProvider(&mgLive) != "visual" {
+		t.Fatal("mageia Live → visual")
 	}
 	// trisquel: only netinst runs d-i.
 	var tNet, tLive Profile
@@ -147,7 +179,14 @@ func TestInferProviderMainstream(t *testing.T) {
 		t.Fatal("opensuse 16.0 → autoyast")
 	}
 	if inferProvider(&micro) != "visual" {
-		t.Fatal("opensuse microos → visual")
+		t.Fatal("opensuse release microos (DVD selfinstall) → visual")
+	}
+	// opensuse-microos the catalog OS resolves the kvm-and-xen qcow2 —
+	// combustion via fw_cfg, same shape as fedora-coreos + ignition.
+	var mos Profile
+	mos.System.OS = "opensuse-microos"
+	if inferProvider(&mos) != "combustion" {
+		t.Fatal("opensuse-microos qcow2 → combustion")
 	}
 	// alpine: unattended needs mkinitfs ≥3.19 for the ssh_key URL.
 	var a19, a18 Profile
@@ -579,9 +618,67 @@ func TestRenderKickstart(t *testing.T) {
 	}
 	// Netinst editions carry no packages — the source command must be
 	// omitted so anaconda uses the product's default mirror instead.
-	p.System.Edition = "boot"
-	if strings.Contains(renderKickstart(&p, "$6$salt$hash", nil), "cdrom") {
-		t.Fatal("boot/netinst kickstart must not source packages from cdrom")
+	for _, ed := range []string{"boot", "netinst", "Everything"} {
+		p.System.Edition = ed
+		if strings.Contains(renderKickstart(&p, "$6$salt$hash", nil), "cdrom") {
+			t.Fatalf("%s kickstart must not source packages from cdrom", ed)
+		}
+	}
+}
+
+func TestRenderCombustion(t *testing.T) {
+	var p Profile
+	p.Identity.Hostname = "mos1"
+	p.Identity.Username = "dev"
+	s := renderCombustion(&p, "$6$salt$hash",
+		[]string{"ssh-ed25519 AAAA", "ssh-ed25519 BBBB"})
+	for _, want := range []string{
+		"#!/bin/sh",
+		"# combustion: network",
+		"useradd -m -G wheel",
+		"dev:$6$salt$hash",
+		"ssh-ed25519 AAAA",
+		"ssh-ed25519 BBBB",
+		"systemctl enable sshd",
+		"mos1",
+		"NOPASSWD",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("combustion script missing %q:\n%s", want, s)
+		}
+	}
+}
+
+func TestRenderAutoInst(t *testing.T) {
+	var p Profile
+	p.Identity.Hostname = "mga1"
+	p.Identity.Username = "dev"
+	s := renderAutoInst(&p, "$6$salt$hash")
+	for _, want := range []string{
+		"$o = {",
+		"'useless_thing_accepted' => 1",
+		"'auto_allocate' => 1",
+		"'name' => 'dev'",
+		"'pw' => '$6$salt$hash'",
+		"'mga1'",
+		"poweroff",
+		"NOPASSWD:ALL",
+		"openssh-server",
+	} {
+		if !strings.Contains(s, want) {
+			t.Fatalf("auto_inst missing %q:\n%s", want, s)
+		}
+	}
+	// The cfg is a perl snippet — it must at least pass a syntax check
+	// when perl is around, since drakx feeds it straight to eval.
+	if perl, err := exec.LookPath("perl"); err == nil {
+		f := filepath.Join(t.TempDir(), "auto_inst.cfg.pl")
+		if err := os.WriteFile(f, []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if out, err := exec.Command(perl, "-cw", f).CombinedOutput(); err != nil {
+			t.Fatalf("auto_inst.pl fails perl -cw: %v\n%s", err, out)
+		}
 	}
 }
 

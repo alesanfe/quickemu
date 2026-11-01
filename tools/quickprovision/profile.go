@@ -178,9 +178,11 @@ func inferProvider(p *Profile) string {
 		// the appliance layer belongs to the provision stage.
 		return "debian-preseed"
 	case "devuan":
-		// The catalog resolves the desktop-live ISO (refractainstaller,
-		// not d-i) — preseed would silently install plain Debian.
-		// Devuan netinst ISOs are d-i but quickget cannot fetch them.
+		// Only the netinstall ISO runs d-i; the desktop-live the
+		// catalog defaults to is refractainstaller.
+		if p.System.Edition == "netinst" {
+			return "debian-preseed"
+		}
 	case "trisquel":
 		// Only the netinst ISO runs d-i; the DE editions are live.
 		if p.System.Edition == "netinst" {
@@ -191,8 +193,21 @@ func inferProvider(p *Profile) string {
 	case "macos":
 		return "visual"
 	case "fedora":
-		if p.System.Edition == "Server" {
+		// Spins/Workstation resolve to live media — only installer
+		// ISOs run anaconda unattended: the Server DVD or the
+		// Everything netinst.
+		if p.System.Edition == "Server" || p.System.Edition == "Everything" {
 			return "anaconda-kickstart"
+		}
+	case "qubes":
+		// The Qubes installer is anaconda with documented kickstart
+		// support.
+		return "anaconda-kickstart"
+	case "mageia":
+		// Only the classic DVD runs drakx auto_inst; the Live media
+		// has its own installer.
+		if p.System.Edition == "DVD" {
+			return "mageia-autoinst"
 		}
 	case "alma", "centos", "centos-stream", "rockylinux", "oraclelinux",
 		"tencentos", "anolis", "eurolinux", "opencloudos", "openeuler",
@@ -210,6 +225,10 @@ func inferProvider(p *Profile) string {
 		if p.System.Release != "microos" {
 			return "opensuse-autoyast"
 		}
+	case "opensuse-microos":
+		// Pre-imaged kvm-and-xen qcow2 + combustion script via QEMU
+		// fw_cfg — the MicroOS twin of fedora-coreos.
+		return "combustion"
 	case "proxmox-ve", "proxmox-backup-server", "proxmox-mail-gateway",
 		"proxmox-datacenter-manager":
 		return "proxmox-autoinstall"

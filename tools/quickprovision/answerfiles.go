@@ -487,6 +487,65 @@ d-i preseed/late_command string in-target sh -c 'echo "` + user + ` ALL=(ALL) NO
 // other providers: end of install is a qemu exit. The wheel group is
 // the sudo mechanism across the RHEL family; the run user gets it
 // plus NOPASSWD via %post.
+// renderCombustion builds the MicroOS combustion script: `# combustion:
+// network` is the documented flag that lets the dracut module bring the
+// network up. The script runs inside transactional-update on first
+// boot — /etc and /home are the mutable sides of the atomic system, so
+// user/sshd/hostname changes persist without a snapshot reboot.
+// renderAutoInst emits a drakx auto_inst.cfg.pl — a perl hashref.
+// `useless_thing_accepted` is drakx's own flag that lets it continue
+// past non-fatal cfg errors instead of dropping into the interactive
+// wizard; `autoExitInstall` skips the end-of-install prompt and the
+// postInstall shell hook powers the VM off for an observable exit.
+func renderAutoInst(p *Profile, hash string) string {
+	user := p.Identity.Username
+	host := p.Identity.Hostname
+	if host == "" {
+		host = "mageia"
+	}
+	var sb strings.Builder
+	sb.WriteString("#!/usr/bin/perl -cw\n$o = {\n")
+	sb.WriteString(" 'useless_thing_accepted' => 1,\n 'autoExitInstall' => 1,\n 'isUpgrade' => 0,\n")
+	sb.WriteString(" 'interactiveSteps' => [],\n 'toDelete' => [],\n 'compssUsersChoice' => {},\n")
+	fmt.Fprintf(&sb, " 'timezone' => { 'timezone' => 'UTC', 'UTC' => 1 },\n")
+	fmt.Fprintf(&sb, " 'locale' => { 'lang' => 'en_US', 'langs' => { 'en_US' => 1 } },\n")
+	fmt.Fprintf(&sb, " 'keyboard' => { 'KEYBOARD' => 'us', 'unsafe' => 1 },\n")
+	sb.WriteString(" 'partitioning' => { 'auto_allocate' => 1, 'clearall' => 1 },\n")
+	sb.WriteString(" 'authentication' => { 'shadow' => 1, 'blowfish' => 1 },\n")
+	sb.WriteString(" 'netc' => { 'type' => 'lan', 'dhcp' => 1, 'NET_DEV' => 'eth0', 'NET_INTERFACE' => 'eth0' },\n")
+	fmt.Fprintf(&sb, " 'hostname' => '%s',\n", host)
+	fmt.Fprintf(&sb, " 'superuser' => { 'name' => 'root', 'pw' => '%s', 'shell' => '/bin/bash', 'home' => '/root', 'realname' => 'root', 'icon' => 'default' },\n", hash)
+	fmt.Fprintf(&sb, " 'users' => [ { 'name' => '%s', 'pw' => '%s', 'shell' => '/bin/bash', 'home' => '/home/%s', 'realname' => '%s', 'icon' => 'default', 'groups' => [] } ],\n", user, hash, user, user)
+	sb.WriteString(" 'default_packages' => [ 'basesystem', 'kernel-server-latest', 'openssh-server', 'sudo', 'qemu-guest-agent' ],\n")
+	sb.WriteString(" 'services' => [ 'sshd' ],\n 'security' => 2,\n 'mkbootdisk' => 0,\n 'X' => { 'disabled' => 1 },\n")
+	fmt.Fprintf(&sb, " 'postInstall' => 'mkdir -p /mnt/etc/sudoers.d && echo \"%s ALL=(ALL) NOPASSWD:ALL\" > /mnt/etc/sudoers.d/%s && systemctl --root=/mnt enable sshd 2>/dev/null; poweroff',\n", user, user)
+	sb.WriteString("};\n")
+	return sb.String()
+}
+
+func renderCombustion(p *Profile, hash string, keys []string) string {
+	user := p.Identity.Username
+	host := p.Identity.Hostname
+	if host == "" {
+		host = "microos"
+	}
+	var sb strings.Builder
+	sb.WriteString("#!/bin/sh\n# combustion: network\n")
+	sb.WriteString("set -ex\n")
+	fmt.Fprintf(&sb, "hostnamectl set-hostname %s 2>/dev/null || echo '%s' > /etc/hostname\n", host, host)
+	fmt.Fprintf(&sb, "useradd -m -G wheel -s /bin/bash %s || true\n", user)
+	fmt.Fprintf(&sb, "echo '%s:%s' | chpasswd -e\n", user, hash)
+	sb.WriteString("echo 'wheel ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/wheel\nchmod 440 /etc/sudoers.d/wheel\n")
+	fmt.Fprintf(&sb, "install -d -m700 -o %s /home/%s/.ssh\n", user, user)
+	for _, k := range keys {
+		if k = strings.TrimSpace(k); k != "" {
+			fmt.Fprintf(&sb, "echo '%s' >> /home/%s/.ssh/authorized_keys\n", k, user)
+		}
+	}
+	sb.WriteString("systemctl enable sshd.service\n")
+	return sb.String()
+}
+
 func renderKickstart(p *Profile, hash string, keys []string) string {
 	user := p.Identity.Username
 	host := p.Identity.Hostname
@@ -507,10 +566,11 @@ func renderKickstart(p *Profile, hash string, keys []string) string {
 	fmt.Fprintf(&sb, "lang %s\nkeyboard %s\ntimezone %s --utc\n", lang, kbd, tz)
 	fmt.Fprintf(&sb, "network --bootproto=dhcp --device=link --activate --hostname=%s\n", host)
 	// `cdrom` sources packages from the media — only DVDs carry them.
-	// Netinst editions (boot/netinst ISOs) omit the source command so
-	// anaconda falls back to the product's default remote mirror.
+	// Netinst editions (boot/netinst/everything ISOs) omit the source
+	// command so anaconda falls back to the product's default remote
+	// mirror.
 	switch strings.ToLower(p.System.Edition) {
-	case "boot", "netinst", "netboot", "network":
+	case "boot", "netinst", "netboot", "network", "everything":
 	default:
 		sb.WriteString("cdrom\n")
 	}

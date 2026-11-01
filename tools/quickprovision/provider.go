@@ -66,6 +66,8 @@ func pickProvider(p *Profile) (provider, error) {
 		return &anacondaKickstart{}, nil
 	case "opensuse-autoyast":
 		return &opensuseAutoyast{}, nil
+	case "mageia-autoinst":
+		return &mageiaAutoinst{}, nil
 	case "alpine-unattended":
 		return &alpineUnattended{}, nil
 	case "arch-pacstrap":
@@ -86,6 +88,8 @@ func pickProvider(p *Profile) (provider, error) {
 		return &flatcarIgnition{}, nil
 	case "coreos-ignition":
 		return &coreosIgnition{}, nil
+	case "combustion":
+		return &combustionConfig{}, nil
 	case "ubiquity-preseed":
 		return &ubiquityPreseed{}, nil
 	case "slackware-live":
@@ -552,6 +556,60 @@ func (a *anacondaKickstart) prepare(r *runCtx) error {
 	// then makes the same media the package source.
 	edits["boot_args"] = fmt.Sprintf(
 		"inst.ks=http://10.0.2.2:%d/ks.cfg inst.stage2=cdrom console=ttyS0", port)
+	return confSet(r.confPath, edits)
+}
+
+// --- Mageia drakx auto_inst (mageia DVD) --------------------------------
+//
+// mageiaAutoinst drives drakx's automatic mode: the loader kernel +
+// all.rdz extracted from the DVD ISO boot with `automatic=met:cdrom`
+// (packages from the media) + `netw:dhcp` and `kickstart=` pointing at
+// the generated auto_inst.cfg.pl on the embedded HTTP server. The cfg
+// ends in a `postInstall` poweroff for an observable completion.
+type mageiaAutoinst struct{}
+
+func (m *mageiaAutoinst) id() string                 { return "mageia-autoinst" }
+func (m *mageiaAutoinst) needsSecondBoot() bool      { return true }
+func (m *mageiaAutoinst) interactive() bool          { return false }
+func (m *mageiaAutoinst) completionMode() string     { return "poweroff" }
+func (m *mageiaAutoinst) postInstallFiles() []string { return nil }
+func (m *mageiaAutoinst) dropConfKeys() []string {
+	return []string{"kernel", "initrd", "boot_args", "iso", "fixed_iso"}
+}
+func (m *mageiaAutoinst) sshUser(p *Profile) string { return p.Identity.Username }
+
+func (m *mageiaAutoinst) prepare(r *runCtx) error {
+	iso := confGet(r.confPath, "iso")
+	if iso == "" {
+		return fmt.Errorf("conf %s has no iso= — is this the mageia DVD VM?", r.confPath)
+	}
+	iso = resolveConfPath(r.confPath, iso)
+	got, err := extractBootfiles(iso, "isolinux/x86_64", r.vmDir,
+		[]string{"vmlinuz", "all.rdz"})
+	if err != nil {
+		return fmt.Errorf("drakx boot files: %w", err)
+	}
+	hash, err := pwHash(r.p)
+	if err != nil {
+		return fmt.Errorf("password hash: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(r.artDir, "auto_inst.cfg.pl"),
+		[]byte(renderAutoInst(r.p, hash)), 0o644); err != nil {
+		return err
+	}
+	port, srv, err := startSeedHTTPServer(r.artDir)
+	if err != nil {
+		return err
+	}
+	r.seedSrv = srv
+	r.e.progress("prepare",
+		fmt.Sprintf("auto_inst served at http://10.0.2.2:%d/auto_inst.cfg.pl", port))
+	edits := commonConfEdits(r)
+	delete(edits, "seed")
+	edits["kernel"] = got["vmlinuz"]
+	edits["initrd"] = got["all.rdz"]
+	edits["boot_args"] = fmt.Sprintf(
+		"automatic=met:cdrom,int:eth0,netw:dhcp kickstart=http://10.0.2.2:%d/auto_inst.cfg.pl console=ttyS0", port)
 	return confSet(r.confPath, edits)
 }
 
@@ -1303,6 +1361,38 @@ func (f *flatcarIgnition) driveInstall(ctx context.Context, r *runCtx) error {
 // Ignition config passed via -fw_cfg on first boot creates the user,
 // keys and hostname (the documented opt/com.coreos/config channel).
 // extra_args is the launcher's escape hatch — zero launcher changes.
+// combustionConfig: openSUSE MicroOS ships a prebuilt kvm-and-xen
+// qcow2 — the combustion dracut module reads the script passed via
+// QEMU fw_cfg on first boot and applies it in a transactional-update
+// shell. Same single-boot shape as coreos-ignition.
+type combustionConfig struct{}
+
+func (c *combustionConfig) id() string                 { return "combustion" }
+func (c *combustionConfig) needsSecondBoot() bool      { return false }
+func (c *combustionConfig) interactive() bool          { return false }
+func (c *combustionConfig) completionMode() string     { return "poweroff" }
+func (c *combustionConfig) postInstallFiles() []string { return nil }
+func (c *combustionConfig) dropConfKeys() []string     { return []string{"extra_args"} }
+func (c *combustionConfig) sshUser(p *Profile) string  { return p.Identity.Username }
+
+func (c *combustionConfig) prepare(r *runCtx) error {
+	hash, err := pwHash(r.p)
+	if err != nil {
+		return fmt.Errorf("password hash: %w", err)
+	}
+	keys := append([]string{r.kp.pub}, r.p.Identity.SSHAuthorizedKeys...)
+	script := filepath.Join(r.vmDir, "combustion-script")
+	if err := os.WriteFile(script,
+		[]byte(renderCombustion(r.p, hash, keys)), 0o644); err != nil {
+		return err
+	}
+	edits := commonConfEdits(r)
+	delete(edits, "seed")
+	edits["extra_args"] = fmt.Sprintf(
+		"-fw_cfg name=opt/org.opensuse.combustion/script,file=%s", script)
+	return confSet(r.confPath, edits)
+}
+
 type coreosIgnition struct{}
 
 func (c *coreosIgnition) id() string                 { return "coreos-ignition" }
