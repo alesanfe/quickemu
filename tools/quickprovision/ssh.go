@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -106,6 +107,47 @@ func sshExec(c *ssh.Client, cmd string) (string, int, error) {
 		}
 	}
 	return string(out), rc, nil
+}
+
+var errSSHDeadline = errors.New("ssh: command deadline exceeded")
+
+// sshExecDeadline runs cmd like sshExec but abandons the session once
+// d elapses — unbounded remote commands must never wedge a run (an
+// unprivileged `cloud-init status --wait` spins forever on guests
+// keeping /run/cloud-init root-only). The orphaned remote process is
+// left to the guest's init.
+func sshExecDeadline(c *ssh.Client, cmd string, d time.Duration) (string, int, error) {
+	s, err := c.NewSession()
+	if err != nil {
+		return "", -1, err
+	}
+	type res struct {
+		out string
+		rc  int
+		err error
+	}
+	done := make(chan res, 1)
+	go func() {
+		out, err := s.CombinedOutput(cmd)
+		rc := 0
+		if err != nil {
+			if ee, ok := err.(*ssh.ExitError); ok {
+				rc = ee.ExitStatus()
+			} else {
+				done <- res{string(out), -1, err}
+				return
+			}
+		}
+		done <- res{string(out), rc, nil}
+	}()
+	select {
+	case r := <-done:
+		s.Close()
+		return r.out, r.rc, r.err
+	case <-time.After(d):
+		s.Close()
+		return "", -1, errSSHDeadline
+	}
 }
 
 // sshWrite drops content at a remote path via stdin (no scp/sftp

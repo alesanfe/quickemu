@@ -421,7 +421,10 @@ func (r *runCtx) reconfigure() error {
 
 // sudoPollInterval paces the privilege-tool wait below; tests shrink
 // it so the absent-sudo path doesn't take five minutes.
-var sudoPollInterval = 10 * time.Second
+var (
+	sudoPollInterval = 10 * time.Second
+	cloudInitWaitMax = 10 * time.Minute
+)
 
 // provision applies packages/services/files/commands over SSH. The
 // package manager is detected on the guest — a guest without one
@@ -436,11 +439,19 @@ func (r *runCtx) provision(ctx context.Context) error {
 		return r.provisionWindows(ctx, c)
 	}
 	// first boot may still be running cloud-init — wait it out so the
-	// apt lock is free (no cloud-init binary → instant no-op). Reads
-	// status without sudo: on images shipping doas-only (Alpine) sudo
-	// only exists once cloud-init's own package stage installs it.
+	// apt lock is free (no cloud-init binary → instant no-op). Prefer
+	// sudo -n where it exists (Rocky ≥10 keeps /run/cloud-init
+	// root-only and an unprivileged `status --wait` never observes
+	// "done", spinning forever); doas-only images (Alpine) fall back
+	// to the plain wait. Bounded either way — a stuck remote command
+	// must not wedge the run.
 	priv := r.priv()
-	_, _, _ = sshExec(c, "command -v cloud-init >/dev/null && cloud-init status --wait || true")
+	_, _, _ = sshExecDeadline(c,
+		"command -v cloud-init >/dev/null || exit 0; "+
+			"if sudo -n true 2>/dev/null; then "+
+			"exec sudo -n cloud-init status --wait; "+
+			"else exec cloud-init status --wait; fi",
+		cloudInitWaitMax)
 	for i := 0; i < 30 && priv != ""; i++ {
 		if _, rc, _ := sshExec(c, "command -v sudo >/dev/null"); rc == 0 {
 			break
