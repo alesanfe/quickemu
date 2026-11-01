@@ -219,10 +219,10 @@ var provisionMatrix = []provisionCase{
 	},
 	{
 		name: "opensuse-microos", os: "opensuse-microos", release: "latest",
-		wantProvide: "combustion",
+		wantProvide: "nocloud-image",
 		wantSteps:   []string{"launch", "wait-ssh", "verify", "seal"},
 		installMin:  30, sshMin: 20,
-		notes: "kvm-and-xen qcow2 + combustion script via fw_cfg",
+		notes: "OpenStack-Cloud qcow2 — only MicroOS variant with cloud-init",
 	},
 	{
 		name: "devuan-netinst", os: "devuan", release: "daedalus", edition: "netinst",

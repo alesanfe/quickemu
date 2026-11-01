@@ -199,12 +199,14 @@ var indexNZResolvers = map[string]func(release, edition, arch string) (string, s
 		return u, "", nil
 	},
 	"opensuse-microos": func(release, edition, arch string) (string, string, error) {
-		// Pre-imaged kvm-and-xen qcow2 — MicroOS provisions via a
-		// combustion script on QEMU fw_cfg, like fedora-coreos uses
-		// ignition. The DVD ISO is a kiwi selfinstall that needs menu
-		// interaction, so it is unsuitable.
+		// OpenStack-Cloud qcow2 — the only MicroOS variant shipping
+		// cloud-init (datasources LocalDisk/NoCloud/OpenStack), so it
+		// provisions through nocloud-image. kvm-and-xen uses
+		// combustion/ignition on firstboot, which did not fire on
+		// fw_cfg nor config-drive in e2e; the DVD ISO is a kiwi
+		// selfinstall needing menu interaction.
 		return indexISO("https://download.opensuse.org/tumbleweed/appliances/",
-			`openSUSE-MicroOS\.x86_64-(?:[0-9.]+-)?kvm-and-xen(?:-Snapshot\d+)?\.qcow2`)
+			`openSUSE-MicroOS\.x86_64-(?:[0-9.]+-)?OpenStack-Cloud(?:-Snapshot\d+)?\.qcow2`)
 	},
 	"proxmox-backup-server": func(release, edition, arch string) (string, string, error) {
 		// release-aware: proxmox-backup-server_4.2-1.iso etc.

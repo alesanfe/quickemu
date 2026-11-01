@@ -299,7 +299,7 @@ func bodyFor(url string) (string, error) {
 	case strings.Contains(url, "slowroll"):
 		return `<a href="openSUSE-Slowroll-DVD-x86_64-Build2024.09.15-Media.iso">x</a>`, nil
 	case strings.Contains(url, "tumbleweed/appliances"):
-		return `<a href="openSUSE-MicroOS.x86_64-16.0.0-kvm-and-xen-Snapshot20261030.qcow2">x</a><a href="openSUSE-MicroOS.x86_64-16.0.0-kvm-and-xen-grub-bls-Snapshot20261030.qcow2">y</a>`, nil
+		return `<a href="openSUSE-MicroOS.x86_64-16.0.0-OpenStack-Cloud-Snapshot20261030.qcow2">x</a><a href="openSUSE-MicroOS.x86_64-16.0.0-ContainerHost-OpenStack-Cloud-Snapshot20261030.qcow2">y</a><a href="openSUSE-MicroOS.x86_64-16.0.0-kvm-and-xen-grub-bls-Snapshot20261030.qcow2">z</a>`, nil
 	case strings.Contains(url, "hardenedbsd") && strings.Contains(url, "MANIFEST"):
 		return "SHA256 (disc1.iso) = " + shaX + "\n", nil
 	case strings.Contains(url, "hardenedbsd"):

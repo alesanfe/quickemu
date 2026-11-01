@@ -226,9 +226,12 @@ func inferProvider(p *Profile) string {
 			return "opensuse-autoyast"
 		}
 	case "opensuse-microos":
-		// Pre-imaged kvm-and-xen qcow2 + combustion script via QEMU
-		// fw_cfg — the MicroOS twin of fedora-coreos.
-		return "combustion"
+		// OpenStack-Cloud qcow2 — the only MicroOS variant with
+		// cloud-init (NoCloud datasource included). The kvm-and-xen
+		// combustion path was implemented but firstboot.target does
+		// not fire on the current image (verified via fw_cfg and
+		// config-drive boots: straight to login, no dev user).
+		return "nocloud-image"
 	case "proxmox-ve", "proxmox-backup-server", "proxmox-mail-gateway",
 		"proxmox-datacenter-manager":
 		return "proxmox-autoinstall"

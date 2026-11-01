@@ -171,7 +171,7 @@ func TestInferProviderMainstream(t *testing.T) {
 	if inferProvider(&tLive) != "visual" {
 		t.Fatal("trisquel live → visual")
 	}
-	// opensuse: tumbleweed/leap autoyast; microos is combustion.
+	// opensuse: tumbleweed/leap autoyast; microos is nocloud-image.
 	var leap, micro Profile
 	leap.System.OS, leap.System.Release = "opensuse", "16.0"
 	micro.System.OS, micro.System.Release = "opensuse", "microos"
@@ -181,12 +181,12 @@ func TestInferProviderMainstream(t *testing.T) {
 	if inferProvider(&micro) != "visual" {
 		t.Fatal("opensuse release microos (DVD selfinstall) → visual")
 	}
-	// opensuse-microos the catalog OS resolves the kvm-and-xen qcow2 —
-	// combustion via fw_cfg, same shape as fedora-coreos + ignition.
+	// opensuse-microos the catalog OS resolves the OpenStack-Cloud
+	// qcow2 — the only MicroOS variant carrying cloud-init.
 	var mos Profile
 	mos.System.OS = "opensuse-microos"
-	if inferProvider(&mos) != "combustion" {
-		t.Fatal("opensuse-microos qcow2 → combustion")
+	if inferProvider(&mos) != "nocloud-image" {
+		t.Fatal("opensuse-microos qcow2 → nocloud-image")
 	}
 	// alpine: unattended needs mkinitfs ≥3.19 for the ssh_key URL.
 	var a19, a18 Profile
