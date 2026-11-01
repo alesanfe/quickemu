@@ -352,8 +352,8 @@ func ipCacheWrite(v4, v6 []string) {
 
 func actGuestIP() int {
 	if !vmRunning() {
-		fmt.Printf(" - %s is not running.\n", vmname())
-		return 1
+		return guestEmitErr("vm.ip", "ip",
+			fmt.Errorf("%w (VM is not running)", qga.ErrSocketMissing))
 	}
 	var v4, v6 []string
 	if c := ipCacheRead(); c != nil && guestVerbState.ip.iface == "" {

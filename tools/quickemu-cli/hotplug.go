@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,11 +10,36 @@ import (
 	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
+// emitHotplugResult: the user-facing envelope for a hot(un)plug op.
+// The qmp tool's own qmp.execute envelope is an implementation detail —
+// its typed errors[] are re-wrapped under our command name so callers
+// keep the real failure codes (QMP_CONNECT, DEVICE_NOT_FOUND...).
+func emitHotplugResult(cmd, out string, err error, data map[string]any) int {
+	if err == nil {
+		emitOK(cmd, data)
+		return 0
+	}
+	var env struct {
+		Errors any `json:"errors"`
+	}
+	if json.Unmarshal([]byte(out), &env) == nil && env.Errors != nil {
+		emitEnvelope(cmd, false, nil, env.Errors)
+	} else {
+		emitFail(cmd, "QMP_FAILED", err.Error())
+	}
+	return 1
+}
+
 // actHotplugUSB: vm_hotplug_usb parity — usb-host device_add.
 func actHotplugUSB() int {
 	vp := extra["hotplug-usb"]
 	if ok, _ := filepath.Match("[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]", vp); !ok {
-		fmt.Fprintln(os.Stderr, "ERROR! --hotplug-usb needs vendor:product hex (e.g. 05ac:12a8).")
+		if outFmt == "json" {
+			emitFail("vm.hotplug", "INVALID_ARGUMENT",
+				"--hotplug-usb needs vendor:product hex (e.g. 05ac:12a8)")
+		} else {
+			fmt.Fprintln(os.Stderr, "ERROR! --hotplug-usb needs vendor:product hex (e.g. 05ac:12a8).")
+		}
 		return 1
 	}
 	var vid, pid uint64
@@ -21,6 +47,17 @@ func actHotplugUSB() int {
 	id := "hotusb" + strings.ReplaceAll(vp, ":", "")
 	payload := qmpCmd("device_add", map[string]any{"driver": "usb-host", "id": id, "vendorid": vid, "productid": pid})
 	out, err := qmpRaw(payload)
+	if outFmt == "json" {
+		if persistFlag {
+			hotplugPersist("usb", vp)
+		}
+		if err == nil {
+			qeEvent("vm.hotplug", jsonStr(map[string]any{"device": "usb", "id": id}))
+		}
+		return emitHotplugResult("vm.hotplug", out, err,
+			map[string]any{"device": "usb", "id": id,
+				"vendorProduct": vp, "persisted": persistFlag})
+	}
 	fmt.Print(out)
 	if persistFlag {
 		// Desired state vs observed QMP state (vm_hotplug_usb parity):
@@ -40,7 +77,11 @@ func actHotplugDisk() int {
 	f := extra["hotplug-disk"]
 	abs, err := filepath.Abs(f)
 	if err != nil || !fileExists(abs) {
-		fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", f)
+		if outFmt == "json" {
+			emitFail("vm.hotplug", "NOT_FOUND", f+" not found")
+		} else {
+			fmt.Fprintf(os.Stderr, "ERROR! %s not found.\n", f)
+		}
 		return 1
 	}
 	base := strings.Map(func(r rune) rune {
@@ -53,14 +94,26 @@ func actHotplugDisk() int {
 	node := id + "node"
 	out, err := qmpRaw(qmpCmd("blockdev-add", map[string]any{"node-name": node,
 		"driver": "qcow2", "file": map[string]any{"driver": "file", "filename": abs}}))
-	fmt.Print(out)
+	if outFmt != "json" {
+		fmt.Print(out)
+	}
 	if err == nil {
 		out, err = qmpRaw(qmpCmd("device_add",
 			map[string]any{"driver": "virtio-blk-pci", "id": id, "drive": node}))
-		fmt.Print(out)
+		if outFmt != "json" {
+			fmt.Print(out)
+		}
 	}
 	if persistFlag {
 		hotplugPersist("disk", f)
+	}
+	if outFmt == "json" {
+		if err == nil {
+			qeEvent("vm.hotplug", jsonStr(map[string]any{"device": "disk", "id": id}))
+		}
+		return emitHotplugResult("vm.hotplug", out, err,
+			map[string]any{"device": "disk", "id": id,
+				"file": abs, "persisted": persistFlag})
 	}
 	if err == nil {
 		qeEvent("vm.hotplug", jsonStr(map[string]any{"device": "disk", "id": id}))
@@ -74,6 +127,13 @@ func actHotunplug() int {
 	id := extra["hotunplug"]
 	payload := qmpCmd("device_del", map[string]any{"id": id})
 	out, err := qmpRaw(payload)
+	if outFmt == "json" {
+		if err == nil {
+			qeEvent("vm.hotunplug", jsonStr(map[string]any{"id": id}))
+		}
+		return emitHotplugResult("vm.hotunplug", out, err,
+			map[string]any{"id": id, "removed": err == nil})
+	}
 	fmt.Print(out)
 	if err == nil {
 		qeEvent("vm.hotunplug", jsonStr(map[string]any{"id": id}))
@@ -93,5 +153,7 @@ func hotplugPersist(kind, val string) {
 	confKVCache.Lock()
 	confKVCache.path = "" // conf changed on disk — next confKV reparses
 	confKVCache.Unlock()
-	fmt.Println(" - Persisted " + kind + " " + val + " into " + vmConf + " (applies next boot).")
+	if outFmt != "json" {
+		fmt.Println(" - Persisted " + kind + " " + val + " into " + vmConf + " (applies next boot).")
+	}
 }

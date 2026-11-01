@@ -239,7 +239,7 @@ func dispatchOps(act string) func() int {
 	case "operation_cancel":
 		return opsOp("cancel", "--id", extra["op-cancel"])
 	case "operation_watch":
-		return opsOp("watch", extra["op-watch"])
+		return opsOp("watch")
 	}
 	return nil
 }

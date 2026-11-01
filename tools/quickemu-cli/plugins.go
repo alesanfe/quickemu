@@ -11,7 +11,7 @@ import (
 // actPlugins: plugin_list parity — quickemu-plugin-* on PATH.
 func actPlugins() int {
 	seen := map[string]bool{}
-	var names []string
+	names := []string{}
 	for _, d := range filepath.SplitList(os.Getenv("PATH")) {
 		ents, err := os.ReadDir(d)
 		if err != nil {
@@ -23,6 +23,10 @@ func actPlugins() int {
 				names = append(names, strings.TrimPrefix(n, "quickemu-plugin-"))
 			}
 		}
+	}
+	if outFmt == "json" {
+		emitOK("vm.plugins", map[string]any{"plugins": names})
+		return 0
 	}
 	for _, n := range names {
 		fmt.Println(n)

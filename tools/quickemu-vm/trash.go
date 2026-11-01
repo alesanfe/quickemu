@@ -53,12 +53,14 @@ func trashEmpty() int {
 	root := trashRoot()
 	if _, err := os.Stat(root); err != nil {
 		info(" - Trash is empty.")
+		okMap(map[string]any{"emptied": true, "wasEmpty": true})
 		return 0
 	}
 	if err := os.RemoveAll(root); err != nil {
 		die("TRASH_FAILED", err.Error())
 	}
 	info(" - Emptied trash (" + root + ")")
+	okMap(map[string]any{"emptied": true})
 	return 0
 }
 

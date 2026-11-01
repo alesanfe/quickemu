@@ -142,6 +142,11 @@ func backupVerify(fpath string) int {
 		return 1
 	}
 	info(" - Backup " + fpath + " verified OK.")
+	// backupVerify doubles as the restore preflight — emit only when
+	// invoked as the verify op, or a restore prints two envelopes.
+	if opCmd == "vm.backup-verify" {
+		okMap(map[string]any{"verified": fpath})
+	}
 	return 0
 }
 

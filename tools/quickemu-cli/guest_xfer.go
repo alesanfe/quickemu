@@ -131,8 +131,8 @@ func actGuestPower(mode qga.ShutdownMode) int {
 		qga.ShutdownReboot: "reboot"}[mode]
 	cmd := "guest." + name
 	if !vmRunning() {
-		fmt.Printf(" - %s is not running.\n", vmname())
-		return 1
+		return guestEmitErr(cmd, "guest "+name,
+			fmt.Errorf("%w (VM is not running)", qga.ErrSocketMissing))
 	}
 	// Try the agent first — a missing channel/agent falls straight
 	// to the monitor path instead of erroring.

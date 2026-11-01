@@ -51,7 +51,30 @@ func bootID() string {
 	return ""
 }
 
-func die(code, msg string) { qelib.Fail(qelib.CmdName("ops"), "quickemu-ops/"+version, code, msg) }
+func die(code, msg string) { qelib.Fail(opsCmd(), "quickemu-ops/"+version, code, msg) }
+
+// opsCmd: the v1 command name for this invocation — the user-facing
+// query subs name the CLI flag they back (--op-status → ops.op-status),
+// internal journal verbs keep ops.<verb>.
+func opsCmd() string {
+	sub := ""
+	if len(os.Args) > 1 {
+		sub = os.Args[1]
+	}
+	switch sub {
+	case "status", "list", "cancel", "watch":
+		return "ops.op-" + sub
+	}
+	return "ops." + sub
+}
+
+// jsonMode: --format json propagates as OUTPUT_FORMAT=json through the
+// spawning CLI — query subs emit envelopes, journal verbs stay raw.
+func jsonMode() bool { return os.Getenv("OUTPUT_FORMAT") == "json" }
+
+func emitOK(cmd string, data any) {
+	qelib.EmitOK(cmd, "quickemu-ops/"+version, data)
+}
 
 func opsDir(vmdir string) string { return filepath.Join(vmdir, "ops") }
 
@@ -292,7 +315,12 @@ func run() int {
 	case "status":
 		id := flag(args, "--id")
 		checkID(id)
-		fmt.Println(string(must(filepath.Join(dir, id+".json"))))
+		b := must(filepath.Join(dir, id+".json"))
+		if jsonMode() {
+			emitOK("ops.op-status", json.RawMessage(b))
+		} else {
+			fmt.Println(string(b))
+		}
 	case "watch":
 		return runWatch(dir, os.Stdout)
 	case "list":
@@ -307,7 +335,11 @@ func run() int {
 			}
 		}
 		b, _ := json.Marshal(map[string]any{"operations": ops})
-		fmt.Println(string(b))
+		if jsonMode() {
+			emitOK("ops.op-list", json.RawMessage(b))
+		} else {
+			fmt.Println(string(b))
+		}
 	case "cancel":
 		id := flag(args, "--id")
 		o := load(dir, id)
@@ -324,10 +356,18 @@ func run() int {
 			syscall.Kill(o.WorkerPid, syscall.SIGTERM)
 			o.State = "cancelRequested" // worker confirms via set/cancelled
 			writeOp(dir, o)
+			if jsonMode() {
+				emitOK("ops.op-cancel", map[string]any{
+					"operationId": id, "state": o.State})
+			}
 			return 0
 		}
 		o.State = "cancelled" // no live worker: cancel is final now
 		writeOp(dir, o)
+		if jsonMode() {
+			emitOK("ops.op-cancel", map[string]any{
+				"operationId": id, "state": o.State})
+		}
 	case "prune":
 		// Retention policy: --keep N bounds entries, --days D bounds
 		// age; unset flags fall back to QE_OPS_KEEP / QE_OPS_DAYS.

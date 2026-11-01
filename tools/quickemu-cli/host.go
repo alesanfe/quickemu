@@ -103,7 +103,7 @@ func actHostInfo() int {
 		freeKb = int64(st.Bavail) * int64(st.Bsize) / 1024
 	}
 	kernel := unameFields("-s -r")
-	emitOK("host.info", map[string]any{
+	emitOK("host-info", map[string]any{
 		"kernel": kernel, "arch": unameArch(), "cpuCores": runtime.NumCPU(),
 		"memTotalKb": memTotal, "kvm": kvm, "iommu": iommu, "qemu": qemuVer,
 		"qemuAarch64": has("qemu-system-aarch64"), "qemuImg": has("qemu-img"),
@@ -124,14 +124,20 @@ func actInventory() int {
 	b, err := os.ReadFile(db)
 	if err != nil {
 		if outFmt == "json" {
-			fmt.Println("{}")
+			emitOK("vm.inventory", map[string]any{})
 		} else {
 			fmt.Println("No VMs registered yet.")
 		}
 		return 0
 	}
 	if outFmt == "json" {
-		fmt.Println(string(b))
+		var m map[string]any
+		if json.Unmarshal(b, &m) != nil {
+			emitFail("vm.inventory", "INVENTORY_CORRUPT",
+				db+" is not parseable")
+			return 1
+		}
+		emitOK("vm.inventory", m)
 		return 0
 	}
 	var m map[string]struct {

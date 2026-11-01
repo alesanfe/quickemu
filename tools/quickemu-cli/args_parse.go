@@ -336,7 +336,9 @@ func parseOpsFlags(p *argParser, a string) bool {
 		extra["op-cancel"] = p.val()
 		actions = append(actions, "operation_cancel")
 	case "--op-watch", "--operation-watch":
-		extra["op-watch"] = p.val()
+		// Flag — no value. The previous positional arg was never used
+		// (the ops journal watches the whole directory); consuming the
+		// next token ate a following --format flag.
 		actions = append(actions, "operation_watch")
 	default:
 		return false

@@ -81,6 +81,15 @@ func actMigrateConf() int {
 			fmt.Print(t)
 		} else {
 			t, terr := tool("quickemu-toml", "from-conf", "--file", vmConf)
+			if outFmt == "json" {
+				if terr != nil {
+					emitFail("vm.migrate-conf", "CONVERT_FAILED", terr.Error())
+					return 1
+				}
+				emitOK("vm.migrate-conf", map[string]any{
+					"conf": vmConf, "toml": t, "dryRun": true})
+				return 0
+			}
 			fmt.Print(t)
 			if terr != nil {
 				return 1
@@ -89,18 +98,36 @@ func actMigrateConf() int {
 		return 0
 	}
 	if _, err := os.Stat(out); err == nil {
-		fmt.Fprintf(os.Stderr, "ERROR! %s already exists.\n", out)
+		if outFmt == "json" {
+			emitFail("vm.migrate-conf", "ALREADY_EXISTS",
+				out+" already exists")
+		} else {
+			fmt.Fprintf(os.Stderr, "ERROR! %s already exists.\n", out)
+		}
 		return 1
 	}
 	t, err := tool("quickemu-toml", "from-conf", "--file", vmConf)
 	if err != nil {
-		fmt.Print(t)
+		if outFmt == "json" {
+			emitFail("vm.migrate-conf", "CONVERT_FAILED", err.Error())
+		} else {
+			fmt.Print(t)
+		}
 		return 1
 	}
 	if err := os.WriteFile(out, []byte(t), 0644); err != nil {
-		fmt.Fprintln(os.Stderr, "ERROR! "+err.Error())
+		if outFmt == "json" {
+			emitFail("vm.migrate-conf", "WRITE_FAILED", err.Error())
+		} else {
+			fmt.Fprintln(os.Stderr, "ERROR! "+err.Error())
+		}
 		return 1
 	}
-	fmt.Println(" - Migrated " + vmConf + " -> " + out + " (original kept)")
+	if outFmt == "json" {
+		emitOK("vm.migrate-conf", map[string]any{
+			"conf": vmConf, "toml": out})
+	} else {
+		fmt.Println(" - Migrated " + vmConf + " -> " + out + " (original kept)")
+	}
 	return 0
 }

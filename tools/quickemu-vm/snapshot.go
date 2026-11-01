@@ -225,6 +225,7 @@ func snapshotVerify(dir string) int {
 	}
 	if rc == 0 {
 		info(" - Snapshot chain verified.")
+		okMap(map[string]any{"verified": true})
 	}
 	return rc
 }

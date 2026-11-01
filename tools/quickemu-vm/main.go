@@ -46,6 +46,7 @@ func run() int {
 		"trash-list": "vm.trash.list", "snapshot-list": "vm.snapshot.list",
 		"snapshot-tree": "vm.snapshot.tree", "vfio-scan": "vm.vfio.scan",
 		"stats": "vm.stats", "doctor": "vm.doctor", "plan": "vm.plan",
+		"compact": "vm.disk-compact",
 	}[op]
 	if opCmd == "" {
 		opCmd = "vm." + op
