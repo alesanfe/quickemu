@@ -15,7 +15,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -94,7 +96,13 @@ func TestDownloadEveryOSThenDelete(t *testing.T) {
 	t.Cleanup(func() { noConf, unattendedFlag = oldNoConf, oldUnatt })
 
 	base := t.TempDir()
+	var mu sync.Mutex
 	var done, failed []string
+	mark := func(dst *[]string, key string) {
+		mu.Lock()
+		*dst = append(*dst, key)
+		mu.Unlock()
+	}
 	// runOne executes the full pipeline for a single OS×release×edition
 	// combo and returns the produced conf bytes.
 	runOne := func(e catEntry, rel, ed, vmDir string) (int, []byte) {
@@ -151,6 +159,17 @@ func TestDownloadEveryOSThenDelete(t *testing.T) {
 		confB, _ := os.ReadFile(vmDir + ".conf")
 		return rc, confB
 	}
+	// Two phases: the generic pipeline (~95% of the matrix) touches no
+	// package-level seam, so those combos run in a worker pool — the
+	// serial seam-mutating families (ubuntu/macos/windows) run last on
+	// this goroutine, where stubProbe/t.Setenv stay legal.
+	type job struct {
+		e    catEntry
+		rel  string
+		ed   string
+		runE string
+	}
+	var generic, special []job
 	for _, e := range entries {
 		rels := e.Releases
 		if len(rels) == 0 {
@@ -176,27 +195,61 @@ func TestDownloadEveryOSThenDelete(t *testing.T) {
 				if e.OS == "windows" || e.OS == "windows-server" {
 					runEd = ""
 				}
-				vmDir := filepath.Join(base, e.OS+"-"+rel+ed)
-				rc, confB := runOne(e, rel, runEd, vmDir)
-				conf := vmDir + ".conf"
-				if rc != 0 || len(confB) == 0 {
-					failed = append(failed, e.OS+"@"+rel+"/"+ed)
-					os.RemoveAll(vmDir)
-					os.Remove(conf)
-					continue
+				j := job{e, rel, ed, runEd}
+				if strings.Contains(e.OS, "ubuntu") || e.OS == "macos" ||
+					e.OS == "windows" || e.OS == "windows-server" {
+					special = append(special, j)
+				} else {
+					generic = append(generic, j)
 				}
-				if _, err := os.Stat(vmDir); err != nil {
-					failed = append(failed, e.OS+"@"+rel+"/"+ed+"(no dir)")
-					os.Remove(conf)
-					continue
-				}
-				done = append(done, e.OS+"@"+rel+"/"+ed)
-				if err := os.RemoveAll(vmDir); err != nil {
-					t.Fatalf("delete %s: %v", e.OS, err)
-				}
-				os.Remove(conf)
 			}
 		}
+	}
+	runJob := func(j job) {
+		vmDir := filepath.Join(base, j.e.OS+"-"+j.rel+j.ed)
+		rc, confB := runOne(j.e, j.rel, j.runE, vmDir)
+		conf := vmDir + ".conf"
+		key := j.e.OS + "@" + j.rel + "/" + j.ed
+		if rc != 0 || len(confB) == 0 {
+			mark(&failed, key)
+			os.RemoveAll(vmDir)
+			os.Remove(conf)
+			return
+		}
+		if _, err := os.Stat(vmDir); err != nil {
+			mark(&failed, key+"(no dir)")
+			os.Remove(conf)
+			return
+		}
+		mark(&done, key)
+		if err := os.RemoveAll(vmDir); err != nil {
+			mark(&failed, key+"(delete)")
+			return
+		}
+		os.Remove(conf)
+	}
+	jobs := make(chan job)
+	var wg sync.WaitGroup
+	workers := 8
+	if runtime.NumCPU() < workers {
+		workers = runtime.NumCPU()
+	}
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := range jobs {
+				runJob(j)
+			}
+		}()
+	}
+	for _, j := range generic {
+		jobs <- j
+	}
+	close(jobs)
+	wg.Wait()
+	for _, j := range special {
+		runJob(j)
 	}
 	t.Logf("downloaded+deleted %d OS images; failures: %v", len(done), failed)
 	if len(done) == 0 {

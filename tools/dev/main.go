@@ -31,12 +31,12 @@ import (
 
 // entries maps cli modules to their public bin/ name.
 var entries = map[string]string{
-	"quickemu-cli": "quickemu",
-	"quickemu-env": "quickemu-env",
-	"quickget-cli": "quickget",
-	"quickgetc":    "quickgetc",
-	"quickreport":  "quickreport",
-	"quicktest":    "quicktest",
+	"quickemu-cli":   "quickemu",
+	"quickemu-env":   "quickemu-env",
+	"quickget-cli":   "quickget",
+	"quickgetc":      "quickgetc",
+	"quickreport":    "quickreport",
+	"quickprovision": "quickprovision",
 }
 
 // noBin are modules whose binaries never ship to bin/.
@@ -45,6 +45,15 @@ var noBin = map[string]bool{"dev": true, "qespec": true}
 // execCommand is the subprocess seam — tests substitute fake
 // quickget/git/go executables via PATH or stub commands.
 var execCommand = exec.Command
+
+// runFn/isMainFn are in-process seams layered over execCommand: the
+// per-module sweeps spawn one child per module×phase, which under
+// -race costs minutes of binary load — tests stub these to record
+// calls with zero subprocesses.
+var (
+	runFn    = run
+	isMainFn = isMain
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -175,7 +184,7 @@ func cmdBuild() int {
 	rc := 0
 	for _, d := range modules(r) {
 		name := filepath.Base(d)
-		if !isMain(d) {
+		if !isMainFn(d) {
 			continue
 		}
 		out := name // in-place dev-tree binary
@@ -185,7 +194,7 @@ func cmdBuild() int {
 		if noBin[name] {
 			continue // dev/test helpers stay out of bin/ and tools in-place
 		}
-		if err := run(d, goTool(), nil, "build", "-o", out, "."); err != nil {
+		if err := runFn(d, goTool(), nil, "build", "-o", out, "."); err != nil {
 			fmt.Fprintf(os.Stderr, "FAIL %s\n", name)
 			rc = 1
 			continue
@@ -206,7 +215,7 @@ func cmdCheck() int {
 		name := filepath.Base(d)
 		fmt.Printf("=== tools/%s\n", name)
 		env := []string{"GOWORK=off"}
-		if err := run(d, goTool(), env, "vet", "./..."); err != nil {
+		if err := runFn(d, goTool(), env, "vet", "./..."); err != nil {
 			rc = 1
 			continue
 		}
@@ -215,20 +224,20 @@ func cmdCheck() int {
 			test = append(test, gcc)
 		}
 		test = append(test, "-coverprofile=coverage.out", "./...")
-		if err := run(d, goTool(), env, test...); err != nil {
+		if err := runFn(d, goTool(), env, test...); err != nil {
 			rc = 1
 			continue
 		}
 		tmp := filepath.Join(os.TempDir(), name)
-		if isMain(d) {
-			if err := run(d, goTool(), env, "build", "-o", tmp, "."); err != nil {
+		if isMainFn(d) {
+			if err := runFn(d, goTool(), env, "build", "-o", tmp, "."); err != nil {
 				rc = 1
 				continue
 			}
 		}
 		for _, extra := range []string{"govulncheck", "staticcheck"} {
 			if p, err := exec.LookPath(extra); err == nil {
-				if err := run(d, p, env, "./..."); err != nil {
+				if err := runFn(d, p, env, "./..."); err != nil {
 					rc = 1
 				}
 			}
@@ -243,7 +252,7 @@ func cmdTest() int {
 	for _, d := range modules(r) {
 		name := filepath.Base(d)
 		fmt.Printf("== %s\n", name)
-		if err := run(d, goTool(), nil, "test", "-race", "-cover", "./..."); err != nil {
+		if err := runFn(d, goTool(), nil, "test", "-race", "-cover", "./..."); err != nil {
 			rc = 1
 		}
 	}
@@ -259,7 +268,7 @@ func cmdSpecs() int {
 		fmt.Fprintln(os.Stderr, "qedev: tools/qespec not found")
 		return 1
 	}
-	return errRc(run(d, goTool(), nil, "test", "-timeout", "15m", "-v", "./..."))
+	return errRc(runFn(d, goTool(), nil, "test", "-timeout", "15m", "-v", "./..."))
 }
 
 // cmdQuality is the single root gate a developer (and CI) runs:
@@ -429,7 +438,7 @@ func cmdBench() int {
 		return 1
 	}
 	q := filepath.Join(r, "bin", "quickemu")
-	return errRc(run(r, hf, nil,
+	return errRc(runFn(r, hf, nil,
 		q+" --capabilities",
 		q+" --list-vms --format json",
 		q+" --help",

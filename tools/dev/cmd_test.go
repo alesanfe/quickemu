@@ -46,7 +46,13 @@ func stubExec(t *testing.T, stdout string, rc int) *[][]string {
 		if f := os.Getenv("STUB_FAIL"); f != "" && strings.Contains(joined, f) {
 			code = 1
 		}
-		cmd := exec.Command(os.Args[0], "-test.run=TestHelperProcess")
+		// A sh one-liner instead of re-exec'ing the test binary: under
+		// -race a dev.test child costs seconds of instrumented-binary
+		// load each, and a module sweep spawns ~100 of them. The
+		// parent already resolved out/code per-args — the child just
+		// echoes the env contract.
+		cmd := exec.Command("sh", "-c",
+			"printf '%s' \"$STUB_STDOUT\"; exit \"${STUB_RC:-0}\"")
 		cmd.Env = append(os.Environ(), "GO_STUB=1",
 			"STUB_STDOUT="+out, fmt.Sprintf("STUB_RC=%d", code))
 		return cmd
@@ -79,11 +85,25 @@ func TestCmdBuildAndTest(t *testing.T) {
 }
 
 func TestCmdCheck(t *testing.T) {
-	stubExec(t, "main", 0)
+	// In-process seams: cmdCheck spawns ~5 children per module×22 —
+	// re-exec'd test binaries under -race cost minutes on slow mounts.
+	var runs [][]string
+	oldRun, oldIsMain := runFn, isMainFn
+	runFn = func(dir, name string, env []string, args ...string) error {
+		runs = append(runs, append([]string{name}, args...))
+		return nil
+	}
+	isMainFn = func(string) bool { return true }
+	t.Cleanup(func() { runFn, isMainFn = oldRun, oldIsMain })
 	if rc := cmdCheck(); rc != 0 {
 		t.Fatalf("check rc=%d", rc)
 	}
-	stubExec(t, "", 1)
+	if len(runs) == 0 {
+		t.Fatal("cmdCheck ran no module phases")
+	}
+	runFn = func(dir, name string, env []string, args ...string) error {
+		return fmt.Errorf("phase failed")
+	}
 	if rc := cmdCheck(); rc != 1 {
 		t.Fatalf("failing check rc=%d", rc)
 	}
