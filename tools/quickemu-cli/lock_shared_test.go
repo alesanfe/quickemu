@@ -120,11 +120,14 @@ func TestExclusiveOwnerRejectsRecycledPid(t *testing.T) {
 // A verified-live exclusive owner blocks shared readers — and the
 // error names the holding operation.
 func TestSharedBlockedByExclusive(t *testing.T) {
-	setupLockVM(t)
-	if !vmLockAcquireOp("delete") {
-		t.Fatal("exclusive acquire")
+	lockDir := setupLockVM(t)
+	fp, _ := liveForeignProc(t)
+	if err := os.MkdirAll(lockDir, 0755); err != nil {
+		t.Fatal(err)
 	}
-	defer vmLockRelease()
+	os.WriteFile(filepath.Join(lockDir, "pid"), []byte(strconv.Itoa(fp)), 0644)
+	os.WriteFile(filepath.Join(lockDir, "owner"),
+		[]byte(fmt.Sprintf("%d %s delete", fp, procStartTimeJ(fp))), 0644)
 	t.Setenv("VM_LOCK_TRIES", "2")
 	errOut := qetest.CaptureStderr(t, func() {
 		if vmLockAcquireShared("status") {
@@ -134,6 +137,22 @@ func TestSharedBlockedByExclusive(t *testing.T) {
 	if !strings.Contains(errOut, "locked") || !strings.Contains(errOut, "delete") {
 		t.Fatalf("lock error must name the holding op, got %q", errOut)
 	}
+}
+
+// Self-held exclusive + shared claim from the same process: our own
+// writer already serializes us, so the read lock deepens instead of
+// deadlocking (an act holding the exclusive lock can still run a
+// shared read sub-op).
+func TestSharedAllowedUnderSelfHeldExclusive(t *testing.T) {
+	setupLockVM(t)
+	if !vmLockAcquireOp("snapshot-create") {
+		t.Fatal("exclusive acquire")
+	}
+	defer vmLockRelease()
+	if !vmLockAcquireShared("snapshot-list") {
+		t.Fatal("shared claim under our own exclusive hold must succeed")
+	}
+	vmLockReleaseShared()
 }
 
 // Multi-process mutual exclusion: a helper child holds the shared
@@ -196,11 +215,14 @@ func TestSharedExclusiveMultiProcess(t *testing.T) {
 // QE_LOCK_TIMEOUT configures the wait window; a 0.1s budget fails
 // fast against a live exclusive holder.
 func TestLockTimeoutEnv(t *testing.T) {
-	setupLockVM(t)
-	if !vmLockAcquireOp("stop") {
-		t.Fatal("acquire")
+	lockDir := setupLockVM(t)
+	fp, _ := liveForeignProc(t)
+	if err := os.MkdirAll(lockDir, 0755); err != nil {
+		t.Fatal(err)
 	}
-	defer vmLockRelease()
+	os.WriteFile(filepath.Join(lockDir, "pid"), []byte(strconv.Itoa(fp)), 0644)
+	os.WriteFile(filepath.Join(lockDir, "owner"),
+		[]byte(fmt.Sprintf("%d %s stop", fp, procStartTimeJ(fp))), 0644)
 	t.Setenv("QE_LOCK_TIMEOUT", "0.1")
 	start := time.Now()
 	if vmLockAcquireShared("status") {

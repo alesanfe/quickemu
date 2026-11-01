@@ -225,9 +225,11 @@ var vmLockedOps = map[string]bool{
 	"shortcut": true, "shortcut-delete": true,
 	"backup": true, "backup-restore": true, "backup-prune": true,
 	"trash-empty": true, "trash-restore": true,
-	"compact": true, "resize": true,
+	"compact": true, "resize": true, "resize-commit": true,
 	"snapshot-create": true, "snapshot-apply": true,
 	"snapshot-delete": true, "snapshot-consolidate": true,
+	"snapshot-register": true, "snapshot-unregister": true,
+	"snapshot-policy": true,
 }
 
 // vmSharedOps: read-only vm ops — concurrent with other readers, never

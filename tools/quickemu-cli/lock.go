@@ -26,6 +26,12 @@ import (
 func lockDir() string       { return filepath.Join(vmdir(), vmname()+".lock") }
 func lockSharedDir() string { return filepath.Join(vmdir(), vmname()+".lock.shared") }
 
+// exclDepth: nested exclusive holds by this process — a mutating
+// sub-op dispatched under an already-held act lock must deepen
+// instead of deadlocking on its own claim (same pid + start-time
+// fingerprint in the owner record).
+var exclDepth int
+
 // lockMeta: "<pid> <start-time> <op>" — start-time is the fingerprint
 // bit that survives PID recycling; op feeds the holder report.
 func lockMeta(op string) string {
@@ -202,6 +208,13 @@ func vmLockAcquireOp(op string) bool {
 		return false
 	}
 	hd := lockDir()
+	// Re-entrant: the verified owner is this very process (same pid +
+	// start-time fingerprint — a foreign pid can never match both) —
+	// deepen the hold instead of deadlocking on our own claim.
+	if pid, _, live := exclusiveOwner(hd); pid == os.Getpid() && live {
+		exclDepth++
+		return true
+	}
 	tries := lockTries(1)
 	writeOwner := func() bool {
 		// A lock without a readable owner is reclaimable by the next
@@ -240,6 +253,7 @@ func vmLockAcquireOp(op string) bool {
 			// between our mkdir and now — that reader wins; drop the
 			// exclusive claim and retry.
 			if len(sharedHolders(true)) == 0 {
+				exclDepth = 0
 				return true
 			}
 			os.RemoveAll(hd)
@@ -253,6 +267,10 @@ func vmLockAcquireOp(op string) bool {
 }
 
 func vmLockRelease() {
+	if exclDepth > 0 {
+		exclDepth--
+		return
+	}
 	os.RemoveAll(lockDir())
 }
 
@@ -302,19 +320,29 @@ func vmLockAcquireShared(op string) bool {
 		// force us to drop our file and retry.
 		hd := lockDir()
 		if _, err := os.Stat(hd); err == nil {
-			if _, _, live := exclusiveOwner(hd); live {
-				os.Remove(mine)
+			selfHeld := false
+			if ep, _, live := exclusiveOwner(hd); live {
+				if ep == os.Getpid() {
+					// Our own exclusive hold already serializes us —
+					// a shared claim underneath it is always
+					// consistent.
+					selfHeld = true
+				} else {
+					os.Remove(mine)
+				}
 			} else if exclusiveReclaimable(hd) && os.RemoveAll(hd) == nil {
 				// Orphaned exclusive remnant reclaimed — fall through.
 			} else {
 				// Fresh exclusive in mid-creation — wait a beat.
 				os.Remove(mine)
 			}
-			if _, err := os.Stat(hd); err == nil {
-				if i+1 < tries {
-					time.Sleep(200 * time.Millisecond)
+			if !selfHeld {
+				if _, err := os.Stat(hd); err == nil {
+					if i+1 < tries {
+						time.Sleep(200 * time.Millisecond)
+					}
+					continue
 				}
-				continue
 			}
 		}
 		return true

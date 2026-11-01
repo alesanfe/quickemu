@@ -89,6 +89,13 @@ func actSnapshotMemCreate() int {
 		}
 		return 1
 	}
+	// The monitor savevm + sidecar register is one mutating flow —
+	// hold the exclusive lock across it; the disk path gets the same
+	// guarantee inside vmOp (QE-002).
+	if !vmLockAcquireOp("snapshot-create") {
+		return 1
+	}
+	defer vmLockRelease()
 	if !memSnapTagRe.MatchString(tag) {
 		return fail("invalid_tag", "tag must match [A-Za-z0-9._-]+")
 	}
@@ -160,6 +167,12 @@ func actSnapshotMemApply() int {
 		}
 		return 1
 	}
+	// loadvm on a live guest or a cold boot with -loadvm both mutate
+	// machine state — exclusive hold for the whole flow (QE-002).
+	if !vmLockAcquireOp("snapshot-apply") {
+		return 1
+	}
+	defer vmLockRelease()
 	if vmRunning() {
 		out, err := hmpOut("loadvm " + tag)
 		if err != nil || strings.Contains(out, "Error") || strings.Contains(out, "error") {
@@ -206,6 +219,12 @@ func actSnapshotMemApply() int {
 // on a live image); stopped VMs keep the qemu-img path.
 func actSnapshotMemDelete() int {
 	tag := snapshotTag
+	// delvm on a live image + sidecar unregister — the stopped path
+	// delegates to the already-locked qemu-img sub (re-entrant).
+	if !vmLockAcquireOp("snapshot-delete") {
+		return 1
+	}
+	defer vmLockRelease()
 	if !vmRunning() {
 		return vmOp("snapshot-delete", vmdir(), tag)()
 	}

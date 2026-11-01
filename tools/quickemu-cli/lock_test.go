@@ -26,12 +26,37 @@ func TestExclusiveLockBlocksForeignOwner(t *testing.T) {
 		t.Fatal("first acquire must succeed")
 	}
 	defer vmLockRelease()
-	// Hand the lock to a foreign (live, not-us) owner.
-	if err := os.WriteFile(filepath.Join(lockDir, "pid"), []byte("1"), 0644); err != nil {
-		t.Fatal(err)
+	// Hand the lock to a foreign (live, not-us) owner — both records,
+	// as a real foreign acquire would have written them.
+	for _, f := range []string{"pid", "owner"} {
+		if err := os.WriteFile(filepath.Join(lockDir, f), []byte("1"), 0644); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if vmLockAcquire() {
 		t.Error("second acquire must be refused while a live owner holds the lock")
+	}
+}
+
+func TestExclusiveLockIsReentrantForSelf(t *testing.T) {
+	lockDir := setupLockVM(t)
+	if !vmLockAcquire() {
+		t.Fatal("first acquire must succeed")
+	}
+	// A nested acquire by the verified owner (same pid + start-time)
+	// must deepen — sub-ops dispatched under an act-level hold
+	// (vmOpSilent, mem-snapshot flows) cannot deadlock on their own
+	// claim.
+	if !vmLockAcquireOp("snapshot-register") {
+		t.Fatal("nested acquire by the owner must succeed, not deadlock")
+	}
+	vmLockRelease() // inner release — the outer hold must survive
+	if _, err := os.Stat(lockDir); err != nil {
+		t.Fatal("inner release must not drop the outer hold")
+	}
+	vmLockRelease() // outermost release frees the lock
+	if _, err := os.Stat(lockDir); !os.IsNotExist(err) {
+		t.Fatal("outermost release must free the lock dir")
 	}
 }
 
