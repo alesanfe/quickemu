@@ -477,6 +477,7 @@ d-i partman/confirm boolean true
 d-i partman/confirm_nooverwrite boolean true
 d-i pkgsel/include string openssh-server sudo curl qemu-guest-agent
 d-i pkgsel/upgrade select safe-upgrade
+popularity-contest popularity-contest/participate boolean false
 d-i grub-installer/only_debian boolean true
 d-i grub-installer/with_other_os boolean true
 d-i finish-install/reboot_in_progress note

@@ -558,6 +558,9 @@ func TestRenderPreseed(t *testing.T) {
 	if !strings.Contains(cfg, "choose-init") {
 		t.Fatalf("devuan must preseed the init-system question:\n%s", cfg)
 	}
+	if !strings.Contains(cfg, "popularity-contest/participate boolean false") {
+		t.Fatalf("preseed must answer the popcon question or d-i stops:\n%s", cfg)
+	}
 	// trisquel: numeric release → codename + trisquel mirror.
 	p.System.OS, p.System.Release = "trisquel", "12.0"
 	cfg = renderPreseed(&p, "$6$x", nil)
