@@ -292,7 +292,11 @@ var miscResolvers = map[string]func(release, edition, arch string) (string, stri
 		if err != nil || u == "" {
 			return "", "", nil
 		}
+		// indexISO joins the sorted-index URL verbatim — the ?C=M;O=D
+		// query would end up inside the path and the download would be
+		// the HTML index page. Rebuild the clean artifact URL.
 		iso := u[strings.LastIndex(u, "/")+1:]
+		u = base + "/" + iso
 		sha := ""
 		if b, err := fetchString(base + "/SHA256SUMS"); err == nil {
 			for _, l := range strings.Split(b, "\n") {
