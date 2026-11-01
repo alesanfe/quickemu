@@ -379,7 +379,14 @@ func TestRawQemuBootQMP(t *testing.T) {
 func quickemuBoot(t *testing.T, conf string) *exec.Cmd {
 	t.Helper()
 	cmd := exec.Command(Bin(t, "quickemu"), "--vm", conf)
-	cmd.Env = append(os.Environ(), "QEMU_ACCEL=tcg", "CPU_MODEL=qemu64")
+	// Exercise the accelerator the host actually has: KVM when
+	// /dev/kvm is usable (CI enables it via the udev rule), TCG
+	// otherwise. The TCG-only path stays covered on hosts without it.
+	accel := "tcg"
+	if KVMUsable() {
+		accel = "kvm"
+	}
+	cmd.Env = append(os.Environ(), "QEMU_ACCEL="+accel, "CPU_MODEL=qemu64")
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("quickemu start: %v", err)
 	}

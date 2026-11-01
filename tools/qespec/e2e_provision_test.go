@@ -41,6 +41,7 @@ type provisionCase struct {
 	os          string
 	release     string
 	edition     string
+	username    string   // guests with a fixed built-in user (cirros)
 	wantProvide string   // provider inferProvider must resolve
 	wantSteps   []string // steps that MUST appear (subset, in order)
 	interactive bool     // visual launches end at launch — no ssh/verify
@@ -76,7 +77,7 @@ var provisionMatrix = []provisionCase{
 		notes: "d-i preseed over slirp; netinst pulls packages from mirrors",
 	},
 	{
-		name: "debian-cloud", os: "debian-cloud", release: "latest",
+		name: "debian-cloud", os: "debian-cloud", release: "latest", edition: "genericcloud",
 		wantProvide: "nocloud-image",
 		wantSteps:   []string{"acquire-image", "prepare", "launch", "wait-ssh", "verify", "seal"},
 		installMin:  30, sshMin: 20,
@@ -90,7 +91,7 @@ var provisionMatrix = []provisionCase{
 		notes: "kvm qcow2 — cloud-init datasource seed",
 	},
 	{
-		name: "fedora-server", os: "fedora", release: "latest", edition: "Server",
+		name: "fedora-server", os: "fedora", release: "44", edition: "Server",
 		wantProvide: "anaconda-kickstart",
 		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
 		installMin:  90, sshMin: 30,
@@ -140,7 +141,7 @@ var provisionMatrix = []provisionCase{
 		notes: "kali is d-i — rolling mirror keys in the preseed",
 	},
 	{
-		name: "opensuse", os: "opensuse", release: "latest",
+		name: "opensuse", os: "opensuse", release: "15.6",
 		wantProvide: "opensuse-autoyast",
 		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
 		installMin:  120, sshMin: 30, minDisk: "30G",
@@ -196,7 +197,7 @@ var provisionMatrix = []provisionCase{
 		notes: "serial login root/voidlinux → xbps-install into /mnt",
 	},
 	{
-		name: "gentoo", os: "gentoo", release: "latest",
+		name: "gentoo", os: "gentoo", release: "latest", edition: "minimal",
 		wantProvide: "gentoo-stage3",
 		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
 		installMin:  120, sshMin: 20, minDisk: "24G",
@@ -268,7 +269,7 @@ var provisionMatrix = []provisionCase{
 		notes: "genericcloud qcow2 — cloud-init",
 	},
 	{
-		name: "opensuse-cloud", os: "opensuse-cloud", release: "latest",
+		name: "opensuse-cloud", os: "opensuse-cloud", release: "tumbleweed",
 		wantProvide: "nocloud-image",
 		wantSteps:   []string{"wait-ssh", "verify", "seal"},
 		installMin:  30, sshMin: 20,
@@ -289,7 +290,7 @@ var provisionMatrix = []provisionCase{
 		notes: "AL2023 kvm image — cloud-init",
 	},
 	{
-		name: "cirros", os: "cirros", release: "latest",
+		name: "cirros", os: "cirros", release: "latest", username: "cirros",
 		wantProvide: "nocloud-image",
 		wantSteps:   []string{"wait-ssh", "verify", "seal"},
 		installMin:  15, sshMin: 10, minRAM: "512M", minDisk: "1G",
@@ -778,7 +779,11 @@ func writeProvisionProfile(t *testing.T, tc provisionCase) string {
 		b.WriteString("boot = \"efi\"\n")
 	}
 	host := strings.ReplaceAll(tc.name, "_", "-")
-	fmt.Fprintf(&b, "[identity]\nhostname = %q\nusername = \"dev\"\n", host)
+	user := tc.username
+	if user == "" {
+		user = "dev"
+	}
+	fmt.Fprintf(&b, "[identity]\nhostname = %q\nusername = %q\n", host, user)
 	if strings.HasPrefix(tc.os, "windows") {
 		// unattend creates the user with a real password — an empty one
 		// would leave a locked account the provision stage cannot log
@@ -788,7 +793,9 @@ func writeProvisionProfile(t *testing.T, tc provisionCase) string {
 	b.WriteString("[automation]\n")
 	fmt.Fprintf(&b, "install_timeout_min = %d\nssh_timeout_min = %d\n", install, ssh)
 	b.WriteString("[[verify]]\nname = \"ssh-alive\"\nrun = \"true\"\n")
-	fmt.Fprintf(&b, "[[verify]]\nname = \"hostname\"\nrun = \"hostname\"\nexpect = %q\n",
+	// uname -n over hostname — minimal images (arch-cloud) lack the
+	// hostname binary entirely.
+	fmt.Fprintf(&b, "[[verify]]\nname = \"hostname\"\nrun = \"uname -n\"\nexpect = %q\n",
 		host)
 	b.WriteString("[finalize]\nshutdown = true\nsnapshot = \"prepared\"\n")
 	dir := t.TempDir()
@@ -807,11 +814,9 @@ func provisionE2EEnabled(t *testing.T) {
 		t.Skip("provision e2e inert — set QESPEC_PROVISION_E2E=1 on a KVM host")
 	}
 	// Writable check — /dev/kvm can exist but be root-only.
-	f, err := os.OpenFile("/dev/kvm", os.O_RDWR, 0)
-	if err != nil {
-		t.Skipf("/dev/kvm unusable (%v) — TCG installs are impractically slow", err)
+	if !KVMUsable() {
+		t.Skip("/dev/kvm unusable — TCG installs are impractically slow")
 	}
-	f.Close()
 	// WAN probe: downloads are multi-GB; fail fast instead of hanging.
 	c, err := net.DialTimeout("tcp", "deb.debian.org:443", 5*time.Second)
 	if err != nil {
@@ -882,13 +887,15 @@ func TestProvisionRunE2E(t *testing.T) {
 			// step contract — a crashed/aborted run otherwise reports as
 			// a confusing "missing step" or an index panic on empty evs.
 			if len(evs) == 0 {
-				t.Fatalf("no events (rc=%d) — tail: %s", r.Code, stdoutTail(r.Stdout, 8))
+				t.Fatalf("no events (rc=%d) — tail: %s\nstderr: %s",
+					r.Code, stdoutTail(r.Stdout, 8), stdoutTail(r.Stderr, 20))
 			}
 			for _, e := range evs {
 				if e["event"] == "run.failed" {
 					d := eventData(e)
-					t.Fatalf("run.failed step=%v code=%v err=%v — tail: %s",
-						d["step"], d["code"], d["error"], stdoutTail(r.Stdout, 8))
+					t.Fatalf("run.failed step=%v code=%v err=%v — tail: %s\nstderr: %s",
+						d["step"], d["code"], d["error"], stdoutTail(r.Stdout, 8),
+						stdoutTail(r.Stderr, 20))
 				}
 			}
 
@@ -921,8 +928,11 @@ func TestProvisionRunE2E(t *testing.T) {
 				t.Fatalf("run ended on %v — tail: %s", last, stdoutTail(r.Stdout, 8))
 			}
 
-			// 6. the sealed snapshot must be visible to quickemu.
-			confs, _ := filepath.Glob(filepath.Join(work, "*", "*.conf"))
+			// 6. the sealed snapshot must be visible to quickemu —
+			// the .conf sits beside its vm dir in the standard layout.
+			confs, _ := filepath.Glob(filepath.Join(work, "*.conf"))
+			nested, _ := filepath.Glob(filepath.Join(work, "*", "*.conf"))
+			confs = append(confs, nested...)
 			if len(confs) == 0 {
 				t.Fatalf("no VM conf under %s", work)
 			}
