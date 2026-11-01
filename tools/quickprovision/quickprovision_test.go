@@ -7,6 +7,8 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -550,6 +552,34 @@ func TestExtractBootfiles(t *testing.T) {
 	os.WriteFile(junk, []byte("not an iso"), 0o600)
 	if _, err := extractBootfiles(junk, "casper", out, nil); err == nil {
 		t.Fatal("bad image must fail")
+	}
+}
+
+// pickAlpineFlavor must discover the kernel suffix the image ships —
+// alpine-virt carries vmlinuz-virt (the e2e failure that motivated
+// this), standard/extended carry vmlinuz-lts. Feeds the exact names
+// the ISO reader returns; diskfs test images cannot represent the
+// '-' filenames (8.3 base name truncates them to VMLINUZ_).
+func TestPickAlpineFlavor(t *testing.T) {
+	if f, ok := pickAlpineFlavor(
+		[]string{"vmlinuz-virt", "initramfs-virt", "modloop-virt"},
+		"alpine-virt-3.22.7-x86_64.iso"); !ok || f != "virt" {
+		t.Fatalf("virt iso -> %q %v", f, ok)
+	}
+	if f, ok := pickAlpineFlavor(
+		[]string{"vmlinuz-lts", "initramfs-lts"},
+		"alpine-standard-3.22.7-x86_64.iso"); !ok || f != "lts" {
+		t.Fatalf("lts iso -> %q %v", f, ok)
+	}
+	// Mangled base renderings still pair by normalised suffix.
+	if f, ok := pickAlpineFlavor(
+		[]string{"vmlinuz_virt", "initramfs_virt"},
+		"x.iso"); !ok || f != "virt" {
+		t.Fatalf("mangled -> %q %v", f, ok)
+	}
+	// Kernel without its initramfs is not a usable pair.
+	if _, ok := pickAlpineFlavor([]string{"vmlinuz-virt"}, "x.iso"); ok {
+		t.Fatal("unpaired kernel must fail")
 	}
 }
 
@@ -1130,6 +1160,98 @@ func TestLoadProfileCloudProfiles(t *testing.T) {
 		}
 		if len(p.Provision.Packages) == 0 || len(p.Verify) == 0 {
 			t.Fatalf("%s provision/verify empty", f)
+		}
+	}
+}
+
+func TestWriteAlpineApkovl(t *testing.T) {
+	p := &Profile{}
+	p.Identity.Hostname = "qp-alpine"
+	p.Identity.Username = "dev"
+	keys := "ssh-ed25519 AAAAqp qp@test\n"
+	path := filepath.Join(t.TempDir(), "setup.apkovl")
+	if err := writeAlpineApkovl(path, p, keys, "v3.22"); err != nil {
+		t.Fatalf("writeAlpineApkovl: %v", err)
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatalf("gzip: %v", err)
+	}
+	tr := tar.NewReader(gz)
+	files := map[string]string{}
+	links := map[string]string{}
+	modes := map[string]int64{}
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		modes[h.Name] = h.Mode
+		switch h.Typeflag {
+		case tar.TypeReg:
+			b, _ := io.ReadAll(tr)
+			files[h.Name] = string(b)
+		case tar.TypeSymlink:
+			links[h.Name] = h.Linkname
+		}
+	}
+	answers, ok := files["etc/answers"]
+	if !ok {
+		t.Fatal("etc/answers missing from overlay")
+	}
+	for _, want := range []string{
+		"HOSTNAMEOPTS=qp-alpine",
+		`DISKOPTS="-m sys /dev/vda"`,
+		`ROOTSSHKEY="ssh-ed25519 AAAAqp qp@test`,
+		"SSHDOPTS=openssh",
+	} {
+		if !strings.Contains(answers, want) {
+			t.Errorf("answers missing %q:\n%s", want, answers)
+		}
+	}
+	script, ok := files["etc/local.d/auto-provision.start"]
+	if !ok {
+		t.Fatal("auto-provision.start missing")
+	}
+	if modes["etc/local.d/auto-provision.start"] != 0o755 {
+		t.Errorf("start script mode = %o, want 755", modes["etc/local.d/auto-provision.start"])
+	}
+	for _, want := range []string{"setup-alpine -ef /etc/answers", "poweroff", "ERASE_DISKS"} {
+		if !strings.Contains(script, want) {
+			t.Errorf("start script missing %q", want)
+		}
+	}
+	if links["etc/runlevels/default/local"] != "/etc/init.d/local" {
+		t.Errorf("local runlevel link = %q", links["etc/runlevels/default/local"])
+	}
+	if links["etc/runlevels/boot/networking"] != "/etc/init.d/networking" {
+		t.Errorf("networking runlevel link = %q", links["etc/runlevels/boot/networking"])
+	}
+	if !strings.Contains(files["etc/network/interfaces"], "iface eth0 inet dhcp") {
+		t.Error("interfaces lacks eth0 dhcp")
+	}
+	if files["root/.ssh/authorized_keys"] != keys {
+		t.Error("authorized_keys mismatch")
+	}
+	repos, ok := files["etc/apk/repositories"]
+	if !ok {
+		t.Fatal("etc/apk/repositories missing")
+	}
+	for _, want := range []string{
+		"/media/cdrom/apks",
+		"http://dl-cdn.alpinelinux.org/alpine/v3.22/main",
+		"http://dl-cdn.alpinelinux.org/alpine/v3.22/community",
+	} {
+		if !strings.Contains(repos, want) {
+			t.Errorf("repositories missing %q:\n%s", want, repos)
 		}
 	}
 }

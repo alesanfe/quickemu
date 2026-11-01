@@ -5,10 +5,14 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/kdomanski/iso9660"
@@ -120,4 +124,183 @@ func extractBootfiles(isoPath, dirPrefix, outDir string, want []string) (map[str
 		got[w] = cs[0].dst
 	}
 	return got, nil
+}
+
+// listISODir returns the basenames of regular files whose parent dir
+// normalises to dirPrefix — the read side of extractBootfiles' walk,
+// used to discover which kernel flavour an installer image ships.
+func listISODir(isoPath, dirPrefix string) ([]string, error) {
+	f, err := os.Open(isoPath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	img, err := iso9660.OpenImage(f)
+	if err != nil {
+		return nil, err
+	}
+	root, err := img.RootDir()
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	var walk func(dir *iso9660.File, parentMatch bool) error
+	walk = func(dir *iso9660.File, parentMatch bool) error {
+		kids, err := dir.GetChildren()
+		if err != nil {
+			return err
+		}
+		for _, k := range kids {
+			name := strings.ToLower(strings.SplitN(k.Name(), ";", 2)[0])
+			if k.IsDir() {
+				if err := walk(k, dirMatch(name, dirPrefix)); err != nil {
+					return err
+				}
+				continue
+			}
+			if parentMatch {
+				names = append(names, name)
+			}
+		}
+		return nil
+	}
+	if err := walk(root, dirPrefix == ""); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// alpineKernelFlavor returns the kernel suffix the ISO ships —
+// "virt" for alpine-virt, "lts" for standard/extended — by pairing
+// vmlinuz-* with initramfs-* under boot/.
+func alpineKernelFlavor(isoPath string) (string, error) {
+	names, err := listISODir(isoPath, "boot")
+	if err != nil {
+		return "", err
+	}
+	f, ok := pickAlpineFlavor(names, strings.ToLower(filepath.Base(isoPath)))
+	if !ok {
+		return "", fmt.Errorf("no vmlinuz-*/initramfs-* pair under boot/ in %s", isoPath)
+	}
+	return f, nil
+}
+
+// pickAlpineFlavor derives the flavour from a boot/ name list: a pair
+// exists only where vmlinuz-<x> and initramfs-<x> both appear. The ISO
+// filename usually names its flavour (alpine-virt-*.iso), which
+// decides when several kernels coexist. ISO9660 base names cannot
+// hold '-' — a reader skipping the Rock Ridge/Joliet extensions
+// reports VMLINUZ_VIRT — so names are folded to alnum first.
+func pickAlpineFlavor(names []string, isoBase string) (string, bool) {
+	kernels, initrds := map[string]bool{}, map[string]bool{}
+	for _, n := range names {
+		d := dirNorm(n)
+		if s, ok := strings.CutPrefix(d, "vmlinuz"); ok && s != "" {
+			kernels[s] = true
+		}
+		if s, ok := strings.CutPrefix(d, "initramfs"); ok && s != "" {
+			initrds[s] = true
+		}
+	}
+	var pairs []string
+	for k := range kernels {
+		if initrds[k] {
+			pairs = append(pairs, k)
+		}
+	}
+	if len(pairs) == 0 {
+		return "", false
+	}
+	sort.Strings(pairs)
+	for _, p := range pairs {
+		if strings.Contains(isoBase, "-"+p) {
+			return p, true
+		}
+	}
+	return pairs[0], true
+}
+
+// injectInitramfsFile appends a file to a gzipped initramfs cpio. The
+// kernel unpacks concatenated archives, so the payload is added as a
+// second newc archive after the original stream — no walk or rewrite
+// of the existing entries needed.
+func injectInitramfsFile(initrd, name string, data []byte, mode int64) error {
+	f, err := os.Open(initrd)
+	if err != nil {
+		return err
+	}
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		f.Close()
+		return fmt.Errorf("initramfs %s: %w", initrd, err)
+	}
+	raw, err := io.ReadAll(zr)
+	zr.Close()
+	f.Close()
+	if err != nil {
+		return fmt.Errorf("initramfs %s: %w", initrd, err)
+	}
+
+	var buf bytes.Buffer
+	buf.Write(raw)
+	padTo(&buf, 512)
+	writeNewcEntry(&buf, name, data, mode)
+	writeNewcEntry(&buf, "TRAILER!!!", nil, 0)
+	padTo(&buf, 512)
+
+	tmp := initrd + ".inj"
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	zw := gzip.NewWriter(out)
+	if _, err := zw.Write(buf.Bytes()); err != nil {
+		out.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := zw.Close(); err != nil {
+		out.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, initrd)
+}
+
+// padTo zero-pads the buffer up to a multiple of n — cpio archives
+// start on 512-byte boundaries, entry fields align to 4.
+func padTo(buf *bytes.Buffer, n int) {
+	for buf.Len()%n != 0 {
+		buf.WriteByte(0)
+	}
+}
+
+// writeNewcEntry emits one SVR4-newc header + name + data block. The
+// thirteen hex fields follow "070701": ino, mode, uid, gid, nlink,
+// mtime, size, dev-major/minor, rdev-major/minor, namesize, check.
+func writeNewcEntry(buf *bytes.Buffer, name string, data []byte, mode int64) {
+	fmt.Fprintf(buf, "070701%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x%08x",
+		1, 0o100000|mode, 0, 0, 1, 0, len(data), 0, 0, 0, 0, len(name)+1, 0)
+	buf.WriteString(name)
+	buf.WriteByte(0)
+	padTo(buf, 4)
+	buf.Write(data)
+	padTo(buf, 4)
+}
+
+// alpineRelease extracts the repository tag ("v3.22") from an
+// alpine-virt-3.22.7-x86_64.iso style name so the written
+// repositories match the release actually being installed.
+var alpineReleaseRe = regexp.MustCompile(`(\d+)\.(\d+)`)
+
+func alpineRelease(isoPath string) string {
+	if m := alpineReleaseRe.FindStringSubmatch(
+		filepath.Base(isoPath)); m != nil {
+		return "v" + m[1] + "." + m[2]
+	}
+	return "latest-stable"
 }

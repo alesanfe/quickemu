@@ -614,12 +614,14 @@ func (o *opensuseAutoyast) prepare(r *runCtx) error {
 
 // --- Alpine ISO unattended setup-alpine --------------------------------
 //
-// alpineUnattended uses the mkinitfs unattended feature built into the
-// alpine ISO: booting the extracted lts kernel with `unattended` runs
-// setup-alpine against defaults (sys mode on the first disk), fetches
-// `ssh_key` into root's authorized_keys and powers the guest off.
-// Requires Alpine ≥ ~3.19 for the ssh_key URL param; the profile's
-// packages still arrive via apk in the provision phase.
+// alpineUnattended drives the canonical apkovl flow: the overlay is
+// injected into the initramfs (alpine-virt's initrd has no DHCP, so a
+// URL can't be fetched) and `apkovl=<path>` resolves it locally. The
+// overlay enables networking + a local.d hook running
+// `setup-alpine -ef /etc/answers`, which sys-installs to /dev/vda and
+// powers off. The earlier `unattended ssh_key=` cmdline only fed the
+// firstboot service — it never ran the installer and firstboot raced
+// networking, so the guest landed on a login prompt.
 type alpineUnattended struct{}
 
 func (a *alpineUnattended) id() string                 { return "alpine-unattended" }
@@ -638,8 +640,16 @@ func (a *alpineUnattended) prepare(r *runCtx) error {
 		return fmt.Errorf("conf %s has no iso= — is this an Alpine ISO VM?", r.confPath)
 	}
 	iso = resolveConfPath(r.confPath, iso)
+	// Alpine ships per-image kernel flavours — alpine-virt carries
+	// vmlinuz-virt, standard/extended carry vmlinuz-lts — so the
+	// suffix is discovered, not assumed.
+	flav, err := alpineKernelFlavor(iso)
+	if err != nil {
+		return fmt.Errorf("alpine boot files: %w", err)
+	}
+	kernel, initrd := "vmlinuz-"+flav, "initramfs-"+flav
 	got, err := extractBootfiles(iso, "boot", r.vmDir,
-		[]string{"vmlinuz-lts", "initramfs-lts"})
+		[]string{kernel, initrd})
 	if err != nil {
 		return fmt.Errorf("alpine boot files: %w", err)
 	}
@@ -647,28 +657,30 @@ func (a *alpineUnattended) prepare(r *runCtx) error {
 	for _, k := range append([]string{r.kp.pub}, r.p.Identity.SSHAuthorizedKeys...) {
 		keys.WriteString(strings.TrimSpace(k) + "\n")
 	}
-	if err := os.WriteFile(filepath.Join(r.artDir, "sshkey"),
-		[]byte(keys.String()), 0o644); err != nil {
-		return err
+	ovlPath := filepath.Join(r.artDir, "setup.apkovl")
+	if err := writeAlpineApkovl(ovlPath, r.p, keys.String(),
+		alpineRelease(iso)); err != nil {
+		return fmt.Errorf("alpine apkovl: %w", err)
 	}
-	port, srv, err := startSeedHTTPServer(r.artDir)
+	ovl, err := os.ReadFile(ovlPath)
 	if err != nil {
 		return err
 	}
-	r.seedSrv = srv
-	r.e.progress("prepare",
-		fmt.Sprintf("ssh key served at http://10.0.2.2:%d/sshkey", port))
+	// The alpine-virt initramfs has no DHCP built in, so an apkovl
+	// URL can never be fetched. Inject the overlay into the initrd
+	// and pass a literal path instead — prepare_apkovl() resolves
+	// bare paths with no networking at all.
+	if err := injectInitramfsFile(got[initrd],
+		"setup.apkovl.tar.gz", ovl, 0o644); err != nil {
+		return fmt.Errorf("alpine apkovl inject: %w", err)
+	}
 	edits := commonConfEdits(r)
 	delete(edits, "seed")
-	edits["kernel"] = got["vmlinuz-lts"]
-	edits["initrd"] = got["initramfs-lts"]
-	// alpine_dev points initramfs at the attached ISO for apkovl +
-	// modloop; `unattended` runs the default sys install then powers
-	// off; ssh_key is fetched over slirp like the answer files.
-	edits["boot_args"] = fmt.Sprintf(
-		"console=ttyS0 modules=loop,squashfs,sd-mod,usb-storage "+
-			"alpine_dev=cdrom:iso9660 unattended "+
-			"ssh_key=http://10.0.2.2:%d/sshkey", port)
+	edits["kernel"] = got[kernel]
+	edits["initrd"] = got[initrd]
+	edits["boot_args"] =
+		"console=ttyS0 modules=loop,squashfs,sd-mod,usb-storage " +
+			"alpine_dev=cdrom:iso9660 apkovl=/setup.apkovl.tar.gz"
 	return confSet(r.confPath, edits)
 }
 
