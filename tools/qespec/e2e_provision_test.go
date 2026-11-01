@@ -983,13 +983,15 @@ func TestProvisionRunE2E(t *testing.T) {
 			}
 			conf := confs[0]
 			// Cleanup runs even when assertions above fail — honoring
-			// QESPEC_PROVISION_KEEP for post-mortem inspection.
+			// QESPEC_PROVISION_KEEP for post-mortem inspection. The
+			// delete is permanent (no --trash): e2e guests are disposable
+			// and must not pile multi-GB disks into the user's trash.
 			t.Cleanup(func() {
 				if os.Getenv("QESPEC_PROVISION_KEEP") == "1" {
 					t.Logf("KEEP=1: VM left at %s", conf)
 					return
 				}
-				Run(t, "quickemu", nil, "--vm", conf, "--delete-vm", "--trash")
+				Run(t, "quickemu", nil, "--vm", conf, "--delete-vm")
 			})
 			Run(t, "quickemu", nil, "--vm", conf, "--snapshot-list").
 				Contains(t, "prepared")
@@ -998,7 +1000,7 @@ func TestProvisionRunE2E(t *testing.T) {
 }
 
 // teardownProvisionRun kills any QEMU still bound to the work dir and
-// drops the dir itself. The graceful `--delete-vm --trash` cleanup runs
+// drops the dir itself. The graceful `--delete-vm` cleanup runs
 // first (registered later); this is the safety net for visual cases —
 // which end at launch with the VM up — and for dead runners. KEEP still
 // preserves the files, but never a running guest.
