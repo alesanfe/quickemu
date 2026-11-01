@@ -424,9 +424,9 @@ func renderPreseed(p *Profile, hash string, keys []string) string {
 		kbd = "us"
 	}
 	mirrorHost, mirrorDir, suite := "deb.debian.org", "/debian", debianSuite(p.System.Release)
-	// eduProfile is the debian-edu metapackage question — without an
-	// answer the installer stops for it even with priority=critical.
-	eduProfile := ""
+	// extraPreseed carries distro-specific debconf answers — without
+	// them the installer stops mid-run even with priority=critical.
+	extraPreseed := ""
 	switch p.System.OS {
 	case "kali":
 		mirrorHost, mirrorDir, suite = "http.kali.org", "/kali", "kali-rolling"
@@ -434,11 +434,16 @@ func renderPreseed(p *Profile, hash string, keys []string) string {
 		// Devuan's catalog releases are already suite names
 		// (daedalus/excalibur/chimaera) and it merges Debian repos.
 		mirrorHost, mirrorDir, suite = "deb.devuan.org", "/merged", p.System.Release
+		// Devuan's choose-init udeb stops d-i for an init selection —
+		// both template spellings exist across suites; unknown keys
+		// are inert, so answer both (sysvinit is the Devuan default).
+		extraPreseed = "d-i choose-init/select_init select sysvinit\n" +
+			"d-i choose-init/selected_init select sysvinit\n"
 	case "trisquel":
 		mirrorHost, mirrorDir, suite = "archive.trisquel.info", "/trisquel",
 			trisquelSuite(p.System.Release)
 	case "debian-edu":
-		eduProfile = "d-i debian-edu-install/profile select Minimal\n"
+		extraPreseed = "d-i debian-edu-install/profile select Minimal\n"
 	}
 	var k strings.Builder
 	for _, key := range keys {
@@ -454,7 +459,7 @@ d-i mirror/http/hostname string ` + mirrorHost + `
 d-i mirror/http/directory string ` + mirrorDir + `
 d-i mirror/suite string ` + suite + `
 d-i mirror/codename string ` + suite + `
-` + eduProfile + `d-i apt-setup/non-free-firmware boolean true
+` + extraPreseed + `d-i apt-setup/non-free-firmware boolean true
 d-i apt-setup/contrib boolean true
 d-i apt-setup/non-free boolean true
 d-i clock-setup/utc boolean true

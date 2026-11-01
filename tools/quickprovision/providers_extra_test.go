@@ -546,13 +546,17 @@ func TestRenderPreseed(t *testing.T) {
 		!strings.Contains(cfg, "kali-rolling") {
 		t.Fatalf("kali mirror keys:\n%s", cfg)
 	}
-	// devuan: releases are suite names; the merged mirror carries them.
+	// devuan: releases are suite names; the merged mirror carries
+	// them, and choose-init must be answered or d-i stops.
 	p.System.OS, p.System.Release = "devuan", "daedalus"
 	cfg = renderPreseed(&p, "$6$x", nil)
 	if !strings.Contains(cfg, "deb.devuan.org") ||
 		!strings.Contains(cfg, "/merged") ||
 		!strings.Contains(cfg, "daedalus") {
 		t.Fatalf("devuan mirror keys:\n%s", cfg)
+	}
+	if !strings.Contains(cfg, "choose-init") {
+		t.Fatalf("devuan must preseed the init-system question:\n%s", cfg)
 	}
 	// trisquel: numeric release → codename + trisquel mirror.
 	p.System.OS, p.System.Release = "trisquel", "12.0"
