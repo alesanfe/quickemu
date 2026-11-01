@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -377,8 +378,26 @@ func run() int {
 				snaps = append(snaps, s)
 			}
 		}
+		snaps = append(snaps, internalSnapshots(dir)...)
 		j, _ := json.Marshal(snaps)
 		ok(string(j))
+		if !outputJSON {
+			// Text mode mirrors vm.sh: qemu-img's own table for the
+			// internal snapshots, one line per external sidecar.
+			if disk := confDisk(dir); disk != "" {
+				if qi, err := exec.LookPath("qemu-img"); err == nil {
+					if out, err := execCommand(qi, "snapshot", "-l", disk).Output(); err == nil {
+						info(strings.TrimRight(string(out), "\n"))
+					}
+				}
+			}
+			for _, e := range ents {
+				var s map[string]any
+				if b, err := os.ReadFile(e); err == nil && json.Unmarshal(b, &s) == nil {
+					infof("%v\t%s\n", s["id"], s["tag"])
+				}
+			}
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "unknown op %q\n", op)
 		return 2

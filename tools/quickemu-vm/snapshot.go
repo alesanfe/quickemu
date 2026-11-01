@@ -25,33 +25,51 @@ func snapshotInfo(dir string) int {
 	return exitCode(cmd.Run())
 }
 
+// internalSnapshots reads the qcow2's embedded snapshot table via
+// qemu-img info. Snapshots made with `qemu-img snapshot -c` — e.g.
+// quickprovision's seal step — carry no .snapshots/*.json sidecar but
+// are real, appliable snapshots and must not be invisible to
+// --snapshot-list.
+func internalSnapshots(dir string) []map[string]any {
+	disk := confDisk(dir)
+	if disk == "" {
+		return nil
+	}
+	qi, err := exec.LookPath("qemu-img")
+	if err != nil {
+		return nil
+	}
+	out, err := execCommand(qi, "info", "--output=json", disk).Output()
+	if err != nil {
+		return nil
+	}
+	var j struct {
+		Snapshots []map[string]any `json:"snapshots"`
+	}
+	if json.Unmarshal(out, &j) != nil {
+		return nil
+	}
+	var norm []map[string]any
+	for _, s := range j.Snapshots {
+		norm = append(norm, map[string]any{
+			"id":            s["id"],
+			"name":          s["name"],
+			"tag":           s["name"],
+			"date":          num(s["date-sec"]) + num(s["date-nsec"])/1e9,
+			"vm-state-size": num(s["vm-state-size"]),
+			"type":          "internal",
+		})
+	}
+	return norm
+}
+
 // snapshotListJSON: qemu-img info --output=json snapshot table
 // (schemas/v1/vm-snapshots.schema.json shape).
 func snapshotListJSON(dir, vmName string) int {
-	disk := confDisk(dir)
 	snaps := "[]"
-	if disk != "" {
-		if qi, err := exec.LookPath("qemu-img"); err == nil {
-			out, err := execCommand(qi, "info", "--output=json", disk).Output()
-			if err == nil {
-				var j struct {
-					Snapshots []map[string]any `json:"snapshots"`
-				}
-				if json.Unmarshal(out, &j) == nil && j.Snapshots != nil {
-					var norm []map[string]any
-					for _, s := range j.Snapshots {
-						norm = append(norm, map[string]any{
-							"id":            s["id"],
-							"name":          s["name"],
-							"date":          num(s["date-sec"]) + num(s["date-nsec"])/1e9,
-							"vm-state-size": num(s["vm-state-size"]),
-						})
-					}
-					b, _ := json.Marshal(norm)
-					snaps = string(b)
-				}
-			}
-		}
+	if arr := internalSnapshots(dir); arr != nil {
+		b, _ := json.Marshal(arr)
+		snaps = string(b)
 	}
 	okMap(map[string]any{"vm": vmName, "snapshots": json.RawMessage(snaps)})
 	return 0

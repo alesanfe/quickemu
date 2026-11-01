@@ -47,6 +47,17 @@ func vmRunningDir(dir, name string) bool {
 	if err != nil || proc.Signal(syscall.Signal(0)) != nil {
 		return false
 	}
+	// Same ownership semantics as quickemu-cli's vmProcOwned: a
+	// cmdline pointing into the VM dir — or QEMU's -name process=<vm>
+	// token — proves the process is ours before the comm heuristic.
+	if cl, err := os.ReadFile(fmt.Sprintf("/proc/%d/cmdline", pid)); err == nil && len(cl) > 0 {
+		s := strings.ReplaceAll(string(cl), "\x00", " ")
+		if strings.Contains(s, dir+string(filepath.Separator)) ||
+			strings.Contains(s, "process="+name+",") ||
+			strings.HasSuffix(strings.TrimSpace(s), "process="+name) {
+			return true
+		}
+	}
 	comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
 	if err != nil {
 		return true // cannot verify identity — liveness decides
