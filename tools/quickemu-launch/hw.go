@@ -314,7 +314,7 @@ func planPorts(c Conf, t OsTuning) {
 		return // none/bridge/passt have no user-netdev forwards
 	}
 	fwd := ""
-	if p := firstFreePort(c.get("ssh_port", ""), 22220, 22229, c["_vmname"]); p != "" {
+	if p := firstFreePort(c.get("ssh_port", ""), 22220, 22319, c["_vmname"]); p != "" {
 		// ssh_access picks the bind address (local→loopback,
 		// remote→wildcard, otherwise a specific interface IP).
 		addr, sshHost := "127.0.0.1", "localhost"
