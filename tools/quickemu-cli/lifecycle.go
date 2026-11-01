@@ -162,6 +162,17 @@ func actShutdown() int {
 	return rc
 }
 
+// actPowerdown: --powerdown — same ACPI system_powerdown request as
+// --shutdown (the GUI's batch stop sends this spelling); the envelope
+// reports `vm.powerdown` so the caller's command-match resolves.
+func actPowerdown() int {
+	rc := monitorAction("system_powerdown", "vm.powerdown-requested", "powerdown", "vm.powerdown")
+	if rc == 0 {
+		machineTransition(stStopping, "guest-powerdown", "quickemu-cli")
+	}
+	return rc
+}
+
 // actReset: reset_vm — immediate system_reset over the monitor.
 func actReset() int {
 	return monitorAction("system_reset", "vm.reset-requested", "reset", "vm.reset")

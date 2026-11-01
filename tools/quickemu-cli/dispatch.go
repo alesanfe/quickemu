@@ -45,6 +45,8 @@ func dispatchLifecycle(act string) func() int {
 		return actSuspend
 	case "shutdown_vm":
 		return actShutdown
+	case "powerdown_vm":
+		return actPowerdown
 	case "reset_vm":
 		return actReset
 	case "kill_vm":

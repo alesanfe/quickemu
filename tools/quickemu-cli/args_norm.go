@@ -6,23 +6,24 @@ import (
 )
 
 var (
-	vmConf       string
-	outFmt       = "text"
-	actions      []string
-	confOpts     = map[string]string{} // CLI overrides merged into the conf
-	extra        = map[string]string{} // action args (--monitor-cmd value etc.)
-	trashFlag    bool                  // --trash: delete_vm stages to XDG trash
-	externalFlag bool                  // --external: external qcow2 snapshot
-	doctorFix    bool                  // --fix: doctor attempts repairs
-	persistFlag  bool                  // --persist: record hotplug in the conf
-	shortcutOpts []string              // SHORTCUT_OPTIONS accumulated for --shortcut
-	snapshotAct  string                // --snapshot <action>
-	snapshotTag  string                // --snapshot <action> <tag>
-	memFlag      bool                  // --memory: snapshot carries guest RAM
-	quiesceFlag  bool                  // --quiesce: fsfreeze around snapshot
-	snapshotDesc string                // --snapshot-desc <text>
-	policyVerb   string                // --snapshot-policy <run|status|units>
-	dryRunFlag   bool                  // --dry-run/--echo
+	vmConf        string
+	outFmt        = "text"
+	actions       []string
+	confOpts      = map[string]string{} // CLI overrides merged into the conf
+	extra         = map[string]string{} // action args (--monitor-cmd value etc.)
+	trashFlag     bool                  // --trash: delete_vm stages to XDG trash
+	statusQuoFlag bool                  // --status-quo: persist confOpts into the conf
+	externalFlag  bool                  // --external: external qcow2 snapshot
+	doctorFix     bool                  // --fix: doctor attempts repairs
+	persistFlag   bool                  // --persist: record hotplug in the conf
+	shortcutOpts  []string              // SHORTCUT_OPTIONS accumulated for --shortcut
+	snapshotAct   string                // --snapshot <action>
+	snapshotTag   string                // --snapshot <action> <tag>
+	memFlag       bool                  // --memory: snapshot carries guest RAM
+	quiesceFlag   bool                  // --quiesce: fsfreeze around snapshot
+	snapshotDesc  string                // --snapshot-desc <text>
+	policyVerb    string                // --snapshot-policy <run|status|units>
+	dryRunFlag    bool                  // --dry-run/--echo
 )
 
 // confKeyFor maps a --flag name to its .conf key (options.sh parity):

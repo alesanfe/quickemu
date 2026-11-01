@@ -8,6 +8,7 @@ package main
 import (
 	"encoding/json"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -240,5 +241,37 @@ func TestDiskResizeCommitFlag(t *testing.T) {
 			t.Fatalf("%s -> %v", f, actions)
 		}
 		actions = old
+	}
+}
+
+func TestPowerdownFlagAndAction(t *testing.T) {
+	old := actions
+	actions = nil
+	p := &argParser{args: []string{"--powerdown"}}
+	if !parseLifecycleFlags(p, "--powerdown") || actions[0] != "powerdown_vm" {
+		t.Fatalf("--powerdown -> %v", actions)
+	}
+	actions = old
+	if dispatch("powerdown_vm") == nil {
+		t.Fatal("powerdown_vm has no dispatch")
+	}
+}
+
+func TestEmitStatusQuoBareJSON(t *testing.T) {
+	withConf(t, "guest_os=\"linux\"\n")
+	withJSON(t)
+	oldQ, oldO := statusQuoFlag, confOpts
+	statusQuoFlag = true
+	confOpts = map[string]string{"snapshot": "on", "ram": "4G"}
+	t.Cleanup(func() { statusQuoFlag, confOpts = oldQ, oldO })
+	var rc int
+	env := envOut(t, func() { rc = actStatusQuo() })
+	if rc != 0 || env["command"] != "vm.status-quo" || env["success"] != true {
+		t.Fatalf("rc=%d env=%v", rc, env)
+	}
+	b, _ := os.ReadFile(vmConf)
+	if !strings.Contains(string(b), `snapshot="on"`) ||
+		!strings.Contains(string(b), `ram="4G"`) {
+		t.Fatalf("conf not persisted: %q", b)
 	}
 }

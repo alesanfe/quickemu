@@ -49,6 +49,11 @@ func main() {
 			// Move-to-trash menu sends it bare) — never boot.
 			os.Exit(actTrashVm())
 		}
+		if statusQuoFlag {
+			// `--status-quo` alone means "save state to conf" — write
+			// the CLI overrides back; never boot.
+			os.Exit(actStatusQuo())
+		}
 		if dryRunFlag {
 			os.Exit(actDryRun())
 		}

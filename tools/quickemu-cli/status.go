@@ -13,7 +13,7 @@ func allowedOps(state string) []string {
 	var ops string
 	switch state {
 	case "running":
-		ops = "pause resume shutdown stop kill reset suspend restart " +
+		ops = "pause resume shutdown powerdown stop kill reset suspend restart " +
 			"monitor-cmd send-keys type screenshot " +
 			"viewer vnc spice-console serial-console monitor-console fullscreen " +
 			"ssh sftp scp ssh-config " +

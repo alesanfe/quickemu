@@ -360,6 +360,8 @@ func parseLifecycleFlags(p *argParser, a string) bool {
 		actions = append(actions, "vm_suspend")
 	case "--shutdown":
 		actions = append(actions, "shutdown_vm")
+	case "--powerdown":
+		actions = append(actions, "powerdown_vm")
 	case "--reset":
 		actions = append(actions, "reset_vm")
 	case "--stop":
@@ -419,6 +421,7 @@ func parseConfFlags(p *argParser, a string) bool {
 	switch a {
 	case "--status-quo":
 		p.scOpt()
+		statusQuoFlag = true
 		confOpts["snapshot"] = "on"
 	case "--offline":
 		p.scOpt()

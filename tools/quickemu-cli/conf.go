@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -140,6 +141,54 @@ func actMigrateConf() int {
 			"conf": vmConf, "toml": out})
 	} else {
 		fmt.Println(" - Migrated " + vmConf + " -> " + out + " (original kept)")
+	}
+	return 0
+}
+
+// actStatusQuo: `--status-quo` with no action — persist the CLI conf
+// overrides into the .conf (the Bash "save state" the GUI menu
+// invokes) instead of booting the VM.
+func actStatusQuo() int {
+	b, err := os.ReadFile(vmConf)
+	if err != nil {
+		if outFmt == "json" {
+			emitFail("vm.status-quo", "not_found", vmConf+" not found.")
+		} else {
+			fmt.Println("ERROR! " + vmConf + " not found.")
+		}
+		return 1
+	}
+	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	seen := map[string]bool{}
+	for i, l := range lines {
+		k := strings.SplitN(l, "=", 2)[0]
+		if v, ok := confOpts[k]; ok {
+			lines[i] = k + "=\"" + v + "\""
+			seen[k] = true
+		}
+	}
+	keys := make([]string, 0, len(confOpts))
+	for k := range confOpts {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !seen[k] {
+			lines = append(lines, k+"=\""+confOpts[k]+"\"")
+		}
+	}
+	if err := os.WriteFile(vmConf, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		if outFmt == "json" {
+			emitFail("vm.status-quo", "write_failed", err.Error())
+		} else {
+			fmt.Println("ERROR! could not write " + vmConf + ": " + err.Error())
+		}
+		return 1
+	}
+	if outFmt == "json" {
+		emitOK("vm.status-quo", map[string]any{"vm": vmname(), "written": keys})
+	} else {
+		fmt.Printf(" - Saved %d option(s) to %s.\n", len(keys), vmConf)
 	}
 	return 0
 }
