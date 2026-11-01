@@ -150,16 +150,19 @@ func inferProvider(p *Profile) string {
 		// same autoinstall path; calamares flavours (kubuntu, lubuntu,
 		// unity) do not and stay visual.
 		return "ubuntu-desktop-autoinstall"
-	case "ubuntu-budgie", "ubuntustudio", "xubuntu", "ubuntu-mate":
+	case "ubuntu-budgie", "ubuntustudio", "xubuntu", "ubuntu-mate",
+		"ubuntukylin":
 		// These flavours switched installer mid-stream: ubiquity up to
 		// 23.04, the flutter/subiquity installer from 23.10.
 		if releaseAtLeast(p.System.Release, 23, 10) {
 			return "ubuntu-desktop-autoinstall"
 		}
 		return "ubiquity-preseed"
-	case "linuxmint", "zorin", "bodhi", "ubuntucinnamon":
+	case "linuxmint", "zorin", "bodhi", "ubuntucinnamon", "mythbuntu",
+		"linuxlite", "backbox", "hamonikr":
 		// Still on ubiquity — Cinnamon held back from the flutter
-		// migration; mint, zorin and bodhi never shipped the new one.
+		// migration; mint, zorin, bodhi and the Ubuntu/Mint-derived
+		// respins never shipped the new one.
 		return "ubiquity-preseed"
 	case "debian":
 		// Only the installer ISOs run d-i; the DE editions are
@@ -168,7 +171,11 @@ func inferProvider(p *Profile) string {
 		case "", "netinst", "standard":
 			return "debian-preseed"
 		}
-	case "kali", "debian-edu":
+	case "kali", "debian-edu", "parrotsec", "canaima", "bosslinux",
+		"openmediavault", "yunohost", "turnkey", "turnkeylinux":
+		// All ship a Debian-Installer ISO. OMV/Yunohost's own media
+		// bakes their preseed in — ours installs the Debian base and
+		// the appliance layer belongs to the provision stage.
 		return "debian-preseed"
 	case "devuan":
 		// The catalog resolves the desktop-live ISO (refractainstaller,
@@ -189,10 +196,14 @@ func inferProvider(p *Profile) string {
 		}
 	case "alma", "centos", "centos-stream", "rockylinux", "oraclelinux",
 		"tencentos", "anolis", "eurolinux", "opencloudos", "openeuler",
-		"springdale", "nethserver", "ovirt-node", "koozali", "ultramarine":
+		"springdale", "nethserver", "ovirt-node", "koozali", "ultramarine",
+		"nobara", "risios", "securityonion", "freepbx", "elastix",
+		"issabel", "fedoracore":
 		// The whole RHEL-family tree runs anaconda — kickstart is
 		// distro-agnostic, only the ISO layout is shared. Ultramarine's
 		// resolver prefers the -anaconda ISO variant over readymade.
+		// Fedora Core 1-6 predates the family but runs the same
+		// installer; Security Onion ships an Oracle-Linux anaconda.
 		return "anaconda-kickstart"
 	case "opensuse", "opensuse-slowroll":
 		// MicroOS needs combustion, a different mechanism.
@@ -204,7 +215,9 @@ func inferProvider(p *Profile) string {
 		return "proxmox-autoinstall"
 	case "openbsd":
 		return "openbsd-autoinstall"
-	case "freebsd":
+	case "freebsd", "hardenedbsd":
+		// HardenedBSD ships the stock bsdinstall menus — the same
+		// serial navigation applies.
 		return "freebsd-shell"
 	case "void":
 		return "void-xbps"
@@ -212,8 +225,10 @@ func inferProvider(p *Profile) string {
 		return "gentoo-stage3"
 	case "flatcar":
 		return "flatcar-ignition"
-	case "fedora-coreos", "fedoracore":
+	case "fedora-coreos":
 		// qcow2 + ignition via -fw_cfg — no install boot at all.
+		// (fedoracore is legacy Fedora Core 1-6 — anaconda, handled
+		// with the RHEL family above.)
 		return "coreos-ignition"
 	case "nixos":
 		// Live root shell — serial-driven nixos-install.

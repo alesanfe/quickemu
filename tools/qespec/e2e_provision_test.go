@@ -189,7 +189,7 @@ var provisionMatrix = []provisionCase{
 		notes: "boot-com companion ISO; sysinst lettered menu nav is a risk",
 	},
 	{
-		name: "void", os: "void", release: "latest", edition: "base",
+		name: "void", os: "void", release: "latest", edition: "glibc",
 		wantProvide: "void-xbps",
 		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
 		installMin:  60, sshMin: 20,
@@ -514,6 +514,165 @@ var provisionMatrix = []provisionCase{
 		installMin:  90, sshMin: 30, minRAM: "4G", minDisk: "32G",
 		notes: "alpha-stage appliance — answer.toml schema may drift",
 	},
+
+	// --- ubiquity family: Ubuntu/Mint-derived respins that never
+	// shipped the flutter installer ---
+	{
+		name: "linuxlite", os: "linuxlite", release: "7.6",
+		wantProvide: "ubiquity-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "Ubuntu LTS base on ubiquity",
+	},
+	{
+		name: "backbox", os: "backbox", release: "9",
+		wantProvide: "ubiquity-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "Ubuntu-based pentest respin on ubiquity",
+	},
+	{
+		name: "mythbuntu", os: "mythbuntu", release: "16.04",
+		wantProvide: "ubiquity-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "frozen at 16.04 — old ubiquity, still preseedable",
+	},
+	{
+		name: "hamonikr", os: "hamonikr", release: "7.0", edition: "lts",
+		wantProvide: "ubiquity-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "Linux Mint-based Korean respin — mint's ubiquity",
+	},
+	{
+		name: "ubuntukylin-legacy", os: "ubuntukylin", release: "20.04.6",
+		wantProvide: "ubiquity-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "release-gate legacy side — all catalog releases are ≤20.04",
+	},
+	{
+		name: "ubuntukylin-current", os: "ubuntukylin", release: "24.04",
+		wantProvide: "ubuntu-desktop-autoinstall",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  90, sshMin: 30, minRAM: "6G",
+		notes: "release-gate modern side — kylin migrated with xubuntu/mate",
+	},
+
+	// --- anaconda family: Fedora/CentOS-derived ISOs ---
+	{
+		name: "nobara", os: "nobara", release: "44", edition: "Official",
+		wantProvide: "anaconda-kickstart",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  90, sshMin: 30, minRAM: "6G", minDisk: "30G",
+		notes: "gaming-fedora anaconda ISO",
+	},
+	{
+		name: "risios", os: "risios", release: "latest",
+		wantProvide: "anaconda-kickstart",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  90, sshMin: 30, minRAM: "6G", minDisk: "30G",
+		notes: "Fedora remix with anaconda",
+	},
+	{
+		name: "securityonion", os: "securityonion", release: "latest",
+		wantProvide: "anaconda-kickstart",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  120, sshMin: 45, minRAM: "8G", minDisk: "100G",
+		notes: "Oracle-Linux anaconda base — SO services belong to provision",
+	},
+	{
+		name: "freepbx", os: "freepbx", release: "17",
+		wantProvide: "anaconda-kickstart",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  90, sshMin: 30,
+		notes: "Sangoma distro is CentOS-anaconda",
+	},
+	{
+		name: "elastix", os: "elastix", release: "latest",
+		wantProvide: "anaconda-kickstart",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "CentOS7-era anaconda — oldest supported ks syntax",
+	},
+	{
+		name: "issabel", os: "issabel", release: "latest",
+		wantProvide: "anaconda-kickstart",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "CentOS7-era anaconda (Elastix fork)",
+	},
+	{
+		name: "fedoracore", os: "fedoracore", release: "6",
+		wantProvide: "anaconda-kickstart",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  45, sshMin: 30,
+		notes: "legacy Fedora Core — anaconda predates RHEL5, pxeboot " +
+			"layout present but oldest ks dialect",
+	},
+
+	// --- debian-installer family ---
+	{
+		name: "parrotsec", os: "parrotsec", release: "7.4", edition: "security",
+		wantProvide: "debian-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "Parrot's installer is d-i derived",
+	},
+	{
+		name: "canaima", os: "canaima", release: "9.0", edition: "gnome",
+		wantProvide: "debian-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "Venezuelan Debian derivative — d-i",
+	},
+	{
+		name: "bosslinux", os: "bosslinux", release: "8.0",
+		wantProvide: "debian-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "CDAC's Debian derivative — d-i",
+	},
+	{
+		name: "openmediavault", os: "openmediavault", release: "8.3.1",
+		wantProvide: "debian-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "d-i ISO whose baked preseed we override — OMV packages " +
+			"belong to the provision stage",
+	},
+	{
+		name: "yunohost", os: "yunohost", release: "latest",
+		wantProvide: "debian-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "same shape as OMV — Debian base + yunohost layer via provision",
+	},
+	{
+		name: "turnkeylinux", os: "turnkeylinux", release: "18.1", edition: "core",
+		wantProvide: "debian-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "di-live frontend — preseed applies but the live-installer " +
+			"path is the risk",
+	},
+	{
+		name: "turnkey", os: "turnkey", release: "latest", edition: "core",
+		wantProvide: "debian-preseed",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "upstream twin of turnkeylinux",
+	},
+
+	// --- freebsd family ---
+	{
+		name: "hardenedbsd", os: "hardenedbsd", release: "14-stable",
+		wantProvide: "freebsd-shell",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  60, sshMin: 30,
+		notes: "stock bsdinstall menus on the hardened fork",
+	},
 }
 
 // ---------- always-on, offline: the matrix must resolve ----------
@@ -793,4 +952,60 @@ func stdoutTail(out string, n int) string {
 		lines = lines[len(lines)-n:]
 	}
 	return strings.Join(lines, "\n")
+}
+
+// TestProvisionMatrixCatalog guards the matrix against typos: every
+// os/release/edition a case claims must exist in the shipped catalog —
+// a case for a nonexistent entry would still plan (inference never
+// validates) and then fail only in the gated run nobody executes.
+func TestProvisionMatrixCatalog(t *testing.T) {
+	var cat struct {
+		Entries []struct {
+			OS       string   `json:"os"`
+			Releases []string `json:"releases"`
+			Editions []string `json:"editions"`
+		} `json:"entries"`
+	}
+	b, err := os.ReadFile(filepath.Join(Root(), "catalog", "data", "catalog.json"))
+	if err != nil {
+		t.Skip("catalog not reachable")
+	}
+	if err := json.Unmarshal(b, &cat); err != nil {
+		t.Fatal(err)
+	}
+	type entry struct {
+		releases map[string]bool
+		editions map[string]bool
+	}
+	idx := map[string]entry{}
+	for _, e := range cat.Entries {
+		r := map[string]bool{}
+		for _, v := range e.Releases {
+			r[v] = true
+		}
+		ed := map[string]bool{}
+		for _, v := range e.Editions {
+			ed[v] = true
+		}
+		idx[e.OS] = entry{releases: r, editions: ed}
+	}
+	for _, tc := range provisionMatrix {
+		t.Run("catalog/"+tc.name, func(t *testing.T) {
+			e, ok := idx[tc.os]
+			if !ok {
+				t.Fatalf("os %q not in catalog", tc.os)
+			}
+			// releases/editions may be scrape-resolved (empty in
+			// catalog) — only assert when the entry pins them.
+			if tc.release != "" && len(e.releases) > 0 && !e.releases[tc.release] &&
+				tc.release != "latest" {
+				t.Errorf("%s release %q not in catalog %v",
+					tc.os, tc.release, e.releases)
+			}
+			if tc.edition != "" && len(e.editions) > 0 && !e.editions[tc.edition] {
+				t.Errorf("%s edition %q not in catalog %v",
+					tc.os, tc.edition, e.editions)
+			}
+		})
+	}
 }

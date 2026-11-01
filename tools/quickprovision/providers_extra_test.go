@@ -78,6 +78,26 @@ func TestInferProviderMainstream(t *testing.T) {
 		"slackware":                  "slackware-live",
 		"artixlinux":                 "artix-basestrap",
 		"calculate-linux":            "calculate-clinstall",
+		"nobara":                     "anaconda-kickstart",
+		"risios":                     "anaconda-kickstart",
+		"securityonion":              "anaconda-kickstart",
+		"freepbx":                    "anaconda-kickstart",
+		"elastix":                    "anaconda-kickstart",
+		"issabel":                    "anaconda-kickstart",
+		"fedoracore":                 "anaconda-kickstart",
+		"parrotsec":                  "debian-preseed",
+		"canaima":                    "debian-preseed",
+		"bosslinux":                  "debian-preseed",
+		"openmediavault":             "debian-preseed",
+		"yunohost":                   "debian-preseed",
+		"turnkey":                    "debian-preseed",
+		"turnkeylinux":               "debian-preseed",
+		"linuxlite":                  "ubiquity-preseed",
+		"backbox":                    "ubiquity-preseed",
+		"mythbuntu":                  "ubiquity-preseed",
+		"hamonikr":                   "ubiquity-preseed",
+		"ubuntukylin":                "ubuntu-desktop-autoinstall",
+		"hardenedbsd":                "freebsd-shell",
 	}
 	for osName, want := range cases {
 		var p Profile
@@ -155,6 +175,17 @@ func TestInferProviderMainstream(t *testing.T) {
 	if inferProvider(&stNew) != "ubuntu-desktop-autoinstall" {
 		t.Fatal("ubuntustudio 24.04 → flutter autoinstall")
 	}
+	// ubuntukylin migrated with the same wave: ubiquity ≤23.04,
+	// flutter ≥23.10 (empty release defaults to the new installer).
+	var kyOld, kyNew Profile
+	kyOld.System.OS, kyOld.System.Release = "ubuntukylin", "20.04.6"
+	kyNew.System.OS, kyNew.System.Release = "ubuntukylin", "24.04"
+	if inferProvider(&kyOld) != "ubiquity-preseed" {
+		t.Fatal("ubuntukylin 20.04 → ubiquity")
+	}
+	if inferProvider(&kyNew) != "ubuntu-desktop-autoinstall" {
+		t.Fatal("ubuntukylin 24.04 → flutter autoinstall")
+	}
 	// non-cloud-init disk images must not silently claim nocloud —
 	// they boot as self-configured appliances under visual.
 	for _, osName := range []string{"dietpi", "mobian", "openwrt"} {
@@ -162,6 +193,46 @@ func TestInferProviderMainstream(t *testing.T) {
 		p.System.OS = osName
 		if inferProvider(&p) != "visual" {
 			t.Fatalf("%s → visual, got %q", osName, inferProvider(&p))
+		}
+	}
+}
+
+// TestInferProviderExhaustive sweeps every catalog OS through
+// inference: the result must always resolve to a selectable provider
+// — never "", never an id pickProvider rejects. Catalog growth can
+// never silently break the contract.
+func TestInferProviderExhaustive(t *testing.T) {
+	var cat struct {
+		Entries []struct {
+			OS string `json:"os"`
+		} `json:"entries"`
+	}
+	// test cwd is the package dir — the catalog lives at repo root;
+	// dataFile() resolves from the test binary (a /tmp path) instead.
+	b, err := os.ReadFile(filepath.Join("..", "..", "catalog", "data", "catalog.json"))
+	if err != nil {
+		b, err = os.ReadFile(dataFile("catalog", "data", "catalog.json"))
+		if err != nil {
+			t.Skip("catalog not reachable")
+		}
+	}
+	if err := json.Unmarshal(b, &cat); err != nil {
+		t.Fatal(err)
+	}
+	if len(cat.Entries) < 300 {
+		t.Fatalf("catalog shrank? %d entries", len(cat.Entries))
+	}
+	for _, e := range cat.Entries {
+		var p Profile
+		p.System.OS = e.OS
+		got := inferProvider(&p)
+		if got == "" {
+			t.Errorf("%s → empty provider", e.OS)
+			continue
+		}
+		p.Automation.Provider = got
+		if _, err := pickProvider(&p); err != nil {
+			t.Errorf("%s → %q not selectable: %v", e.OS, got, err)
 		}
 	}
 }
