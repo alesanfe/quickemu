@@ -46,7 +46,9 @@ func vmname() string {
 	return strings.TrimSuffix(filepath.Base(vmConf), filepath.Ext(vmConf))
 }
 
-func qmpSock() string { return filepath.Join(vmdir(), vmname()+"-qmp.socket") }
+func qmpSock() string { return qelib.SockPath(vmdir(), vmname(), qelib.SockQMP) }
+
+func hmpSock() string { return qelib.SockPath(vmdir(), vmname(), qelib.SockMonitor) }
 
 func pidPath() string { return filepath.Join(vmdir(), vmname()+".pid") }
 

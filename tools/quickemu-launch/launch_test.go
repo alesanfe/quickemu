@@ -73,7 +73,7 @@ func TestSpiceVariants(t *testing.T) {
 		}
 		return ""
 	}
-	if s := mk("spice", "local"); !strings.Contains(s, "unix=on") || !strings.Contains(s, "x.sock") {
+	if s := mk("spice", "local"); !strings.Contains(s, "unix=on") || !strings.Contains(s, ".s/spice") {
 		t.Fatalf("spice local should use unix socket: %s", s)
 	}
 	if s := mk("spice", "remote"); !strings.Contains(s, "port=") || strings.Contains(s, "unix") {

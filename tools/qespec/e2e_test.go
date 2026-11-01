@@ -424,7 +424,7 @@ func TestQMPSocketAppears(t *testing.T) {
 	}
 	d := t.TempDir()
 	conf := VMFixture(t, d)
-	sock := filepath.Join(d, "vm-qmp.socket")
+	sock := filepath.Join(d, ".s", "qmp")
 	quickemuBoot(t, conf)
 	WaitFor(t, 90*time.Second, func() bool { return SocketExists(sock) },
 		"QMP socket never appeared")
@@ -470,7 +470,7 @@ func TestGoCLIBootCycle(t *testing.T) {
 		filepath.Join(vm, "disk.qcow2"), "32M").Run()
 	os.WriteFile(filepath.Join(vm, "stub.iso"), []byte("x"), 0o644)
 
-	qmpSock := filepath.Join(vm, "govm-qmp.socket")
+	qmpSock := filepath.Join(vm, ".s", "qmp")
 	quickemuBoot(t, conf)
 	WaitFor(t, 90*time.Second, func() bool { return SocketExists(qmpSock) },
 		"no QMP socket")

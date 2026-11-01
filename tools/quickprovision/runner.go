@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"golang.org/x/crypto/ssh"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 const version = "0.1.0"
@@ -305,7 +307,7 @@ func (r *runCtx) launch(ctx context.Context) error {
 			if r.ser == nil {
 				r.ser = &serialTap{}
 			}
-			go tailSerial(ctx, filepath.Join(r.vmDir, r.vmName+"-serial.socket"),
+			go tailSerial(ctx, qelib.SockPath(r.vmDir, r.vmName, qelib.SockSerial),
 				filepath.Join(r.artDir, "serial.log"), r.e, r.ser)
 			return nil
 		}

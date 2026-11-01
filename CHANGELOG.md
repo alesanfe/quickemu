@@ -41,6 +41,12 @@ Versioning follows the structured-contract version in `schemas/v1/`.
 - `securityonion` via GitHub releases tag (host migrated to SPA)
 - `kicksecure` rewritten for libvirt 18 bundle layout
 - `uwuntu` via archive.org (site moved to MediaFire)
+- Per-VM unix sockets moved to `<vmdir>/.s/<kind>` — QEMU's sun_path
+  limit (107 bytes) overflowed with long VM names under deep workdirs
+  ("UNIX socket path ... is too long", e.g.
+  debian-cloud-13-genericcloud). Launch fails fast with a clear error
+  when even `.s/` can't fit; readers resolve live sockets under both
+  the `.s/` and the legacy `<vm>-*.sock` layouts.
 
 ## [4.9.9] - structured-contract version
 

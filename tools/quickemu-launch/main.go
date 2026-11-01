@@ -149,7 +149,55 @@ func loadPlan() *launchPlan {
 	p.vmname = strings.TrimSuffix(filepath.Base(confPath), filepath.Ext(confPath))
 	p.osName = strings.ToLower(conf.get("guest_os", "linux"))
 	p.arch = conf.get("arch", "x86_64")
+	// .s/: per-VM socket dir — fixed short basenames keep every bound
+	// path under the unix sun_path limit no matter how long the VM
+	// name or deep the workdir (<vm>-agent.sock overflowed it). The
+	// vm sidecar lets socket-only readers attribute the dir when
+	// basename(dir) != vm name.
+	if err := os.MkdirAll(filepath.Join(p.vmdir, qelib.SockSubdir), 0o700); err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR! Cannot create socket dir %s: %v\n", p.vmdir, err)
+		os.Exit(1)
+	}
+	os.WriteFile(filepath.Join(p.vmdir, qelib.SockSubdir, "vm"), []byte(p.vmname+"\n"), 0o600)
+	p.sockPreflight()
 	return p
+}
+
+// sockPreflight: every unix channel QEMU or a companion daemon binds
+// must fit sockaddr_un's ~107 usable bytes — QEMU only reports the
+// overflow deep in <vm>.log ("UNIX socket path ... is too long"), so
+// fail here with the offending path named. Relative vmdirs emit
+// relative paths, which are short by construction.
+func (p *launchPlan) sockPreflight() {
+	kinds := []string{qelib.SockAgent}
+	if p.conf.get("monitor", "socket") == "socket" {
+		kinds = append(kinds, qelib.SockMonitor, qelib.SockQMP)
+	}
+	if ser := p.conf.get("serial", ""); ser == "socket" ||
+		(ser == "" && p.osName != "macos" && p.osName != "windows" && p.osName != "windows-server") {
+		kinds = append(kinds, qelib.SockSerial)
+	}
+	if p.conf.get("display", "none") == "spice" && p.conf.get("access", "local") == "local" {
+		kinds = append(kinds, qelib.SockSpice)
+	}
+	if p.conf.get("guest_os", "linux") == "linux" && p.conf["_public"] != "" && p.conf.get("iso", "") == "" {
+		kinds = append(kinds, qelib.SockVirtiofsd)
+	}
+	if confOn(p.conf, "tpm") {
+		kinds = append(kinds, qelib.SockSwtpm)
+	}
+	bad := false
+	for _, k := range kinds {
+		if s := qelib.SockBind(dotdir(p.vmdir), k); len(s) > 107 {
+			fmt.Fprintf(os.Stderr,
+				"ERROR! %s socket path %q is %d bytes — over the 107-byte unix limit; move the VM to a shorter directory.\n",
+				k, s, len(s))
+			bad = true
+		}
+	}
+	if bad {
+		os.Exit(1)
+	}
 }
 
 // resolveHost: the vm_boot resolution steps between conf load and the
@@ -385,7 +433,7 @@ func (p *launchPlan) planVirtiofs() {
 		}
 	} else {
 		fmt.Printf(" - virtiofsd: %s (planned)\n",
-			dotdir(p.vmdir)+p.vmname+".virtiofsd-sock")
+			qelib.SockBind(dotdir(p.vmdir), qelib.SockVirtiofsd))
 		conf["_virtiofsd"] = "1"
 	}
 }
@@ -404,7 +452,7 @@ func (p *launchPlan) planSwtpm() {
 	}
 	// plan mode prints the (planned) line without spawning.
 	if !p.runMode {
-		fmt.Printf(" - TPM:      %s (planned)\n", filepath.Join(p.vmdir, p.vmname+".swtpm-sock"))
+		fmt.Printf(" - TPM:      %s (planned)\n", qelib.SockBind(p.vmdir, qelib.SockSwtpm))
 		conf["_swtpm"] = "1"
 	} else if startSwtpm(conf) {
 		conf["_swtpm"] = "1"
@@ -456,10 +504,13 @@ func (p *launchPlan) emit() []string {
 	args = append(args, "-pidfile", dotdir(p.vmdir)+p.vmname+".pid")
 	args = append(args, rtcArgs(osName)...)
 	args = append(args, p.displayA...)
-	args = append(args, p.spiceA...)
 	// The guest-agent channel is display-independent (QE-010): bus +
-	// chardev + org.qemu.guest_agent.0 port for every launch.
+	// chardev + org.qemu.guest_agent.0 port for every launch. It must
+	// precede p.spiceA — QEMU instantiates -device in argv order, so
+	// the virtio-serial-pci bus has to exist before the vdagent/
+	// webdav virtserialports that attach to it.
 	args = append(args, qgaArgs(conf, p.vmdir, p.vmname)...)
+	args = append(args, p.spiceA...)
 	// rng: device first, then the object it references (vm.sh order).
 	args = append(args, "-device", "virtio-rng-pci,rng=rng0", "-object", "rng-random,id=rng0,filename=/dev/urandom")
 	args = append(args, spiceUSBArgs(arch, p.t)...)
@@ -518,11 +569,11 @@ func (p *launchPlan) monitorChan(args []string) []string {
 			"monitor", " - Monitor:  ", "Monitor-Telnet", 4440)
 	case "socket":
 		args = append(args, "-monitor",
-			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-monitor.socket")+",server,nowait")
+			"unix:"+qemuOptEsc(qelib.SockBind(dotdir(vmdir), qelib.SockMonitor))+",server,nowait")
 		// Machine control channel (QMP) next to the HMP socket.
 		args = append(args, "-qmp",
-			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-qmp.socket")+",server,nowait")
-		sockHint(" - Monitor:  ", dotdir(vmdir)+vmname+"-monitor.socket")
+			"unix:"+qemuOptEsc(qelib.SockBind(dotdir(vmdir), qelib.SockQMP))+",server,nowait")
+		sockHint(" - Monitor:  ", qelib.SockBind(dotdir(vmdir), qelib.SockMonitor))
 	default:
 		fmt.Printf("ERROR! \"%s\" is an unknown monitor option.\n", mon)
 		os.Exit(1)
@@ -551,8 +602,8 @@ func (p *launchPlan) serialChan(args []string) []string {
 			"serial", " - Serial:   ", "Serial Telnet", 6660)
 	case "socket":
 		args = append(args, "-serial",
-			"unix:"+qemuOptEsc(dotdir(vmdir)+vmname+"-serial.socket")+",server,nowait")
-		sockHint(" - Serial:   ", dotdir(vmdir)+vmname+"-serial.socket")
+			"unix:"+qemuOptEsc(qelib.SockBind(dotdir(vmdir), qelib.SockSerial))+",server,nowait")
+		sockHint(" - Serial:   ", qelib.SockBind(dotdir(vmdir), qelib.SockSerial))
 	default:
 		fmt.Printf("ERROR! \"%s\" is an unknown serial option.\n", ser)
 		os.Exit(1)

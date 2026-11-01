@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 func TestAlivePidAndStopDaemon(t *testing.T) {
@@ -305,7 +307,7 @@ func TestStartVirtiofsdDaemonPid(t *testing.T) {
 		t.Skip("socat required")
 	}
 	dir := t.TempDir()
-	sock := filepath.Join(dir, "vm.virtiofsd-sock")
+	sock := qelib.SockBind(dir, qelib.SockVirtiofsd)
 	stub := t.TempDir()
 	// socat renamed to virtiofsd so the /proc comm scan matches, run
 	// backgrounded so the launcher child exits like the real daemon.

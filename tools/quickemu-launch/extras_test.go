@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -36,7 +37,7 @@ func TestQGAChannelEmit(t *testing.T) {
 			a[5] != "virtserialport,chardev=agent0,name=org.qemu.guest_agent.0" {
 			t.Fatalf("display %s qgaArgs %v", display, a)
 		}
-		if !strings.Contains(a[3], "path="+dir+"/vm-agent.sock") ||
+		if !strings.Contains(a[3], "path="+dir+"/.s/agent") ||
 			!strings.Contains(a[3], "server=on,wait=off") || !strings.HasPrefix(a[3], "socket,id=agent0,") {
 			t.Fatalf("chardev spec %q", a[3])
 		}
@@ -368,5 +369,69 @@ func TestGuestCores(t *testing.T) {
 	}
 	if n := guestCores(Conf{"cpu_cores": "abc"}, "linux"); n != 2 {
 		t.Fatalf("junk cores %d", n)
+	}
+}
+
+// sockPreflight: a VM dir deep enough that even the fixed .s/<kind>
+// basenames overflow sun_path must fail BEFORE QEMU spawns — the
+// prov-e2e debian-cloud-13-genericcloud launch died on exactly this,
+// and QEMU's own error only surfaces deep in <vm>.log.
+func TestSockPreflightTooDeep(t *testing.T) {
+	if os.Getenv("QE_SOCKFATAL_CHILD") == "1" {
+		deep := filepath.Join(t.TempDir(), strings.Repeat("d", 120))
+		p := &launchPlan{vmdir: deep, conf: Conf{}}
+		p.sockPreflight()
+		return
+	}
+	cmd := exec.Command(os.Args[0], "-test.run=^TestSockPreflightTooDeep$")
+	cmd.Env = append(os.Environ(), "QE_SOCKFATAL_CHILD=1")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected exit 1, got 0: %s", out)
+	}
+	if !strings.Contains(string(out), "over the 107-byte unix limit") {
+		t.Fatalf("missing socket-limit error: %s", out)
+	}
+}
+
+// Regression for the debian-cloud-13-genericcloud prov-e2e failure:
+// a long VM name nested under a deep workdir pushed the old
+// <vm>-agent.sock past sun_path; .s/<kind> keeps every emitted path
+// short regardless.
+func TestSockPathsStayShort(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "prov-e2e-20261101",
+		"debian-cloud-13-genericcloud")
+	vm := "debian-cloud-13-genericcloud"
+	for _, a := range qgaArgs(Conf{}, dir, vm) {
+		if i := strings.Index(a, "path="); i >= 0 {
+			path := a[i+5:]
+			if j := strings.IndexByte(path, ','); j >= 0 {
+				path = path[:j]
+			}
+			if len(path) > 107 {
+				t.Fatalf("qga path over sun_path: %q", a)
+			}
+		}
+	}
+	p := &launchPlan{conf: Conf{}, vmdir: dir, vmname: vm}
+	var args []string
+	sockPathLen := func(tok string) int {
+		if i := strings.Index(tok, "unix:"); i >= 0 {
+			return len(tok[i+5 : i+5+strings.IndexByte(tok[i+5:], ',')])
+		}
+		return -1
+	}
+	for _, tok := range p.monitorChan(append(args, "x")) {
+		if n := sockPathLen(tok); n > 107 {
+			t.Fatalf("monitor path over sun_path: %q", tok)
+		}
+	}
+	for _, tok := range p.serialChan(append(args, "x")) {
+		if n := sockPathLen(tok); n > 107 {
+			t.Fatalf("serial path over sun_path: %q", tok)
+		}
+	}
+	if !has(qgaArgs(Conf{}, dir, vm), "socket,id=agent0,path="+dir+"/.s/agent,server=on,wait=off") {
+		t.Fatal("agent channel must bind .s/agent")
 	}
 }

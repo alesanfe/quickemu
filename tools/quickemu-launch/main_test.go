@@ -165,7 +165,7 @@ secureboot="true"
 	if rc != 0 {
 		t.Fatalf("spice rc=%d out=%s", rc, out)
 	}
-	for _, want := range []string{"spice", "vm.sock", "vfio-pci", "floppy", "drv.iso", "tpm"} {
+	for _, want := range []string{"spice", ".s/spice", "vfio-pci", "floppy", "drv.iso", "tpm"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}

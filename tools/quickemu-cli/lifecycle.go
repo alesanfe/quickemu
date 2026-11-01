@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 	"unicode"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // runtimeCleanup: vm_runtime_cleanup parity — when a pidfile exists but
@@ -62,6 +64,7 @@ func runtimeCleanup() {
 	} {
 		os.Remove(filepath.Join(dir, name+ext))
 	}
+	os.RemoveAll(filepath.Join(dir, qelib.SockSubdir))
 	// <vm>.state.json is NOT reaped — the machine record survives
 	// cleanup so the next boot can tell crashed from stopped.
 	os.RemoveAll(filepath.Join(dir, name+".lock"))

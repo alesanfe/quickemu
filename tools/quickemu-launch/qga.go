@@ -1,15 +1,16 @@
 // qga.go: the universal QEMU guest-agent channel. The channel used
 // to live inside the SPICE emit, so guests only got an agent socket
 // on SPICE displays — every display mode now carries it (the guest-*)
-// CLI verbs talk to <vmdir>/<vm>-agent.sock regardless), and
-// qga="off" disables the emission entirely.
+// CLI verbs talk to the agent socket regardless), and qga="off"
+// disables the emission entirely.
 package main
 
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // qgaEnabled: the channel is on unless qga=off|false|no — presence is
@@ -22,10 +23,10 @@ func qgaEnabled(c Conf) bool {
 	return true
 }
 
-// qgaSockPath: the agent channel endpoint (the CLI's qgaSock must
-// resolve the identical path).
+// qgaSockPath: the agent channel endpoint (the CLI's qgaSock resolves
+// the identical path via qelib.SockPath).
 func qgaSockPath(dir, vmname string) string {
-	return filepath.Join(dir, vmname+"-agent.sock")
+	return qelib.SockPath(dir, vmname, qelib.SockAgent)
 }
 
 // qgaArgs: virtio-serial bus + chardev socket + the
@@ -38,7 +39,7 @@ func qgaArgs(c Conf, dir, vmname string) []string {
 	if !qgaEnabled(c) {
 		return nil
 	}
-	sock := qemuOptEsc(dotdir(dir) + vmname + "-agent.sock")
+	sock := qemuOptEsc(qelib.SockBind(dotdir(dir), qelib.SockAgent))
 	return []string{
 		"-device", "virtio-serial-pci",
 		"-chardev", fmt.Sprintf("socket,id=agent0,path=%s,server=on,wait=off", sock),

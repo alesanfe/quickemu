@@ -233,18 +233,34 @@ func mustJSON(v any) string {
 
 // qmpEventSink: async events are durable, not just a stderr echo —
 // appended to the VM's <vmdir>/<vm>.events.jsonl (qe_event parity) as
-// qemu.<EVENT> with the raw record as data. The socket layout
-// <vmdir>/<vm>-qmp.socket carries the identity; a non-VM socket (odd
-// basename or unwritable dir) degrades to a silent no-op, matching
-// AppendEvent's best-effort contract.
+// qemu.<EVENT> with the raw record as data. Both socket layouts carry
+// the identity — <vmdir>/<vm>-qmp.socket by name, <vmdir>/.s/qmp via
+// the .s/vm sidecar; a non-VM socket (odd basename or unwritable dir)
+// degrades to a silent no-op, matching AppendEvent's best-effort
+// contract.
 func qmpEventSink(sock string, ev map[string]any) {
-	name := strings.TrimSuffix(filepath.Base(sock), "-qmp.socket")
-	if name == "" || name == filepath.Base(sock) {
-		return // socket not named <vm>-qmp.socket — nothing to attribute to
+	dir, name := sockOwner(sock)
+	if name == "" {
+		return // socket carries no VM identity — nothing to attribute to
 	}
 	typ := "qemu.event"
 	if n, ok := ev["event"].(string); ok && n != "" {
 		typ = "qemu." + n
 	}
-	qelib.AppendEvent(filepath.Dir(sock), name, 0, typ, mustJSON(ev))
+	qelib.AppendEvent(dir, name, 0, typ, mustJSON(ev))
+}
+
+// sockOwner: (vmdir, vm) for a QMP socket path — the legacy
+// <vm>-qmp.socket basename or the .s/qmp layout (owner from the
+// launcher's sidecar, else the vmdir basename).
+func sockOwner(sock string) (dir, name string) {
+	base := filepath.Base(sock)
+	if n := strings.TrimSuffix(base, "-qmp.socket"); n != base && n != "" {
+		return filepath.Dir(sock), n
+	}
+	if base == qelib.SockQMP && filepath.Base(filepath.Dir(sock)) == qelib.SockSubdir {
+		dir = filepath.Dir(filepath.Dir(sock))
+		return dir, qelib.SockOwner(dir)
+	}
+	return "", ""
 }

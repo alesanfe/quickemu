@@ -394,7 +394,7 @@ func newMux() *http.ServeMux {
 func vmCmd(vm, cmd string) (string, error) {
 	dir := filepath.Join(dataDir, "vms", vm)
 	conf := filepath.Join(dir, vm+".conf")
-	sock := filepath.Join(dir, vm+"-qmp.socket")
+	sock := qelib.SockPath(dir, vm, qelib.SockQMP)
 	qmp := func(c string) (string, error) {
 		payload, _ := json.Marshal(map[string]any{"execute": c})
 		return runCmd("quickemu-qmp", "execute", "--socket", sock,

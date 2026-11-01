@@ -20,13 +20,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alesanfe/quickemu/tools/qelib"
 	"github.com/alesanfe/quickemu/tools/quickemu-qga"
 )
 
-// qgaSock: the agent channel endpoint — the same <vm>-agent.sock
-// name the launcher binds and runtimeCleanup reaps.
+// qgaSock: the agent channel endpoint — the same socket the launcher
+// binds and runtimeCleanup reaps (legacy -agent.sock still resolves).
 func qgaSock() string {
-	return filepath.Join(vmdir(), vmname()+"-agent.sock")
+	return qelib.SockPath(vmdir(), vmname(), qelib.SockAgent)
 }
 
 // guestVerbState carries the parse output for one queued guest

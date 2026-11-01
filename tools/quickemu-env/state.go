@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // stateDir is where per-env bookkeeping lives.
@@ -216,9 +218,10 @@ func sshPort(conf string, r vmRuntime) int {
 }
 
 // agentSock is the QEMU guest-agent channel path (quickemu-launch
-// qgaSockPath parity): <vmdir>/<name>-agent.sock.
+// qgaSockPath parity): the .s/agent socket, with the legacy
+// <name>-agent.sock still resolving for pre-.s launches.
 func agentSock(conf string) string {
-	return filepath.Join(vmDir(conf), confName(conf)+"-agent.sock")
+	return qelib.SockPath(vmDir(conf), confName(conf), qelib.SockAgent)
 }
 
 // ---------- small fs helpers ----------

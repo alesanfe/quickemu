@@ -93,7 +93,7 @@ func monitorSendCmdOut(msg string, print bool) (string, int) {
 	}
 	switch mon {
 	case "", "socket":
-		sock := filepath.Join(vmdir(), vmname()+"-monitor.socket")
+		sock := hmpSock()
 		if st, err := os.Stat(sock); err != nil || st.Mode()&os.ModeSocket == 0 {
 			fmt.Fprintln(os.Stderr, "WARNING! No qemu-monitor socket at "+sock+" - Couldn't send message to monitor!")
 			return "", 1
@@ -250,8 +250,7 @@ func actScreenshot() int {
 		return fail("No QEMU monitor channel for " + vmname() + " (monitor is disabled).")
 	}
 	if conf["monitor"] == "socket" {
-		sock := filepath.Join(vmdir(), vmname()+"-monitor.socket")
-		if _, err := os.Stat(sock); err != nil {
+		if _, err := os.Stat(hmpSock()); err != nil {
 			return fail("No QEMU monitor socket for " + vmname() + ".")
 		}
 	}
@@ -309,7 +308,7 @@ func actScreenshot() int {
 // must exist and actually be a socket (a stale regular file doesn't
 // count).
 func monitorSockReady() bool {
-	st, err := os.Stat(filepath.Join(vmdir(), vmname()+"-monitor.socket"))
+	st, err := os.Stat(hmpSock())
 	return err == nil && st.Mode()&os.ModeSocket != 0
 }
 

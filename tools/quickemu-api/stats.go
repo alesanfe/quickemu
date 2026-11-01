@@ -195,9 +195,16 @@ func vmStats(dir, name string, ev vmEvidence, prev *procSample, prevAt time.Time
 		"disk_rd_b": 0, "disk_wr_b": 0, "uptime_s": 0,
 		"net": nil,
 	}
-	if st, err := os.Stat(filepath.Join(dir, name+"-agent.sock")); err == nil &&
-		st.Mode()&os.ModeSocket == 0 {
-		out["qga"] = true
+	// The agent marker counts a non-socket file as present in either
+	// layout (.s/agent or legacy <vm>-agent.sock) — unlike the qmp
+	// probe below, a real socket does NOT flip this flag.
+	for _, p := range []string{
+		qelib.SockBind(dir, qelib.SockAgent),
+		filepath.Join(dir, name+"-agent.sock"),
+	} {
+		if st, err := os.Stat(p); err == nil && st.Mode()&os.ModeSocket == 0 {
+			out["qga"] = true
+		}
 	}
 	if !ev.Alive || ev.Pid <= 0 {
 		return out
@@ -216,7 +223,7 @@ func vmStats(dir, name string, ev vmEvidence, prev *procSample, prevAt time.Time
 	out["disk_rd_b"] = s.ReadB
 	out["disk_wr_b"] = s.WriteB
 	out["uptime_s"] = int64(uptimeFor(s))
-	if net, ok := qmpQueryStats(filepath.Join(dir, name+"-qmp.socket")); ok {
+	if net, ok := qmpQueryStats(qelib.SockPath(dir, name, qelib.SockQMP)); ok {
 		out["net"] = net
 		out["qmp"] = true
 	}

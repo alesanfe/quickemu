@@ -30,13 +30,14 @@ func guestVM(t *testing.T) (dir, name string) {
 }
 
 // agentSock: bind the scripted fake agent and link it into the
-// VM's real channel path (<vmdir>/<name>-agent.sock).
+// VM's real channel path (the .s/agent socket the launcher binds).
 func agentSock(t *testing.T, h qgatest.Handler) *qgatest.Server {
 	t.Helper()
 	s := qgatest.Serve(t, h)
 	link := qgaSock()
 	// A dead listener's socket file can linger at the channel path —
 	// the agent link always wins.
+	os.MkdirAll(filepath.Dir(link), 0o700)
 	os.Remove(link)
 	if err := os.Symlink(s.Sock, link); err != nil {
 		t.Fatalf("agent link: %v", err)

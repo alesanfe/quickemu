@@ -340,7 +340,7 @@ func TestStartViewerVariants(t *testing.T) {
 	os.Remove(filepath.Join(vd, vmname()+".spice"))
 	startViewer(get(map[string]string{"viewer": "spicy", "display": "spice",
 		"access": "local"}))
-	waitLog("spice+unix://" + filepath.Join(vd, vmname()+".sock"))
+	waitLog("spice+unix://" + filepath.Join(vd, ".s", "spice"))
 	startViewer(get(map[string]string{"viewer": "remote-viewer", "display": "spice",
 		"access": "remote", "spice_port": "5932"}))
 	waitLog("remote-viewer spice://localhost:5932")

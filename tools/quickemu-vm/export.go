@@ -64,7 +64,15 @@ func exportVm(dir, out string) int {
 	vdir := filepath.Join(parent, name)
 	if st, err := os.Stat(vdir); err == nil && st.IsDir() {
 		filepath.WalkDir(vdir, func(p string, d fs.DirEntry, err error) error {
-			if err != nil || d.IsDir() {
+			if err != nil {
+				return nil
+			}
+			if d.IsDir() {
+				// .s/ carries bound sockets + the vm sidecar — runtime
+				// state, not exportable content.
+				if d.Name() == qelib.SockSubdir {
+					return fs.SkipDir
+				}
 				return nil
 			}
 			// Only regular files: os.Open follows symlinks, so archiving

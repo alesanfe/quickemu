@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // actIgnoreMSRsAlways: ignore_msrs_always — persist kvm ignore_msrs=Y
@@ -162,6 +164,7 @@ func doctorLocks(dir, name string, fix bool) []string {
 
 // doctorSockets: monitor/qmp/*.socket files are stale when no live
 // pidfile exists; fix removes them so reconnects re-create cleanly.
+// Both layouts count: legacy <vm>*.socket and the .s/<kind> dir.
 func doctorSockets(dir, name string, live, fix bool) []string {
 	var findings []string
 	var socks []string
@@ -172,6 +175,11 @@ func doctorSockets(dir, name string, live, fix bool) []string {
 				e.Name() == name+".monitor" || e.Name() == name+".qmp" {
 				socks = append(socks, filepath.Join(dir, e.Name()))
 			}
+		}
+	}
+	if ents, _ := os.ReadDir(filepath.Join(dir, qelib.SockSubdir)); len(ents) > 0 {
+		for _, e := range ents {
+			socks = append(socks, filepath.Join(dir, qelib.SockSubdir, e.Name()))
 		}
 	}
 	for _, s := range socks {

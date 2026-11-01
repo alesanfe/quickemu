@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // outputJSON toggles the v1 envelope vs human text (--format json).
@@ -39,9 +41,15 @@ func deletePlanItems(dir string) []string {
 	if conf != "" {
 		items = append(items, rel(conf))
 	}
-	filepath.WalkDir(dir, func(p string, _ fs.DirEntry, err error) error {
+	filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || p == dir {
 			return nil
+		}
+		// The .s socket dir is a runtime artifact — transient
+		// presence would otherwise flip the plan hash between
+		// --delete-plan and --delete-vm.
+		if d.IsDir() && d.Name() == qelib.SockSubdir {
+			return fs.SkipDir
 		}
 		// Ext() alone can't see compound suffixes (.runtime.json),
 		// so exclude by suffix match against the artifact list.

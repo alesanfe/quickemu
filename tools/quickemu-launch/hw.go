@@ -15,6 +15,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // guestCoresAdj resolves the vCPU count — conf cpu_cores or the
@@ -289,7 +291,7 @@ func tpmArgs(c Conf, arch string) []string {
 	if !confOn(c, "tpm") || (c["_run"] != "" && c["_swtpm"] != "1") {
 		return nil
 	}
-	sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".swtpm-sock"
+	sock := qelib.SockBind(dotdir(c["_vmdir"]), qelib.SockSwtpm)
 	dev := "tpm-tis,tpmdev=tpm0"
 	if arch == "aarch64" {
 		dev = "tpm-tis-device,tpmdev=tpm0"

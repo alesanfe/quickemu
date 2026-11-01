@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // prepareStorage: configure_storage — create a missing disk_img via
@@ -298,7 +300,7 @@ func fileshareArgs(c Conf, dir string) []string {
 		// set in main when the guest is linux, no ISO is attached, and
 		// the daemon is running (--run) or merely resolvable (plan mode).
 		if c["_virtiofsd"] == "1" && qemuHasVhostFS(c) {
-			sock := dotdir(c["_vmdir"]) + c["_vmname"] + ".virtiofsd-sock"
+			sock := qelib.SockBind(dotdir(c["_vmdir"]), qelib.SockVirtiofsd)
 			fmt.Printf(" - virtiofs: On guest: sudo mount -t virtiofs %s ~/%s\n", tag, filepath.Base(pub))
 			a = []string{
 				"-object", "memory-backend-file,id=mem,size=" + qemuOptEsc(c.get("ram", "4G")) + ",mem-path=/dev/shm,share=on",

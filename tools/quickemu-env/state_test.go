@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -235,9 +236,20 @@ func TestAgentSock(t *testing.T) {
 	dir := t.TempDir()
 	conf := filepath.Join(dir, "vm1.conf")
 	writeFile(t, conf, "")
-	want := filepath.Join(dir, "vm1", "vm1-agent.sock")
+	want := filepath.Join(dir, "vm1", ".s", "agent")
 	if got := agentSock(conf); got != want {
 		t.Fatalf("agentSock = %q, want %q", got, want)
+	}
+	// A live legacy socket (pre-.s launch) still resolves.
+	legacy := filepath.Join(dir, "vm1", "vm1-agent.sock")
+	os.MkdirAll(filepath.Dir(legacy), 0o755)
+	ln, err := net.Listen("unix", legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	if got := agentSock(conf); got != legacy {
+		t.Fatalf("agentSock legacy = %q, want %q", got, legacy)
 	}
 }
 

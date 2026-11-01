@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // spiceArgs: configure_display SPICE stack parity — emitted when
@@ -52,8 +53,8 @@ func spiceArgs(c Conf, dir, vmname, osName string) []string {
 			switch access := c.get("access", "local"); access {
 			case "", "local":
 				// Unix socket for local access — no port consumed.
-				sock := filepath.Join(dir, vmname+".sock")
-				spice += ",unix=on,addr=" + qemuOptEsc(dotdir(dir)+vmname+".sock")
+				sock := qelib.SockBind(dir, qelib.SockSpice)
+				spice += ",unix=on,addr=" + qemuOptEsc(qelib.SockBind(dotdir(dir), qelib.SockSpice))
 				portsRecord(dir, vmname, "unix,"+sock, c["_run"] == "1")
 				spiceRecord(dir, vmname, sock, c["_run"] == "1")
 				fmt.Printf(" - SPICE:    On host:  spicy --uri=\"spice+unix://%s\" --title \"%s\"%s%s\n",

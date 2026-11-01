@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 // startViewer: start_viewer parity — attach spicy/remote-viewer when
@@ -42,7 +44,7 @@ func startViewer(get func(string) string) {
 	default:
 		access := get("access")
 		if access == "" || access == "local" {
-			sock := filepath.Join(vmdir(), vmname()+".sock")
+			sock := qelib.SockPath(vmdir(), vmname(), qelib.SockSpice)
 			if viewer == "spicy" {
 				args = append(args, "--uri=spice+unix://"+sock)
 			} else {

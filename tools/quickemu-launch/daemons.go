@@ -13,12 +13,14 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/alesanfe/quickemu/tools/qelib"
 )
 
 func virtiofsdArgv(bin string, c Conf) []string {
-	dir, name := c["_vmdir"], c["_vmname"]
+	dir := c["_vmdir"]
 	return []string{bin,
-		"--socket-path=" + filepath.Join(dir, name+".virtiofsd-sock"),
+		"--socket-path=" + qelib.SockBind(dir, qelib.SockVirtiofsd),
 		"--shared-dir=" + c["_public"],
 		"--announce-submounts",
 		fmt.Sprintf("--translate-uid=squash-guest:0:%d:65536", os.Getuid()),
@@ -73,7 +75,8 @@ func daemonSockPid(sock, name string, fallback int) int {
 // when this returns false.
 func startVirtiofsd(bin string, c Conf) bool {
 	dir, name := c["_vmdir"], c["_vmname"]
-	sock := filepath.Join(dir, name+".virtiofsd-sock")
+	os.MkdirAll(filepath.Join(dir, qelib.SockSubdir), 0o700)
+	sock := qelib.SockBind(dir, qelib.SockVirtiofsd)
 	os.Remove(sock)
 	logF, _ := os.OpenFile(filepath.Join(dir, name+".log"),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
@@ -142,7 +145,8 @@ func startSwtpm(c Conf) bool {
 	// swtpm parses --ctrl type=unixio,path=X and --tpmstate dir=D by
 	// splitting on ',' with no escape mechanism — a comma anywhere in
 	// the dir or VM name would inject extra daemon options. Refuse.
-	sock := filepath.Join(dir, name+".swtpm-sock")
+	os.MkdirAll(filepath.Join(dir, qelib.SockSubdir), 0o700)
+	sock := qelib.SockBind(dir, qelib.SockSwtpm)
 	if strings.ContainsAny(sock+dir, ",") {
 		fmt.Fprintf(os.Stderr, "ERROR! TPM unavailable: VM dir %q contains ',' (breaks swtpm options).\n", dir)
 		return false

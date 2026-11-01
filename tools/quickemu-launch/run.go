@@ -79,7 +79,7 @@ func runQEMU(confPath string, vmdir string, args []string, conf ...Conf) error {
 		pre = vb.String() + "&\n"
 	}
 	if _, err := os.Stat(filepath.Join(dir, name+".swtpm-pid")); err == nil {
-		pre += "swtpm socket --ctrl type=unixio,path=" + shq(filepath.Join(dir, name+".swtpm-sock")) +
+		pre += "swtpm socket --ctrl type=unixio,path=" + shq(qelib.SockBind(dir, qelib.SockSwtpm)) +
 			" --terminate --tpmstate dir=" + shq(dir) + " --tpm2 &\n"
 	}
 	var sb strings.Builder
@@ -124,6 +124,7 @@ func runQEMU(confPath string, vmdir string, args []string, conf ...Conf) error {
 		os.Remove(filepath.Join(dir, name+".pid"))
 		os.Remove(filepath.Join(dir, name+".spice"))
 		os.Remove(dotdir(dir) + name + ".sock")
+		os.RemoveAll(filepath.Join(dir, qelib.SockSubdir))
 		fmt.Println()
 		logB, _ := os.ReadFile(logPath)
 		fmt.Println(string(logB))
@@ -248,6 +249,7 @@ func reapVM(pid int, dir, name string) {
 	}
 	os.Remove(filepath.Join(dir, name+".lock"))
 	os.RemoveAll(filepath.Join(dir, name+".lock.shared"))
+	os.RemoveAll(filepath.Join(dir, qelib.SockSubdir))
 	// vm_runtime_cleanup tail: registry + event. Without this a QEMU
 	// that exits on its own leaves no vm.stopped transition — the CLI
 	// only emits for user-initiated stops.
