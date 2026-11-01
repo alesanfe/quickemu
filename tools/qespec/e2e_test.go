@@ -233,7 +233,11 @@ func TestOpsFlagsContract(t *testing.T) {
 
 	Run(t, "quickemu", nil, "--vm", conf, "--snapshot-verify").
 		Contains(t, "Snapshot chain verified")
-	Run(t, "quickemu", nil, "--vm", conf, "--trash-empty").
+	// The trash lives under XDG_DATA_HOME — isolate it so a dirty real
+	// trash (e.g. from parallel e2e runs) can't flip the message to
+	// "Emptied trash".
+	Run(t, "quickemu", []RunOpt{Env("XDG_DATA_HOME=" + d + "/xdg")},
+		"--vm", conf, "--trash-empty").
 		Contains(t, "Trash is empty")
 	if r := Run(t, "quickemu", nil, "--vm", conf, "--plugins"); r.Failed() {
 		t.Errorf("--plugins rc=%d", r.Code)
