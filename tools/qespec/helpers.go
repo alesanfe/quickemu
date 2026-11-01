@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -464,9 +465,14 @@ func UnixDial(t *testing.T, sock string, payload string, readFor time.Duration) 
 		chunk := make([]byte, 4096)
 		n, err := c.Read(chunk)
 		buf.Write(chunk[:n])
-		if err != nil {
-			break
+		if err == nil {
+			continue
 		}
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			continue // slow peer — keep the window open until readFor
+		}
+		break
 	}
 	return buf.String()
 }

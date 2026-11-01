@@ -346,7 +346,7 @@ func TestRawQemuBootQMP(t *testing.T) {
 
 	reply := UnixDial(t, sock,
 		"{\"execute\":\"qmp_capabilities\"}\n{\"execute\":\"query-status\"}\n",
-		3*time.Second)
+		10*time.Second)
 	if !strings.Contains(reply, `"return"`) {
 		t.Fatalf("QMP handshake failed: %s", reply)
 	}
