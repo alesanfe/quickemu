@@ -901,6 +901,10 @@ func TestProvisionRunE2E(t *testing.T) {
 		}
 		t.Run(tc.name, func(t *testing.T) {
 			work := provisionWorkDir(t)
+			// Multi-GB ISOs are reproducible — always remove them when
+			// the case ends, even under QESPEC_PROVISION_KEEP (KEEP
+			// preserves the VM artifacts for post-mortem, not media).
+			t.Cleanup(func() { removeProvisionISOs(work) })
 			prof := writeProvisionProfile(t, tc)
 
 			// 1. plan — the run must see the same provider the matrix asserts.
@@ -985,6 +989,20 @@ func TestProvisionRunE2E(t *testing.T) {
 				Contains(t, "prepared")
 		})
 	}
+}
+
+// removeProvisionISOs deletes installer media once a case ends — the
+// ISOs are the bulk of a run dir's footprint and always re-downloadable.
+func removeProvisionISOs(dir string) {
+	_ = filepath.Walk(dir, func(p string, fi os.FileInfo, err error) error {
+		if err != nil || fi.IsDir() {
+			return err
+		}
+		if n := fi.Name(); strings.HasSuffix(n, ".iso") || strings.HasSuffix(n, ".iso.part") {
+			os.Remove(p)
+		}
+		return nil
+	})
 }
 
 // parseRunEvents decodes the run's JSONL stream (one event per line).
