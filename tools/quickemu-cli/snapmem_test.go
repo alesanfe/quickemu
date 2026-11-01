@@ -122,8 +122,19 @@ func TestSnapshotMemCreateHappyAndError(t *testing.T) {
 	t.Setenv("QE_VM_CALLS", calls)
 	snapMemReset(t)
 	memFlag, snapshotTag, snapshotDesc = true, "m1", "post-install"
-	if rc := actSnapshotMemCreate(); rc != 0 {
-		t.Fatalf("create rc=%d", rc)
+	oldFmt := outFmt
+	outFmt = "json"
+	defer func() { outFmt = oldFmt }()
+	out := captureOut(t, func() {
+		if rc := actSnapshotMemCreate(); rc != 0 {
+			t.Fatalf("create rc=%d", rc)
+		}
+	})
+	// QuickGUI resolves `snapshot-create` — the memory path must emit
+	// the same namespaced command as apply/delete (COMMAND_MISMATCH
+	// otherwise: bare `vm.snapshot` is not in the GUI's alias set).
+	if !strings.Contains(out, `"command":"vm.snapshot.create"`) {
+		t.Fatalf("envelope command missing vm.snapshot.create: %s", out)
 	}
 	// The sidecar registers the vmstate type.
 	b, _ := os.ReadFile(calls)

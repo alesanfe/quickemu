@@ -39,7 +39,7 @@ func actCapabilities() int {
 			"structuredCatalog": true, "structuredStatus": true, "listVms": true,
 			"snapshots": true, "structuredSnapshots": true, "monitorCommands": true,
 			"sendKeys": true, "screenshot": true, "clone": true, "rename": true,
-			"exportImport": true, "diskOps": true, "downloadProgress": false,
+			"exportImport": true, "diskOps": true, "downloadProgress": true,
 			"safeDeletePlan": true, "verifiableDeletePlan": true, "qmpChannel": true,
 			"instanceIdentity": true, "sharedExclusiveLocks": true,
 			"portRegistry": true, "verifiedArchives": true, "structuredEvents": true,

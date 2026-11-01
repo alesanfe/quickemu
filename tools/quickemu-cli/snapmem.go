@@ -133,10 +133,10 @@ func actSnapshotMemCreate() int {
 	}
 	// Record in the sidecar registry so tree/policy see the type.
 	vmOp("snapshot-register", vmdir(), tag, "vmstate", snapshotDesc)()
-	qeEvent("vm.snapshot", fmt.Sprintf(`{"tag":%q,"memory":true}`, tag))
+	qeEvent("vm.snapshot.create", fmt.Sprintf(`{"tag":%q,"memory":true}`, tag))
 	fmt.Printf(" - Created memory snapshot '%s' for %s.\n", tag, vmname())
 	if outFmt == "json" {
-		emitOK("vm.snapshot", map[string]any{"vm": vmname(), "tag": tag, "memory": true})
+		emitOK("vm.snapshot.create", map[string]any{"vm": vmname(), "tag": tag, "memory": true})
 	}
 	return 0
 }
