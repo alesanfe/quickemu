@@ -4,9 +4,9 @@ _quickget() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="--arch --check --check-all-arch --cloud-init --create-config --download \
---help --insecure --list --list-csv --list-json --minimum-trust \
---open-homepage --show --unattended --url --version"
+    opts="--arch --check --check-all-arch --chunkcheck --cloud-init --create-config \
+--disable-unattended --download --help --insecure --list --list-csv --list-json \
+--minimum-trust --no-conf --open-homepage --show --unattended --update --url --version"
 
     case "${prev}" in
         --arch)          COMPREPLY=($(compgen -W "amd64 arm64" -- "${cur}")); return 0;;

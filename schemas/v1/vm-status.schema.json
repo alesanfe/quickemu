@@ -1,88 +1,101 @@
 {
- "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://quickemu-project.github.io/schemas/vm-status-v1.schema.json",
- "title": "quickemu vm.status response (unified envelope)",
- "type": "object",
- "required": [
-  "schemaVersion",
-  "command",
-  "success",
-  "data",
-  "warnings",
-  "errors",
-  "meta"
- ],
- "properties": {
-  "schemaVersion": {
-   "type": "integer",
-   "const": 1
-  },
-  "command": {
-   "type": "string",
-   "const": "vm.status"
-  },
-  "success": {
-   "type": "boolean"
-  },
-  "data": {
-   "type": "object",
-   "required": [
-    "name",
-    "state",
-    "pid",
-    "allowedOps"
-   ],
-   "properties": {
-    "name": {
-     "type": "string"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://quickemu-project.github.io/schemas/vm-status-v1.schema.json",
+  "title": "quickemu vm.status response (unified envelope)",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "command",
+    "success",
+    "data",
+    "warnings",
+    "errors",
+    "meta"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
     },
-    "state": {
-     "type": "string",
-     "enum": [
-      "stopped",
-      "running",
-      "paused",
-      "stale",
-      "unknown"
-     ]
+    "command": {
+      "type": "string",
+      "const": "vm.status"
     },
-    "pid": {
-     "type": [
-      "integer",
-      "null"
-     ]
+    "success": {
+      "type": "boolean"
     },
-    "allowedOps": {
-     "type": "array",
-     "items": {
-      "type": "string"
-     }
+    "data": {
+      "type": "object",
+      "required": [
+        "name",
+        "state",
+        "pid",
+        "allowedOps"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "stopped",
+            "running",
+            "paused",
+            "stale",
+            "suspended",
+            "crashed",
+            "error",
+            "archived",
+            "recovering",
+            "defined",
+            "preparing",
+            "starting",
+            "saving",
+            "stopping",
+            "importing",
+            "exporting",
+            "deleting",
+            "unknown"
+          ]
+        },
+        "pid": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "allowedOps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "warnings": {
+      "type": "array"
+    },
+    "errors": {
+      "type": "array"
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "quickemuVersion",
+        "timestamp"
+      ],
+      "properties": {
+        "quickemuVersion": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        }
+      }
     }
-   }
-  },
-  "warnings": {
-   "type": "array"
-  },
-  "errors": {
-   "type": "array"
-  },
-  "meta": {
-   "type": "object",
-   "required": [
-    "quickemuVersion",
-    "timestamp"
-   ],
-   "properties": {
-    "quickemuVersion": {
-     "type": "string"
-    },
-    "timestamp": {
-     "type": "string"
-    },
-    "operationId": {
-     "type": "string"
-    }
-   }
   }
- }
 }

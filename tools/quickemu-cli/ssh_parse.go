@@ -53,6 +53,11 @@ func sshIntercept(args []string) bool {
 			if guestValueFlags[args[i-1]] {
 				continue // a flag value, not the subcommand
 			}
+			if jsonRequested() {
+				emitFail("ssh.usage", "usage",
+					fmt.Sprintf("%q must be the first argument", args[i]))
+				os.Exit(1)
+			}
 			fmt.Printf("ERROR! '%s' must be the first argument — try 'quickemu %s ... --vm <conf>'.\n",
 				args[i], args[i])
 			os.Exit(1)
@@ -63,6 +68,10 @@ func sshIntercept(args []string) bool {
 
 // sshUsage: help for the ssh verb family (stdout contract).
 func sshUsage() {
+	if jsonRequested() {
+		emitFail("ssh.usage", "usage", "ssh verb required")
+		return
+	}
 	fmt.Println("quickemu ssh commands:")
 	fmt.Println("  ssh [-l user] [-p port] [-A] [-J jump] [-v] [-- <ssh args>]")
 	fmt.Println("  scp [-P port] <src> <dst> [-- <scp args>]   (':path' marks the guest side)")
@@ -124,6 +133,10 @@ func sshShared(tail []string) []string {
 
 // sshFlagErr: shared flag-error line (stdout contract).
 func sshFlagErr(format string, a ...any) {
+	if jsonRequested() {
+		emitFail("ssh.usage", "usage", fmt.Sprintf(format, a...))
+		os.Exit(1)
+	}
 	fmt.Printf("ERROR! "+format+"\n", a...)
 	os.Exit(1)
 }

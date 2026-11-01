@@ -4,25 +4,30 @@ _quickemu() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="--access --autostart --backup --backup-list --backup-prune \
---backup-restore --backup-verify --braille --capabilities --check --clone \
---cpu-pinning --delete-disk --delete-plan --delete-shortcut --delete-vm \
---disk-compact --disk-resize --display --doctor --dry-run --echo --events \
---export --external --extra-args --fix --format --full --fullscreen \
---height --host-info --hotplug-disk --hotplug-usb --hotunplug \
---ignore-msrs --ignore-msrs-always --ignore-tsc-warning --import \
---inspect-conf --inventory --keyboard --keyboard-layout --kill \
---linked-clone --list-vms --migrate-conf --monitor --monitor-cmd \
---monitor-console --monitor-telnet-host --monitor-telnet-port --mouse \
---move --offline --op-cancel --op-list --op-status --op-watch --pause \
---persist --plan-id --plugin --plugins --profile --public-dir --publicdir \
---rename --reset --restart --resume --screenshot --send-keys --serial \
---serial-console --serial-telnet-host --serial-telnet-port --shortcut \
---shutdown --snapshot --snapshot-tree --snapshot-verify --sound-card \
+    opts="--access --autostart --backup --backup-incr --backup-incr-list \
+--backup-list --backup-prune --backup-restore --backup-verify --braille \
+--capabilities --check --clone --cpu-pinning --delete --delete-disk \
+--delete-plan --delete-shortcut --delete-vm --disk-compact --disk-resize \
+--disk-resize-commit --display --doctor --dry-run --echo --events --export \
+--external --extra-args --extra_args --fix --format --full --full-screen \
+--fullscreen --height --help --host-info --hotplug-disk --hotplug-usb \
+--hotunplug --ignore-msrs --ignore-msrs-always --ignore-tsc-warning \
+--import --inspect-conf --inventory --keyboard --keyboard-layout \
+--keyboard_layout --kill --linked-clone --list --list-vms --memory \
+--migrate-conf --monitor --monitor-cmd --monitor-console \
+--monitor-telnet-host --monitor-telnet-port --mouse --move --offline \
+--op-cancel --op-list --op-status --op-watch --operation-cancel \
+--operation-list --operation-status --operation-watch --pause --persist \
+--plan-id --plugin --plugins --powerdown --profile --public-dir \
+--publicdir --quiesce --rename --reset --resize-commit --restart --resume \
+--screenshot --send-keys --serial --serial-console --serial-telnet-host \
+--serial-telnet-port --shortcut --shutdown --snapshot --snapshot-apply \
+--snapshot-create --snapshot-delete --snapshot-desc --snapshot-list \
+--snapshot-policy --snapshot-tree --snapshot-verify --sound-card \
 --sound-duplex --spice-console --spice-port --ssh-access --ssh-port \
---start --stats --status --status-quo --stop --trash --trash-empty \
---trash-list --trash-restore --type --usb-controller --usb-passthrough \
---version --vfio-scan --viewer --vm --vnc --width"
+--start --stats --status --status-quo --stop --suspend --trash \
+--trash-empty --trash-list --trash-restore --type --usb-controller \
+--usb-passthrough --version --vfio-scan --viewer --vm --vnc --width"
 
     case "${prev}" in
         --vm)             COMPREPLY=($(compgen -f -X '!*.@(conf|toml)' -- "${cur}")); return 0;;

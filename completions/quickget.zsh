@@ -7,6 +7,8 @@ _quickget() {
         '--arch[architecture]:arch:(amd64 arm64)' \
         '--download[download only]' '--create-config[create config]' \
         '--cloud-init[generate NoCloud seed]' '--unattended[unattended install]' \
+        '--disable-unattended[skip unattended setup]' '--chunkcheck[verify chunks]' \
+        '--no-conf[download only, no .conf]' '--update[update local images]' \
         '--check[check URL]:os:->oses' '--check-all-arch[check all arch]:os:->oses' \
         '--url[show URL]:os:->oses' '--show[show OS info]:os:->oses' \
         '--open-homepage[open homepage]:os:->oses' \

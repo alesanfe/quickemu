@@ -6,15 +6,18 @@ _quickemu() {
         '--start[start VM]' '--stop[stop VM via QMP quit]' '--restart[restart VM]' \
         '--status[VM status]' '--status-quo[do not commit disk changes]' \
         '--pause[pause VM]' '--resume[resume VM]' \
-        '--shutdown[ACPI shutdown]' '--reset[hard reset]' '--kill[kill VM]' \
-        '--list-vms[list VMs in directory]' '--inventory[list all VM dirs]' \
-        '--delete-vm[delete VM]' '--delete-disk[delete disk image]' \
+        '--shutdown[ACPI shutdown]' '--powerdown[ACPI powerdown]' \
+        '--suspend[suspend VM state to disk]' '--reset[hard reset]' '--kill[kill VM]' \
+        '--list[alias of list-vms]' '--list-vms[list VMs in directory]' '--inventory[list all VM dirs]' \
+        '--delete[alias of delete-disk]' '--delete-vm[delete VM]' '--delete-disk[delete disk image]' \
         '--delete-plan[show delete plan]' '--plan-id[plan id]:id:' \
         '--delete-shortcut[delete desktop shortcut]' \
         '--clone[clone VM]:name:' '--full[copy disk fully with --clone]' \
         '--linked-clone[clone to another dir]:dir:_files -/' \
         '--rename[rename VM]:name:' '--move[move VM dir]:dir:_files -/' \
         '--backup[write disk backup]' '--backup-list[list backups]' \
+        '--backup-incr[incremental backup via dirty bitmap]' \
+        '--backup-incr-list[list incremental backups]' \
         '--backup-verify[verify backup]:file:_files -g "*.tar.gz"' \
         '--backup-restore[restore backup]:file:_files -g "*.tar.gz"' \
         '--backup-prune[keep newest n backups]:n:' \
@@ -23,12 +26,17 @@ _quickemu() {
         '--trash[delete to trash]' '--trash-list[list trashed VMs]' \
         '--trash-restore[restore trashed VM]:vm:' '--trash-empty[empty trash]' \
         '--snapshot[snapshot action]:action:(apply create delete info list tree verify)' \
+        '--snapshot-create[create snapshot]:tag:' '--snapshot-apply[apply snapshot]:tag:' \
+        '--snapshot-delete[delete snapshot]:tag:' '--snapshot-list[list snapshots]' \
+        '--snapshot-desc[snapshot description]:text:' '--snapshot-policy[retention policy]:spec:' \
+        '--memory[snapshot RAM state]' '--quiesce[quiesce guest fs]' \
         '--snapshot-tree[snapshot tree]' '--snapshot-verify[verify snapshots]' \
         '--external[external snapshot]' \
         '--monitor-cmd[send monitor command]:cmd:' \
         '--send-keys[send keys]:combo:' '--type[type text]:text:' \
         '--screenshot[save screenshot]:file:_files' \
         '--disk-compact[reclaim disk space]' '--disk-resize[resize disk]:size:' \
+        '--disk-resize-commit[commit overlay into backing]' '--resize-commit[alias]' \
         '--spice-console[attach SPICE viewer]' '--vnc[launch VNC client]' \
         '--publicdir[open public dir]' \
         '--serial-console[attach serial console]' '--monitor-console[attach monitor console]' \
@@ -39,6 +47,10 @@ _quickemu() {
         '--inspect-conf[print conf values]' '--migrate-conf[write .toml from .conf]' \
         '--capabilities[capability descriptor]' '--host-info[host inventory]' \
         '--vfio-scan[scan VFIO candidates]' '--events[stream events]:n:' '--stats[resource stats]' \
+        '--op-list[list journal operations]' '--op-status[operation status]:id:' \
+        '--op-cancel[cancel operation]:id:' '--op-watch[watch operation]' \
+        '--operation-list[alias of op-list]' '--operation-status[alias]:id:' \
+        '--operation-cancel[alias]:id:' '--operation-watch[alias]' \
         '--plugins[list marketplace plugins]' '--plugin[run plugin]:name:' \
         '--profile[apply hardware profile]:profile:(macos windows linux linux_old kolibrios freedos)' \
         '--display[display backend]:display:(gtk sdl spice spice-app cocoa vnc none)' \
@@ -50,7 +62,7 @@ _quickemu() {
         '--usb-controller[usb controller]:type:(ehci xhci none)' \
         '--usb-passthrough[USB vid:pid]:id:' \
         '--keyboard[keyboard]:type:(usb virtio ps2)' \
-        '--keyboard-layout[keyboard layout]:layout:' \
+        '--keyboard-layout[keyboard layout]:layout:' '--keyboard_layout[alias]:layout:' \
         '--mouse[mouse]:type:(tablet virtio ps2 usb)' \
         '--sound-card[sound card]:type:(intel-hda ac97 es1370 sb16 usb-audio virtio-sound-pci none)' \
         '--sound-duplex[sound duplex]:type:(hda-micro hda-duplex hda-output)' \
@@ -60,10 +72,10 @@ _quickemu() {
         '--ssh-port[ssh port]:port:' '--spice-port[spice port]:port:' \
         '--width[screen width]:px:' '--height[screen height]:px:' \
         '--cpu-pinning[host core mapping]:cores:' '--braille[braille support]' \
-        '--fullscreen[start fullscreen]' '--offline[start offline]' \
+        '--fullscreen[start fullscreen]' '--full-screen[alias]' '--offline[start offline]' \
         '--ignore-msrs[ignore KVM msrs]' '--ignore-msrs-always[always ignore msrs]' \
         '--ignore-tsc-warning[skip TSC warning]' \
-        '--extra-args[extra qemu args]:args:' \
+        '--extra-args[extra qemu args]:args:' '--extra_args[alias]:args:' \
         '--echo[print args without running]' '--dry-run[print QEMU command only]' \
         '--format[output format]:fmt:(human json text)' \
         '--version[version]' '--help[help]'
