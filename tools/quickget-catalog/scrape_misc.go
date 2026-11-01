@@ -286,7 +286,9 @@ var miscResolvers = map[string]func(release, edition, arch string) (string, stri
 			suffix = "netinst-amd64.iso"
 		}
 		base := "https://cdimage.kali.org/" + release
-		u, _, err := indexISO(base+"/?C=M;O=D", `kali-linux-[^>]*-installer-`+regexp.QuoteMeta(suffix))
+		// [^"<>] keeps the match inside one quoted attribute — a
+		// greedy [^>] would swallow `.iso.torrent" title="…` whole.
+		u, _, err := indexISO(base+"/?C=M;O=D", `kali-linux-[^"<>]*-installer-`+regexp.QuoteMeta(suffix))
 		if err != nil || u == "" {
 			return "", "", nil
 		}
