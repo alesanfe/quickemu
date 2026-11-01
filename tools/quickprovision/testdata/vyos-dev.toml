@@ -1,0 +1,33 @@
+# vyos via serial console — see provider.go for the mechanism notes.
+[profile]
+name = "vyos-dev"
+description = "vyos unattended provision into a dev VM"
+
+[system]
+os = "vyos"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "2G"
+disk_size = "8G"
+
+[identity]
+hostname = "vyos-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+timezone = "Europe/Madrid"
+
+[automation]
+
+[provision]
+packages = []
+
+[[verify]]
+name = "ssh-alive"
+run = "true"

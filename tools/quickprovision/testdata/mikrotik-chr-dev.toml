@@ -1,0 +1,33 @@
+# mikrotik-chr via serial console — see provider.go for the mechanism notes.
+[profile]
+name = "mikrotik-chr-dev"
+description = "mikrotik-chr unattended provision into a dev VM"
+
+[system]
+os = "mikrotik-chr"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "2G"
+disk_size = "8G"
+
+[identity]
+hostname = "mikrotik-chr-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+timezone = "Europe/Madrid"
+
+[automation]
+
+[provision]
+packages = []
+
+[[verify]]
+name = "ssh-alive"
+run = "true"

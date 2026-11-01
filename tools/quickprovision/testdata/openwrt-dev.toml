@@ -1,0 +1,33 @@
+# openwrt via serial console — see provider.go for the mechanism notes.
+[profile]
+name = "openwrt-dev"
+description = "openwrt unattended provision into a dev VM"
+
+[system]
+os = "openwrt"
+release = "latest"
+arch = "amd64"
+
+[machine]
+cpus = 2
+ram = "2G"
+disk_size = "8G"
+
+[identity]
+hostname = "openwrt-dev"
+username = "dev"
+password = ""
+allow_pw_auth = false
+
+[locale]
+lang = "es_ES.UTF-8"
+timezone = "Europe/Madrid"
+
+[automation]
+
+[provision]
+packages = []
+
+[[verify]]
+name = "ssh-alive"
+run = "true"

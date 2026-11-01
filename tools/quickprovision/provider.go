@@ -98,6 +98,12 @@ func pickProvider(p *Profile) (provider, error) {
 		return &guixSerial{}, nil
 	case "netbsd-sets":
 		return &netbsdSets{}, nil
+	case "vyos-live":
+		return &vyosLive{}, nil
+	case "openwrt-serial":
+		return &openwrtSerial{}, nil
+	case "routeros-chr":
+		return &routerosChr{}, nil
 	case "visual":
 		return &visualProvider{}, nil
 	case "manual":
@@ -1794,6 +1800,263 @@ func (n *netbsdSets) driveInstall(ctx context.Context, r *runCtx) error {
 	}
 	r.e.progress("await-install", "install command sent — netbsd install running")
 	return waitPIDGone(ctx, r.e, r.vmDir, r.vmName, timeout)
+}
+
+// --- dialog-driven serial installs -----------------------------------
+//
+// dialogStep is one wait→type turn of an interactive installer:
+// wait for the pattern, settle, then send reply. An empty reply waits
+// without sending (e.g. let a long-running phase finish).
+type dialogStep struct {
+	pattern string        // regex to wait for in serial.log
+	reply   string        // bytes to send once seen; "" = wait only
+	timeout time.Duration // 0 → 5m default
+}
+
+// driveSerialDialog walks a question/answer list on the serial console
+// — for installers with no answer file whose prompts are predictable
+// (VyOS `install image`, RouterOS first login). Idempotent across
+// resume like driveSerialScript: once the log shows the finish marker
+// we just wait for poweroff.
+func driveSerialDialog(ctx context.Context, r *runCtx, steps []dialogStep,
+	finishMarker string) error {
+	timeout := time.Duration(r.p.Automation.InstallTimeoutMin) * time.Minute
+	log := filepath.Join(r.artDir, "serial.log")
+	if finishMarker != "" {
+		if b, err := os.ReadFile(log); err == nil &&
+			strings.Contains(string(b), finishMarker) {
+			r.e.progress("await-install", "install already ran — waiting for poweroff")
+			return waitPIDGone(ctx, r.e, r.vmDir, r.vmName, timeout)
+		}
+	}
+	for i, st := range steps {
+		to := st.timeout
+		if to == 0 {
+			to = 5 * time.Minute
+		}
+		if err := r.waitSerialPattern(ctx, st.pattern, to); err != nil {
+			return fmt.Errorf("dialog step %d (%s): %w", i, st.pattern, err)
+		}
+		if st.reply == "" {
+			continue
+		}
+		time.Sleep(1500 * time.Millisecond) // let the prompt finish drawing
+		if err := r.ser.write(st.reply); err != nil {
+			return fmt.Errorf("dialog step %d send: %w", i, err)
+		}
+	}
+	return waitPIDGone(ctx, r.e, r.vmDir, r.vmName, timeout)
+}
+
+// --- VyOS serial `install image` --------------------------------------
+//
+// vyosLive: the live ISO boots to a vyos/vyos login; there is no
+// answer file, but the whole install is the `install image` script's
+// fixed question sequence — a dialog we can drive blind. The trick
+// that makes SSH work afterwards: we configure the LIVE system first
+// (eth0 dhcp, ssh service, our pubkey under `system login`), then let
+// the installer's "copy live config?" step carry it into the image.
+// Kernel/initrd are extracted (live/vmlinuz, live/initrd.img) so
+// console=ttyS0 lands the login on the serial socket.
+type vyosLive struct{}
+
+func (y *vyosLive) id() string                 { return "vyos-live" }
+func (y *vyosLive) needsSecondBoot() bool      { return true }
+func (y *vyosLive) interactive() bool          { return false }
+func (y *vyosLive) completionMode() string     { return "poweroff" }
+func (y *vyosLive) postInstallFiles() []string { return nil }
+func (y *vyosLive) dropConfKeys() []string {
+	return []string{"kernel", "initrd", "boot_args", "iso", "fixed_iso"}
+}
+func (y *vyosLive) sshUser(p *Profile) string { return "vyos" } // live login owns the keys
+
+func (y *vyosLive) prepare(r *runCtx) error {
+	iso := confGet(r.confPath, "iso")
+	if iso == "" {
+		return fmt.Errorf("conf %s has no iso= — is this a VyOS ISO VM?", r.confPath)
+	}
+	iso = resolveConfPath(r.confPath, iso)
+	got, err := extractCandidates(iso, r.vmDir, [][]string{
+		{"live", "vmlinuz", "initrd.img"},
+		{"boot", "vmlinuz", "initrd.img"},
+	})
+	if err != nil {
+		return fmt.Errorf("vyos boot files: %w", err)
+	}
+	edits := commonConfEdits(r)
+	delete(edits, "seed")
+	edits["kernel"] = firstOf(got, "vmlinuz")
+	edits["initrd"] = firstOf(got, "initrd.img")
+	// The live env mounts the attached ISO — console=ttyS0 puts the
+	// getty on the serial socket.
+	edits["boot_args"] = "console=ttyS0 boot=live components hostname=vyos username=vyos"
+	return confSet(r.confPath, edits)
+}
+
+func (y *vyosLive) driveInstall(ctx context.Context, r *runCtx) error {
+	pw := r.p.Identity.Password
+	if pw == "" {
+		pw = "vyos" // installer requires a password; profile default
+	}
+	steps := []dialogStep{
+		{pattern: `vyos login:|login:`, reply: "vyos\n", timeout: 15 * time.Minute},
+		{pattern: `Password:`, reply: "vyos\n"},
+		{pattern: `vyos@vyos`, reply: "configure\n"},
+		// Configure the LIVE env: dhcp + ssh + our key — install
+		// image copies this config into the installed image.
+		{pattern: `#`, reply: "set interfaces ethernet eth0 address dhcp\n"},
+		{pattern: `edit`, reply: "set service ssh\n"},
+		{pattern: `edit`, reply: "set system login user vyos authentication public-keys qp type ssh-ed25519\n"},
+		{pattern: `edit`, reply: "set system login user vyos authentication public-keys qp key " + r.kp.pub + "\n"},
+		{pattern: `edit`, reply: "commit\n"},
+		{pattern: `#`, reply: "save\n", timeout: 3 * time.Minute},
+		{pattern: `#`, reply: "exit\n"},
+		{pattern: `vyos@vyos`, reply: "install image\n"},
+		{pattern: `Would you like to continue`, reply: "y\n"},
+		{pattern: `artition.*Auto`, reply: "\n"},
+		{pattern: `[Ii]nstall the image on|image on.*vda`, reply: "\n"},
+		{pattern: `destroy all data|Continue`, reply: "y\n"},
+		{pattern: `size|Size`, reply: "\n"},
+		{pattern: `current config|copy.*config|config.*\[Yes\]`, reply: "\n"},
+		{pattern: `assword`, reply: pw + "\n"},
+		{pattern: `etype|again`, reply: pw + "\n"},
+		{pattern: `GRUB|grub|drive`, reply: "\n"},
+		{pattern: `vyos@vyos`, reply: "sudo poweroff\n", timeout: 30 * time.Minute},
+	}
+	return driveSerialDialog(ctx, r, steps, "sudo poweroff")
+}
+
+// --- OpenWrt serial first-boot config ---------------------------------
+//
+// openwrtSerial: the x86 image is already-installed — "installing" is
+// really first-boot provisioning. The image's own bootloader enables
+// ttyS0 (cloud-oriented build), the console shows "Please press Enter
+// to activate this console" → root shell, no login. We fetch and run a
+// script that sets hostname, injects our pubkey into dropbear,
+// switches lan to dhcp (slirp), enables ssh and powers off — the
+// sealed VM then boots straight to a reachable system.
+type openwrtSerial struct{}
+
+func (o *openwrtSerial) id() string                 { return "openwrt-serial" }
+func (o *openwrtSerial) needsSecondBoot() bool      { return true }
+func (o *openwrtSerial) interactive() bool          { return false }
+func (o *openwrtSerial) completionMode() string     { return "poweroff" }
+func (o *openwrtSerial) postInstallFiles() []string { return nil }
+func (o *openwrtSerial) dropConfKeys() []string     { return nil }
+func (o *openwrtSerial) sshUser(p *Profile) string  { return "root" }
+
+func (o *openwrtSerial) prepare(r *runCtx) error {
+	hash, err := pwHash(r.p)
+	if err != nil {
+		return fmt.Errorf("password hash: %w", err)
+	}
+	keys := append([]string{r.kp.pub}, r.p.Identity.SSHAuthorizedKeys...)
+	if err := os.WriteFile(filepath.Join(r.artDir, "install.sh"),
+		[]byte(renderOpenwrtConfig(r.p, hash, keys)), 0o644); err != nil {
+		return err
+	}
+	port, srv, err := startSeedHTTPServer(r.artDir)
+	if err != nil {
+		return err
+	}
+	r.seedSrv = srv
+	r.artPort = port
+	r.e.progress("prepare",
+		fmt.Sprintf("first-boot script at http://10.0.2.2:%d/install.sh", port))
+	edits := commonConfEdits(r)
+	delete(edits, "seed") // no cloud-init — raw image, serial-driven
+	return confSet(r.confPath, edits)
+}
+
+func (o *openwrtSerial) driveInstall(ctx context.Context, r *runCtx) error {
+	timeout := time.Duration(r.p.Automation.InstallTimeoutMin) * time.Minute
+	log := filepath.Join(r.artDir, "serial.log")
+	if b, err := os.ReadFile(log); err == nil &&
+		strings.Contains(string(b), "install.sh | sh") {
+		return waitPIDGone(ctx, r.e, r.vmDir, r.vmName, timeout)
+	}
+	if err := r.waitSerialPattern(ctx,
+		`press Enter to activate|root@OpenWrt|~ #`, 10*time.Minute); err != nil {
+		return err
+	}
+	time.Sleep(2 * time.Second)
+	if err := r.ser.write("\n"); err != nil {
+		return fmt.Errorf("serial wake: %w", err)
+	}
+	if err := r.waitSerialPattern(ctx, `root@.*#|~ #`, 2*time.Minute); err != nil {
+		return err
+	}
+	time.Sleep(time.Second)
+	cmd := fmt.Sprintf("wget -qO- http://10.0.2.2:%d/install.sh | sh\n", r.artPort)
+	if err := r.ser.write(cmd); err != nil {
+		return fmt.Errorf("serial send: %w", err)
+	}
+	r.e.progress("await-install", "config script sent — openwrt first-boot running")
+	return waitPIDGone(ctx, r.e, r.vmDir, r.vmName, timeout)
+}
+
+// --- MikroTik CHR serial config ---------------------------------------
+//
+// routerosChr: CHR is a raw cloud image with serial console enabled by
+// default. First login as admin runs a fixed dialog (license prompt,
+// optional password change) ending at the `[admin@MikroTik] >` CLI —
+// we then fetch our pubkey + an .rsc script over slirp, import it,
+// and `/system shutdown` seals the configured image.
+type routerosChr struct{}
+
+func (m *routerosChr) id() string                 { return "routeros-chr" }
+func (m *routerosChr) needsSecondBoot() bool      { return true }
+func (m *routerosChr) interactive() bool          { return false }
+func (m *routerosChr) completionMode() string     { return "poweroff" }
+func (m *routerosChr) postInstallFiles() []string { return nil }
+func (m *routerosChr) dropConfKeys() []string     { return nil }
+func (m *routerosChr) sshUser(p *Profile) string  { return "admin" }
+
+func (m *routerosChr) prepare(r *runCtx) error {
+	if err := os.WriteFile(filepath.Join(r.artDir, "qp.pub"),
+		[]byte(r.kp.pub+"\n"), 0o644); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(r.artDir, "inst.rsc"),
+		[]byte(renderRouterosConfig(r.p)), 0o644); err != nil {
+		return err
+	}
+	port, srv, err := startSeedHTTPServer(r.artDir)
+	if err != nil {
+		return err
+	}
+	r.seedSrv = srv
+	r.artPort = port
+	r.e.progress("prepare",
+		fmt.Sprintf("rsc script at http://10.0.2.2:%d/inst.rsc", port))
+	edits := commonConfEdits(r)
+	delete(edits, "seed")
+	return confSet(r.confPath, edits)
+}
+
+func (m *routerosChr) driveInstall(ctx context.Context, r *runCtx) error {
+	pw := r.p.Identity.Password
+	if pw == "" {
+		pw = "Qp#" + r.vmName // RouterOS wants a non-empty admin password
+	}
+	steps := []dialogStep{
+		{pattern: `login:`, reply: "admin\n", timeout: 15 * time.Minute},
+		// First-login flow varies by RouterOS release: license
+		// prompt → optional forced password change → CLI prompt.
+		// The password-change patterns are loose so a release that
+		// skips them still lands at the CLI.
+		{pattern: `software license|new password|MikroTik\] >`, reply: "n\n"},
+		{pattern: `new password|MikroTik\] >`, reply: pw + "\n"},
+		{pattern: `repeat|confirm|MikroTik\] >`, reply: pw + "\n"},
+		{pattern: `MikroTik\] >`, reply: fmt.Sprintf(
+			"/tool fetch url=\"http://10.0.2.2:%d/qp.pub\" dst-path=qp.pub\n", r.artPort)},
+		{pattern: `MikroTik\] >`, reply: fmt.Sprintf(
+			"/tool fetch url=\"http://10.0.2.2:%d/inst.rsc\" dst-path=inst.rsc\n", r.artPort)},
+		{pattern: `MikroTik\] >`, reply: "/import file-name=inst.rsc\n", timeout: 3 * time.Minute},
+		{pattern: `MikroTik\] >`, reply: "/system shutdown\n"},
+		{pattern: `[yY]/[nN]|confirm`, reply: "y\n"},
+	}
+	return driveSerialDialog(ctx, r, steps, "/system shutdown")
 }
 
 // --- visual / manual install ----------------------------------------

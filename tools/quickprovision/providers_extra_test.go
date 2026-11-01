@@ -98,6 +98,9 @@ func TestInferProviderMainstream(t *testing.T) {
 		"hamonikr":                   "ubiquity-preseed",
 		"ubuntukylin":                "ubuntu-desktop-autoinstall",
 		"hardenedbsd":                "freebsd-shell",
+		"vyos":                       "vyos-live",
+		"openwrt":                    "openwrt-serial",
+		"mikrotik-chr":               "routeros-chr",
 	}
 	for osName, want := range cases {
 		var p Profile
@@ -187,8 +190,9 @@ func TestInferProviderMainstream(t *testing.T) {
 		t.Fatal("ubuntukylin 24.04 → flutter autoinstall")
 	}
 	// non-cloud-init disk images must not silently claim nocloud —
-	// they boot as self-configured appliances under visual.
-	for _, osName := range []string{"dietpi", "mobian", "openwrt"} {
+	// they boot as self-configured appliances under visual. openwrt and
+	// mikrotik-chr left this bucket — they got real serial providers.
+	for _, osName := range []string{"dietpi", "mobian"} {
 		var p Profile
 		p.System.OS = osName
 		if inferProvider(&p) != "visual" {
@@ -383,6 +387,24 @@ func TestProviderMetaNew(t *testing.T) {
 		t.Fatal("netbsd meta")
 	}
 	var _ serialDriver = nb
+	vy := &vyosLive{}
+	if !vy.needsSecondBoot() || vy.interactive() ||
+		vy.completionMode() != "poweroff" || len(vy.dropConfKeys()) != 5 {
+		t.Fatal("vyos meta")
+	}
+	var _ serialDriver = vy
+	ow := &openwrtSerial{}
+	if !ow.needsSecondBoot() || ow.interactive() ||
+		ow.completionMode() != "poweroff" {
+		t.Fatal("openwrt meta")
+	}
+	var _ serialDriver = ow
+	mk := &routerosChr{}
+	if !mk.needsSecondBoot() || mk.interactive() ||
+		mk.completionMode() != "poweroff" {
+		t.Fatal("routeros meta")
+	}
+	var _ serialDriver = mk
 }
 
 func TestPlanStepsVisualTrimmed(t *testing.T) {
@@ -1022,5 +1044,37 @@ menuentry "GNU Guix installation 1.4.0" {
 	}
 	if got := path.Base(path.Dir(kPath)); got != "ab12cd-linux-libre-6.1.55" {
 		t.Fatalf("store dir basename %q", got)
+	}
+}
+
+func TestRenderOpenwrtRouteros(t *testing.T) {
+	var p Profile
+	p.Identity.Hostname = "ow1"
+	sh := renderOpenwrtConfig(&p, "$6$salt$hash",
+		[]string{"ssh-ed25519 AAAA", "ssh-ed25519 BBBB"})
+	for _, want := range []string{
+		"hostname='ow1'",
+		"root:$6$salt$hash:",
+		"/etc/dropbear/authorized_keys",
+		"ssh-ed25519 AAAA",
+		"ssh-ed25519 BBBB",
+		"/etc/init.d/dropbear enable",
+		"network.lan.proto='dhcp'",
+		"poweroff",
+	} {
+		if !strings.Contains(sh, want) {
+			t.Fatalf("openwrt config missing %q:\n%s", want, sh)
+		}
+	}
+	rsc := renderRouterosConfig(&p)
+	for _, want := range []string{
+		"/user ssh-keys import public-key-file=qp.pub user=admin",
+		"/ip service set ssh disabled=no",
+		"dhcp-client add disabled=no interface=ether1",
+		"name=\"ow1\"",
+	} {
+		if !strings.Contains(rsc, want) {
+			t.Fatalf("routeros rsc missing %q:\n%s", want, rsc)
+		}
 	}
 }

@@ -673,6 +673,32 @@ var provisionMatrix = []provisionCase{
 		installMin:  60, sshMin: 30,
 		notes: "stock bsdinstall menus on the hardened fork",
 	},
+
+	// --- network-OS serial drivers ---
+	{
+		name: "vyos", os: "vyos", release: "latest",
+		wantProvide: "vyos-live",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  30, sshMin: 15,
+		notes: "install-image dialog driven over serial; prompt order " +
+			"varies between rolling builds",
+	},
+	{
+		name: "openwrt", os: "openwrt", release: "latest",
+		wantProvide: "openwrt-serial",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  20, sshMin: 15,
+		notes: "raw image — x86 build enables ttyS0; first-boot script " +
+			"does uci/dropbear then powers off",
+	},
+	{
+		name: "mikrotik-chr", os: "mikrotik-chr", release: "latest",
+		wantProvide: "routeros-chr",
+		wantSteps:   []string{"await-install", "wait-ssh", "verify", "seal"},
+		installMin:  20, sshMin: 15,
+		notes: "first-login dialog (license/password) varies across " +
+			"RouterOS releases",
+	},
 }
 
 // ---------- always-on, offline: the matrix must resolve ----------

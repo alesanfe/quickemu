@@ -1489,3 +1489,40 @@ sync
 poweroff 2>/dev/null || reboot 2>/dev/null || halt
 `
 }
+
+// renderOpenwrtConfig is the first-boot script typed into the serial
+// root shell: hostname, root credential, dropbear key, lan→dhcp so
+// slirp can reach sshd on the configured image.
+func renderOpenwrtConfig(p *Profile, hash string, keys []string) string {
+	return "#!/bin/ash\n" +
+		"set -e\n" +
+		"uci set system.@system[0].hostname='" + p.Identity.Hostname + "'\n" +
+		"uci commit system\n" +
+		"# root credential — sed the hash into /etc/shadow (no interactive passwd)\n" +
+		"sed -i 's|^root:[^:]*:|root:" + hash + ":|' /etc/shadow\n" +
+		"mkdir -p /etc/dropbear\n" +
+		"cat > /etc/dropbear/authorized_keys <<'KEYS'\n" +
+		joinKeys(keys) +
+		"KEYS\n" +
+		"chmod 700 /etc/dropbear\n" +
+		"chmod 600 /etc/dropbear/authorized_keys\n" +
+		"/etc/init.d/dropbear enable\n" +
+		"# stock lan is static 192.168.1.1 — unreachable behind slirp; dhcp gets 10.0.2.15\n" +
+		"uci set network.lan.proto='dhcp'\n" +
+		"uci -q delete network.lan.ipaddr\n" +
+		"uci -q delete network.lan.netmask\n" +
+		"uci commit network\n" +
+		"sync\n" +
+		"poweroff\n"
+}
+
+// renderRouterosConfig is the .rsc /import'd on the serial CLI: ssh key
+// for admin, dhcp client on ether1, ssh service up, identity set.
+// dhcp add is on-error-guarded — CHR images already ship a client on
+// some releases.
+func renderRouterosConfig(p *Profile) string {
+	return "/user ssh-keys import public-key-file=qp.pub user=admin\n" +
+		"/ip service set ssh disabled=no\n" +
+		":do { /ip dhcp-client add disabled=no interface=ether1 } on-error={}\n" +
+		"/system identity set name=\"" + p.Identity.Hostname + "\"\n"
+}

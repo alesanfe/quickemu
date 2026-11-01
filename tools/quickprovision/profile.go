@@ -260,6 +260,18 @@ func inferProvider(p *Profile) string {
 		// Serial sysinst on the boot-com companion ISO → shell →
 		// manual set extraction (the documented headless path).
 		return "netbsd-sets"
+	case "vyos":
+		// `install image` is a fixed question sequence — the live
+		// config (dhcp+ssh+key) is copied into the installed image.
+		return "vyos-live"
+	case "openwrt":
+		// Raw image, already-installed — serial console gives a root
+		// shell; first-boot config (dropbear+dhcp) is driven there.
+		return "openwrt-serial"
+	case "mikrotik-chr":
+		// CHR ships serial console — the first-login dialog is fixed;
+		// ssh key + dhcp + identity land via a fetched .rsc.
+		return "routeros-chr"
 	}
 	// Pre-imaged disks only get nocloud when they actually boot
 	// cloud-init: the *-cloud entries plus a small whitelist. Other
