@@ -90,7 +90,7 @@ var (
 	reProductOpt = regexp.MustCompile(`<option value="([0-9]+)">Windows`)
 	reMdtW       = regexp.MustCompile(`[?&]w=([A-F0-9]+)`)
 	reMdtRticks  = regexp.MustCompile(`rticks="?\+?([0-9]+)`)
-	reFwLink     = regexp.MustCompile(`https://go\.microsoft\.com/fwlink/p/\?LinkID=[0-9]+&clcid=0x[0-9a-z]+&culture=[^&"']+&country=[^&"']+`)
+	reFwLink     = regexp.MustCompile(`(?i)https://go\.microsoft\.com/fwlink/(?:p/)?\?linkid=[0-9]+&clcid=0x[0-9a-z]+&culture=[^&"']+&country=[^&"']+`)
 )
 
 // downloadWindowsWorkstation: consumer Windows 10/11 ISO via the
@@ -182,6 +182,12 @@ func downloadWindowsWorkstation(release, i18n, vmPath string) (string, error) {
 			fmt.Println("   Save the downloaded ISO to: " + abs)
 		}
 		fmt.Println("   Update the config file to reference the downloaded ISO: ./" + vmPath + ".conf")
+		// The MVS connector is Sentinel-blocked per-IP, but the Eval
+		// Center CDN usually is not — try the Enterprise evaluation
+		// ISO before giving up (same scrape path as windows-server).
+		if ev, eerr := downloadWindowsEval(release, vmPath); eerr == nil {
+			return ev, nil
+		}
 		fmt.Println("   Continuing with the VM creation process...")
 		return "", fmt.Errorf("microsoft blocked the download")
 	}
@@ -291,6 +297,51 @@ func downloadWindowsServer(release, i18n, vmPath, entType string) (string, error
 	return fileName, nil
 }
 
+// downloadWindowsEval fetches the Enterprise evaluation ISO — the
+// Eval Center fwlinks redirect to software-static.download.prss which
+// is reachable on hosts where the MVS connector API is IP-blocked.
+func downloadWindowsEval(release, vmPath string) (string, error) {
+	pageURL := "https://www.microsoft.com/en-us/evalcenter/download-windows-" + release + "-enterprise"
+	fmt.Println(" - Trying Eval Center fallback: " + pageURL)
+	page, err := msGet(pageURL, 1<<20, "")
+	if err != nil {
+		return "", err
+	}
+	for _, l := range reFwLink.FindAllString(page, -1) {
+		if !strings.Contains(l, "culture=en-us") {
+			continue
+		}
+		link := l
+		if len(link) > 1024 {
+			link = link[:1024]
+		}
+		req, err := http.NewRequest("HEAD", link, nil)
+		if err != nil {
+			continue
+		}
+		resp, err := httpProbe.Do(req)
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+		final := resp.Request.URL.String()
+		if !strings.HasSuffix(strings.ToLower(final), ".iso") &&
+			!strings.Contains(strings.ToLower(final), ".iso?") {
+			continue
+		}
+		fileName := final[strings.LastIndex(final, "/")+1:]
+		if i := strings.Index(fileName, "?"); i >= 0 {
+			fileName = fileName[:i]
+		}
+		fmt.Println(" - URL: " + final)
+		if fetch(final, filepath.Join(vmPath, fileName), "") != 0 {
+			return "", fmt.Errorf("download failed")
+		}
+		return fileName, nil
+	}
+	return "", fmt.Errorf("no eval iso link for windows %s", release)
+}
+
 // getWindows: get_windows orchestration — download the ISO (workstation
 // or server), fetch virtio-win, build unattended media for 10/11, and
 // write the conf with fixed_iso.
@@ -355,5 +406,12 @@ func getWindows(osName, release, i18n, dir, arch string) int {
 	if fileName == "" {
 		fileName = "windows-" + release + ".iso"
 	}
-	return mkconf(osName, release, "", fileName, "virtio-win.iso", dir, arch, cloudInitFlag)
+	rc := mkconf(osName, release, "", fileName, "virtio-win.iso", dir, arch, cloudInitFlag)
+	if err != nil && rc == 0 {
+		// Bash parity: a blocked download still writes the conf for
+		// the manually-downloaded ISO, but exits nonzero so callers
+		// (e.g. provision acquire-image) don't treat it as success.
+		return 1
+	}
+	return rc
 }
