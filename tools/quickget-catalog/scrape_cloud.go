@@ -180,7 +180,8 @@ func scrapeCloud(osName, release, edition, arch string) (string, string, error) 
 		// published from the ports tree. Minimal-VM *-Cloud.qcow2 is
 		// the cloud-init image.
 		rel := release
-		variant := "openSUSE-Leap-" + regexp.QuoteMeta(rel)
+		// Leap ≥16 renamed the image prefix openSUSE-Leap- → Leap-.
+		variant := "(?:openSUSE-)?Leap-" + regexp.QuoteMeta(rel)
 		base := fmt.Sprintf("https://download.opensuse.org/distribution/leap/%s/appliances/", rel)
 		if rel == "tumbleweed" {
 			variant = "openSUSE-Tumbleweed"

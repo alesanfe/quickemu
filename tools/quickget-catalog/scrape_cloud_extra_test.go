@@ -121,6 +121,18 @@ func TestScrapeOpensuseCloud(t *testing.T) {
 	if h != strings.Repeat("f", 64) {
 		t.Fatalf("opensuse-cloud hash=%q", h)
 	}
+	// Leap ≥16 dropped the openSUSE- prefix from image names.
+	nbase := "https://download.opensuse.org/distribution/leap/16.0/appliances/"
+	nimg := "Leap-16.0-Minimal-VM.x86_64-Cloud.qcow2"
+	fakeFetch(t, map[string]string{
+		nbase: `<a href="` + nimg + `">x</a>
+			<a href="Leap-16.0-Minimal-VM.x86_64-kvm-and-xen.qcow2">x</a>`,
+		nbase + nimg + ".sha256": strings.Repeat("0", 64) + "  " + nimg,
+	})
+	u, _, err = scrape("opensuse-cloud", "16.0", "", "amd64")
+	if err != nil || u != nbase+nimg {
+		t.Fatalf("opensuse-cloud leap16 url=%q err=%v", u, err)
+	}
 	// Tumbleweed.
 	tbase := "https://download.opensuse.org/tumbleweed/appliances/"
 	timg := "openSUSE-Tumbleweed-Minimal-VM.x86_64-Cloud.qcow2"
