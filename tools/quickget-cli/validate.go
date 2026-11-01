@@ -259,6 +259,30 @@ func specifyRelease(osName string) int {
 	return 1
 }
 
+// resolveLatest maps a literal "latest" release to the catalog's
+// first (newest) release when the OS publishes a static list and
+// "latest" is not itself a release name (archlinux ships one
+// literally). Scrape-resolved OSes return an empty/unknown list and
+// keep "latest" for their live resolver.
+func resolveLatest(osName, release string) string {
+	if release != "latest" {
+		return release
+	}
+	out, err := tool("quickget-catalog", "releases", osName)
+	if err != nil {
+		return release
+	}
+	for _, r := range strings.Fields(out) {
+		if r == "latest" {
+			return release
+		}
+	}
+	if f := strings.Fields(out); len(f) > 0 {
+		return f[0]
+	}
+	return release
+}
+
 // validateRelease: validate_release parity — the chosen release must
 // appear in the catalog releases list.
 func validateRelease(osName, release string) bool {

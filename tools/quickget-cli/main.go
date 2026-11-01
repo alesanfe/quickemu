@@ -387,6 +387,9 @@ func main() {
 	if len(pos) > 1 {
 		release = pos[1]
 	}
+	if osName != "" {
+		release = resolveLatest(osName, release)
+	}
 	if len(pos) > 2 {
 		edition = strings.Join(pos[2:], " ")
 	}
