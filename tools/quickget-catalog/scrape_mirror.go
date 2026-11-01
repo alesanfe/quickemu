@@ -9,11 +9,16 @@ import (
 func scrapeMirror(osName, release, edition, arch string) (string, string, error) {
 	switch osName {
 	case "devuan":
-		// Live images live under devuan_<codename>/desktop-live/ with a
-		// version in the name; digests are a shared SHA256SUMS.txt or a
-		// per-file .sha256 sidecar (excalibur).
-		base := "https://files.devuan.org/devuan_" + release + "/desktop-live/"
-		re := `devuan_` + regexp.QuoteMeta(release) + `_[0-9.-]+_amd64_desktop-live\.iso`
+		// Live images live under devuan_<codename>/desktop-live/; the
+		// netinst edition resolves the d-i ISO under installer-iso/.
+		// Digests are a shared SHA256SUMS.txt or a per-file .sha256
+		// sidecar (excalibur).
+		subdir, suffix := "desktop-live", "desktop-live"
+		if edition == "netinst" {
+			subdir, suffix = "installer-iso", "netinstall"
+		}
+		base := "https://files.devuan.org/devuan_" + release + "/" + subdir + "/"
+		re := `devuan_` + regexp.QuoteMeta(release) + `_[0-9.-]+_amd64_` + suffix + `\.iso`
 		u, sha, err := indexISOsums(base, re, "SHA256SUMS.txt")
 		if err != nil {
 			return "", "", err

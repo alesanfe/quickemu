@@ -51,6 +51,7 @@ func TestScrapeAll(t *testing.T) {
 		{"deepin", "20.9", "", "amd64", false},
 		{"devuan", "daedalus", "", "amd64", false},
 		{"devuan", "excalibur", "", "amd64", false},
+		{"devuan", "daedalus", "netinst", "amd64", false},
 		{"aerynos", "2026.08", "", "amd64", false},
 		{"truenas-core", "13.0", "", "amd64", false},
 		{"truenas-core", "12.0", "", "amd64", false},

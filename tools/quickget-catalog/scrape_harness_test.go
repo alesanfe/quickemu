@@ -282,6 +282,10 @@ func bodyFor(url string) (string, error) {
 		return `<a href="TrueNAS-12.0-U8.1.iso?download=1">x</a>`, nil
 	case strings.Contains(url, "freenas.org"):
 		return `<a href="TrueNAS-13.0-U6.8.iso?download=1">x</a>`, nil
+	case strings.Contains(url, "files.devuan.org") && strings.Contains(url, "installer-iso") && strings.Contains(url, "SHA256SUMS"):
+		return shaX + "  devuan_daedalus_5.0.0_amd64_netinstall.iso\n", nil
+	case strings.Contains(url, "files.devuan.org") && strings.Contains(url, "installer-iso"):
+		return `<a href="devuan_daedalus_5.0.0_amd64_netinstall.iso">x</a>`, nil
 	case strings.Contains(url, "files.devuan.org") && strings.Contains(url, "SHA256SUMS"):
 		return shaX + "  devuan_daedalus_5.0.0_amd64_desktop-live.iso\n", nil
 	case strings.Contains(url, "files.devuan.org") && strings.Contains(url, "desktop-live"):
@@ -294,6 +298,8 @@ func bodyFor(url string) (string, error) {
 		return `<a href="debian-edu-12.5.0-amd64-netinst.iso">x</a>`, nil
 	case strings.Contains(url, "slowroll"):
 		return `<a href="openSUSE-Slowroll-DVD-x86_64-Build2024.09.15-Media.iso">x</a>`, nil
+	case strings.Contains(url, "tumbleweed/appliances"):
+		return `<a href="openSUSE-MicroOS.x86_64-16.0.0-kvm-and-xen-Snapshot20261030.qcow2">x</a><a href="openSUSE-MicroOS.x86_64-16.0.0-kvm-and-xen-grub-bls-Snapshot20261030.qcow2">y</a>`, nil
 	case strings.Contains(url, "hardenedbsd") && strings.Contains(url, "MANIFEST"):
 		return "SHA256 (disc1.iso) = " + shaX + "\n", nil
 	case strings.Contains(url, "hardenedbsd"):

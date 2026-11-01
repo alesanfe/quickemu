@@ -130,6 +130,18 @@ var api0Resolvers = map[string]func(release, edition, arch string) (string, stri
 		if arch == "arm64" {
 			farch = "aarch64"
 		}
+		if edition == "Everything" {
+			// The Everything netinst is not in releases.json; it is
+			// indexed under releases/<v>/Everything/<arch>/iso. This
+			// is the installer medium anaconda kickstart can drive.
+			if strings.HasSuffix(release, "_Beta") {
+				return "", "", fmt.Errorf("fedora: Everything not published for %s", release)
+			}
+			return indexISO(fmt.Sprintf(
+				"https://dl.fedoraproject.org/pub/fedora/linux/releases/%s/Everything/%s/iso/",
+				release, farch),
+				`Fedora-Everything-netinst-`+farch+`-[^"]*\.iso`)
+		}
 		variant := edition
 		switch edition {
 		case "Server", "Kinoite", "Onyx", "Silverblue", "Sericea", "Workstation", "KDE":

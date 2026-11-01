@@ -1789,7 +1789,9 @@
     "daedalus",
     "chimaera"
    ],
-   "editions": [],
+   "editions": [
+    "netinst"
+   ],
    "arch": [
     "amd64"
    ],
@@ -2354,6 +2356,7 @@
     "COSMIC",
     "COSMIC-Atomic",
     "Cinnamon",
+    "Everything",
     "KDE",
     "KDE_Mobile",
     "Kinoite",
@@ -4156,6 +4159,7 @@
     "9"
    ],
    "editions": [
+    "DVD",
     "Plasma",
     "GNOME",
     "Xfce"
@@ -5290,7 +5294,7 @@
    ],
    "scrape": true,
    "status": "active",
-   "image_type": "iso",
+   "image_type": "qcow2",
    "download_mode": "direct",
    "license": "redistributable",
    "boot_mode": "both",

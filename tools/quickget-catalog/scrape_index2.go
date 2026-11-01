@@ -199,7 +199,12 @@ var indexNZResolvers = map[string]func(release, edition, arch string) (string, s
 		return u, "", nil
 	},
 	"opensuse-microos": func(release, edition, arch string) (string, string, error) {
-		return "https://download.opensuse.org/tumbleweed/iso/openSUSE-MicroOS-DVD-x86_64-Current.iso", "", nil
+		// Pre-imaged kvm-and-xen qcow2 — MicroOS provisions via a
+		// combustion script on QEMU fw_cfg, like fedora-coreos uses
+		// ignition. The DVD ISO is a kiwi selfinstall that needs menu
+		// interaction, so it is unsuitable.
+		return indexISO("https://download.opensuse.org/tumbleweed/appliances/",
+			`openSUSE-MicroOS\.x86_64-(?:[0-9.]+-)?kvm-and-xen(?:-Snapshot\d+)?\.qcow2`)
 	},
 	"proxmox-backup-server": func(release, edition, arch string) (string, string, error) {
 		// release-aware: proxmox-backup-server_4.2-1.iso etc.

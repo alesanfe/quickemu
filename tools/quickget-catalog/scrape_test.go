@@ -289,6 +289,7 @@ func TestScrapeInputInjection(t *testing.T) {
 func TestScrapeAPIScrapers(t *testing.T) {
 	fakeFetch(t, map[string]string{
 		"https://www.mageia.org/en/downloads/get/?q=Mageia-9-Live-Plasma-x86_64.iso":          `<a href="https://mirror/Mageia-9-Live-Plasma-x86_64.iso">click here</a>`,
+		"https://mirrors.kernel.org/mageia/iso/9/Mageia-9-x86_64/":                            `<a href="Mageia-9-x86_64.iso">x</a>`,
 		"https://mirror/Mageia-9-Live-Plasma-x86_64.iso.sha512":                               strings.Repeat("c", 128) + "  iso",
 		"https://api.pop-os.org/builds/22.04/intel":                                           `{"url":"https://iso/pop.iso","sha_sum":"popsha"}`,
 		"https://meta.cdn.soulharsh007.dev/RebornOS-ISO?format=json":                          `{"url":"https://cdn/rb.iso","md5":"rbmd5"}`,
@@ -297,6 +298,7 @@ func TestScrapeAPIScrapers(t *testing.T) {
 	})
 	cases := []struct{ os, rel, ed, want string }{
 		{"mageia", "9", "Plasma", "mirror/Mageia-9-Live-Plasma-x86_64.iso"},
+		{"mageia", "9", "DVD", "Mageia-9-x86_64.iso"},
 		{"popos", "22.04", "intel", "iso/pop.iso"},
 		{"rebornos", "latest", "", "cdn/rb.iso"},
 		{"securityonion", "latest", "", "securityonion/securityonion-3.3.0.iso"},

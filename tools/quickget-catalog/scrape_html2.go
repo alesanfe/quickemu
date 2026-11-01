@@ -460,6 +460,14 @@ var htmlNZResolvers = map[string]func(release, edition, arch string) (string, st
 	},
 	"mageia": func(release, edition, arch string) (string, string, error) {
 		// get_mageia: downloads page 'click here' href → iso; .sha512 sidecar.
+		// The DVD edition is the classic drakx installer (auto_inst) —
+		// the Live media has its own installer and cannot automate.
+		if edition == "DVD" {
+			return indexISO(fmt.Sprintf(
+				"https://mirrors.kernel.org/mageia/iso/%s/Mageia-%s-x86_64/",
+				release, release),
+				`Mageia-`+regexp.QuoteMeta(release)+`-x86_64\.iso`)
+		}
 		body, err := fetchString("https://www.mageia.org/en/downloads/get/?q=Mageia-" + release + "-Live-" + edition + "-x86_64.iso")
 		if err != nil {
 			return "", "", err
