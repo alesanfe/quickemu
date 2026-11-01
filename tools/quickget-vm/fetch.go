@@ -144,7 +144,9 @@ func (s *stallWatchReader) Read(b []byte) (int, error) {
 	n, err := s.r.Read(b)
 	if n > 0 {
 		s.last.Store(time.Now().UnixNano())
-		s.prog.add(int64(n))
+		if s.prog != nil {
+			s.prog.add(int64(n))
+		}
 	}
 	return n, err
 }
